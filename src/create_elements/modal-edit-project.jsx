@@ -1,36 +1,53 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Film, Video, Sparkles, Briefcase, Lock, Globe } from "lucide-react";
-import { createProject } from "./functions";
+import { editProject } from "./functions";
 
-function ModalCreateProject({ isOpen, onClose, folders }) {
-  const [folderId, setFolderId] = useState("");
+function ModalEditProject({
+  isOpen,
+  onClose,
+  project,
+  folders,
+  onProjectUpdated,
+}) {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
+  const [folderId, setFolderId] = useState("");
   const [projectVisibility, setProjectVisibility] = useState("private");
+
+  // Llenar el formulario con los datos del proyecto cuando se abre el modal
+  useEffect(() => {
+    if (project && isOpen) {
+      setProjectName(project.name || "");
+      setProjectDescription(project.description || "");
+      setFolderId(project.folder_id || "");
+      setProjectVisibility(project.visibility || "private");
+    }
+  }, [project, isOpen]);
 
   async function handleSubmit() {
     if (!projectName || !folderId) return;
 
-    const response = await createProject({
+    const response = await editProject({
+      id: project.id,
       name: projectName,
       description: projectDescription,
       folder_id: folderId,
-      project_type: projectVisibility,
+      visibility: projectVisibility,
     });
 
-    // Limpiar formulario y cerrar modal
-    setProjectName("");
-    setProjectDescription("");
-    setProjectVisibility("private");
-    setFolderId("");
-    onClose();
+    // Llamar al callback si existe
+    if (onProjectUpdated) {
+      onProjectUpdated();
+    }
+
+    handleClose();
   }
 
   const handleClose = () => {
     setProjectName("");
     setProjectDescription("");
-    setProjectVisibility("private");
     setFolderId("");
+    setProjectVisibility("private");
     onClose();
   };
 
@@ -42,7 +59,7 @@ function ModalCreateProject({ isOpen, onClose, folders }) {
         {/* Header */}
         <div className="flex items-center justify-between p-6">
           <h2 className="text-xl font-semibold text-white montserrat-medium">
-            Create New Project
+            Edit Project
           </h2>
           <button
             onClick={handleClose}
@@ -68,6 +85,7 @@ function ModalCreateProject({ isOpen, onClose, folders }) {
               required
             />
           </div>
+
           {/* Folder Select */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
@@ -79,10 +97,10 @@ function ModalCreateProject({ isOpen, onClose, folders }) {
               className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
               required
             >
-              <option value="" disabled className="bg-darkBoxSub text-gray-400">
+              <option value="" disabled className="text-gray-400">
                 Select a folder...
               </option>
-              {folders.map((folder) => (
+              {folders?.map((folder) => (
                 <option
                   key={folder.id}
                   value={folder.id}
@@ -187,7 +205,7 @@ function ModalCreateProject({ isOpen, onClose, folders }) {
               disabled={!projectName || !folderId}
               className="px-6 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543]"
             >
-              Create Project
+              Update Project
             </button>
           </div>
         </form>
@@ -196,4 +214,4 @@ function ModalCreateProject({ isOpen, onClose, folders }) {
   );
 }
 
-export default ModalCreateProject;
+export default ModalEditProject;

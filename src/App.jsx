@@ -6,6 +6,7 @@ import Home from "./dashboard/home";
 import MainLayout from "./components/main-layout";
 import ErrorBoundary from "./components/error-boundary";
 import { userInfoLoader } from "./auth/functions";
+import { multiloaderGet } from "./create_elements/functions";
 
 const router = createBrowserRouter([
   {
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
       {
         index: true,
         element: <Home />,
+        loader: multiloaderGet,
       },
       {
         path: "editor",

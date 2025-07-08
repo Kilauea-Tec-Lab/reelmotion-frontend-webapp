@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Folder, FolderOpen, Star, Lock, Users } from "lucide-react";
-import { createFolder } from "./functions";
+import { editFolder } from "./functions";
 
-function ModalCreateFolder({ isOpen, onClose }) {
+function ModalEditFolder({ isOpen, onClose, folder }) {
   const [folderName, setFolderName] = useState("");
   const [folderDescription, setFolderDescription] = useState("");
   const [selectedType, setSelectedType] = useState("");
@@ -46,27 +46,29 @@ function ModalCreateFolder({ isOpen, onClose }) {
     "#54A0FF",
   ];
 
+  // Llenar el formulario con los datos del folder cuando se abre el modal
+  useEffect(() => {
+    if (folder && isOpen) {
+      setFolderName(folder.name || "");
+      setFolderDescription(folder.description || "");
+      setSelectedType(folder.folder_type || "regular");
+      setFolderColor(folder.color || "#F2D543");
+    }
+  }, [folder, isOpen]);
+
   async function handleSubmit() {
     if (!folderName || !selectedType) return;
 
-    const createFolderFunction = await createFolder({
+    const infoUpdate = await editFolder({
+      id: folder.id,
       name: folderName,
       description: folderDescription,
       folder_type: selectedType,
       color: folderColor,
     });
 
-    const response = await createFolderFunction.json();
-
-    // Aquí puedes agregar la lógica para crear el folder
-    // Por ejemplo, hacer una llamada a la API
-
-    // Limpiar formulario y cerrar modal
-    setFolderName("");
-    setFolderDescription("");
-    setSelectedType("");
-    setFolderColor("#F2D543");
-    onClose();
+    // Cerrar modal después de actualizar
+    handleClose();
   }
 
   const handleClose = () => {
@@ -85,7 +87,7 @@ function ModalCreateFolder({ isOpen, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between p-6 ">
           <h2 className="text-xl font-semibold text-white montserrat-medium">
-            Create New Folder
+            Edit Folder
           </h2>
           <button
             onClick={handleClose}
@@ -211,7 +213,7 @@ function ModalCreateFolder({ isOpen, onClose }) {
               disabled={!folderName || !selectedType}
               className="px-6 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543]"
             >
-              Create Folder
+              Update Folder
             </button>
           </div>
         </form>
@@ -220,4 +222,4 @@ function ModalCreateFolder({ isOpen, onClose }) {
   );
 }
 
-export default ModalCreateFolder;
+export default ModalEditFolder;

@@ -1,18 +1,90 @@
-import { img } from "framer-motion/client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, FolderClosed, VideoIcon } from "lucide-react";
 import RecentProjects from "./components/recent-projects";
 import CarrouselFolders from "./components/carrousel-folders";
 import ModalCreateProject from "../create_elements/modal-create-project";
 import ModalCreateFolder from "../create_elements/modal-create-folder";
+import ModalEditProject from "../create_elements/modal-edit-project";
+import ModalDeleteProject from "../create_elements/modal-delete-project";
+import { useLoaderData } from "react-router-dom";
+import { createPusherClient } from "@/pusher";
+import { getFolders, getProjects } from "../create_elements/functions";
 
 function Home() {
+  const { folders, projects, user } = useLoaderData();
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showFolderModal, setShowFolderModal] = useState(false);
-  const recentsProjects = [];
+  const [showEditProjectModal, setShowEditProjectModal] = useState(false);
+  const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [foldersData, setFoldersData] = useState(folders?.data);
+  const [projectsData, setProjectsData] = useState(projects?.data);
 
-  const foldersArray = [];
+  //WEBSOCKET
+  const pusherClient = createPusherClient();
+
+  async function fillProjects() {
+    const response = await getProjects();
+    setProjectsData(response?.data);
+  }
+
+  async function fillFolders() {
+    const response = await getFolders();
+    setFoldersData(response?.data);
+  }
+
+  // Funciones para manejar la edición y eliminación de proyectos
+  const handleEditProject = (project) => {
+    setSelectedProject(project);
+    setShowEditProjectModal(true);
+  };
+
+  const handleDeleteProject = (project) => {
+    setSelectedProject(project);
+    setShowDeleteProjectModal(true);
+  };
+
+  const handleProjectDeleted = (deletedProject) => {
+    // Actualizar la lista de proyectos removiendo el proyecto eliminado
+    setProjectsData((prev) =>
+      prev.filter((project) => project.id !== deletedProject.id)
+    );
+  };
+
+  const handleProjectUpdated = () => {
+    // Refrescar la lista de proyectos después de editar
+    fillProjects();
+  };
+
+  useEffect(() => {
+    let channel = pusherClient.subscribe(
+      `private-get-projects.${user?.data?.id}`
+    );
+
+    channel.bind("fill-projects", ({ user_id }) => {
+      fillProjects();
+    });
+
+    return () => {
+      pusherClient.unsubscribe(`private-get-projects.${user?.data?.id}`);
+    };
+  });
+
+  useEffect(() => {
+    let channel = pusherClient.subscribe(
+      `private-get-folders.${user?.data?.id}`
+    );
+
+    channel.bind("fill-folders", ({ user_id }) => {
+      fillFolders();
+    });
+
+    return () => {
+      pusherClient.unsubscribe(`private-get-folders.${user?.data?.id}`);
+    };
+  });
+
   return (
     <div className="p-6 min-h-screen bg-primarioDark">
       <div className="flex items-center justify-between mb-8">
@@ -56,7 +128,7 @@ function Home() {
         </div>
       </div>
       {/* Recents */}
-      {recentsProjects.length === 0 ? (
+      {projectsData.length === 0 ? (
         <div
           className="flex items-center justify-center rounded
         "
@@ -66,28 +138,52 @@ function Home() {
           </span>
         </div>
       ) : (
-        <RecentProjects recentsProjects={recentsProjects} />
+        <RecentProjects
+          recentsProjects={projectsData}
+          onEditProject={handleEditProject}
+          onDeleteProject={handleDeleteProject}
+        />
       )}
       {/*Carrousel Folders */}
 
       <div>
-        {foldersArray.map((folder) => (
+        {foldersData.map((folder) => (
           <CarrouselFolders
             key={folder.id}
-            title={folder.name}
-            projects={recentsProjects}
+            folder={folder}
+            folders={foldersData}
           />
         ))}
       </div>
 
       {/* Modales */}
       <ModalCreateProject
+        folders={foldersData}
         isOpen={showProjectModal}
         onClose={() => setShowProjectModal(false)}
       />
       <ModalCreateFolder
         isOpen={showFolderModal}
         onClose={() => setShowFolderModal(false)}
+      />
+      <ModalEditProject
+        isOpen={showEditProjectModal}
+        onClose={() => {
+          setShowEditProjectModal(false);
+          setSelectedProject(null);
+        }}
+        project={selectedProject}
+        folders={foldersData}
+        onProjectUpdated={handleProjectUpdated}
+      />
+      <ModalDeleteProject
+        isOpen={showDeleteProjectModal}
+        onClose={() => {
+          setShowDeleteProjectModal(false);
+          setSelectedProject(null);
+        }}
+        project={selectedProject}
+        onConfirm={handleProjectDeleted}
       />
     </div>
   );
