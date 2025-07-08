@@ -1,13 +1,9 @@
 import { div, span } from "framer-motion/client";
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
 import {
   Play,
   Pause,
-  SkipBack,
-  SkipForward,
   Volume2,
-  Clapperboard,
   ClapperboardIcon,
   Music,
   Image,
@@ -16,22 +12,20 @@ import {
   Mic,
 } from "lucide-react";
 
-/**
- * Editor - Advanced Timeline Video Editor
- *
- * Features:
- * - Drag and drop video, image, music, and voice elements to timeline
- * - Real-time drag and drop with collision resolution
- * - Trimming/resizing of timeline elements with handles
- * - Master volume control affecting all media
- * - Timeline scrubbing and playback controls
- * - Visual feedback during drag and resize operations
- *
- * Trimming Logic:
- * - Video/Music/Voice: Respects original media duration, tracks trimStart/trimEnd
- * - Images: Can be expanded/contracted freely (duration is flexible)
- * - Resize handles appear on hover for all timeline elements
- */
+// Editor - Advanced Timeline Video Editor
+//
+// Features:
+// - Drag and drop video, image, music, and voice elements to the timeline
+// - Real-time drag and drop with collision resolution
+// - Trimming/resizing of timeline elements with handles
+// - Master volume control affecting all media
+// - Timeline scrubbing and playback controls
+// - Visual feedback during drag and resize operations
+//
+// Trimming Logic:
+// - Video/Music/Voice: Respects original media duration, tracks trimStart/trimEnd
+// - Images: Can be expanded/contracted freely (duration is flexible)
+// - Resize handles appear on hover for all timeline elements
 
 function Editor() {
   const [menuActive, setMenuActive] = useState(1);
@@ -49,25 +43,30 @@ function Editor() {
   const timelineRef = useRef(null);
   const [hoveredElement, setHoveredElement] = useState(null);
 
-  // Estados para el drag de elementos del timeline
+  // States for timeline element dragging
   const [draggingElement, setDraggingElement] = useState(null);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartTime, setDragStartTime] = useState(0);
-  const [currentDragX, setCurrentDragX] = useState(0); // Para guardar la posición actual del mouse
-  const [dragPreviewPosition, setDragPreviewPosition] = useState(0); // Para mostrar la posición durante el drag
-  const [masterVolume, setMasterVolume] = useState(1); // Volumen maestro (100% por defecto)
-  const [isDraggingVolume, setIsDraggingVolume] = useState(false); // Para controlar el drag del volumen
+  const [currentDragX, setCurrentDragX] = useState(0); // To store current mouse position
+  const [dragPreviewPosition, setDragPreviewPosition] = useState(0); // To show position during drag
+  const [masterVolume, setMasterVolume] = useState(1); // Master volume (100% by default)
+  const [isDraggingVolume, setIsDraggingVolume] = useState(false); // To control volume dragging
   const volumeRef = useRef(null);
 
-  // Estados para el recorte de elementos
+  // States for element trimming/resizing
   const [isResizing, setIsResizing] = useState(false);
   const [resizingElement, setResizingElement] = useState(null);
-  const [resizeType, setResizeType] = useState(null); // 'start' o 'end'
+  const [resizeType, setResizeType] = useState(null); // 'start' or 'end'
   const [resizeStartX, setResizeStartX] = useState(0);
   const [resizeStartTime, setResizeStartTime] = useState(0);
 
-  // Estado para elemento seleccionado
+  // State for selected element
   const [selectedElement, setSelectedElement] = useState(null);
+
+  // States for image dragging in preview area
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [draggingImageElement, setDraggingImageElement] = useState(null);
+  const [imageDragStart, setImageDragStart] = useState({ x: 0, y: 0 });
 
   const videos = [
     {
@@ -132,7 +131,7 @@ function Editor() {
     {
       url: "/logos/logo_reelmotion.webp",
       name: "Logo ReelMotion",
-      duration: 5, // duración por defecto para imágenes
+      duration: 5, // default duration for images
     },
   ];
 
@@ -140,7 +139,7 @@ function Editor() {
     {
       url: "/test/sample_music.mp3", // Placeholder - replace with actual music files
       name: "Sample Music Track",
-      duration: 120, // duración por defecto para música
+      duration: 120, // default duration for music
     },
   ];
 
@@ -148,11 +147,11 @@ function Editor() {
     {
       url: "/test/sample_voice.wav", // Placeholder - replace with actual voice files
       name: "Sample Voice Track",
-      duration: 60, // duración por defecto para voz
+      duration: 60, // default duration for voice
     },
   ];
 
-  // Funciones para controlar el volumen
+  // Functions to control volume
   const handleVolumeClick = (e) => {
     if (volumeRef.current) {
       const rect = volumeRef.current.getBoundingClientRect();
@@ -169,18 +168,18 @@ function Editor() {
   };
 
   const updateAllVolumes = (volume) => {
-    // Actualizar volumen de todos los audios
+    // Update volume of all audio
     Object.values(audioRefs.current).forEach((audio) => {
       if (audio) {
         audio.volume = volume;
       }
     });
 
-    // Para el video principal, se actualizará en syncMediaWithTime
-    // considerando tanto el volumen maestro como el volumen específico del video
+    // For main video, it will be updated in syncMediaWithTime
+    // considering both master volume and specific video volume
   };
 
-  // Funciones para drag and drop
+  // Functions for drag and drop
   const handleDragStart = (e, video, type = "video") => {
     setDraggedItem({ ...video, type });
     e.dataTransfer.effectAllowed = "copy";
@@ -191,7 +190,7 @@ function Editor() {
     e.dataTransfer.dropEffect = "copy";
   };
 
-  // Función para obtener la duración real de un video
+  // Function to get the real duration of a video
   const getVideoDuration = (videoUrl) => {
     return new Promise((resolve) => {
       const video = document.createElement("video");
@@ -204,15 +203,15 @@ function Editor() {
       };
 
       video.onerror = function () {
-        console.warn(`No se pudo cargar el video: ${videoUrl}`);
-        resolve(10); // duración por defecto si hay error
+        console.warn(`Could not load video: ${videoUrl}`);
+        resolve(10); // default duration if error
       };
 
       video.src = videoUrl;
     });
   };
 
-  // Función para manejar cuando se carga la metadata de un video
+  // Function to handle when video metadata is loaded
   const handleVideoMetadata = async (videoUrl, videoElement) => {
     const duration = formatDuration(videoElement.duration);
     setVideoDurations((prev) => ({
@@ -221,38 +220,38 @@ function Editor() {
     }));
   };
 
-  // Calcular la duración total del timeline
+  // Calculate total timeline duration
   const getTimelineDuration = () => {
-    if (arrayVideoMake.length === 0) return 120; // default 2 minutos
+    if (arrayVideoMake.length === 0) return 120; // default 2 minutes
 
     const endTimes = arrayVideoMake.map((item) => item.endTime);
     const maxEndTime = endTimes.length > 0 ? Math.max(...endTimes) : 0;
-    return Math.max(maxEndTime, 120); // mínimo 2 minutos
+    return Math.max(maxEndTime, 120); // minimum 2 minutes
   };
 
-  // Función para obtener el elemento activo en un momento dado
+  // Function to get active element at a given time
   const getActiveElements = (time) => {
     return arrayVideoMake.filter(
       (item) => time >= item.startTime && time < item.endTime
     );
   };
 
-  // Función helper para formatear duraciones a 2 decimales
+  // Helper function to format durations to 2 decimals
   const formatDuration = (duration) => {
     return Math.round(duration * 100) / 100;
   };
 
-  // Función para reproducir/pausar
+  // Function to play/pause
   const handlePlayPause = () => {
     if (isPlaying) {
-      // Pausar
+      // Pause
       setIsPlaying(false);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
 
-      // Pausar todos los medios
+      // Pause all media
       if (mainVideoRef.current) {
         mainVideoRef.current.pause();
       }
@@ -261,54 +260,54 @@ function Editor() {
         if (audio) audio.pause();
       });
     } else {
-      // Solo reproducir si hay contenido en el timeline
+      // Only play if there's content in the timeline
       if (arrayVideoMake.length === 0) {
-        alert("Agrega contenido al timeline antes de reproducir");
+        alert("Add content to the timeline before playing");
         return;
       }
 
-      // Reproducir
+      // Play
       setIsPlaying(true);
 
-      // Iniciar el timer del timeline
+      // Start timeline timer
       intervalRef.current = setInterval(() => {
-        // No actualizar el tiempo si el usuario está arrastrando el timeline
+        // Don't update time if user is dragging timeline
         if (!isDraggingTimeline) {
           setCurrentTime((prevTime) => {
-            const newTime = prevTime + 0.2; // actualizar cada 200ms para mejor performance
+            const newTime = prevTime + 0.2; // update every 200ms for better performance
 
-            // Si llegamos al final, parar
+            // If we reach the end, stop
             if (newTime >= getTimelineDuration()) {
               setIsPlaying(false);
               clearInterval(intervalRef.current);
               intervalRef.current = null;
-              return 0; // reiniciar
+              return 0; // reset
             }
 
             return newTime;
           });
         }
-      }, 200); // cambiar a 200ms
+      }, 200); // change to 200ms
     }
   };
 
-  // Función para sincronizar todos los medios con el tiempo actual
+  // Function to synchronize all media with current time
   const syncMediaWithTime = (time) => {
     const activeElements = getActiveElements(time);
     const activeVideo = activeElements.find((el) => el.channel === "video");
 
-    // Manejar video principal
+    // Handle main video
     if (mainVideoRef.current) {
       if (activeVideo) {
         const elementTime = time - activeVideo.startTime;
-        // Ajustar por trim del inicio
+        // Adjust for start trim
         const adjustedTime = elementTime + (activeVideo.trimStart || 0);
 
-        // Solo cambiar src si es diferente para evitar parpadeo
+        // Only change src if different to avoid flickering
         if (!mainVideoRef.current.src.includes(activeVideo.url)) {
           mainVideoRef.current.src = activeVideo.url;
           mainVideoRef.current.currentTime = adjustedTime;
-          // Aplicar volumen específico del video y volumen maestro
+          // Apply specific video volume and master volume
           mainVideoRef.current.volume =
             (activeVideo.volume !== undefined ? activeVideo.volume : 1) *
             masterVolume;
@@ -316,14 +315,14 @@ function Editor() {
             mainVideoRef.current.play().catch(() => {});
           }
         } else {
-          // Solo ajustar tiempo si está muy desincronizado
+          // Only adjust time if very out of sync
           const timeDiff = Math.abs(
             mainVideoRef.current.currentTime - adjustedTime
           );
           if (timeDiff > 0.5) {
             mainVideoRef.current.currentTime = adjustedTime;
           }
-          // Actualizar volumen siempre
+          // Always update volume
           mainVideoRef.current.volume =
             (activeVideo.volume !== undefined ? activeVideo.volume : 1) *
             masterVolume;
@@ -332,7 +331,7 @@ function Editor() {
           }
         }
 
-        // Aplicar corrección de color
+        // Apply color correction
         const filters = [];
         if (activeVideo.colorCorrection) {
           const cc = activeVideo.colorCorrection;
@@ -349,53 +348,53 @@ function Editor() {
           if (cc.hue !== 0) {
             filters.push(`hue-rotate(${cc.hue}deg)`);
           }
-          // Simular temperatura usando sepia y hue-rotate
+          // Simulate temperature using sepia and hue-rotate
           if (cc.temperature !== 0) {
             const tempIntensity = Math.abs(cc.temperature) / 100;
             if (cc.temperature > 0) {
-              // Cálido (sepia + hue hacia amarillo)
+              // Warm (sepia + hue towards yellow)
               filters.push(`sepia(${tempIntensity * 0.3})`);
               filters.push(`hue-rotate(${cc.temperature * 0.3}deg)`);
             } else {
-              // Frío (hue hacia azul)
+              // Cool (hue towards blue)
               filters.push(`hue-rotate(${cc.temperature * 1.5}deg)`);
             }
           }
-          // Simular tinte usando hue-rotate
+          // Simulate tint using hue-rotate
           if (cc.tint !== 0) {
             filters.push(`hue-rotate(${cc.tint * 1.8}deg)`);
           }
         }
 
-        // Aplicar filtros siempre, incluso si está vacío
+        // Apply filters always, even if empty
         mainVideoRef.current.style.filter =
           filters.length > 0 ? filters.join(" ") : "none";
 
-        // Mostrar el video
+        // Show video
         mainVideoRef.current.style.display = "block";
       } else {
-        // No hay video activo, pausar y ocultar
+        // No active video, pause and hide
         if (!mainVideoRef.current.paused) {
           mainVideoRef.current.pause();
         }
-        // Limpiar efectos cuando no hay video
+        // Clear effects when no video
         mainVideoRef.current.style.filter = "none";
         mainVideoRef.current.style.display = "none";
       }
     }
 
-    // Manejar audio (simplificado)
+    // Handle audio (simplified)
     activeElements.forEach((element) => {
       if (element.channel === "music" || element.channel === "voice") {
         if (!audioRefs.current[element.id]) {
           const audio = new Audio(element.url);
-          audio.volume = masterVolume; // Aplicar volumen maestro
+          audio.volume = masterVolume; // Apply master volume
           audioRefs.current[element.id] = audio;
         }
 
         const audio = audioRefs.current[element.id];
         const elementTime = time - element.startTime;
-        // Ajustar por trim del inicio
+        // Adjust for start trim
         const adjustedTime = elementTime + (element.trimStart || 0);
 
         if (Math.abs(audio.currentTime - adjustedTime) > 0.3) {
@@ -407,7 +406,7 @@ function Editor() {
       }
     });
 
-    // Pausar elementos inactivos
+    // Pause inactive elements
     Object.keys(audioRefs.current).forEach((elementId) => {
       const isActive = activeElements.some((el) => el.id === elementId);
       if (!isActive && audioRefs.current[elementId]) {
@@ -416,14 +415,14 @@ function Editor() {
     });
   };
 
-  // Efecto para sincronizar medios cuando cambia el tiempo actual
+  // Effect to synchronize media when current time changes
   useEffect(() => {
     if (isPlaying) {
       syncMediaWithTime(currentTime);
     }
   }, [currentTime, isPlaying]);
 
-  // Limpiar intervalos cuando el componente se desmonte
+  // Clean up intervals when component unmounts
   useEffect(() => {
     return () => {
       if (intervalRef.current) {
@@ -435,10 +434,10 @@ function Editor() {
     };
   }, []);
 
-  // Efecto para manejar cambios en el timeline o cuando se detiene la reproducción
+  // Effect to handle timeline changes or when playback stops
   useEffect(() => {
     if (!isPlaying && currentTime === 0) {
-      // Reset - ocultar video y mostrar placeholder
+      // Reset - hide video and show placeholder
       if (mainVideoRef.current) {
         mainVideoRef.current.style.display = "none";
         mainVideoRef.current.pause();
@@ -446,13 +445,13 @@ function Editor() {
     }
   }, [isPlaying, currentTime]);
 
-  // Efecto para aplicar cambios en tiempo real cuando se edita el elemento seleccionado
+  // Effect to apply real-time changes when editing selected element
   useEffect(() => {
     if (
       selectedElement &&
       (selectedElement.colorCorrection || selectedElement.volume !== undefined)
     ) {
-      // Forzar re-sincronización para aplicar efectos inmediatamente
+      // Force re-sync to apply effects immediately
       syncMediaWithTime(currentTime);
     }
   }, [
@@ -470,7 +469,7 @@ function Editor() {
     e.preventDefault();
     if (!draggedItem) return;
 
-    // Determinar el canal correcto basado en el tipo de elemento
+    // Determine correct channel based on element type
     let targetChannel = channel;
     if (draggedItem.type === "video") {
       targetChannel = "video";
@@ -478,17 +477,17 @@ function Editor() {
       targetChannel = "image";
     }
 
-    // Obtener duración real del elemento
-    let elementDuration = 10; // duración por defecto
-    let originalDuration = 10; // duración original del medio
+    // Get real element duration
+    let elementDuration = 10; // default duration
+    let originalDuration = 10; // original media duration
 
     if (draggedItem.type === "video") {
-      // Si ya tenemos la duración en cache, la usamos
+      // If we already have duration in cache, use it
       if (videoDurations[draggedItem.url]) {
         elementDuration = videoDurations[draggedItem.url];
         originalDuration = videoDurations[draggedItem.url];
       } else {
-        // Si no, la obtenemos dinámicamente
+        // If not, get it dynamically
         elementDuration = await getVideoDuration(draggedItem.url);
         originalDuration = elementDuration;
         setVideoDurations((prev) => ({
@@ -497,55 +496,55 @@ function Editor() {
         }));
       }
     } else if (draggedItem.type === "image") {
-      elementDuration = draggedItem.duration || 5; // 5 segundos para imágenes
-      originalDuration = null; // Las imágenes no tienen duración fija
+      elementDuration = draggedItem.duration || 5; // 5 seconds for images
+      originalDuration = null; // Images don't have fixed duration
     } else if (draggedItem.type === "music" || draggedItem.type === "voice") {
-      // Para audio, asumir duración por defecto (esto debería mejorarse con carga real)
-      elementDuration = 30; // 30 segundos por defecto para audio
+      // For audio, assume default duration (this should be improved with real loading)
+      elementDuration = 30; // 30 seconds default for audio
       originalDuration = 30;
     }
 
-    // Encontrar el último elemento en el canal target para evitar superposiciones
+    // Find last element in target channel to avoid overlaps
     const elementsInChannel = arrayVideoMake.filter(
       (item) => item.channel === targetChannel
     );
     let startTime = 0;
 
     if (elementsInChannel.length > 0) {
-      // Encontrar el tiempo final más grande en este canal
+      // Find largest end time in this channel
       const lastEndTime = Math.max(
         ...elementsInChannel.map((item) => item.endTime)
       );
-      startTime = lastEndTime; // Empezar después del último elemento
+      startTime = lastEndTime; // Start after last element
     }
 
-    // Crear nuevo elemento para el timeline
+    // Create new element for timeline
     const newElement = {
       id: `${targetChannel}_${Date.now()}`,
       channel: targetChannel,
       startTime: formatDuration(startTime),
-      endTime: formatDuration(startTime + elementDuration), // usar duración real
+      endTime: formatDuration(startTime + elementDuration), // use real duration
       type: draggedItem.type,
       url: draggedItem.url,
       title: draggedItem.title || draggedItem.name,
-      duration: formatDuration(elementDuration), // duración actual en el timeline
-      originalDuration: originalDuration, // duración original del medio (null para imágenes)
-      trimStart: 0, // tiempo recortado del inicio
-      trimEnd: 0, // tiempo recortado del final
+      duration: formatDuration(elementDuration), // current duration in timeline
+      originalDuration: originalDuration, // original media duration (null for images)
+      trimStart: 0, // trimmed time from start
+      trimEnd: 0, // trimmed time from end
       effects: [],
       volume: targetChannel === "music" || targetChannel === "voice" ? 0.5 : 1,
       opacity: 1,
       position: { x: 0, y: 0 },
       scale: 1,
       zIndex: 1,
-      // Propiedades específicas para videos
+      // Specific properties for videos
       colorCorrection: {
-        brightness: 0, // -100 a 100
-        contrast: 0, // -100 a 100
-        saturation: 0, // -100 a 100
-        hue: 0, // -180 a 180
-        temperature: 0, // -100 a 100 (cálido/frío)
-        tint: 0, // -100 a 100 (magenta/verde)
+        brightness: 0, // -100 to 100
+        contrast: 0, // -100 to 100
+        saturation: 0, // -100 to 100
+        hue: 0, // -180 to 180
+        temperature: 0, // -100 to 100 (warm/cool)
+        tint: 0, // -100 to 100 (magenta/green)
       },
     };
 
@@ -553,9 +552,9 @@ function Editor() {
     setDraggedItem(null);
   };
 
-  // Función para manejar clic en el timeline
+  // Function to handle timeline click
   const handleTimelineClick = (e) => {
-    // No procesar si estamos arrastrando un elemento
+    // Don't process if we're dragging an element
     if (draggingElement) return;
 
     if (timelineRef.current) {
@@ -570,16 +569,30 @@ function Editor() {
     }
   };
 
-  // Función para iniciar el arrastre del timeline
+  // Function to start timeline dragging
   const handleTimelineMouseDown = (e) => {
-    // No procesar si estamos arrastrando un elemento
+    // Don't process if we're dragging an element
     if (draggingElement) return;
 
     setIsDraggingTimeline(true);
     handleTimelineClick(e);
   };
 
-  // Efecto para manejar eventos globales de mouse
+  // Function to handle image drag start in preview area
+  const handleImageDragStart = (e, element) => {
+    console.log("Starting image drag for element:", element.id); // Debug log
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingImage(true);
+    setDraggingImageElement(element);
+    setImageDragStart({
+      x: e.clientX - (element.position?.x || 0),
+      y: e.clientY - (element.position?.y || 0),
+    });
+    document.body.style.cursor = "grabbing";
+  };
+
+  // Effect to handle global mouse events
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (isDraggingTimeline && timelineRef.current) {
@@ -590,7 +603,7 @@ function Editor() {
         setCurrentTime(newTime);
       }
 
-      // Manejar drag de volumen
+      // Handle volume drag
       if (isDraggingVolume && volumeRef.current) {
         const rect = volumeRef.current.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
@@ -599,22 +612,49 @@ function Editor() {
         updateAllVolumes(percentage);
       }
 
-      // Manejar drag de elementos del timeline
+      // Handle timeline element drag
       if (draggingElement && timelineRef.current) {
-        setCurrentDragX(e.clientX); // Guardar la posición actual del mouse
+        setCurrentDragX(e.clientX); // Save current mouse position
         const rect = timelineRef.current.getBoundingClientRect();
         const newStartTime = calculateNewPosition(e.clientX, rect);
 
-        // Actualizar la posición de vista previa en tiempo real
+        // Update preview position in real time
         setDragPreviewPosition(newStartTime);
       }
 
-      // Manejar redimensionamiento de elementos
+      // Handle image drag in preview area
+      if (isDraggingImage && draggingImageElement) {
+        console.log("Moving image during drag"); // Debug log
+        e.preventDefault();
+        const newPosition = {
+          x: e.clientX - imageDragStart.x,
+          y: e.clientY - imageDragStart.y,
+        };
+
+        // Update position in real time using callback to avoid stale closure
+        setArrayVideoMake((prevArray) =>
+          prevArray.map((item) =>
+            item.id === draggingImageElement.id
+              ? { ...item, position: newPosition }
+              : item
+          )
+        );
+
+        // Update selected element if it's the one being dragged
+        setSelectedElement((prevSelected) => {
+          if (prevSelected && prevSelected.id === draggingImageElement.id) {
+            return { ...prevSelected, position: newPosition };
+          }
+          return prevSelected;
+        });
+      }
+
+      // Handle element resizing
       if (isResizing && timelineRef.current) {
         const rect = timelineRef.current.getBoundingClientRect();
         const newTime = calculateResizePosition(e.clientX, rect);
 
-        // Aplicar redimensionamiento en tiempo real
+        // Apply resizing in real time
         const updatedElement = applyResize(
           resizingElement,
           newTime,
@@ -631,30 +671,39 @@ function Editor() {
     const handleMouseUp = (e) => {
       if (isDraggingTimeline) {
         setIsDraggingTimeline(false);
-        // Sincronizar inmediatamente los medios cuando se termina de arrastrar
+        // Immediately sync media when dragging ends
         syncMediaWithTime(currentTime);
       }
 
-      // Manejar fin del drag de volumen
+      // Handle end of volume drag
       if (isDraggingVolume) {
         setIsDraggingVolume(false);
       }
 
-      // Manejar fin del drag de elementos
+      // Handle end of image drag
+      if (isDraggingImage) {
+        console.log("Stopping image drag"); // Debug log
+        setIsDraggingImage(false);
+        setDraggingImageElement(null);
+        setImageDragStart({ x: 0, y: 0 });
+        document.body.style.cursor = "default";
+      }
+
+      // Handle end of element drag
       if (draggingElement && timelineRef.current) {
         const rect = timelineRef.current.getBoundingClientRect();
-        // Usar currentDragX si está disponible, sino usar e.clientX
+        // Use currentDragX if available, otherwise use e.clientX
         const dragEndX = currentDragX || e.clientX;
         const newStartTime = calculateNewPosition(dragEndX, rect);
 
-        // Resolver colisiones y actualizar el array
+        // Resolve collisions and update array
         const updatedElements = resolveCollisions(
           draggingElement,
           newStartTime
         );
         setArrayVideoMake(updatedElements);
 
-        // Limpiar estado de drag
+        // Clean drag state
         setDraggingElement(null);
         setDragStartX(0);
         setDragStartTime(0);
@@ -663,7 +712,7 @@ function Editor() {
         document.body.style.cursor = "default";
       }
 
-      // Manejar fin del redimensionamiento
+      // Handle end of resizing
       if (isResizing) {
         setIsResizing(false);
         setResizingElement(null);
@@ -677,6 +726,7 @@ function Editor() {
       isDraggingTimeline ||
       draggingElement ||
       isDraggingVolume ||
+      isDraggingImage ||
       isResizing
     ) {
       document.addEventListener("mousemove", handleMouseMove);
@@ -697,32 +747,35 @@ function Editor() {
     dragPreviewPosition,
     isDraggingVolume,
     masterVolume,
+    isDraggingImage,
+    draggingImageElement,
+    imageDragStart,
     isResizing,
     resizingElement,
     resizeType,
   ]);
 
-  // Función para obtener un color único para cada elemento
+  // Function to get unique color for each element
   const getElementColor = (elementId, index) => {
     const colors = [
-      "#4A90E2", // Azul
-      "#FF6B6B", // Rojo coral
-      "#50C878", // Verde esmeralda
-      "#9B59B6", // Púrpura
-      "#F39C12", // Naranja
-      "#E74C3C", // Rojo
-      "#3498DB", // Azul claro
-      "#2ECC71", // Verde
-      "#9B2ECC", // Morado
-      "#E67E22", // Naranja oscuro
-      "#1ABC9C", // Turquesa
-      "#F1C40F", // Amarillo
-      "#E91E63", // Rosa
-      "#FF5722", // Naranja rojizo
-      "#607D8B", // Azul grisáceo
+      "#4A90E2", // Blue
+      "#FF6B6B", // Coral red
+      "#50C878", // Emerald green
+      "#9B59B6", // Purple
+      "#F39C12", // Orange
+      "#E74C3C", // Red
+      "#3498DB", // Light blue
+      "#2ECC71", // Green
+      "#9B2ECC", // Purple
+      "#E67E22", // Dark orange
+      "#1ABC9C", // Turquoise
+      "#F1C40F", // Yellow
+      "#E91E63", // Pink
+      "#FF5722", // Red orange
+      "#607D8B", // Blue gray
     ];
 
-    // Usar el hash del ID para obtener un índice consistente
+    // Use ID hash to get consistent index
     const hashCode = elementId.split("").reduce((a, b) => {
       a = (a << 5) - a + b.charCodeAt(0);
       return a & a;
@@ -731,26 +784,26 @@ function Editor() {
     return colors[Math.abs(hashCode) % colors.length];
   };
 
-  // Función para seleccionar/deseleccionar un elemento
+  // Function to select/deselect an element
   const handleSelectElement = (element, e) => {
     e.stopPropagation();
     if (selectedElement && selectedElement.id === element.id) {
-      // Si ya está seleccionado, deseleccionar
+      // If already selected, deselect
       setSelectedElement(null);
     } else {
-      // Seleccionar el elemento
+      // Select element
       setSelectedElement(element);
     }
   };
 
-  // Función para actualizar propiedades del elemento seleccionado
+  // Function to update selected element properties
   const updateSelectedElement = (property, value) => {
     if (!selectedElement) return;
 
     setArrayVideoMake((prev) =>
       prev.map((item) => {
         if (item.id === selectedElement.id) {
-          // Manejar propiedades anidadas como colorCorrection
+          // Handle nested properties like colorCorrection
           if (property.includes(".")) {
             const [parentProp, childProp] = property.split(".");
             return {
@@ -768,7 +821,7 @@ function Editor() {
       })
     );
 
-    // Actualizar también el estado del elemento seleccionado
+    // Also update selected element state
     setSelectedElement((prev) => {
       if (property.includes(".")) {
         const [parentProp, childProp] = property.split(".");
@@ -785,20 +838,20 @@ function Editor() {
     });
   };
 
-  // Función para eliminar un elemento del timeline
+  // Function to delete element from timeline
   const handleDeleteElement = (elementId) => {
     setArrayVideoMake((prev) => {
-      // Simplemente filtrar el elemento sin reacomodar los demás
+      // Simply filter element without rearranging others
       return prev.filter((item) => item.id !== elementId);
     });
 
-    // Si el elemento eliminado era el seleccionado, deseleccionar
+    // If deleted element was selected, deselect
     if (selectedElement && selectedElement.id === elementId) {
       setSelectedElement(null);
     }
   };
 
-  // Funciones para el redimensionamiento/recorte de elementos
+  // Functions for element resizing/trimming
   const handleResizeStart = (e, element, type) => {
     e.stopPropagation();
     setIsResizing(true);
@@ -827,7 +880,7 @@ function Editor() {
       element.type === "voice";
 
     if (type === "start") {
-      // Redimensionar desde el inicio
+      // Resize from start
       const newStartTime = Math.max(
         0,
         Math.min(newTime, element.endTime - 0.1)
@@ -835,7 +888,7 @@ function Editor() {
       const newDuration = element.endTime - newStartTime;
 
       if (isMediaWithFixedDuration && element.originalDuration) {
-        // Para medios con duración fija, verificar límites
+        // For media with fixed duration, check limits
         const currentTrimEnd = element.trimEnd || 0;
         const maxTrimStart = Math.max(
           0,
@@ -851,14 +904,14 @@ function Editor() {
         updatedElement.duration = formatDuration(newDuration);
         updatedElement.trimStart = formatDuration(newTrimStart);
       } else {
-        // Para imágenes, permitir redimensionamiento libre
+        // For images, allow free resizing
         updatedElement.startTime = formatDuration(newStartTime);
         updatedElement.duration = formatDuration(newDuration);
       }
     } else {
-      // Redimensionar desde el final
+      // Resize from end
       if (isMediaWithFixedDuration && element.originalDuration) {
-        // Para medios con duración fija, NO PERMITIR EXPANDIR más allá de la duración original
+        // For media with fixed duration, DON'T ALLOW EXPANDING beyond original duration
         const currentTrimStart = element.trimStart || 0;
         const maxAllowedDuration = originalDuration - currentTrimStart;
         const maxAllowedEndTime = element.startTime + maxAllowedDuration;
@@ -875,7 +928,7 @@ function Editor() {
         updatedElement.duration = formatDuration(newDuration);
         updatedElement.trimEnd = formatDuration(newTrimEnd);
       } else {
-        // Para imágenes, permitir redimensionamiento libre
+        // For images, allow free resizing
         const newEndTime = Math.max(element.startTime + 0.1, newTime);
         const newDuration = newEndTime - element.startTime;
 
@@ -887,36 +940,36 @@ function Editor() {
     return updatedElement;
   };
 
-  // Función helper para obtener la posición de renderizado de un elemento
+  // Helper function to get element render position
   const getElementRenderPosition = (element) => {
-    // Si este elemento se está arrastrando, usar la posición de vista previa
+    // If this element is being dragged, use preview position
     if (draggingElement?.id === element.id && dragPreviewPosition !== null) {
       return dragPreviewPosition;
     }
-    // Si no, usar la posición normal
+    // Otherwise, use normal position
     return element.startTime;
   };
 
-  // Función para iniciar el drag de un elemento del timeline
+  // Function to start timeline element drag
   const handleElementDragStart = (e, element) => {
-    e.stopPropagation(); // Evitar que se active el drag del timeline
+    e.stopPropagation(); // Prevent timeline drag activation
     setDraggingElement(element);
     setDragStartX(e.clientX);
-    setCurrentDragX(e.clientX); // Inicializar la posición actual
+    setCurrentDragX(e.clientX); // Initialize current position
     setDragStartTime(element.startTime);
-    setDragPreviewPosition(element.startTime); // Inicializar la posición de vista previa
+    setDragPreviewPosition(element.startTime); // Initialize preview position
 
-    // Cambiar el cursor
+    // Change cursor
     document.body.style.cursor = "grabbing";
   };
 
-  // Función para calcular nueva posición basada en el drag
+  // Function to calculate new position based on drag
   const calculateNewPosition = (clientX, timelineRect) => {
     const deltaX = clientX - dragStartX;
     const timelineWidth = timelineRect.width;
     const timelineDuration = getTimelineDuration();
 
-    // Convertir el delta de píxeles a tiempo
+    // Convert pixel delta to time
     const deltaTime = (deltaX / timelineWidth) * timelineDuration;
     const newStartTime = Math.max(0, dragStartTime + deltaTime);
 
@@ -956,21 +1009,21 @@ function Editor() {
       ]);
     }
 
-    // Hay colisión, encontrar la mejor posición
+    // There's collision, find best position
     const sortedElements = sameChannelElements.sort(
       (a, b) => a.startTime - b.startTime
     );
 
-    // Intentar colocar el elemento antes del primer elemento que colisiona
+    // Try to place element before first colliding element
     for (let i = 0; i < sortedElements.length; i++) {
       const element = sortedElements[i];
 
-      // Verificar si cabe antes de este elemento
+      // Check if it fits before this element
       if (
         formattedNewStartTime < element.startTime &&
         newEndTime <= element.startTime
       ) {
-        // Cabe aquí
+        // Fits here
         return otherElements.concat([
           {
             ...movedElement,
@@ -980,11 +1033,11 @@ function Editor() {
         ]);
       }
 
-      // Intentar colocar después de este elemento
+      // Try to place after this element
       const afterPosition = formatDuration(element.endTime);
       const afterEndTime = formatDuration(afterPosition + duration);
 
-      // Verificar si cabe después de este elemento y antes del siguiente (si existe)
+      // Check if it fits after this element and before next one (if exists)
       const nextElement = sortedElements[i + 1];
       if (!nextElement || afterEndTime <= nextElement.startTime) {
         return otherElements.concat([
@@ -997,7 +1050,7 @@ function Editor() {
       }
     }
 
-    // Si no encuentra lugar, colocar al final
+    // If no place found, place at end
     const lastElement = sortedElements[sortedElements.length - 1];
     const finalPosition = formatDuration(lastElement ? lastElement.endTime : 0);
 
@@ -1010,7 +1063,7 @@ function Editor() {
     ]);
   };
 
-  // Funciones para guardar y exportar proyecto
+  // Functions to save and export project
   const handleSaveProject = () => {
     const projectData = {
       timeline: arrayVideoMake,
@@ -1020,16 +1073,16 @@ function Editor() {
         currentTime: currentTime,
       },
       metadata: {
-        name: "Mi Proyecto",
+        name: "My Project",
         createdAt: new Date().toISOString(),
         version: "1.0",
       },
     };
 
-    // Guardar en localStorage (para persistencia local)
+    // Save in localStorage (for local persistence)
     localStorage.setItem("reelmotion_project", JSON.stringify(projectData));
 
-    // También crear un archivo descargable
+    // Also create downloadable file
     const dataStr = JSON.stringify(projectData, null, 2);
     const dataUri =
       "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
@@ -1043,7 +1096,7 @@ function Editor() {
     linkElement.setAttribute("download", exportFileDefaultName);
     linkElement.click();
 
-    alert("Proyecto guardado exitosamente!");
+    alert("Project saved successfully!");
   };
 
   const handleLoadProject = () => {
@@ -1068,12 +1121,12 @@ function Editor() {
             setCurrentTime(projectData.settings.currentTime || 0);
           }
 
-          // Deseleccionar cualquier elemento
+          // Deselect any element
           setSelectedElement(null);
 
-          alert("Proyecto cargado exitosamente!");
+          alert("Project loaded successfully!");
         } catch (error) {
-          alert("Error al cargar el proyecto: " + error.message);
+          alert("Error loading project: " + error.message);
         }
       };
       reader.readAsText(file);
@@ -1083,9 +1136,9 @@ function Editor() {
   };
 
   const handleExportVideo = () => {
-    // Simulación de exportación de video
+    // Video export simulation
     if (arrayVideoMake.length === 0) {
-      alert("No hay contenido en el timeline para exportar");
+      alert("No content in timeline to export");
       return;
     }
 
@@ -1104,10 +1157,10 @@ function Editor() {
       },
     };
 
-    // En una implementación real, esto se enviaría a un servidor para procesar
-    console.log("Datos de exportación:", exportData);
+    // In a real implementation, this would be sent to a server for processing
+    console.log("Export data:", exportData);
 
-    // Crear archivo con la configuración de exportación
+    // Create file with export configuration
     const dataStr = JSON.stringify(exportData, null, 2);
     const dataUri =
       "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
@@ -1122,11 +1175,11 @@ function Editor() {
     linkElement.click();
 
     alert(
-      "Configuración de exportación guardada. En una implementación completa, aquí se procesaría el video."
+      "Export configuration saved. In a complete implementation, the video would be processed here."
     );
   };
 
-  // Cargar proyecto automáticamente al montar el componente
+  // Automatically load project when component mounts
   useEffect(() => {
     const savedProject = localStorage.getItem("reelmotion_project");
     if (savedProject) {
@@ -1134,7 +1187,7 @@ function Editor() {
         const projectData = JSON.parse(savedProject);
         if (projectData.timeline && projectData.timeline.length > 0) {
           const shouldLoad = window.confirm(
-            "¿Deseas cargar el último proyecto guardado?"
+            "Do you want to load the last saved project?"
           );
           if (shouldLoad) {
             setArrayVideoMake(projectData.timeline);
@@ -1144,12 +1197,12 @@ function Editor() {
           }
         }
       } catch (error) {
-        console.warn("Error al cargar proyecto guardado:", error);
+        console.warn("Error loading saved project:", error);
       }
     }
   }, []);
 
-  // Sincronizar elemento seleccionado con cambios en el array
+  // Sync selected element with changes in the array
   useEffect(() => {
     if (selectedElement) {
       const updatedElement = arrayVideoMake.find(
@@ -1177,7 +1230,7 @@ function Editor() {
       {/* Header */}
       <div className="flex justify-between">
         <span className="text-white text-3xl font-leagueGothic font-medium ">
-          Editing Video
+          Video Editor
         </span>
         {/* Timeline Header */}
         <div
@@ -1212,13 +1265,13 @@ function Editor() {
               onMouseDown={handleVolumeMouseDown}
               onClick={handleVolumeClick}
             >
-              {/* Barra de progreso del volumen */}
+              {/* Volume progress bar */}
               <div
                 className="h-full bg-primarioLogo rounded-full transition-all duration-100"
                 style={{ width: `${masterVolume * 100}%` }}
               ></div>
 
-              {/* Indicador del volumen */}
+              {/* Volume indicator */}
               <div
                 className={`absolute top-2 transform -translate-y-1/2 w-3 h-3 bg-white rounded-full border-2 border-primarioLogo cursor-grab transition-all duration-100 shadow-lg ${
                   isDraggingVolume
@@ -1231,35 +1284,35 @@ function Editor() {
                 }}
               ></div>
 
-              {/* Indicador visual cuando se hace hover */}
+              {/* Visual indicator on hover */}
               <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 opacity-0 group-hover:opacity-20 bg-primarioLogo rounded-full transition-opacity duration-200"></div>
             </div>
 
-            {/* Mostrar porcentaje del volumen */}
+            {/* Show volume percentage */}
             <span className="text-xs text-gray-400 w-8">
               {Math.round(masterVolume * 100)}%
             </span>
 
-            {/* Debug: Mostrar cantidad de elementos en el timeline */}
+            {/* Debug: Show number of elements in timeline */}
             <span className="text-xs text-gray-400 ml-4">
-              Elementos: {arrayVideoMake.length}
+              Elements: {arrayVideoMake.length}
               {arrayVideoMake.length > 0 && (
                 <span>
                   {" "}
-                  | Duración:{" "}
+                  | Duration:{" "}
                   {Math.max(...arrayVideoMake.map((item) => item.endTime), 0)}s
                 </span>
               )}
               {isResizing && resizingElement && (
                 <span className="text-yellow-400">
                   {" "}
-                  | Recortando: {resizingElement.title}
+                  | Trimming: {resizingElement.title}
                 </span>
               )}
               {draggingElement && (
                 <span className="text-blue-400">
                   {" "}
-                  | Moviendo: {draggingElement.title}
+                  | Moving: {draggingElement.title}
                 </span>
               )}
             </span>
@@ -1497,15 +1550,15 @@ function Editor() {
               />
               <p className="text-gray-400 text-lg">
                 {arrayVideoMake.some((item) => item.channel === "video")
-                  ? "Presiona play para ver tu video"
-                  : "Arrastra videos aquí para empezar"}
+                  ? "Press play to preview your video"
+                  : "Drag videos here to get started"}
               </p>
               <p className="text-gray-500 text-sm mt-2">
-                Tu video final aparecerá en esta área
+                Your final video will appear in this area
               </p>
             </div>
           </div>
-          {/* Overlay para imágenes y texto */}
+          {/* Overlay for images and text */}
           {arrayVideoMake
             .filter(
               (item) =>
@@ -1517,13 +1570,13 @@ function Editor() {
             .map((item) => (
               <div
                 key={item.id}
-                className="absolute inset-4 flex items-center justify-center pointer-events-none overflow-hidden"
+                className="absolute inset-4 flex items-center justify-center overflow-hidden"
                 style={{ zIndex: item.zIndex || 1 }}
               >
                 <img
                   src={item.url}
                   alt={item.title}
-                  className="object-contain max-w-full max-h-full"
+                  className="object-contain max-w-full max-h-full cursor-move"
                   style={{
                     opacity: item.opacity || 1,
                     transform: `scale(${item.scale || 1}) translate(${
@@ -1531,7 +1584,10 @@ function Editor() {
                     }px, ${item.position?.y || 0}px)`,
                     maxWidth: "100%",
                     maxHeight: "100%",
+                    pointerEvents: "auto",
                   }}
+                  onMouseDown={(e) => handleImageDragStart(e, item)}
+                  onClick={(e) => handleSelectElement(item, e)}
                 />
               </div>
             ))}
@@ -1542,32 +1598,32 @@ function Editor() {
               className="text-lg font-medium mb-2 line-clamp-1"
               title={
                 selectedElement && selectedElement.type === "image"
-                  ? `Editar Imagen: ${selectedElement.title}`
+                  ? `Edit Image: ${selectedElement.title}`
                   : selectedElement && selectedElement.type === "video"
-                  ? `Editar Video: ${selectedElement.title}`
-                  : "Controles del Editor"
+                  ? `Edit Video: ${selectedElement.title}`
+                  : "Editor Controls"
               }
             >
               {selectedElement && selectedElement.type === "image"
-                ? `Editar Imagen: ${selectedElement.title}`
+                ? `Edit Image: ${selectedElement.title}`
                 : selectedElement && selectedElement.type === "video"
-                ? `Editar Video: ${selectedElement.title}`
-                : "Controles del Editor"}
+                ? `Edit Video: ${selectedElement.title}`
+                : "Editor Controls"}
             </h3>
 
             {selectedElement && selectedElement.type === "video" ? (
               <div className="space-y-4">
                 <div className="text-sm text-gray-300 mb-4">
-                  <p>Duración: {selectedElement.duration}s</p>
+                  <p>Duration: {selectedElement.duration}s</p>
                   <p className="text-xs mt-1">
-                    Haz clic nuevamente para deseleccionar
+                    Click again to deselect
                   </p>
                 </div>
 
-                {/* Control de Volumen para Videos */}
+                {/* Volume Control for Videos */}
                 <div>
                   <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Volumen:{" "}
+                    Volume:{" "}
                     {Math.round(
                       (selectedElement.volume !== undefined
                         ? selectedElement.volume
@@ -1595,10 +1651,10 @@ function Editor() {
                   />
                 </div>
 
-                {/* Control de Z-Index para Videos */}
+                {/* Z-Index Control for Videos */}
                 <div>
                   <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Capa (Z-Index): {selectedElement.zIndex || 1}
+                    Layer (Z-Index): {selectedElement.zIndex || 1}
                   </label>
                   <input
                     type="range"
@@ -1613,15 +1669,15 @@ function Editor() {
                   />
                 </div>
 
-                {/* Corrección de Color */}
+                {/* Color Correction */}
                 <div className="border-t border-gray-600 pt-4">
                   <h4 className="text-sm font-medium text-gray-300 mb-3">
-                    Corrección de Color
+                    Color Correction
                   </h4>
 
                   <div>
                     <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Brillo: {selectedElement.colorCorrection?.brightness || 0}
+                      Brightness: {selectedElement.colorCorrection?.brightness || 0}
                     </label>
                     <input
                       type="range"
@@ -1641,7 +1697,7 @@ function Editor() {
 
                   <div>
                     <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Contraste:{" "}
+                      Contrast:{" "}
                       {selectedElement.colorCorrection?.contrast || 0}
                     </label>
                     <input
@@ -1662,7 +1718,7 @@ function Editor() {
 
                   <div>
                     <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Saturación:{" "}
+                      Saturation:{" "}
                       {selectedElement.colorCorrection?.saturation || 0}
                     </label>
                     <input
@@ -1683,7 +1739,7 @@ function Editor() {
 
                   <div>
                     <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Matiz: {selectedElement.colorCorrection?.hue || 0}°
+                      Hue: {selectedElement.colorCorrection?.hue || 0}°
                     </label>
                     <input
                       type="range"
@@ -1703,7 +1759,7 @@ function Editor() {
 
                   <div>
                     <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Temperatura:{" "}
+                      Temperature:{" "}
                       {selectedElement.colorCorrection?.temperature || 0}
                     </label>
                     <input
@@ -1724,7 +1780,7 @@ function Editor() {
 
                   <div>
                     <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Tinte: {selectedElement.colorCorrection?.tint || 0}
+                      Tint: {selectedElement.colorCorrection?.tint || 0}
                     </label>
                     <input
                       type="range"
@@ -1743,7 +1799,7 @@ function Editor() {
                   </div>
                 </div>
 
-                {/* Botones de acción */}
+                {/* Action buttons */}
                 <div className="flex gap-2 mt-6">
                   <button
                     onClick={() => {
@@ -1758,30 +1814,29 @@ function Editor() {
                     }}
                     className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
                   >
-                    Resetear
+                    Reset
                   </button>
                   <button
                     onClick={() => setSelectedElement(null)}
                     className="flex-1 bg-primarioLogo text-black px-3 py-2 rounded-lg text-sm hover:bg-opacity-80 transition-colors"
                   >
-                    Cerrar
+                    Close
                   </button>
                 </div>
               </div>
             ) : selectedElement && selectedElement.type === "image" ? (
               <div className="space-y-4">
                 <div className="text-sm text-gray-300 mb-4">
-                  <p>Duración: {selectedElement.duration}s</p>
+                  <p>Duration: {selectedElement.duration}s</p>
                   <p className="text-xs mt-1">
-                    Haz clic nuevamente para deseleccionar
+                    Click again to deselect. Drag image to reposition.
                   </p>
                 </div>
 
-                {/* Control de Opacidad */}
+                {/* Opacity Control */}
                 <div>
                   <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Opacidad: {Math.round((selectedElement.opacity || 1) * 100)}
-                    %
+                    Opacity: {Math.round((selectedElement.opacity || 1) * 100)}%
                   </label>
                   <input
                     type="range"
@@ -1799,10 +1854,10 @@ function Editor() {
                   />
                 </div>
 
-                {/* Control de Tamaño */}
+                {/* Size Control */}
                 <div>
                   <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Tamaño: {Math.round((selectedElement.scale || 1) * 100)}%
+                    Size: {Math.round((selectedElement.scale || 1) * 100)}%
                   </label>
                   <input
                     type="range"
@@ -1817,52 +1872,9 @@ function Editor() {
                   />
                 </div>
 
-                {/* Control de Posición X */}
                 <div>
                   <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Posición X: {selectedElement.position?.x || 0}px
-                  </label>
-                  <input
-                    type="range"
-                    min="-100"
-                    max="100"
-                    step="5"
-                    value={selectedElement.position?.x || 0}
-                    onChange={(e) =>
-                      updateSelectedElement("position", {
-                        ...selectedElement.position,
-                        x: parseInt(e.target.value),
-                      })
-                    }
-                    className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
-                  />
-                </div>
-
-                {/* Control de Posición Y */}
-                <div>
-                  <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Posición Y: {selectedElement.position?.y || 0}px
-                  </label>
-                  <input
-                    type="range"
-                    min="-80"
-                    max="80"
-                    step="5"
-                    value={selectedElement.position?.y || 0}
-                    onChange={(e) =>
-                      updateSelectedElement("position", {
-                        ...selectedElement.position,
-                        y: parseInt(e.target.value),
-                      })
-                    }
-                    className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
-                  />
-                </div>
-
-                {/* Control de Z-Index */}
-                <div>
-                  <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Capa (Z-Index): {selectedElement.zIndex || 1}
+                    Layer (Z-Index): {selectedElement.zIndex || 1}
                   </label>
                   <input
                     type="range"
@@ -1877,7 +1889,7 @@ function Editor() {
                   />
                 </div>
 
-                {/* Botones de acción */}
+                {/* Action buttons */}
                 <div className="flex gap-2 mt-6">
                   <button
                     onClick={() => {
@@ -1888,39 +1900,39 @@ function Editor() {
                     }}
                     className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
                   >
-                    Resetear
+                    Reset
                   </button>
                   <button
                     onClick={() => setSelectedElement(null)}
                     className="flex-1 bg-primarioLogo text-black px-3 py-2 rounded-lg text-sm hover:bg-opacity-80 transition-colors"
                   >
-                    Cerrar
+                    Close
                   </button>
                 </div>
               </div>
             ) : arrayVideoMake.length === 0 ? (
               <div className="text-sm text-gray-300 space-y-2">
-                <p>• Arrastra videos, imágenes, música o voz al timeline</p>
-                <p>• Usa las pestañas de la izquierda para navegar</p>
-                <p>• Los elementos se colocan automáticamente</p>
+                <p>• Drag videos, images, music or voice to the timeline</p>
+                <p>• Use the tabs on the left to navigate</p>
+                <p>• Elements are automatically placed</p>
               </div>
             ) : (
               <div className="text-sm text-gray-300 space-y-2">
-                <p>• Arrastra elementos para moverlos</p>
-                <p>• Arrastra los bordes para recortar</p>
-                <p>• Haz clic en la línea de tiempo para navegar</p>
-                <p>• Usa el control de volumen maestro</p>
-                <p>• Haz clic en videos/imágenes para editarlos</p>
+                <p>• Drag elements to move them</p>
+                <p>• Drag the edges to trim</p>
+                <p>• Click on the timeline to navigate</p>
+                <p>• Use the master volume control</p>
+                <p>• Click on videos/images to edit them</p>
                 {(isResizing || draggingElement) && (
                   <div className="mt-3 p-2 bg-yellow-500 bg-opacity-20 rounded text-yellow-200">
-                    {isResizing && "✂️ Recortando elemento"}
-                    {draggingElement && "📦 Moviendo elemento"}
+                    {isResizing && "✂️ Trimming element"}
+                    {draggingElement && "📦 Moving element"}
                   </div>
                 )}
                 {selectedElement && (
                   <div className="mt-3 p-2 bg-primarioLogo bg-opacity-20 rounded text-yellow-200">
                     {selectedElement.type === "video" &&
-                      `🎬 Video seleccionado: ${
+                      `🎬 Video selected: ${
                         selectedElement.title
                       } (Vol: ${Math.round(
                         (selectedElement.volume !== undefined
@@ -1928,7 +1940,7 @@ function Editor() {
                           : 1) * 100
                       )}%)`}
                     {selectedElement.type === "image" &&
-                      `🎨 Imagen seleccionada: ${selectedElement.title}`}
+                      `🎨 Image selected: ${selectedElement.title}`}
                   </div>
                 )}
               </div>
@@ -1948,7 +1960,7 @@ function Editor() {
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, "video")}
             >
-              {/* Renderizar elementos del timeline para el canal de video */}
+              {/* Render timeline elements for video channel */}
               {arrayVideoMake
                 .filter((item) => item.channel === "video")
                 .map((item, index) => (
@@ -1981,7 +1993,7 @@ function Editor() {
                     onMouseLeave={() => setHoveredElement(null)}
                     onClick={(e) => handleSelectElement(item, e)}
                     onMouseDown={(e) => {
-                      // Solo iniciar drag si no es el botón de eliminar o las manijas
+                      // Only start drag if not delete button or handles
                       if (
                         !e.target.closest("button") &&
                         !e.target.classList.contains("resize-handle")
@@ -1990,18 +2002,18 @@ function Editor() {
                       }
                     }}
                   >
-                    {/* Manija de redimensionamiento izquierda */}
+                    {/* Left resize handle */}
                     <div
                       className="resize-handle absolute left-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
                       onMouseDown={(e) => handleResizeStart(e, item, "start")}
-                      title="Recortar inicio"
+                      title="Trim start"
                     ></div>
 
-                    {/* Manija de redimensionamiento derecha */}
+                    {/* Right resize handle */}
                     <div
                       className="resize-handle absolute right-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
                       onMouseDown={(e) => handleResizeStart(e, item, "end")}
-                      title="Recortar final"
+                      title="Trim end"
                     ></div>
 
                     <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
@@ -2045,16 +2057,14 @@ function Editor() {
                 ))}
             </div>
           </div>
-
-          {/* Images/Text Track */}
           <div className="flex items-center gap-3">
-            <div className="w-16 text-white text-sm font-medium">Imagen</div>
+            <div className="w-16 text-white text-sm font-medium">Image</div>
             <div
               className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, "image")}
             >
-              {/* Renderizar elementos del timeline para el canal de imagen/texto */}
+              {/* Render timeline elements for image/text channel */}
               {arrayVideoMake
                 .filter((item) => item.channel === "image")
                 .map((item, index) => (
@@ -2136,7 +2146,7 @@ function Editor() {
 
           {/* Music Track */}
           <div className="flex items-center gap-3">
-            <div className="w-16 text-white text-sm font-medium">Música</div>
+            <div className="w-16 text-white text-sm font-medium">Music</div>
             <div
               className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
               onDragOver={handleDragOver}
@@ -2219,7 +2229,7 @@ function Editor() {
 
           {/* Voice Track */}
           <div className="flex items-center gap-3">
-            <div className="w-16 text-white text-sm font-medium">Voz</div>
+            <div className="w-16 text-white text-sm font-medium">Voice</div>
             <div
               className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
               onDragOver={handleDragOver}
