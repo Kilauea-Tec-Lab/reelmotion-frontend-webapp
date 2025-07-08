@@ -10,80 +10,9 @@ function Home() {
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showFolderModal, setShowFolderModal] = useState(false);
-  const recentsProjects = [
-    {
-      id: 1,
-      name: "Astronauta Anuncio Instagram",
-      created: "26 Jun 2025",
-      duration: "15",
-      video: "/test/Astronauta_Anuncio_Instagram_Listo.mp4",
-    },
-    {
-      id: 2,
-      name: "Astronauta Noir en la Luna",
-      created: "25 Jun 2025",
-      duration: "22",
-      video: "/test/Astronauta_Noir_en_la_Luna.mp4",
-    },
-    {
-      id: 3,
-      name: "Video Maya Cumbias",
-      created: "24 Jun 2025",
-      duration: "18",
-      video: "/test/Video_Maya_Cumbias_y_Coca.mp4",
-    },
-    {
-      id: 4,
-      name: "Proyecto Sin Video",
-      created: "23 Jun 2025",
-      duration: "0",
-      video: null,
-    },
-    {
-      id: 5,
-      name: "Marciano Promociona Yacamba",
-      created: "22 Jun 2025",
-      duration: "12",
-      video: "/test/Marciano_Promociona_Usa_Yacamba_.mp4",
-    },
-    {
-      id: 6,
-      name: "Video de Reportero Fronterizo",
-      created: "21 Jun 2025",
-      duration: "25",
-      video: "/test/Video_de_Reportero_Fronterizo.mp4",
-    },
-    {
-      id: 7,
-      name: "Proyecto en Desarrollo",
-      created: "20 Jun 2025",
-      duration: "0",
-      video: null,
-    },
-  ];
+  const recentsProjects = [];
 
-  const foldersArray = [
-    {
-      id: 1,
-      name: "Marketing Campaigns",
-    },
-    {
-      id: 2,
-      name: "Product Demos",
-    },
-    {
-      id: 3,
-      name: "Corporate Videos",
-    },
-    {
-      id: 4,
-      name: "Tutorials",
-    },
-    {
-      id: 5,
-      name: "Events",
-    },
-  ];
+  const foldersArray = [];
   return (
     <div className="p-6 min-h-screen bg-primarioDark">
       <div className="flex items-center justify-between mb-8">
@@ -127,8 +56,20 @@ function Home() {
         </div>
       </div>
       {/* Recents */}
-      <RecentProjects recentsProjects={recentsProjects} />
+      {recentsProjects.length === 0 ? (
+        <div
+          className="flex items-center justify-center rounded
+        "
+        >
+          <span className="text-gray-400 montserrat-light text-lg">
+            No Projects Found
+          </span>
+        </div>
+      ) : (
+        <RecentProjects recentsProjects={recentsProjects} />
+      )}
       {/*Carrousel Folders */}
+
       <div>
         {foldersArray.map((folder) => (
           <CarrouselFolders

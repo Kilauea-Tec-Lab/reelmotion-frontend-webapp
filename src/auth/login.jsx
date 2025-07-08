@@ -1,34 +1,130 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { createAccount, login } from "./functions";
+import Cookies from "js-cookie";
 
 function Login() {
+  const navigate = useNavigate();
   const [typeRecord, setTypeRecord] = useState(1);
 
   //Login States
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
+  // Login Error states
+  const [loginEmailError, setLoginEmailError] = useState(false);
+  const [loginPasswordError, setLoginPasswordError] = useState(false);
+
   //Create Account States
+  const [username, setUsername] = useState("");
   const [createEmail, setCreateEmail] = useState("");
   const [createPassword, setCreatePassword] = useState("");
   const [createPasswordConfirm, setCreatePasswordConfirm] = useState("");
   const [createName, setCreateName] = useState("");
 
+  // Error states
+  const [usernameError, setUsernameError] = useState(false);
+  const [createEmailError, setCreateEmailError] = useState(false);
+  const [createPasswordError, setCreatePasswordError] = useState(false);
+  const [createPasswordConfirmError, setCreatePasswordConfirmError] =
+    useState(false);
+  const [createNameError, setCreateNameError] = useState(false);
+
   async function handleLogin() {
-    // Implement login logic here
-    console.log("Login with:", {
-      email: loginEmail,
-      password: loginPassword,
-    });
+    // Reset error states
+    setLoginEmailError(false);
+    setLoginPasswordError(false);
+
+    try {
+      if (!loginEmail || !loginPassword) {
+        if (!loginEmail) setLoginEmailError("Email is required");
+        if (!loginPassword) setLoginPasswordError("Password is required");
+        return;
+      }
+
+      const loginCall = await login({
+        email: loginEmail.toLowerCase(),
+        password: loginPassword,
+      });
+
+      if (loginCall.ok) {
+        const loginResponse = await loginCall.json();
+        const token = loginResponse.data.token;
+
+        Cookies.set("token", token);
+
+        navigate("/", { replace: true });
+      } else {
+        const errorData = await loginCall.json();
+
+        if (errorData.success == false) {
+          setLoginEmailError("The email or username is incorrect");
+          setLoginEmailError("");
+        }
+      }
+    } catch (error) {}
   }
 
   async function handleRegister() {
-    // Implement registration logic here
-    console.log("Register with:", {
+    setUsernameError(false);
+    setCreateEmailError(false);
+    setCreatePasswordError(false);
+    setCreatePasswordConfirmError(false);
+    setCreateNameError(false);
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(createEmail)) {
+      setCreateEmailError("Please enter a valid email address");
+      return;
+    }
+
+    // Validate passwords
+    if (createPassword == "" || createPasswordConfirm == "") {
+      setCreatePasswordError("Password fields cannot be empty");
+      setCreatePasswordConfirmError("Password fields cannot be empty");
+      return;
+    }
+
+    if (createPassword !== createPasswordConfirm) {
+      setCreatePasswordError("Passwords do not match");
+      setCreatePasswordConfirmError("Passwords do not match");
+      return;
+    }
+
+    const register = await createAccount({
+      username: username,
       name: createName,
-      email: createEmail,
+      email: createEmail.toLowerCase(),
       password: createPassword,
       passwordConfirm: createPasswordConfirm,
     });
+
+    if (register.ok) {
+      const loginResponse = await register.json();
+      const token = loginResponse.data.token;
+
+      Cookies.set("token", token);
+
+      navigate("/", { replace: true });
+    } else {
+      const errorData = await register.json();
+
+      // Handle validation errors
+      if (errorData.errors) {
+        if (errorData.errors.username) {
+          setUsernameError(errorData.errors.username[0]);
+        }
+        if (errorData.errors.name) {
+          setCreateNameError(errorData.errors.name[0]);
+        }
+        if (errorData.errors.email) {
+          setCreateEmailError(errorData.errors.email[0]);
+        }
+        if (errorData.errors.password) {
+          setCreatePasswordError(errorData.errors.password[0]);
+        }
+      }
+    }
   }
 
   return (
@@ -100,20 +196,38 @@ function Login() {
                   Sign In
                 </h1>
                 <div className="flex flex-col space-y-5 text-right w-2/5">
-                  <input
-                    className="bg-white rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0"
-                    type="email"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="Enter email or user name"
-                  />
-                  <input
-                    className="bg-white rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0"
-                    type="password"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="Enter email or user name"
-                  />
+                  <div>
+                    {loginEmailError && (
+                      <p className="text-red-400 text-sm mb-1 text-left">
+                        {loginEmailError}
+                      </p>
+                    )}
+                    <input
+                      className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0 ${
+                        loginEmailError ? "border-2 border-red-500" : ""
+                      }`}
+                      type="email"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      placeholder="Enter email or user name"
+                    />
+                  </div>
+                  <div>
+                    {loginPasswordError && (
+                      <p className="text-red-400 text-sm mb-1 text-left">
+                        {loginPasswordError}
+                      </p>
+                    )}
+                    <input
+                      className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0 ${
+                        loginPasswordError ? "border-2 border-red-500" : ""
+                      }`}
+                      type="password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="Enter your password"
+                    />
+                  </div>
                   <span className="text-white montserrat-light text-xs">
                     Forgot you password?
                   </span>
@@ -140,34 +254,88 @@ function Login() {
                   Create Account
                 </h1>
                 <div className="flex flex-col space-y-5 text-right w-2/5">
-                  <input
-                    className="bg-white rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0"
-                    type="text"
-                    value={createName}
-                    onChange={(e) => setCreateName(e.target.value)}
-                    placeholder="Enter your name"
-                  />
-                  <input
-                    className="bg-white rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0"
-                    type="email"
-                    value={createEmail}
-                    onChange={(e) => setCreateEmail(e.target.value)}
-                    placeholder="Enter email or user name"
-                  />
-                  <input
-                    className="bg-white rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0"
-                    type="password"
-                    value={createPassword}
-                    onChange={(e) => setCreatePassword(e.target.value)}
-                    placeholder="Enter your password"
-                  />
-                  <input
-                    className="bg-white rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0"
-                    type="password"
-                    value={createPasswordConfirm}
-                    onChange={(e) => setCreatePasswordConfirm(e.target.value)}
-                    placeholder="Confirm your password"
-                  />
+                  <div>
+                    {usernameError && (
+                      <p className="text-red-400 text-sm mb-1 text-left">
+                        {usernameError}
+                      </p>
+                    )}
+                    <input
+                      className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0 ${
+                        usernameError ? "border-2 border-red-500" : ""
+                      }`}
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="Enter your username"
+                    />
+                  </div>
+                  <div>
+                    {createNameError && (
+                      <p className="text-red-400 text-sm mb-1 text-left">
+                        {createNameError}
+                      </p>
+                    )}
+                    <input
+                      className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0 ${
+                        createNameError ? "border-2 border-red-500" : ""
+                      }`}
+                      type="text"
+                      value={createName}
+                      onChange={(e) => setCreateName(e.target.value)}
+                      placeholder="Enter your name"
+                    />
+                  </div>
+                  <div>
+                    {createEmailError && (
+                      <p className="text-red-400 text-sm mb-1 text-left">
+                        {createEmailError}
+                      </p>
+                    )}
+                    <input
+                      className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0 ${
+                        createEmailError ? "border-2 border-red-500" : ""
+                      }`}
+                      type="email"
+                      value={createEmail}
+                      onChange={(e) => setCreateEmail(e.target.value)}
+                      placeholder="Enter email"
+                    />
+                  </div>
+                  <div>
+                    {createPasswordError && (
+                      <p className="text-red-400 text-sm mb-1 text-left">
+                        {createPasswordError}
+                      </p>
+                    )}
+                    <input
+                      className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0 ${
+                        createPasswordError ? "border-2 border-red-500" : ""
+                      }`}
+                      type="password"
+                      value={createPassword}
+                      onChange={(e) => setCreatePassword(e.target.value)}
+                      placeholder="Enter your password"
+                    />
+                  </div>
+                  <div>
+                    {createPasswordConfirmError && (
+                      <p className="text-red-400 text-xs mb-1 text-left">
+                        {createPasswordConfirmError}
+                      </p>
+                    )}
+                    <input
+                      className={`bg-white rounded-lg w-full montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0 ${
+                        createPasswordConfirmError
+                          ? "border-2 border-red-500"
+                          : ""
+                      }`}
+                      type="password"
+                      value={createPasswordConfirm}
+                      onChange={(e) => setCreatePasswordConfirm(e.target.value)}
+                      placeholder="Confirm your password"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => handleRegister()}

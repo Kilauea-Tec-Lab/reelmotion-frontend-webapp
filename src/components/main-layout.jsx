@@ -1,13 +1,16 @@
-import React from "react";
-import { Outlet } from "react-router-dom";
+import React, { useState } from "react";
+import { Outlet, useLoaderData } from "react-router-dom";
 import MainTopMenu from "./main-top-menu";
 import MainSidebarMenu from "./main-sidebar-menu";
 
 function MainLayout() {
+  const loaderData = useLoaderData();
+  const [userInfo, setUserInfo] = useState(loaderData?.data);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Top Menu */}
-      <MainTopMenu />
+      <MainTopMenu user_info={userInfo} />
 
       {/* Sidebar */}
       <MainSidebarMenu />
