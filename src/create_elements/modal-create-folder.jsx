@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, Folder, FolderOpen, Star, Lock, Users } from "lucide-react";
+import { createFolder } from "./functions";
 
 function ModalCreateFolder({ isOpen, onClose }) {
   const [folderName, setFolderName] = useState("");
@@ -45,16 +46,17 @@ function ModalCreateFolder({ isOpen, onClose }) {
     "#54A0FF",
   ];
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  async function handleSubmit() {
     if (!folderName || !selectedType) return;
 
-    console.log("Creating folder:", {
+    const createFolderFunction = await createFolder({
       name: folderName,
       description: folderDescription,
-      type: selectedType,
+      folder_type: selectedType,
       color: folderColor,
     });
+
+    const response = await createFolderFunction.json();
 
     // Aquí puedes agregar la lógica para crear el folder
     // Por ejemplo, hacer una llamada a la API
@@ -65,7 +67,7 @@ function ModalCreateFolder({ isOpen, onClose }) {
     setSelectedType("");
     setFolderColor("#F2D543");
     onClose();
-  };
+  }
 
   const handleClose = () => {
     setFolderName("");
@@ -204,7 +206,8 @@ function ModalCreateFolder({ isOpen, onClose }) {
               Cancel
             </button>
             <button
-              type="submit"
+              type="button"
+              onClick={() => handleSubmit()}
               disabled={!folderName || !selectedType}
               className="px-6 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543]"
             >

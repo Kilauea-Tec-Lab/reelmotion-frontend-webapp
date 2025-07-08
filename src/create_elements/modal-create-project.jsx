@@ -1,66 +1,36 @@
 import { useState } from "react";
 import { X, Film, Video, Sparkles, Briefcase, Lock, Globe } from "lucide-react";
+import { createProject } from "./functions";
 
-function ModalCreateProject({ isOpen, onClose }) {
+function ModalCreateProject({ isOpen, onClose, folders }) {
+  const [folderId, setFolderId] = useState("");
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
-  const [selectedTemplate, setSelectedTemplate] = useState("");
   const [projectVisibility, setProjectVisibility] = useState("private");
 
-  const templates = [
-    {
-      id: "blank",
-      name: "Blank Project",
-      icon: Film,
-      description: "Start from scratch with a clean canvas",
-    },
-    {
-      id: "social",
-      name: "Social Media",
-      icon: Video,
-      description: "Perfect for Instagram, TikTok, YouTube",
-    },
-    {
-      id: "corporate",
-      name: "Corporate",
-      icon: Briefcase,
-      description: "Professional videos for business",
-    },
-    {
-      id: "creative",
-      name: "Creative",
-      icon: Sparkles,
-      description: "Artistic and creative projects",
-    },
-  ];
+  async function handleSubmit() {
+    if (!projectName || !folderId) return;
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!projectName || !selectedTemplate) return;
-
-    console.log("Creating project:", {
+    const response = await createProject({
       name: projectName,
       description: projectDescription,
-      template: selectedTemplate,
-      visibility: projectVisibility,
+      folder_id: folderId,
+      project_type: projectVisibility,
     });
-
-    // Aquí puedes agregar la lógica para crear el proyecto
-    // Por ejemplo, hacer una llamada a la API
 
     // Limpiar formulario y cerrar modal
     setProjectName("");
     setProjectDescription("");
-    setSelectedTemplate("");
     setProjectVisibility("private");
+    setFolderId("");
     onClose();
-  };
+  }
 
   const handleClose = () => {
     setProjectName("");
     setProjectDescription("");
-    setSelectedTemplate("");
     setProjectVisibility("private");
+    setFolderId("");
     onClose();
   };
 
@@ -97,6 +67,31 @@ function ModalCreateProject({ isOpen, onClose }) {
               className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
               required
             />
+          </div>
+          {/* Folder Select */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+              Folder *
+            </label>
+            <select
+              value={folderId}
+              onChange={(e) => setFolderId(e.target.value)}
+              className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
+              required
+            >
+              <option value="" disabled className="bg-darkBoxSub text-gray-400">
+                Select a folder...
+              </option>
+              {folders.map((folder) => (
+                <option
+                  key={folder.id}
+                  value={folder.id}
+                  className="bg-darkBoxSub text-white"
+                >
+                  {folder.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Project Description */}
@@ -187,8 +182,9 @@ function ModalCreateProject({ isOpen, onClose }) {
               Cancel
             </button>
             <button
-              type="submit"
-              disabled={!projectName}
+              type="button"
+              onClick={() => handleSubmit()}
+              disabled={!projectName || !folderId}
               className="px-6 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543]"
             >
               Create Project

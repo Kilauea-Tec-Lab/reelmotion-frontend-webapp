@@ -53,13 +53,17 @@ function MainTopMenu({ user_info }) {
       {/* Controles del usuario */}
       <div className="flex items-center space-x-6">
         <div className="relative" ref={menuRef}>
-          <button 
+          <button
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center space-x-2 p-2 text-[#808191] rounded-lg transition-colors hover:bg-darkBoxSub"
           >
             <User className="h-5 w-5" />
             <span className="text-sm font-medium">{user_info?.name}</span>
-            <ChevronDown className={`h-4 w-4 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${
+                showUserMenu ? "rotate-180" : ""
+              }`}
+            />
           </button>
 
           {/* Dropdown Menu */}
@@ -73,7 +77,7 @@ function MainTopMenu({ user_info }) {
                 className="w-full text-left flex items-center gap-2 px-4 py-3 text-sm text-white montserrat-light hover:bg-darkBox transition-colors rounded-lg"
               >
                 <LogOut size={16} />
-                Cerrar Sesión
+                Log Out
               </button>
             </div>
           )}

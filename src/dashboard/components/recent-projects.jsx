@@ -1,9 +1,23 @@
 import { useState } from "react";
 import { MoreHorizontal, Edit, Eye, Trash2, Film } from "lucide-react";
 
-function RecentProjects({ recentsProjects }) {
+function RecentProjects({ recentsProjects, onEditProject, onDeleteProject }) {
   const [hoveredProject, setHoveredProject] = useState(null);
   const [showMenu, setShowMenu] = useState(null);
+
+  const handleEditClick = (project) => {
+    setShowMenu(null);
+    if (onEditProject) {
+      onEditProject(project);
+    }
+  };
+
+  const handleDeleteClick = (project) => {
+    setShowMenu(null);
+    if (onDeleteProject) {
+      onDeleteProject(project);
+    }
+  };
 
   return (
     <div>
@@ -22,9 +36,9 @@ function RecentProjects({ recentsProjects }) {
             <div className="relative rounded-lg overflow-hidden group">
               {/* Video Preview */}
               <div className="relative h-40 flex items-center justify-center">
-                {project.video ? (
+                {project.video_url ? (
                   <video
-                    src={project.video}
+                    src={project.video_url}
                     className="w-full h-full object-cover rounded-3xl"
                     muted
                     preload="metadata"
@@ -54,15 +68,21 @@ function RecentProjects({ recentsProjects }) {
 
                     {/* Dropdown Menu */}
                     {showMenu === project.id && (
-                      <div className="absolute top-8 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[50px]">
-                        <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-darkBox transition-colors">
-                          <Eye className="w-4 h-4" />
+                      <div className="absolute top-8 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[120px]">
+                        <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-darkBox transition-colors rounded-t-lg">
+                          <Eye className="w-4 h-4" /> Show
                         </button>
-                        <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-darkBox transition-colors">
-                          <Edit className="w-4 h-4" />
+                        <button
+                          onClick={() => handleEditClick(project)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-darkBox transition-colors"
+                        >
+                          <Edit className="w-4 h-4" /> Edit
                         </button>
-                        <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-darkBox transition-colors">
-                          <Trash2 className="w-4 h-4" />
+                        <button
+                          onClick={() => handleDeleteClick(project)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-darkBox transition-colors rounded-b-lg"
+                        >
+                          <Trash2 className="w-4 h-4" /> Delete
                         </button>
                       </div>
                     )}
