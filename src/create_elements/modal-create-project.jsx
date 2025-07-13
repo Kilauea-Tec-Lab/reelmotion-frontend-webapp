@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { X, Film, Video, Sparkles, Briefcase, Lock, Globe } from "lucide-react";
 import { createProject } from "./functions";
+import { useNavigate } from "react-router-dom";
 
 function ModalCreateProject({ isOpen, onClose, folders }) {
   const [folderId, setFolderId] = useState("");
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [projectVisibility, setProjectVisibility] = useState("private");
+  const navigate = useNavigate();
 
   async function handleSubmit() {
     if (!projectName || !folderId) return;
@@ -18,11 +20,18 @@ function ModalCreateProject({ isOpen, onClose, folders }) {
       project_type: projectVisibility,
     });
 
+    const response_parse = await response.json();
+
+    const project_id = response_parse?.data?.id;
+
+    navigate(`/project/${project_id}`);
+
     // Limpiar formulario y cerrar modal
     setProjectName("");
     setProjectDescription("");
     setProjectVisibility("private");
     setFolderId("");
+
     onClose();
   }
 

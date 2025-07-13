@@ -13,6 +13,7 @@ import ModalDeleteFolder from "../../create_elements/modal-delete-folder";
 import ModalEditProject from "../../create_elements/modal-edit-project";
 import ModalDeleteProject from "../../create_elements/modal-delete-project";
 import { destroyFolder, destroyProject } from "../../create_elements/functions";
+import { Link } from "react-router-dom";
 
 function CarrouselFolders({ folder, folders }) {
   const [hoveredProject, setHoveredProject] = useState(null);
@@ -162,10 +163,13 @@ function CarrouselFolders({ folder, folders }) {
                     {/* Dropdown Menu */}
                     {showMenu === project.id && (
                       <div className="absolute top-6 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[70px]">
-                        <button className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-white hover:bg-darkBox transition-colors">
+                        <Link
+                          to={`/project/${project.id}`}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-white hover:bg-darkBox transition-colors"
+                        >
                           <Eye className="w-3 h-3" />
                           Show
-                        </button>
+                        </Link>
                         <button
                           onClick={() => handleEditProject(project)}
                           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-white hover:bg-darkBox transition-colors"

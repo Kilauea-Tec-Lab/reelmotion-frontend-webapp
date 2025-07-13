@@ -7,6 +7,8 @@ import MainLayout from "./components/main-layout";
 import ErrorBoundary from "./components/error-boundary";
 import { userInfoLoader } from "./auth/functions";
 import { multiloaderGet } from "./create_elements/functions";
+import MainProject from "./project/main-project";
+import { getProjects } from "./project/functions";
 
 const router = createBrowserRouter([
   {
@@ -28,6 +30,14 @@ const router = createBrowserRouter([
       {
         path: "editor",
         element: <Editor />,
+      },
+      {
+        path: "project/:id",
+        element: <MainProject />,
+        loader: async ({ params }) => {
+          const { id } = params;
+          return await getProjects(id);
+        },
       },
     ],
   },

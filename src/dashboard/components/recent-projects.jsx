@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MoreHorizontal, Edit, Eye, Trash2, Film } from "lucide-react";
+import { Link } from "react-router-dom";
 
 function RecentProjects({ recentsProjects, onEditProject, onDeleteProject }) {
   const [hoveredProject, setHoveredProject] = useState(null);
@@ -69,9 +70,12 @@ function RecentProjects({ recentsProjects, onEditProject, onDeleteProject }) {
                     {/* Dropdown Menu */}
                     {showMenu === project.id && (
                       <div className="absolute top-8 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[120px]">
-                        <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-darkBox transition-colors rounded-t-lg">
+                        <Link
+                          to={`/project/${project.id}`}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-darkBox transition-colors rounded-t-lg"
+                        >
                           <Eye className="w-4 h-4" /> Show
-                        </button>
+                        </Link>
                         <button
                           onClick={() => handleEditClick(project)}
                           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-darkBox transition-colors"

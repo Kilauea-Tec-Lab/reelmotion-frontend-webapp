@@ -1,11 +1,17 @@
 import { X, Trash2, AlertTriangle, Film } from "lucide-react";
 import { destroyProject } from "./functions";
+import { useNavigate } from "react-router-dom";
 
 function ModalDeleteProject({ isOpen, onClose, project, onConfirm }) {
+  const navigate = useNavigate();
+
   async function handleDelete() {
     const response = await destroyProject({ id: project.id });
 
     onConfirm(project);
+
+    navigate("/");
+
     onClose();
   }
 
