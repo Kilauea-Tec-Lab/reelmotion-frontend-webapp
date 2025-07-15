@@ -1,11 +1,13 @@
 import { useState, useCallback } from "react";
 import { X, Upload, Sparkles, Image, Brain } from "lucide-react";
+import { createImageFreepik, createCharacter } from "../project/functions";
 
 function ModalCreateCharacter({
   isOpen,
   onClose,
   projectId,
   onCharacterCreated,
+  project_id,
 }) {
   const [characterName, setCharacterName] = useState("");
   const [characterDescription, setCharacterDescription] = useState("");
@@ -16,6 +18,7 @@ function ModalCreateCharacter({
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [hasGeneratedImage, setHasGeneratedImage] = useState(false);
 
   const handleClose = () => {
     setCharacterName("");
@@ -26,6 +29,7 @@ function ModalCreateCharacter({
     setSelectedFile(null);
     setPreviewUrl(null);
     setIsGenerating(false);
+    setHasGeneratedImage(false);
     onClose();
   };
 
@@ -64,55 +68,105 @@ function ModalCreateCharacter({
     }
   };
 
-  const handleGenerateAI = async () => {
+  async function handleGenerateAI() {
     if (!aiPrompt.trim()) return;
 
     setIsGenerating(true);
     try {
-      // Aquí iría la lógica para generar la imagen con IA
-      // Por ahora simularemos con un delay
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      // Agregar contexto al prompt para mejorar la calidad del personaje
+      const enhancedPrompt = `${aiPrompt}. This character will be used in video production, so please ensure the character is clearly visible, well-framed, centered in the image, with good proportions and details. The character should be the main focus of the image, not too small or cut off, with a clear and professional appearance suitable for video content.`;
 
-      // Simular una imagen generada
-      setPreviewUrl(
-        "https://via.placeholder.com/300x300/333/fff?text=AI+Generated"
-      );
+      const response = await createImageFreepik({ prompt: enhancedPrompt });
+      const responseData = await response.json();
+
+      // Verificar si la respuesta fue exitosa y tiene la imagen
+      if (
+        responseData.success &&
+        responseData.data &&
+        responseData.data.image_url
+      ) {
+        // La imagen viene en base64, crear la URL completa
+        const base64Image = `data:image/jpeg;base64,${responseData.data.image_url}`;
+        setPreviewUrl(base64Image);
+        setHasGeneratedImage(true);
+      } else {
+        console.error("Error: No se pudo generar la imagen");
+      }
     } catch (error) {
       console.error("Error generating image:", error);
     } finally {
       setIsGenerating(false);
     }
+  }
+
+  const handleDiscardGeneratedImage = () => {
+    setPreviewUrl(null);
+    setHasGeneratedImage(false);
+  };
+
+  // Función para convertir archivo a base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        // Remover el prefijo "data:image/...;base64," para obtener solo el base64
+        const base64 = reader.result.split(",")[1];
+        resolve(base64);
+      };
+      reader.onerror = (error) => reject(error);
+    });
   };
 
   const handleSubmit = async () => {
     if (!characterName.trim() || !characterDescription.trim()) return;
 
     if (creationType === "upload" && !selectedFile) return;
-    if (creationType === "ai" && !aiPrompt.trim()) return;
+    if (creationType === "ai" && !hasGeneratedImage) return;
 
     try {
-      // Aquí iría la lógica para crear el personaje
-      const characterData = {
-        name: characterName,
-        description: characterDescription,
-        project_id: projectId,
-        creation_type: creationType,
-        ...(creationType === "upload" && { image: selectedFile }),
-        ...(creationType === "ai" && {
-          ai_model: aiModel,
-          ai_prompt: aiPrompt,
-        }),
-      };
+      let base64Image = null;
 
-      console.log("Creating character:", characterData);
-
-      if (onCharacterCreated) {
-        onCharacterCreated(characterData);
+      // Obtener la imagen en base64 según el tipo de creación
+      if (creationType === "upload" && selectedFile) {
+        // Convertir archivo subido a base64
+        base64Image = await fileToBase64(selectedFile);
+      } else if (creationType === "ai" && previewUrl) {
+        // Extraer base64 de la imagen generada por AI
+        // La previewUrl ya contiene "data:image/jpeg;base64,{base64data}"
+        base64Image = previewUrl.split(",")[1];
       }
 
-      handleClose();
+      // Preparar datos para la API
+      const characterData = {
+        type: creationType === "upload" ? "upload" : "generate",
+        ai_model: creationType === "ai" ? aiModel : null,
+        prompt: creationType === "ai" ? aiPrompt : null,
+        base_64_image: base64Image,
+        name: characterName,
+        description: characterDescription,
+        project_id: project_id, // Asegurarse de enviar el ID del proyecto
+      };
+
+      // Llamar a la función createCharacter
+      const response = await createCharacter(characterData);
+      const responseData = await response.json();
+
+      if (response.ok && responseData.success) {
+        console.log("Character created successfully:", responseData);
+
+        if (onCharacterCreated) {
+          onCharacterCreated(responseData.data);
+        }
+
+        handleClose();
+      } else {
+        console.error("Error creating character:", responseData);
+        // Aquí podrías mostrar un mensaje de error al usuario
+      }
     } catch (error) {
       console.error("Error creating character:", error);
+      // Aquí podrías mostrar un mensaje de error al usuario
     }
   };
 
@@ -269,65 +323,83 @@ function ModalCreateCharacter({
           {/* AI Generation Section */}
           {creationType === "ai" && (
             <div className="mb-6 space-y-4">
-              {/* AI Model Selection */}
-              <div>
-                <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
-                  AI Model *
-                </label>
-                <select
-                  value={aiModel}
-                  onChange={(e) => setAiModel(e.target.value)}
-                  className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
-                >
-                  <option value="gpt" className="bg-darkBoxSub text-white">
-                    GPT
-                  </option>
-                  <option value="freepik" className="bg-darkBoxSub text-white">
-                    Freepik
-                  </option>
-                </select>
-              </div>
+              {/* AI Generation Controls - Solo mostrar si no hay imagen generada */}
+              {!hasGeneratedImage && (
+                <>
+                  {/* AI Model Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+                      AI Model *
+                    </label>
+                    <select
+                      value={aiModel}
+                      onChange={(e) => setAiModel(e.target.value)}
+                      className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
+                    >
+                      <option value="gpt" className="bg-darkBoxSub text-white">
+                        GPT
+                      </option>
+                      <option
+                        value="freepik"
+                        className="bg-darkBoxSub text-white"
+                      >
+                        Freepik
+                      </option>
+                    </select>
+                  </div>
 
-              {/* AI Prompt */}
-              <div>
-                <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
-                  Describe your character *
-                </label>
-                <textarea
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  placeholder="Describe the character you want to generate... (e.g., A medieval knight with silver armor and blue eyes)"
-                  rows={4}
-                  className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular resize-none"
-                />
-              </div>
+                  {/* AI Prompt */}
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+                      Describe your character *
+                    </label>
+                    <textarea
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      placeholder="Describe the character you want to generate... (e.g., A medieval knight with silver armor and blue eyes)"
+                      rows={4}
+                      className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular resize-none"
+                    />
+                  </div>
 
-              {/* Generate Button */}
-              <button
-                type="button"
-                onClick={handleGenerateAI}
-                disabled={!aiPrompt.trim() || isGenerating}
-                className="w-full px-4 py-3 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543] flex items-center justify-center gap-2"
-              >
-                {isGenerating ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-primarioDark border-t-transparent rounded-full animate-spin"></div>
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Brain className="w-4 h-4" />
-                    Generate Character
-                  </>
-                )}
-              </button>
+                  {/* Generate Button */}
+                  <button
+                    type="button"
+                    onClick={handleGenerateAI}
+                    disabled={!aiPrompt.trim() || isGenerating}
+                    className="w-full px-4 py-3 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543] flex items-center justify-center gap-2"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-primarioDark border-t-transparent rounded-full animate-spin"></div>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Brain className="w-4 h-4" />
+                        Generate Character
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
 
-              {/* AI Generated Preview */}
-              {previewUrl && (
+              {/* AI Generated Preview - Solo mostrar si hay imagen generada */}
+              {hasGeneratedImage && previewUrl && (
                 <div className="border border-gray-600 rounded-lg p-4">
-                  <p className="text-white text-sm montserrat-medium mb-2">
-                    Generated Character:
-                  </p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-white text-sm montserrat-medium">
+                      Generated Character:
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleDiscardGeneratedImage}
+                      className="text-red-400 hover:text-red-300 text-sm montserrat-regular flex items-center gap-1 px-2 py-1 rounded hover:bg-red-400/10 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                      Discard
+                    </button>
+                  </div>
                   <img
                     src={previewUrl}
                     alt="AI Generated character"
@@ -384,7 +456,7 @@ function ModalCreateCharacter({
                 !characterName.trim() ||
                 !characterDescription.trim() ||
                 (creationType === "upload" && !selectedFile) ||
-                (creationType === "ai" && !aiPrompt.trim())
+                (creationType === "ai" && !hasGeneratedImage)
               }
               className="px-6 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543]"
             >

@@ -1,6 +1,6 @@
-import { span } from "framer-motion/client";
-import { Edit, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { div, span } from "framer-motion/client";
+import { Edit, Plus, Trash2, MoreHorizontal } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useLoaderData, useParams, useNavigate } from "react-router-dom";
 import ModalEditProject from "../create_elements/modal-edit-project";
 import ModalDeleteProject from "../create_elements/modal-delete-project";
@@ -8,12 +8,27 @@ import ModalCreateCharacter from "../create_elements/modal-create-character";
 import ModalCreateSpot from "../create_elements/modal-create-spot";
 import ModalCreateVoice from "../create_elements/modal-create-voice";
 import ModalCreateScene from "../create_elements/modal-create-scene";
+import ModalEditCharacter from "./components/modal-edit-character";
+import ModalDeleteCharacter from "./components/modal-delete-character";
+import { createPusherClient } from "../pusher";
+import { getProjects } from "../create_elements/functions";
 
 function MainProject() {
   const id = useParams();
   const data = useLoaderData();
   const navigate = useNavigate();
   const [project, setProject] = useState(data?.data);
+
+  // Obtener user de alguna manera - puede venir en data o necesitamos obtenerlo
+  const user = data?.user || data?.data?.user;
+
+  //WEBSOCKET
+  const pusherClient = createPusherClient();
+
+  async function fillProject() {
+    const response = await getProjects(project?.id);
+    setProject(response?.data);
+  }
 
   // Estados para los modales
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -23,6 +38,15 @@ function MainProject() {
   const [isCreateSpotModalOpen, setIsCreateSpotModalOpen] = useState(false);
   const [isCreateVoiceModalOpen, setIsCreateVoiceModalOpen] = useState(false);
   const [isCreateSceneModalOpen, setIsCreateSceneModalOpen] = useState(false);
+
+  // Estados para el menú de opciones de personajes
+  const [hoveredCharacter, setHoveredCharacter] = useState(null);
+  const [showCharacterMenu, setShowCharacterMenu] = useState(null);
+  const [isEditCharacterModalOpen, setIsEditCharacterModalOpen] =
+    useState(false);
+  const [isDeleteCharacterModalOpen, setIsDeleteCharacterModalOpen] =
+    useState(false);
+  const [selectedCharacter, setSelectedCharacter] = useState(null);
 
   // Funciones para manejar los modales
   const handleEditProject = () => {
@@ -46,8 +70,12 @@ function MainProject() {
   };
 
   const handleCharacterCreated = (characterData) => {
-    // Aquí puedes actualizar el estado del proyecto con el nuevo personaje
+    // Actualizar el estado del proyecto con el nuevo personaje
     console.log("Character created:", characterData);
+    setProject((prevProject) => ({
+      ...prevProject,
+      characters: [...(prevProject.characters || []), characterData],
+    }));
     setIsCreateCharacterModalOpen(false);
   };
 
@@ -80,6 +108,47 @@ function MainProject() {
     console.log("Scene created:", sceneData);
     setIsCreateSceneModalOpen(false);
   };
+
+  const handleEditCharacter = (character) => {
+    setSelectedCharacter(character);
+    setIsEditCharacterModalOpen(true);
+    setShowCharacterMenu(null);
+  };
+
+  const handleDeleteCharacter = (character) => {
+    console.log("Delete character:", character);
+    setSelectedCharacter(character);
+    setIsDeleteCharacterModalOpen(true);
+    setShowCharacterMenu(null);
+  };
+
+  const handleCharacterDeleted = (deletedCharacter) => {
+    // Actualizar el estado del proyecto removiendo el personaje
+    console.log("Character deleted:", deletedCharacter);
+    setProject((prevProject) => ({
+      ...prevProject,
+      characters:
+        prevProject.characters?.filter((c) => c.id !== deletedCharacter.id) ||
+        [],
+    }));
+    setIsDeleteCharacterModalOpen(false);
+    setSelectedCharacter(null);
+  };
+
+  // WebSocket Effects
+  useEffect(() => {
+    if (user?.id) {
+      let channel = pusherClient.subscribe(`et-only-one-project.${project.id}`);
+
+      channel.bind("fill-projects", ({ user_id }) => {
+        fillProject();
+      });
+
+      return () => {
+        pusherClient.unsubscribe(`et-only-one-project.${project.id}`);
+      };
+    }
+  }, []);
 
   return (
     <div className="p-6 min-h-screen bg-primarioDark">
@@ -123,7 +192,72 @@ function MainProject() {
         </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.characters?.length > 0 ? (
-            <span>Hola</span>
+            <div className="flex flex-wrap gap-4">
+              {project.characters.map((character) => (
+                <div
+                  key={character.id}
+                  className="pb-2 bg-darkBoxSub px-3 pt-3 rounded-xl space-y-4 relative"
+                  onMouseEnter={() => setHoveredCharacter(character.id)}
+                  onMouseLeave={() => {
+                    setHoveredCharacter(null);
+                    setShowCharacterMenu(null);
+                  }}
+                >
+                  <div className="relative">
+                    <img
+                      src={character.image_url}
+                      alt=""
+                      className="w-32 h-32 object-cover rounded-2xl"
+                    />
+
+                    {/* Three Dots Menu */}
+                    {hoveredCharacter === character.id && (
+                      <div className="absolute top-2 right-2">
+                        <button
+                          onClick={() =>
+                            setShowCharacterMenu(
+                              showCharacterMenu === character.id
+                                ? null
+                                : character.id
+                            )
+                          }
+                          className="bg-[#36354080] px-1 py-1 bg-opacity-75 text-white hover:bg-opacity-90 rounded-full transition-all"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {showCharacterMenu === character.id && (
+                          <div className="absolute top-8 right-0 bg-darkBox rounded-lg shadow-lg z-10 min-w-[100px] border border-gray-600">
+                            <button
+                              onClick={() => handleEditCharacter(character)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-darkBoxSub transition-colors rounded-t-lg"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCharacter(character)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-darkBoxSub transition-colors rounded-b-lg"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <h1
+                    className="text-[#a2a3b4] montserrat-medium text-sm tracking-wider line-clamp-1"
+                    title={character.name}
+                  >
+                    {character.name}
+                  </h1>
+                </div>
+              ))}
+            </div>
           ) : (
             <span className="text-[#808191]">
               No characters found for this project.
@@ -223,10 +357,21 @@ function MainProject() {
       <ModalCreateCharacter
         isOpen={isCreateCharacterModalOpen}
         onClose={() => setIsCreateCharacterModalOpen(false)}
-        projectId={project?.id}
         onCharacterCreated={handleCharacterCreated}
+        project_id={project?.id}
+      />
+      <ModalEditCharacter
+        isOpen={isEditCharacterModalOpen}
+        onClose={() => setIsEditCharacterModalOpen(false)}
+        character={selectedCharacter}
       />
 
+      <ModalDeleteCharacter
+        isOpen={isDeleteCharacterModalOpen}
+        onClose={() => setIsDeleteCharacterModalOpen(false)}
+        character={selectedCharacter}
+        onConfirm={handleCharacterDeleted}
+      />
       <ModalCreateSpot
         isOpen={isCreateSpotModalOpen}
         onClose={() => setIsCreateSpotModalOpen(false)}
