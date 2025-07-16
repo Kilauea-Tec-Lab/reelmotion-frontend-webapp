@@ -1,6 +1,10 @@
 import { useState, useCallback } from "react";
 import { X, Upload, Sparkles, Image, Brain } from "lucide-react";
-import { createImageFreepik, createCharacter } from "../project/functions";
+import {
+  createImageFreepik,
+  createCharacter,
+  createImageOpenAI,
+} from "../project/functions";
 
 function ModalCreateCharacter({
   isOpen,
@@ -76,11 +80,20 @@ function ModalCreateCharacter({
       // Agregar contexto al prompt para mejorar la calidad del personaje
       const enhancedPrompt = `${aiPrompt}. This character will be used in video production, so please ensure the character is clearly visible, well-framed, centered in the image, with good proportions and details. The character should be the main focus of the image, not too small or cut off, with a clear and professional appearance suitable for video content.`;
 
-      const response = await createImageFreepik({ prompt: enhancedPrompt });
-      const responseData = await response.json();
+      let response;
+      let responseData;
+
+      if (aiModel === "gpt") {
+        response = await createImageOpenAI({ prompt: enhancedPrompt });
+        responseData = await response.json();
+      } else if (aiModel === "freepik") {
+        response = await createImageFreepik({ prompt: enhancedPrompt });
+        responseData = await response.json();
+      }
 
       // Verificar si la respuesta fue exitosa y tiene la imagen
       if (
+        responseData &&
         responseData.success &&
         responseData.data &&
         responseData.data.image_url
@@ -337,7 +350,7 @@ function ModalCreateCharacter({
                       className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
                     >
                       <option value="gpt" className="bg-darkBoxSub text-white">
-                        GPT
+                        GPT - DALL·E 3
                       </option>
                       <option
                         value="freepik"
