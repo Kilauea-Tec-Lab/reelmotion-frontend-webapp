@@ -1,42 +1,46 @@
 import { useState, useEffect } from "react";
-import { X, User, Upload, Image } from "lucide-react";
-import { editCharacter } from "../functions";
+import { X, MapPin, Image as ImageIcon } from "lucide-react";
+import { editSpot } from "../functions";
 
-function ModalEditCharacter({ isOpen, onClose, character }) {
-  const [characterName, setCharacterName] = useState("");
-  const [characterDescription, setCharacterDescription] = useState("");
+function ModalEditSpot({ isOpen, onClose, spot, onSpotUpdated }) {
+  const [spotName, setSpotName] = useState("");
+  const [spotDescription, setSpotDescription] = useState("");
 
-  // Llenar el formulario con los datos del personaje cuando se abre el modal
-
+  // Llenar el formulario con los datos del spot cuando se abre el modal
   useEffect(() => {
-    if (character && isOpen) {
-      setCharacterName(character.name || "");
-      setCharacterDescription(character.description || "");
+    if (spot && isOpen) {
+      setSpotName(spot.name || "");
+      setSpotDescription(spot.description || "");
     }
-  }, [character, isOpen]);
+  }, [spot, isOpen]);
 
   async function handleSubmit() {
-    if (!characterName.trim() || !characterDescription.trim()) return;
+    if (!spotName.trim() || !spotDescription.trim()) return;
 
     try {
-      // Aquí iría la lógica para actualizar el personaje
-      const updatedCharacterData = {
-        id: character.id,
-        name: characterName,
-        description: characterDescription,
+      // Aquí iría la lógica para actualizar el spot
+      const updatedSpotData = {
+        id: spot.id,
+        name: spotName,
+        description: spotDescription,
       };
 
-      editCharacter(updatedCharacterData);
+      editSpot(updatedSpotData);
+
+      // Llamar al callback si existe
+      if (onSpotUpdated) {
+        onSpotUpdated(updatedSpotData);
+      }
 
       handleClose();
     } catch (error) {
-      console.error("Error updating character:", error);
+      console.error("Error updating spot:", error);
     }
   }
 
   const handleClose = () => {
-    setCharacterName("");
-    setCharacterDescription("");
+    setSpotName("");
+    setSpotDescription("");
     onClose();
   };
 
@@ -49,10 +53,10 @@ function ModalEditCharacter({ isOpen, onClose, character }) {
         <div className="flex items-center justify-between p-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#F2D543] bg-opacity-20 rounded-lg flex items-center justify-center">
-              <User className="w-5 h-5 text-primarioDark" />
+              <MapPin className="w-5 h-5 text-primarioDark" />
             </div>
             <h2 className="text-xl font-semibold text-white montserrat-medium">
-              Edit Character
+              Edit Spot
             </h2>
           </div>
           <button
@@ -64,54 +68,52 @@ function ModalEditCharacter({ isOpen, onClose, character }) {
         </div>
 
         <div className="p-6">
-          {/* Character Preview */}
-          {character && (
+          {/* Spot Preview */}
+          {spot && (
             <div className="mb-6">
               <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
-                Current Character Image
+                Current Spot Image
               </label>
               <div className="flex items-center gap-4 p-4 bg-darkBoxSub rounded-lg">
                 <img
-                  src={character.image_url}
-                  alt={character.name}
+                  src={spot.image_url}
+                  alt={spot.name}
                   className="w-20 h-20 object-cover rounded-lg"
                 />
                 <div>
-                  <p className="text-white montserrat-medium">
-                    {character.name}
-                  </p>
+                  <p className="text-white montserrat-medium">{spot.name}</p>
                   <p className="text-gray-400 text-sm montserrat-regular line-clamp-2">
-                    {character.description}
+                    {spot.description}
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Character Name */}
+          {/* Spot Name */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
-              Character Name *
+              Spot Name *
             </label>
             <input
               type="text"
-              value={characterName}
-              onChange={(e) => setCharacterName(e.target.value)}
-              placeholder="Enter character name..."
+              value={spotName}
+              onChange={(e) => setSpotName(e.target.value)}
+              placeholder="Enter spot name..."
               className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
               required
             />
           </div>
 
-          {/* Character Description */}
+          {/* Spot Description */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
-              Character Description *
+              Spot Description *
             </label>
             <textarea
-              value={characterDescription}
-              onChange={(e) => setCharacterDescription(e.target.value)}
-              placeholder="Describe the character's personality, background, role in your story..."
+              value={spotDescription}
+              onChange={(e) => setSpotDescription(e.target.value)}
+              placeholder="Describe the location, atmosphere, key features, lighting conditions..."
               rows={4}
               className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular resize-none"
               required
@@ -121,14 +123,14 @@ function ModalEditCharacter({ isOpen, onClose, character }) {
           {/* Note about image */}
           <div className="mb-6 p-4 bg-blue-900 bg-opacity-20 border border-blue-500 border-opacity-30 rounded-lg">
             <div className="flex gap-3">
-              <Image className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+              <ImageIcon className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-blue-300 text-sm montserrat-medium mb-1">
-                  Note about character image
+                  Note about spot image
                 </p>
                 <p className="text-blue-200 text-sm montserrat-regular">
-                  Character image cannot be changed in edit mode. To change the
-                  image, please create a new character.
+                  Spot image cannot be changed in edit mode. To change the
+                  image, please create a new spot.
                 </p>
               </div>
             </div>
@@ -146,10 +148,10 @@ function ModalEditCharacter({ isOpen, onClose, character }) {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={!characterName.trim() || !characterDescription.trim()}
+              disabled={!spotName.trim() || !spotDescription.trim()}
               className="px-6 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543]"
             >
-              Update Character
+              Update Spot
             </button>
           </div>
         </div>
@@ -158,4 +160,4 @@ function ModalEditCharacter({ isOpen, onClose, character }) {
   );
 }
 
-export default ModalEditCharacter;
+export default ModalEditSpot;

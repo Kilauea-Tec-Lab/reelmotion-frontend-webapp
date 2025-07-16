@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { X, Upload, Sparkles, Image, Brain } from "lucide-react";
+import { X, Upload, Sparkles, Image as ImageIcon, Brain } from "lucide-react";
 import {
   createImageFreepik,
   createCharacter,
@@ -117,17 +117,95 @@ function ModalCreateCharacter({
     setHasGeneratedImage(false);
   };
 
-  // Función para convertir archivo a base64
-  const fileToBase64 = (file) => {
+  // Función para comprimir y convertir archivo a base64
+  const fileToBase64 = (
+    file,
+    maxWidth = 800,
+    maxHeight = 600,
+    quality = 0.7
+  ) => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        // Remover el prefijo "data:image/...;base64," para obtener solo el base64
-        const base64 = reader.result.split(",")[1];
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const img = new Image();
+
+      img.onload = () => {
+        // Calcular nuevas dimensiones manteniendo la proporción
+        let { width, height } = img;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+
+        // Configurar canvas
+        canvas.width = width;
+        canvas.height = height;
+
+        // Dibujar imagen comprimida
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convertir a base64 con compresión
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+        const base64 = compressedDataUrl.split(",")[1];
         resolve(base64);
       };
-      reader.onerror = (error) => reject(error);
+
+      img.onerror = (error) => reject(error);
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  // Función para comprimir imagen generada por AI
+  const compressAIImage = (
+    dataUrl,
+    maxWidth = 800,
+    maxHeight = 600,
+    quality = 0.7
+  ) => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const img = new Image();
+
+      img.onload = () => {
+        // Calcular nuevas dimensiones manteniendo la proporción
+        let { width, height } = img;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+
+        // Configurar canvas
+        canvas.width = width;
+        canvas.height = height;
+
+        // Dibujar imagen comprimida
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convertir a base64 con compresión
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+        const base64 = compressedDataUrl.split(",")[1];
+        resolve(base64);
+      };
+
+      img.onerror = (error) => reject(error);
+      img.src = dataUrl;
     });
   };
 
@@ -142,12 +220,11 @@ function ModalCreateCharacter({
 
       // Obtener la imagen en base64 según el tipo de creación
       if (creationType === "upload" && selectedFile) {
-        // Convertir archivo subido a base64
+        // Convertir archivo subido a base64 con compresión
         base64Image = await fileToBase64(selectedFile);
       } else if (creationType === "ai" && previewUrl) {
-        // Extraer base64 de la imagen generada por AI
-        // La previewUrl ya contiene "data:image/jpeg;base64,{base64data}"
-        base64Image = previewUrl.split(",")[1];
+        // Comprimir imagen generada por AI
+        base64Image = await compressAIImage(previewUrl);
       }
 
       // Preparar datos para la API
@@ -304,7 +381,7 @@ function ModalCreateCharacter({
                 ) : (
                   <div className="space-y-4">
                     <div className="mx-auto w-12 h-12 bg-gray-700 rounded-lg flex items-center justify-center">
-                      <Image className="w-6 h-6 text-gray-400" />
+                      <ImageIcon className="w-6 h-6 text-gray-400" />
                     </div>
                     <div>
                       <p className="text-white montserrat-medium mb-1">

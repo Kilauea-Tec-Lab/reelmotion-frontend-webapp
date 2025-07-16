@@ -1,7 +1,19 @@
 import { useState, useCallback } from "react";
-import { X, Upload, Sparkles, Image, Brain, MapPin } from "lucide-react";
+import {
+  X,
+  Upload,
+  Sparkles,
+  Image as ImageIcon,
+  Brain,
+  MapPin,
+} from "lucide-react";
+import {
+  createImageFreepik,
+  createSpot,
+  createImageOpenAI,
+} from "../project/functions";
 
-function ModalCreateSpot({ isOpen, onClose, projectId, onSpotCreated }) {
+function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
   const [spotName, setSpotName] = useState("");
   const [spotDescription, setSpotDescription] = useState("");
   const [creationType, setCreationType] = useState("upload"); // 'upload' or 'ai'
@@ -11,6 +23,7 @@ function ModalCreateSpot({ isOpen, onClose, projectId, onSpotCreated }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [hasGeneratedImage, setHasGeneratedImage] = useState(false);
 
   const handleClose = () => {
     setSpotName("");
@@ -21,6 +34,7 @@ function ModalCreateSpot({ isOpen, onClose, projectId, onSpotCreated }) {
     setSelectedFile(null);
     setPreviewUrl(null);
     setIsGenerating(false);
+    setHasGeneratedImage(false);
     onClose();
   };
 
@@ -59,55 +73,189 @@ function ModalCreateSpot({ isOpen, onClose, projectId, onSpotCreated }) {
     }
   };
 
-  const handleGenerateAI = async () => {
+  async function handleGenerateAI() {
     if (!aiPrompt.trim()) return;
 
     setIsGenerating(true);
     try {
-      // Aquí iría la lógica para generar la imagen con IA
-      // Por ahora simularemos con un delay
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      // Agregar contexto al prompt para mejorar la calidad del spot
+      const enhancedPrompt = `${aiPrompt}. This location/spot will be used in video production, please without characters, so please ensure the location is clearly visible, well-framed, centered in the image, with good lighting and details. The location should be the main focus of the image, not too small or cut off, with a clear and professional appearance suitable for video content.`;
 
-      // Simular una imagen generada
-      setPreviewUrl(
-        "https://via.placeholder.com/300x300/333/fff?text=AI+Generated+Spot"
-      );
+      let response;
+      let responseData;
+
+      if (aiModel === "gpt") {
+        response = await createImageOpenAI({ prompt: enhancedPrompt });
+        responseData = await response.json();
+      } else if (aiModel === "freepik") {
+        response = await createImageFreepik({ prompt: enhancedPrompt });
+        responseData = await response.json();
+      }
+
+      // Verificar si la respuesta fue exitosa y tiene la imagen
+      if (
+        responseData &&
+        responseData.success &&
+        responseData.data &&
+        responseData.data.image_url
+      ) {
+        // La imagen viene en base64, crear la URL completa
+        const base64Image = `data:image/jpeg;base64,${responseData.data.image_url}`;
+        setPreviewUrl(base64Image);
+        setHasGeneratedImage(true);
+      } else {
+        console.error("Error: No se pudo generar la imagen");
+      }
     } catch (error) {
       console.error("Error generating image:", error);
     } finally {
       setIsGenerating(false);
     }
+  }
+
+  const handleDiscardGeneratedImage = () => {
+    setPreviewUrl(null);
+    setHasGeneratedImage(false);
+  };
+
+  // Función para comprimir y convertir archivo a base64
+  const fileToBase64 = (
+    file,
+    maxWidth = 800,
+    maxHeight = 600,
+    quality = 0.7
+  ) => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const img = new Image();
+
+      img.onload = () => {
+        // Calcular nuevas dimensiones manteniendo la proporción
+        let { width, height } = img;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+
+        // Configurar canvas
+        canvas.width = width;
+        canvas.height = height;
+
+        // Dibujar imagen comprimida
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convertir a base64 con compresión
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+        const base64 = compressedDataUrl.split(",")[1];
+        resolve(base64);
+      };
+
+      img.onerror = (error) => reject(error);
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  // Función para comprimir imagen generada por AI
+  const compressAIImage = (
+    dataUrl,
+    maxWidth = 800,
+    maxHeight = 600,
+    quality = 0.7
+  ) => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const img = new Image();
+
+      img.onload = () => {
+        // Calcular nuevas dimensiones manteniendo la proporción
+        let { width, height } = img;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+
+        // Configurar canvas
+        canvas.width = width;
+        canvas.height = height;
+
+        // Dibujar imagen comprimida
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convertir a base64 con compresión
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+        const base64 = compressedDataUrl.split(",")[1];
+        resolve(base64);
+      };
+
+      img.onerror = (error) => reject(error);
+      img.src = dataUrl;
+    });
   };
 
   const handleSubmit = async () => {
     if (!spotName.trim() || !spotDescription.trim()) return;
 
     if (creationType === "upload" && !selectedFile) return;
-    if (creationType === "ai" && !aiPrompt.trim()) return;
+    if (creationType === "ai" && !hasGeneratedImage) return;
 
     try {
-      // Aquí iría la lógica para crear el spot
-      const spotData = {
-        name: spotName,
-        description: spotDescription,
-        project_id: projectId,
-        creation_type: creationType,
-        ...(creationType === "upload" && { image: selectedFile }),
-        ...(creationType === "ai" && {
-          ai_model: aiModel,
-          ai_prompt: aiPrompt,
-        }),
-      };
+      let base64Image = null;
 
-      console.log("Creating spot:", spotData);
-
-      if (onSpotCreated) {
-        onSpotCreated(spotData);
+      // Obtener la imagen en base64 según el tipo de creación
+      if (creationType === "upload" && selectedFile) {
+        // Convertir archivo subido a base64 con compresión
+        base64Image = await fileToBase64(selectedFile);
+      } else if (creationType === "ai" && previewUrl) {
+        // Comprimir imagen generada por AI
+        base64Image = await compressAIImage(previewUrl);
       }
 
-      handleClose();
+      // Preparar datos para la API
+      const spotData = {
+        type: creationType === "upload" ? "upload" : "generate",
+        ai_model: creationType === "ai" ? aiModel : null,
+        prompt: creationType === "ai" ? aiPrompt : null,
+        base_64_image: base64Image,
+        name: spotName,
+        description: spotDescription,
+        project_id: project_id, // Asegurarse de enviar el ID del proyecto
+      };
+
+      // Llamar a la función createSpot
+      const response = await createSpot(spotData);
+      const responseData = await response.json();
+
+      if (response.ok && responseData.success) {
+        if (onSpotCreated) {
+          onSpotCreated(responseData.data);
+        }
+
+        handleClose();
+      } else {
+        console.error("Error creating spot:", responseData);
+        // Aquí podrías mostrar un mensaje de error al usuario
+      }
     } catch (error) {
       console.error("Error creating spot:", error);
+      // Aquí podrías mostrar un mensaje de error al usuario
     }
   };
 
@@ -264,65 +412,83 @@ function ModalCreateSpot({ isOpen, onClose, projectId, onSpotCreated }) {
           {/* AI Generation Section */}
           {creationType === "ai" && (
             <div className="mb-6 space-y-4">
-              {/* AI Model Selection */}
-              <div>
-                <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
-                  AI Model *
-                </label>
-                <select
-                  value={aiModel}
-                  onChange={(e) => setAiModel(e.target.value)}
-                  className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
-                >
-                  <option value="gpt" className="bg-darkBoxSub text-white">
-                    GPT
-                  </option>
-                  <option value="freepik" className="bg-darkBoxSub text-white">
-                    Freepik
-                  </option>
-                </select>
-              </div>
+              {/* AI Generation Controls - Solo mostrar si no hay imagen generada */}
+              {!hasGeneratedImage && (
+                <>
+                  {/* AI Model Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+                      AI Model *
+                    </label>
+                    <select
+                      value={aiModel}
+                      onChange={(e) => setAiModel(e.target.value)}
+                      className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
+                    >
+                      <option value="gpt" className="bg-darkBoxSub text-white">
+                        GPT - DALL·E 3
+                      </option>
+                      <option
+                        value="freepik"
+                        className="bg-darkBoxSub text-white"
+                      >
+                        Freepik
+                      </option>
+                    </select>
+                  </div>
 
-              {/* AI Prompt */}
-              <div>
-                <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
-                  Describe your spot *
-                </label>
-                <textarea
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  placeholder="Describe the location you want to generate... (e.g., A cozy coffee shop interior with warm lighting and wooden furniture)"
-                  rows={4}
-                  className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular resize-none"
-                />
-              </div>
+                  {/* AI Prompt */}
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+                      Describe your spot *
+                    </label>
+                    <textarea
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      placeholder="Describe the location you want to generate... (e.g., A cozy coffee shop interior with warm lighting and wooden furniture)"
+                      rows={4}
+                      className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular resize-none"
+                    />
+                  </div>
 
-              {/* Generate Button */}
-              <button
-                type="button"
-                onClick={handleGenerateAI}
-                disabled={!aiPrompt.trim() || isGenerating}
-                className="w-full px-4 py-3 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543] flex items-center justify-center gap-2"
-              >
-                {isGenerating ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-primarioDark border-t-transparent rounded-full animate-spin"></div>
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Brain className="w-4 h-4" />
-                    Generate Spot
-                  </>
-                )}
-              </button>
+                  {/* Generate Button */}
+                  <button
+                    type="button"
+                    onClick={handleGenerateAI}
+                    disabled={!aiPrompt.trim() || isGenerating}
+                    className="w-full px-4 py-3 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543] flex items-center justify-center gap-2"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-primarioDark border-t-transparent rounded-full animate-spin"></div>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Brain className="w-4 h-4" />
+                        Generate Spot
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
 
-              {/* AI Generated Preview */}
-              {previewUrl && (
+              {/* AI Generated Preview - Solo mostrar si hay imagen generada */}
+              {hasGeneratedImage && previewUrl && (
                 <div className="border border-gray-600 rounded-lg p-4">
-                  <p className="text-white text-sm montserrat-medium mb-2">
-                    Generated Spot:
-                  </p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-white text-sm montserrat-medium">
+                      Generated Spot:
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleDiscardGeneratedImage}
+                      className="text-red-400 hover:text-red-300 text-sm montserrat-regular flex items-center gap-1 px-2 py-1 rounded hover:bg-red-400/10 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                      Discard
+                    </button>
+                  </div>
                   <img
                     src={previewUrl}
                     alt="AI Generated spot"
@@ -379,7 +545,7 @@ function ModalCreateSpot({ isOpen, onClose, projectId, onSpotCreated }) {
                 !spotName.trim() ||
                 !spotDescription.trim() ||
                 (creationType === "upload" && !selectedFile) ||
-                (creationType === "ai" && !aiPrompt.trim())
+                (creationType === "ai" && !hasGeneratedImage)
               }
               className="px-6 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543]"
             >
