@@ -36,6 +36,26 @@ export async function createImageFreepik(data) {
   return response;
 }
 
+export async function createImageOpenAI(data) {
+  const info = {
+    prompt: data.prompt,
+  };
+
+  const response = await fetch(
+    `${import.meta.env.VITE_APP_BACKEND_URL}ai/generate-image-openai`,
+    {
+      method: "POST",
+      body: JSON.stringify(info),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + Cookies.get("token"),
+      },
+    }
+  );
+
+  return response;
+}
+
 export async function createCharacter(data) {
   const info = {
     project_id: data.project_id, // Asegurarse de enviar el ID del proyecto
@@ -71,6 +91,26 @@ export async function editCharacter(data) {
 
   const response = await fetch(
     `${import.meta.env.VITE_APP_BACKEND_URL}projects/edit-character`,
+    {
+      method: "POST",
+      body: JSON.stringify(info),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + Cookies.get("token"),
+      },
+    }
+  );
+
+  return response;
+}
+
+export async function destroyCharacter(data) {
+  const info = {
+    id: data.id,
+  };
+
+  const response = await fetch(
+    `${import.meta.env.VITE_APP_BACKEND_URL}projects/delete-character`,
     {
       method: "POST",
       body: JSON.stringify(info),

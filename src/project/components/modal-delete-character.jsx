@@ -1,20 +1,18 @@
 import { X, Trash2, AlertTriangle, User } from "lucide-react";
+import { destroyCharacter } from "../functions";
 
 function ModalDeleteCharacter({ isOpen, onClose, character, onConfirm }) {
   async function handleDelete() {
-    try {
-      // Aquí iría la lógica para eliminar el personaje
-      console.log("Deleting character:", character);
+    destroyCharacter({
+      id: character.id,
+    });
 
-      // Llamar al callback si existe
-      if (onConfirm) {
-        onConfirm(character);
-      }
-
-      onClose();
-    } catch (error) {
-      console.error("Error deleting character:", error);
+    // Llamar al callback si existe
+    if (onConfirm) {
+      onConfirm(character);
     }
+
+    onClose();
   }
 
   if (!isOpen) return null;

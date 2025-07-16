@@ -11,7 +11,7 @@ import ModalCreateScene from "../create_elements/modal-create-scene";
 import ModalEditCharacter from "./components/modal-edit-character";
 import ModalDeleteCharacter from "./components/modal-delete-character";
 import { createPusherClient } from "../pusher";
-import { getProjects } from "../create_elements/functions";
+import { getProjects } from "./functions";
 
 function MainProject() {
   const id = useParams();
@@ -21,9 +21,6 @@ function MainProject() {
 
   // Obtener user de alguna manera - puede venir en data o necesitamos obtenerlo
   const user = data?.user || data?.data?.user;
-
-  //WEBSOCKET
-  const pusherClient = createPusherClient();
 
   async function fillProject() {
     const response = await getProjects(project?.id);
@@ -47,6 +44,24 @@ function MainProject() {
   const [isDeleteCharacterModalOpen, setIsDeleteCharacterModalOpen] =
     useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState(null);
+
+  //WEBSOCKET
+  const pusherClient = createPusherClient();
+
+  // WebSocket Effects
+  useEffect(() => {
+    let channel = pusherClient.subscribe(
+      `private-get-only-one-project.${project.id}`
+    );
+
+    channel.bind("fill-only-one-project", ({ project_id }) => {
+      fillProject();
+    });
+
+    return () => {
+      pusherClient.unsubscribe(`private-get-only-one-project.${project.id}`);
+    };
+  }, []);
 
   // Funciones para manejar los modales
   const handleEditProject = () => {
@@ -134,21 +149,6 @@ function MainProject() {
     setIsDeleteCharacterModalOpen(false);
     setSelectedCharacter(null);
   };
-
-  // WebSocket Effects
-  useEffect(() => {
-    if (user?.id) {
-      let channel = pusherClient.subscribe(`et-only-one-project.${project.id}`);
-
-      channel.bind("fill-projects", ({ user_id }) => {
-        fillProject();
-      });
-
-      return () => {
-        pusherClient.unsubscribe(`et-only-one-project.${project.id}`);
-      };
-    }
-  }, []);
 
   return (
     <div className="p-6 min-h-screen bg-primarioDark">
