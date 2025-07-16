@@ -49,7 +49,7 @@ function ModalEditCharacter({ isOpen, onClose, character }) {
         <div className="flex items-center justify-between p-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#F2D543] bg-opacity-20 rounded-lg flex items-center justify-center">
-              <User className="w-5 h-5 text-[#F2D543]" />
+              <User className="w-5 h-5 text-primarioDark" />
             </div>
             <h2 className="text-xl font-semibold text-white montserrat-medium">
               Edit Character

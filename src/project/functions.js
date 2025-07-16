@@ -123,3 +123,71 @@ export async function destroyCharacter(data) {
 
   return response;
 }
+
+export async function createSpot(data) {
+  const info = {
+    project_id: data.project_id, // Asegurarse de enviar el ID del proyecto
+    type: data.type,
+    ai_model: data.ai_model,
+    prompt: data.prompt,
+    base_64_image: data.base_64_image,
+    name: data.name,
+    description: data.description,
+  };
+
+  const response = await fetch(
+    `${import.meta.env.VITE_APP_BACKEND_URL}projects/create-spot`,
+    {
+      method: "POST",
+      body: JSON.stringify(info),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + Cookies.get("token"),
+      },
+    }
+  );
+
+  return response;
+}
+
+export async function editSpot(data) {
+  const info = {
+    id: data.id,
+    name: data.name,
+    description: data.description,
+  };
+
+  const response = await fetch(
+    `${import.meta.env.VITE_APP_BACKEND_URL}projects/edit-spot`,
+    {
+      method: "POST",
+      body: JSON.stringify(info),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + Cookies.get("token"),
+      },
+    }
+  );
+
+  return response;
+}
+
+export async function destroySpot(data) {
+  const info = {
+    id: data.id,
+  };
+
+  const response = await fetch(
+    `${import.meta.env.VITE_APP_BACKEND_URL}projects/delete-spot`,
+    {
+      method: "POST",
+      body: JSON.stringify(info),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + Cookies.get("token"),
+      },
+    }
+  );
+
+  return response;
+}

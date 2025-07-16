@@ -10,6 +10,8 @@ import ModalCreateVoice from "../create_elements/modal-create-voice";
 import ModalCreateScene from "../create_elements/modal-create-scene";
 import ModalEditCharacter from "./components/modal-edit-character";
 import ModalDeleteCharacter from "./components/modal-delete-character";
+import ModalEditSpot from "./components/modal-edit-spot";
+import ModalDeleteSpot from "../create_elements/modal-delete-spot";
 import { createPusherClient } from "../pusher";
 import { getProjects } from "./functions";
 
@@ -44,6 +46,13 @@ function MainProject() {
   const [isDeleteCharacterModalOpen, setIsDeleteCharacterModalOpen] =
     useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState(null);
+
+  // Estados para el menú de opciones de spots
+  const [hoveredSpot, setHoveredSpot] = useState(null);
+  const [showSpotMenu, setShowSpotMenu] = useState(null);
+  const [isEditSpotModalOpen, setIsEditSpotModalOpen] = useState(false);
+  const [isDeleteSpotModalOpen, setIsDeleteSpotModalOpen] = useState(false);
+  const [selectedSpot, setSelectedSpot] = useState(null);
 
   //WEBSOCKET
   const pusherClient = createPusherClient();
@@ -99,8 +108,12 @@ function MainProject() {
   };
 
   const handleSpotCreated = (spotData) => {
-    // Aquí puedes actualizar el estado del proyecto con el nuevo spot
+    // Actualizar el estado del proyecto con el nuevo spot
     console.log("Spot created:", spotData);
+    setProject((prevProject) => ({
+      ...prevProject,
+      spots: [...(prevProject.spots || []), spotData],
+    }));
     setIsCreateSpotModalOpen(false);
   };
 
@@ -150,6 +163,37 @@ function MainProject() {
     setSelectedCharacter(null);
   };
 
+  // Funciones para manejar spots
+  const handleEditSpot = (spot) => {
+    setSelectedSpot(spot);
+    setIsEditSpotModalOpen(true);
+    setShowSpotMenu(null);
+  };
+
+  const handleDeleteSpot = (spot) => {
+    console.log("Delete spot:", spot);
+    setSelectedSpot(spot);
+    setIsDeleteSpotModalOpen(true);
+    setShowSpotMenu(null);
+  };
+
+  const handleSpotUpdated = (updatedSpot) => {
+    // Actualizar el estado del proyecto con el spot modificado
+    setIsEditSpotModalOpen(false);
+    setSelectedSpot(null);
+  };
+
+  const handleSpotDeleted = (deletedSpot) => {
+    // Actualizar el estado del proyecto removiendo el spot
+    console.log("Spot deleted:", deletedSpot);
+    setProject((prevProject) => ({
+      ...prevProject,
+      spots: prevProject.spots?.filter((s) => s.id !== deletedSpot.id) || [],
+    }));
+    setIsDeleteSpotModalOpen(false);
+    setSelectedSpot(null);
+  };
+
   return (
     <div className="p-6 min-h-screen bg-primarioDark">
       <div className="space-y-3">
@@ -192,7 +236,7 @@ function MainProject() {
         </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.characters?.length > 0 ? (
-            <div className="flex flex-wrap gap-4">
+            <div className="grid grid-cols-7 overflow-auto gap-4">
               {project.characters.map((character) => (
                 <div
                   key={character.id}
@@ -281,7 +325,70 @@ function MainProject() {
         </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.spots?.length > 0 ? (
-            <span>Hola</span>
+            <div className="grid grid-cols-7 overflow-auto gap-4">
+              {project.spots.map((spot) => (
+                <div
+                  key={spot.id}
+                  className="pb-2 bg-darkBoxSub px-3 pt-3 rounded-xl space-y-4 relative"
+                  onMouseEnter={() => setHoveredSpot(spot.id)}
+                  onMouseLeave={() => {
+                    setHoveredSpot(null);
+                    setShowSpotMenu(null);
+                  }}
+                >
+                  <div className="relative">
+                    <img
+                      src={spot.image_url}
+                      alt=""
+                      className="w-32 h-32 object-cover rounded-2xl"
+                    />
+
+                    {/* Three Dots Menu */}
+                    {hoveredSpot === spot.id && (
+                      <div className="absolute top-2 right-2">
+                        <button
+                          onClick={() =>
+                            setShowSpotMenu(
+                              showSpotMenu === spot.id ? null : spot.id
+                            )
+                          }
+                          className="bg-[#36354080] px-1 py-1 bg-opacity-75 text-white hover:bg-opacity-90 rounded-full transition-all"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {showSpotMenu === spot.id && (
+                          <div className="absolute top-8 right-0 bg-darkBox rounded-lg shadow-lg z-10 min-w-[100px] border border-gray-600">
+                            <button
+                              onClick={() => handleEditSpot(spot)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-darkBoxSub transition-colors rounded-t-lg"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSpot(spot)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-darkBoxSub transition-colors rounded-b-lg"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <h1
+                    className="text-[#a2a3b4] montserrat-medium text-sm tracking-wider line-clamp-1"
+                    title={spot.name}
+                  >
+                    {spot.name}
+                  </h1>
+                </div>
+              ))}
+            </div>
           ) : (
             <span className="text-[#808191]">
               No spots found for this project.
@@ -375,8 +482,22 @@ function MainProject() {
       <ModalCreateSpot
         isOpen={isCreateSpotModalOpen}
         onClose={() => setIsCreateSpotModalOpen(false)}
-        projectId={project?.id}
+        project_id={project?.id}
         onSpotCreated={handleSpotCreated}
+      />
+
+      <ModalEditSpot
+        isOpen={isEditSpotModalOpen}
+        onClose={() => setIsEditSpotModalOpen(false)}
+        spot={selectedSpot}
+        onSpotUpdated={handleSpotUpdated}
+      />
+
+      <ModalDeleteSpot
+        isOpen={isDeleteSpotModalOpen}
+        onClose={() => setIsDeleteSpotModalOpen(false)}
+        spot={selectedSpot}
+        onConfirm={handleSpotDeleted}
       />
 
       <ModalCreateVoice
