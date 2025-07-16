@@ -79,7 +79,7 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
     setIsGenerating(true);
     try {
       // Agregar contexto al prompt para mejorar la calidad del spot
-      const enhancedPrompt = `${aiPrompt}. This location/spot will be used in video production, please without characters, so please ensure the location is clearly visible, well-framed, centered in the image, with good lighting and details. The location should be the main focus of the image, not too small or cut off, with a clear and professional appearance suitable for video content.`;
+      const enhancedPrompt = `${aiPrompt}. This location/spot will be used in video production, please without characters, so please ensure the location is clearly visible, well-framed, centered in the image, with good lighting and details. The location should be the main focus of the image, not too small or cut off, with a clear and professional appearance suitable for video content, please only the location.`;
 
       let response;
       let responseData;
