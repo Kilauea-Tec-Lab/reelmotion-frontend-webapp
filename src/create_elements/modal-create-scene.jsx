@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { X, Users, MapPin, Play, Brain, Clock, Video } from "lucide-react";
 
-function ModalCreateScene({ isOpen, onClose, projectId, onSceneCreated }) {
+function ModalCreateScene({
+  isOpen,
+  onClose,
+  projectId,
+  onSceneCreated,
+  spots,
+  characters,
+}) {
   const [sceneName, setSceneName] = useState("");
   const [sceneDescription, setSceneDescription] = useState("");
   const [selectedCharacters, setSelectedCharacters] = useState([]);
@@ -14,51 +21,17 @@ function ModalCreateScene({ isOpen, onClose, projectId, onSceneCreated }) {
   const [estimatedTime, setEstimatedTime] = useState(0);
 
   // Mock data - En producción esto vendría de props o API
-  const availableCharacters = [
-    { id: 1, name: "John Warrior", description: "Medieval knight character" },
-    { id: 2, name: "Sarah Mage", description: "Powerful sorceress" },
-    { id: 3, name: "Marcus Thief", description: "Stealthy rogue character" },
-    { id: 4, name: "Elena Healer", description: "Divine priest character" },
-  ];
-
-  const availableSpots = [
-    {
-      id: 1,
-      name: "Medieval Castle",
-      description: "Ancient fortress with stone walls",
-    },
-    {
-      id: 2,
-      name: "Enchanted Forest",
-      description: "Mystical woodland setting",
-    },
-    {
-      id: 3,
-      name: "Desert Oasis",
-      description: "Peaceful water source in desert",
-    },
-    {
-      id: 4,
-      name: "Mountain Peak",
-      description: "Snow-capped mountain summit",
-    },
-  ];
 
   const aiModels = [
     {
-      id: "gpt",
-      name: "GPT Video",
+      id: "deepseek",
+      name: "DeepSeek Video",
       description: "High quality AI video generation",
     },
     {
       id: "runway",
       name: "Runway ML",
       description: "Professional video AI model",
-    },
-    {
-      id: "stable",
-      name: "Stable Video",
-      description: "Stable diffusion for video",
     },
     {
       id: "dall-e",
@@ -155,8 +128,6 @@ function ModalCreateScene({ isOpen, onClose, projectId, onSceneCreated }) {
         video_url: generatedVideoUrl,
       };
 
-      console.log("Creating scene:", sceneData);
-
       if (onSceneCreated) {
         onSceneCreated(sceneData);
       }
@@ -175,12 +146,12 @@ function ModalCreateScene({ isOpen, onClose, projectId, onSceneCreated }) {
 
   if (!isOpen) return null;
 
-  const selectedCharacterNames = availableCharacters
+  const selectedCharacterNames = characters
     .filter((char) => selectedCharacters.includes(char.id))
     .map((char) => char.name)
     .join(", ");
 
-  const selectedSpotData = availableSpots.find(
+  const selectedSpotData = spots.find(
     (spot) => spot.id.toString() === selectedSpot
   );
 
@@ -207,7 +178,7 @@ function ModalCreateScene({ isOpen, onClose, projectId, onSceneCreated }) {
               Select Characters *
             </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {availableCharacters.map((character) => (
+              {characters.map((character) => (
                 <div
                   key={character.id}
                   onClick={() => handleCharacterToggle(character.id)}
@@ -231,9 +202,6 @@ function ModalCreateScene({ isOpen, onClose, projectId, onSceneCreated }) {
                       <h3 className="font-medium text-white montserrat-medium text-sm">
                         {character.name}
                       </h3>
-                      <p className="text-xs text-gray-400 montserrat-regular">
-                        {character.description}
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -252,7 +220,7 @@ function ModalCreateScene({ isOpen, onClose, projectId, onSceneCreated }) {
               Select Spot/Location *
             </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {availableSpots.map((spot) => (
+              {spots.map((spot) => (
                 <div
                   key={spot.id}
                   onClick={() => setSelectedSpot(spot.id.toString())}
@@ -276,9 +244,6 @@ function ModalCreateScene({ isOpen, onClose, projectId, onSceneCreated }) {
                       <h3 className="font-medium text-white montserrat-medium text-sm">
                         {spot.name}
                       </h3>
-                      <p className="text-xs text-gray-400 montserrat-regular">
-                        {spot.description}
-                      </p>
                     </div>
                   </div>
                 </div>
