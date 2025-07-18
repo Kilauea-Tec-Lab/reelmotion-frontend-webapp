@@ -512,6 +512,8 @@ function MainProject() {
         onClose={() => setIsCreateSceneModalOpen(false)}
         projectId={project?.id}
         onSceneCreated={handleSceneCreated}
+        characters={project?.characters || []}
+        spots={project?.spots || []}
       />
     </div>
   );
