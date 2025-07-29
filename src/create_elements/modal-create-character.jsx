@@ -78,7 +78,7 @@ function ModalCreateCharacter({
     setIsGenerating(true);
     try {
       // Agregar contexto al prompt para mejorar la calidad del personaje
-      const enhancedPrompt = `${aiPrompt}. This character will be used in video production, so please ensure the character is clearly visible, well-framed, centered in the image, with good proportions and details. The character should be the main focus of the image, not too small or cut off, with a clear and professional appearance suitable for video content.`;
+      const enhancedPrompt = `${aiPrompt}. This character will be used in video production.`;
 
       let response;
       let responseData;
@@ -91,15 +91,15 @@ function ModalCreateCharacter({
         responseData = await response.json();
       }
 
-      // Verificar si la respuesta fue exitosa y tiene la imagen
+      // Verificar si la respuesta fue exitosa y tiene la imagen en base64
       if (
         responseData &&
         responseData.success &&
         responseData.data &&
-        responseData.data.image_url
+        responseData.data.image_base64
       ) {
         // La imagen viene en base64, crear la URL completa
-        const base64Image = `data:image/jpeg;base64,${responseData.data.image_url}`;
+        const base64Image = `data:image/png;base64,${responseData.data.image_base64}`;
         setPreviewUrl(base64Image);
         setHasGeneratedImage(true);
       } else {
@@ -427,7 +427,7 @@ function ModalCreateCharacter({
                       className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
                     >
                       <option value="gpt" className="bg-darkBoxSub text-white">
-                        GPT - DALL·E 3
+                        GPT
                       </option>
                       <option
                         value="freepik"

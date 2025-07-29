@@ -59,7 +59,6 @@ function Login() {
 
         if (errorData.success == false) {
           setLoginEmailError("The email or username is incorrect");
-          setLoginEmailError("");
         }
       }
     } catch (error) {}
@@ -213,19 +212,17 @@ function Login() {
                     />
                   </div>
                   <div>
-                    {loginPasswordError && (
-                      <p className="text-red-400 text-sm mb-1 text-left">
-                        {loginPasswordError}
-                      </p>
-                    )}
                     <input
                       className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0 ${
-                        loginPasswordError ? "border-2 border-red-500" : ""
+                        loginEmailError ? "border-2 border-red-500" : ""
                       }`}
                       type="password"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="Enter your password"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleLogin();
+                      }}
                     />
                   </div>
                   <span className="text-white montserrat-light text-xs">
