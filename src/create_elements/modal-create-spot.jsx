@@ -97,10 +97,10 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
         responseData &&
         responseData.success &&
         responseData.data &&
-        responseData.data.image_url
+        responseData.data.image_base64
       ) {
         // La imagen viene en base64, crear la URL completa
-        const base64Image = `data:image/jpeg;base64,${responseData.data.image_url}`;
+        const base64Image = `data:image/jpeg;base64,${responseData.data.image_base64}`;
         setPreviewUrl(base64Image);
         setHasGeneratedImage(true);
       } else {
@@ -426,7 +426,7 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
                       className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
                     >
                       <option value="gpt" className="bg-darkBoxSub text-white">
-                        GPT - DALL·E 3
+                        GPT
                       </option>
                       <option
                         value="freepik"

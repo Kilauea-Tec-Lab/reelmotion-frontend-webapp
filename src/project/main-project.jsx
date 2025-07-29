@@ -1,5 +1,5 @@
 import { div, span } from "framer-motion/client";
-import { Edit, Plus, Trash2, MoreHorizontal } from "lucide-react";
+import { Edit, Plus, Trash2, MoreHorizontal, Volume2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLoaderData, useParams, useNavigate } from "react-router-dom";
 import ModalEditProject from "../create_elements/modal-edit-project";
@@ -12,6 +12,9 @@ import ModalEditCharacter from "./components/modal-edit-character";
 import ModalDeleteCharacter from "./components/modal-delete-character";
 import ModalEditSpot from "./components/modal-edit-spot";
 import ModalDeleteSpot from "../create_elements/modal-delete-spot";
+import ModalEditScene from "./components/modal-edit-scene";
+import ModalDeleteScene from "./components/modal-delete-scene";
+import ModalPreview from "../components/modal-preview";
 import { createPusherClient } from "../pusher";
 import { getProjects } from "./functions";
 
@@ -53,6 +56,25 @@ function MainProject() {
   const [isEditSpotModalOpen, setIsEditSpotModalOpen] = useState(false);
   const [isDeleteSpotModalOpen, setIsDeleteSpotModalOpen] = useState(false);
   const [selectedSpot, setSelectedSpot] = useState(null);
+
+  // Estados para el menú de opciones de voices
+  const [hoveredVoice, setHoveredVoice] = useState(null);
+  const [showVoiceMenu, setShowVoiceMenu] = useState(null);
+  const [isEditVoiceModalOpen, setIsEditVoiceModalOpen] = useState(false);
+  const [isDeleteVoiceModalOpen, setIsDeleteVoiceModalOpen] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState(null);
+
+  // Estados para el menú de opciones de scenes
+  const [hoveredScene, setHoveredScene] = useState(null);
+  const [showSceneMenu, setShowSceneMenu] = useState(null);
+  const [isEditSceneModalOpen, setIsEditSceneModalOpen] = useState(false);
+  const [isDeleteSceneModalOpen, setIsDeleteSceneModalOpen] = useState(false);
+  const [selectedScene, setSelectedScene] = useState(null);
+
+  // Estados para el modal de preview
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [previewType, setPreviewType] = useState(null);
 
   //WEBSOCKET
   const pusherClient = createPusherClient();
@@ -132,8 +154,12 @@ function MainProject() {
   };
 
   const handleSceneCreated = (sceneData) => {
-    // Aquí puedes actualizar el estado del proyecto con la nueva escena
+    // Actualizar el estado del proyecto con la nueva escena
     console.log("Scene created:", sceneData);
+    setProject((prevProject) => ({
+      ...prevProject,
+      scenes: [...(prevProject.scenes || []), sceneData],
+    }));
     setIsCreateSceneModalOpen(false);
   };
 
@@ -194,6 +220,89 @@ function MainProject() {
     setSelectedSpot(null);
   };
 
+  // Funciones para manejar voices
+  const handleEditVoice = (voice) => {
+    setSelectedVoice(voice);
+    setIsEditVoiceModalOpen(true);
+    setShowVoiceMenu(null);
+  };
+
+  const handleDeleteVoice = (voice) => {
+    console.log("Delete voice:", voice);
+    setSelectedVoice(voice);
+    setIsDeleteVoiceModalOpen(true);
+    setShowVoiceMenu(null);
+  };
+
+  const handleVoiceUpdated = (updatedVoice) => {
+    // Actualizar el estado del proyecto con la voice modificada
+    setProject((prevProject) => ({
+      ...prevProject,
+      voices:
+        prevProject.voices?.map((v) =>
+          v.id === updatedVoice.id ? updatedVoice : v
+        ) || [],
+    }));
+    setIsEditVoiceModalOpen(false);
+    setSelectedVoice(null);
+  };
+
+  const handleVoiceDeleted = (deletedVoice) => {
+    // Actualizar el estado del proyecto removiendo la voice
+    console.log("Voice deleted:", deletedVoice);
+    setProject((prevProject) => ({
+      ...prevProject,
+      voices: prevProject.voices?.filter((v) => v.id !== deletedVoice.id) || [],
+    }));
+    setIsDeleteVoiceModalOpen(false);
+    setSelectedVoice(null);
+  };
+
+  // Funciones para manejar scenes
+  const handleEditScene = (scene) => {
+    setSelectedScene(scene);
+    setIsEditSceneModalOpen(true);
+    setShowSceneMenu(null);
+  };
+
+  const handleDeleteScene = (scene) => {
+    console.log("Delete scene:", scene);
+    setSelectedScene(scene);
+    setIsDeleteSceneModalOpen(true);
+    setShowSceneMenu(null);
+  };
+
+  const handleSceneUpdated = (updatedScene) => {
+    // Actualizar el estado del proyecto con la escena modificada
+    setProject((prevProject) => ({
+      ...prevProject,
+      scenes:
+        prevProject.scenes?.map((s) =>
+          s.id === updatedScene.id ? updatedScene : s
+        ) || [],
+    }));
+    setIsEditSceneModalOpen(false);
+    setSelectedScene(null);
+  };
+
+  const handleSceneDeleted = (deletedScene) => {
+    // Actualizar el estado del proyecto removiendo la escena
+    console.log("Scene deleted:", deletedScene);
+    setProject((prevProject) => ({
+      ...prevProject,
+      scenes: prevProject.scenes?.filter((s) => s.id !== deletedScene.id) || [],
+    }));
+    setIsDeleteSceneModalOpen(false);
+    setSelectedScene(null);
+  };
+
+  // Función para abrir el modal de preview
+  const handlePreview = (item, type) => {
+    setPreviewData(item);
+    setPreviewType(type);
+    setIsPreviewModalOpen(true);
+  };
+
   return (
     <div className="p-6 min-h-screen bg-primarioDark">
       <div className="space-y-3">
@@ -246,6 +355,7 @@ function MainProject() {
                     setHoveredCharacter(null);
                     setShowCharacterMenu(null);
                   }}
+                  onDoubleClick={() => handlePreview(character, "image")}
                 >
                   <div className="relative">
                     <img
@@ -335,6 +445,7 @@ function MainProject() {
                     setHoveredSpot(null);
                     setShowSpotMenu(null);
                   }}
+                  onDoubleClick={() => handlePreview(spot, "image")}
                 >
                   <div className="relative">
                     <img
@@ -412,7 +523,71 @@ function MainProject() {
         </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.voices?.length > 0 ? (
-            <span>Hola</span>
+            <div className="grid grid-cols-7 overflow-auto gap-4">
+              {project.voices.map((voice) => (
+                <div
+                  key={voice.id}
+                  className="pb-2 bg-darkBoxSub px-3 pt-3 rounded-xl space-y-4 relative"
+                  onMouseEnter={() => setHoveredVoice(voice.id)}
+                  onMouseLeave={() => {
+                    setHoveredVoice(null);
+                    setShowVoiceMenu(null);
+                  }}
+                  onDoubleClick={() => handlePreview(voice, "audio")}
+                >
+                  <div className="relative">
+                    <div className="w-32 h-32 bg-gradient-to-br from-[#f2f243] to-yellow-500 rounded-2xl flex items-center justify-center">
+                      <div className="w-20 h-20 bg-primarioDark rounded-full flex items-center justify-center">
+                        <Volume2 className="w-10 h-10 text-[#f2f243]" />
+                      </div>
+                    </div>
+
+                    {/* Three Dots Menu */}
+                    {hoveredVoice === voice.id && (
+                      <div className="absolute top-2 right-2">
+                        <button
+                          onClick={() =>
+                            setShowVoiceMenu(
+                              showVoiceMenu === voice.id ? null : voice.id
+                            )
+                          }
+                          className="bg-[#36354080] px-1 py-1 bg-opacity-75 text-white hover:bg-opacity-90 rounded-full transition-all"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {showVoiceMenu === voice.id && (
+                          <div className="absolute top-8 right-0 bg-darkBox rounded-lg shadow-lg z-10 min-w-[100px] border border-gray-600">
+                            <button
+                              onClick={() => handleEditVoice(voice)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-darkBoxSub transition-colors rounded-t-lg"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteVoice(voice)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-darkBoxSub transition-colors rounded-b-lg"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <h1
+                    className="text-[#a2a3b4] montserrat-medium text-sm tracking-wider line-clamp-1"
+                    title={voice.name}
+                  >
+                    {voice.name}
+                  </h1>
+                </div>
+              ))}
+            </div>
           ) : (
             <span className="text-[#808191]">
               No voices found for this project.
@@ -436,7 +611,71 @@ function MainProject() {
         </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.scenes?.length > 0 ? (
-            <span>Hola</span>
+            <div className="grid grid-cols-7 overflow-auto gap-4">
+              {project.scenes.map((scene) => (
+                <div
+                  key={scene.id}
+                  className="pb-2 bg-darkBoxSub px-3 pt-3 rounded-xl space-y-4 relative"
+                  onMouseEnter={() => setHoveredScene(scene.id)}
+                  onMouseLeave={() => {
+                    setHoveredScene(null);
+                    setShowSceneMenu(null);
+                  }}
+                  onDoubleClick={() => handlePreview(scene, "video")}
+                >
+                  <div className="relative">
+                    <img
+                      src={scene.image_url || scene.prompt_image_url}
+                      alt=""
+                      className="w-32 h-32 object-cover rounded-2xl"
+                    />
+
+                    {/* Three Dots Menu */}
+                    {hoveredScene === scene.id && (
+                      <div className="absolute top-2 right-2">
+                        <button
+                          onClick={() =>
+                            setShowSceneMenu(
+                              showSceneMenu === scene.id ? null : scene.id
+                            )
+                          }
+                          className="bg-[#36354080] px-1 py-1 bg-opacity-75 text-white hover:bg-opacity-90 rounded-full transition-all"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {showSceneMenu === scene.id && (
+                          <div className="absolute top-8 right-0 bg-darkBox rounded-lg shadow-lg z-10 min-w-[100px] border border-gray-600">
+                            <button
+                              onClick={() => handleEditScene(scene)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-darkBoxSub transition-colors rounded-t-lg"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteScene(scene)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-darkBoxSub transition-colors rounded-b-lg"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <h1
+                    className="text-[#a2a3b4] montserrat-medium text-sm tracking-wider line-clamp-1"
+                    title={scene.name}
+                  >
+                    {scene.name}
+                  </h1>
+                </div>
+              ))}
+            </div>
           ) : (
             <span className="text-[#808191]">
               No scenes found for this project.
@@ -511,9 +750,30 @@ function MainProject() {
         isOpen={isCreateSceneModalOpen}
         onClose={() => setIsCreateSceneModalOpen(false)}
         projectId={project?.id}
-        onSceneCreated={handleSceneCreated}
         characters={project?.characters || []}
         spots={project?.spots || []}
+        onSceneCreated={handleSceneCreated}
+      />
+
+      <ModalEditScene
+        isOpen={isEditSceneModalOpen}
+        onClose={() => setIsEditSceneModalOpen(false)}
+        scene={selectedScene}
+        onSceneUpdated={handleSceneUpdated}
+      />
+
+      <ModalDeleteScene
+        isOpen={isDeleteSceneModalOpen}
+        onClose={() => setIsDeleteSceneModalOpen(false)}
+        scene={selectedScene}
+        onConfirm={handleSceneDeleted}
+      />
+
+      <ModalPreview
+        isOpen={isPreviewModalOpen}
+        onClose={() => setIsPreviewModalOpen(false)}
+        type={previewType}
+        data={previewData}
       />
     </div>
   );

@@ -191,3 +191,29 @@ export async function destroySpot(data) {
 
   return response;
 }
+
+/* VIDEO GENERATRION */
+export async function createRunwayVideo(data) {
+  const info = {
+    project_id: data.project_id, // Asegurarse de enviar el ID del proyecto
+    characters: data.characters,
+    spots: data.spots,
+    ai_model: data.ai_model,
+    ai_prompt: data.ai_prompt,
+    video_duration: data.video_duration,
+  };
+
+  const response = await fetch(
+    `${import.meta.env.VITE_APP_BACKEND_URL}ai/generate-video-runway`,
+    {
+      method: "POST",
+      body: JSON.stringify(info),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + Cookies.get("token"),
+      },
+    }
+  );
+
+  return response;
+}
