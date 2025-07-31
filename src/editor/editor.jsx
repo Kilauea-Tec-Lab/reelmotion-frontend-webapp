@@ -10,7 +10,14 @@ import {
   X,
   Trash2,
   Mic,
+  Save,
+  FolderOpen,
+  Download,
 } from "lucide-react";
+import { useLoaderData } from "react-router-dom";
+import ModalSaveEdit from "./components/modal-save-edit";
+import ModalLoadEdit from "./components/modal-load-edit";
+import ModalExportEdit from "./components/modal-export-edit";
 
 // Editor - Advanced Timeline Video Editor
 //
@@ -28,10 +35,22 @@ import {
 // - Resize handles appear on hover for all timeline elements
 
 function Editor() {
+  const data = useLoaderData();
   const [menuActive, setMenuActive] = useState(1);
   const [draggedItem, setDraggedItem] = useState(null);
   const [arrayVideoMake, setArrayVideoMake] = useState([]);
   const [videoDurations, setVideoDurations] = useState({});
+
+  // Extract projects and scenes from loader data
+  const projects = data?.projects || [];
+  const allScenes = projects.flatMap(
+    (project) =>
+      project.scenes?.map((scene) => ({
+        ...scene,
+        projectName: project.name,
+        projectId: project.id,
+      })) || []
+  );
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -63,69 +82,16 @@ function Editor() {
   // State for selected element
   const [selectedElement, setSelectedElement] = useState(null);
 
+  // States for modals
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showLoadModal, setShowLoadModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [currentEditName, setCurrentEditName] = useState("");
+
   // States for image dragging in preview area
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [draggingImageElement, setDraggingImageElement] = useState(null);
   const [imageDragStart, setImageDragStart] = useState({ x: 0, y: 0 });
-
-  const videos = [
-    {
-      url: "/test/Astronauta_Anuncio_Instagram_Listo.mp4",
-      title: "Astronauta Anuncio Instagram Listo",
-    },
-    {
-      url: "/test/Astronauta_Noir_en_la_Luna.mp4",
-      title: "Astronauta Noir en la Luna",
-    },
-    {
-      url: "/test/Astronauta_Publicita_Yacamba_en_Instagram.mp4",
-      title: "Astronauta Publicita Yacamba en Instagram",
-    },
-    {
-      url: "/test/Marciano_Promociona_Usa_Yacamba_.mp4",
-      title: "Marciano Promociona Usa Yacamba",
-    },
-    {
-      url: "/test/Marciano_Recomienda_Yacamba_.mp4",
-      title: "Marciano Recomienda Yacamba",
-    },
-    {
-      url: "/test/Odoo_Boxeador_Noqueado_Yacamba.mp4",
-      title: "Odoo Boxeador Noqueado Yacamba",
-    },
-    {
-      url: "/test/Video_Alemania_en_Ucrania.mp4",
-      title: "Video Alemania en Ucrania",
-    },
-    {
-      url: "/test/Video_de_Noticia_Fronteriza.mp4",
-      title: "Video de Noticia Fronteriza",
-    },
-    {
-      url: "/test/Video_de_Odoo_y_Boxeo.mp4",
-      title: "Video de Odoo y Boxeo",
-    },
-    {
-      url: "/test/Video_de_Reportero_Fronterizo.mp4",
-      title: "Video de Reportero Fronterizo",
-    },
-    {
-      url: "/test/Video_Listo_Guerrero_Maya_Sonríe.mp4",
-      title: "Video Listo Guerrero Maya Sonríe",
-    },
-    {
-      url: "/test/Video_Maya_Cumbias_y_Coca.mp4",
-      title: "Video Maya Cumbias y Coca",
-    },
-    {
-      url: "/test/Video_Noticia_Frontera_México.mp4",
-      title: "Video Noticia Frontera México",
-    },
-    {
-      url: "/test/Video_Noticia_Frontera_México_EEUU.mp4",
-      title: "Video Noticia Frontera México EEUU",
-    },
-  ];
 
   const images = [
     {
@@ -1065,118 +1031,37 @@ function Editor() {
 
   // Functions to save and export project
   const handleSaveProject = () => {
-    const projectData = {
-      timeline: arrayVideoMake,
-      settings: {
-        masterVolume: masterVolume,
-        duration: getTimelineDuration(),
-        currentTime: currentTime,
-      },
-      metadata: {
-        name: "My Project",
-        createdAt: new Date().toISOString(),
-        version: "1.0",
-      },
-    };
-
-    // Save in localStorage (for local persistence)
-    localStorage.setItem("reelmotion_project", JSON.stringify(projectData));
-
-    // Also create downloadable file
-    const dataStr = JSON.stringify(projectData, null, 2);
-    const dataUri =
-      "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
-
-    const exportFileDefaultName = `reelmotion_project_${
-      new Date().toISOString().split("T")[0]
-    }.json`;
-
-    const linkElement = document.createElement("a");
-    linkElement.setAttribute("href", dataUri);
-    linkElement.setAttribute("download", exportFileDefaultName);
-    linkElement.click();
-
-    alert("Project saved successfully!");
+    setShowSaveModal(true);
   };
 
   const handleLoadProject = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".json";
-
-    input.onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const projectData = JSON.parse(e.target.result);
-
-          if (projectData.timeline) {
-            setArrayVideoMake(projectData.timeline);
-          }
-          if (projectData.settings) {
-            setMasterVolume(projectData.settings.masterVolume || 1);
-            setCurrentTime(projectData.settings.currentTime || 0);
-          }
-
-          // Deselect any element
-          setSelectedElement(null);
-
-          alert("Project loaded successfully!");
-        } catch (error) {
-          alert("Error loading project: " + error.message);
-        }
-      };
-      reader.readAsText(file);
-    };
-
-    input.click();
+    setShowLoadModal(true);
   };
 
   const handleExportVideo = () => {
-    // Video export simulation
-    if (arrayVideoMake.length === 0) {
-      alert("No content in timeline to export");
-      return;
-    }
+    setShowExportModal(true);
+  };
 
-    const exportData = {
-      timeline: arrayVideoMake,
-      settings: {
-        resolution: "1920x1080",
-        framerate: 30,
-        duration: getTimelineDuration(),
-        masterVolume: masterVolume,
-      },
-      exportSettings: {
-        format: "mp4",
-        quality: "high",
-        timestamp: new Date().toISOString(),
-      },
-    };
+  // Modal handlers
+  const handleSaveEdit = (editName) => {
+    // This will be called from the save modal
+    console.log("Saving edit:", editName);
+    setCurrentEditName(editName);
+    setShowSaveModal(false);
+  };
 
-    // In a real implementation, this would be sent to a server for processing
-    console.log("Export data:", exportData);
+  const handleLoadEdit = (editData) => {
+    // This will be called from the load modal
+    console.log("Loading edit:", editData);
+    setArrayVideoMake(editData.timeline);
+    setCurrentEditName(editData.name);
+    setShowLoadModal(false);
+  };
 
-    // Create file with export configuration
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataUri =
-      "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
-
-    const exportFileDefaultName = `reelmotion_export_config_${
-      new Date().toISOString().split("T")[0]
-    }.json`;
-
-    const linkElement = document.createElement("a");
-    linkElement.setAttribute("href", dataUri);
-    linkElement.setAttribute("download", exportFileDefaultName);
-    linkElement.click();
-
-    alert(
-      "Export configuration saved. In a complete implementation, the video would be processed here."
-    );
+  const handleExportEdit = (projectId) => {
+    // This will be called from the export modal
+    console.log("Exporting edit to project:", projectId);
+    setShowExportModal(false);
   };
 
   // Automatically load project when component mounts
@@ -1322,22 +1207,25 @@ function Editor() {
           <button
             type="button"
             onClick={handleSaveProject}
-            className="bg-[#F2D543] text-primarioDark px-6 py-2 rounded-3xl font-medium hover:bg-[#f2f243]"
+            className="bg-[#F2D543] text-primarioDark px-6 py-2 rounded-3xl font-medium hover:bg-[#f2f243] flex items-center gap-2"
           >
+            <Save size={18} />
             Save
           </button>
           <button
             type="button"
             onClick={handleLoadProject}
-            className="bg-[#F2D54310] text-[#F2D543] border-[#F2D543] border px-6 py-2 rounded-3xl font-medium hover:bg-[#F2D543] hover:text-black"
+            className="bg-[#F2D54310] text-[#F2D543] border-[#F2D543] border px-6 py-2 rounded-3xl font-medium hover:bg-[#F2D543] hover:text-black flex items-center gap-2"
           >
+            <FolderOpen size={18} />
             Load
           </button>
           <button
             type="button"
             onClick={handleExportVideo}
-            className="bg-[#F2D54310] text-[#F2D543] border-[#F2D543] border px-6 py-2 rounded-3xl font-medium hover:bg-[#F2D543] hover:text-black"
+            className="bg-[#F2D54310] text-[#F2D543] border-[#F2D543] border px-6 py-2 rounded-3xl font-medium hover:bg-[#F2D543] hover:text-black flex items-center gap-2"
           >
+            <Download size={18} />
             Export
           </button>
         </div>
@@ -1389,40 +1277,81 @@ function Editor() {
           </div>
           <div className="w-4/5 overflow-scroll bg-darkBoxSub rounded-tr-4xl rounded-br-4xl">
             {menuActive == 1 ? (
-              <div className=" p-4 w-full  h-full">
-                <div className="grid grid-cols-2 gap-4 h-full">
-                  {videos.map((video, index) => (
-                    <div
-                      key={index}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, video, "video")}
-                      className="bg-darkBox cursor-pointer hover:bg-opacity-80 rounded-2xl transition-all duration-200 hover:scale-105"
-                    >
-                      <video
-                        src={video.url}
-                        className="rounded-t-2xl"
-                        onLoadedMetadata={(e) =>
-                          handleVideoMetadata(video.url, e.target)
-                        }
-                        preload="metadata"
-                      ></video>
-                      <div className="pb-4 pt-1 px-1 relative">
-                        <span
-                          className="text-[#E7E7E7] text-xs line-clamp-2 mt-2"
-                          title={video.title}
-                        >
-                          {video.title}
-                        </span>
-                        {/* Mostrar duración si está disponible */}
-                        {videoDurations[video.url] && (
-                          <div className="absolute top-1 right-1 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                            {videoDurations[video.url]}s
+              <div className="p-4 w-full h-full">
+                {projects.length > 0 ? (
+                  <div className="space-y-6">
+                    {projects.map((project) => (
+                      <div key={project.id} className="space-y-3">
+                        {/* Project Header */}
+                        <div className="border-b border-gray-600 pb-2">
+                          <h3 className="text-white font-medium text-lg">
+                            {project.name}
+                          </h3>
+                          <p className="text-gray-400 text-sm">
+                            {project.scenes?.length || 0} scenes available
+                          </p>
+                        </div>
+
+                        {/* Project Videos Grid */}
+                        {project.scenes && project.scenes.length > 0 ? (
+                          <div className="grid grid-cols-2 gap-4">
+                            {project.scenes.map((scene, index) => (
+                              <div
+                                key={scene.id}
+                                draggable
+                                onDragStart={(e) =>
+                                  handleDragStart(
+                                    e,
+                                    {
+                                      id: scene.id,
+                                      url: scene.video_url,
+                                      title: scene.name,
+                                      projectName: project.name,
+                                    },
+                                    "video"
+                                  )
+                                }
+                                className="bg-darkBox cursor-pointer hover:bg-opacity-80 rounded-2xl transition-all duration-200 hover:scale-105"
+                              >
+                                <img
+                                  src={
+                                    scene.image_url || scene.prompt_image_url
+                                  }
+                                  alt={scene.name}
+                                  className="rounded-t-2xl w-full h-16 object-cover aspect-square"
+                                />
+                                <div className="pb-4 pt-1 px-3 relative">
+                                  <span
+                                    className="text-[#E7E7E7] text-xs line-clamp-2 mt-2"
+                                    title={scene.name}
+                                  >
+                                    {scene.name}
+                                  </span>
+                                  <span className="text-gray-500 text-xs block mt-1">
+                                    {project.name}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-gray-400 text-sm italic">
+                            No scenes available in this project
                           </div>
                         )}
                       </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center text-gray-400">
+                      <p className="text-lg">No projects available</p>
+                      <p className="text-sm mt-2">
+                        Create some projects with scenes to start editing
+                      </p>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
             ) : menuActive == 2 ? (
               <div className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full">
@@ -1615,9 +1544,7 @@ function Editor() {
               <div className="space-y-4">
                 <div className="text-sm text-gray-300 mb-4">
                   <p>Duration: {selectedElement.duration}s</p>
-                  <p className="text-xs mt-1">
-                    Click again to deselect
-                  </p>
+                  <p className="text-xs mt-1">Click again to deselect</p>
                 </div>
 
                 {/* Volume Control for Videos */}
@@ -1677,7 +1604,8 @@ function Editor() {
 
                   <div>
                     <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Brightness: {selectedElement.colorCorrection?.brightness || 0}
+                      Brightness:{" "}
+                      {selectedElement.colorCorrection?.brightness || 0}
                     </label>
                     <input
                       type="range"
@@ -1697,8 +1625,7 @@ function Editor() {
 
                   <div>
                     <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Contrast:{" "}
-                      {selectedElement.colorCorrection?.contrast || 0}
+                      Contrast: {selectedElement.colorCorrection?.contrast || 0}
                     </label>
                     <input
                       type="range"
@@ -2390,6 +2317,34 @@ function Editor() {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      {showSaveModal && (
+        <ModalSaveEdit
+          isOpen={showSaveModal}
+          onClose={() => setShowSaveModal(false)}
+          onSave={handleSaveEdit}
+          timeline={arrayVideoMake}
+        />
+      )}
+
+      {showLoadModal && (
+        <ModalLoadEdit
+          isOpen={showLoadModal}
+          onClose={() => setShowLoadModal(false)}
+          onLoad={handleLoadEdit}
+        />
+      )}
+
+      {showExportModal && (
+        <ModalExportEdit
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          onExport={handleExportEdit}
+          timeline={arrayVideoMake}
+          editName={currentEditName}
+        />
+      )}
     </div>
   );
 }

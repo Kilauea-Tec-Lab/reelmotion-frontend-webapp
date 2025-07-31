@@ -9,6 +9,7 @@ import { userInfoLoader } from "./auth/functions";
 import { multiloaderGet } from "./create_elements/functions";
 import MainProject from "./project/main-project";
 import { getProjects } from "./project/functions";
+import { getInfoToEdit } from "./editor/functions";
 
 const router = createBrowserRouter([
   {
@@ -30,6 +31,7 @@ const router = createBrowserRouter([
       {
         path: "editor",
         element: <Editor />,
+        loader: getInfoToEdit,
       },
       {
         path: "project/:id",
