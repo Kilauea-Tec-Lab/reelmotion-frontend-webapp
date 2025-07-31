@@ -25,7 +25,7 @@ function ModalCreateScene({
   const [sceneDescription, setSceneDescription] = useState("");
   const [selectedCharacters, setSelectedCharacters] = useState([]);
   const [selectedSpot, setSelectedSpot] = useState("");
-  const [aiModel, setAiModel] = useState("gpt");
+  const [aiModel, setAiModel] = useState("runway");
   const [aiPrompt, setAiPrompt] = useState("");
   const [videoDuration, setVideoDuration] = useState(15);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -46,6 +46,11 @@ function ModalCreateScene({
       id: "runway",
       name: "Runway ML",
       description: "Professional video AI model",
+    },
+    {
+      id: "kling",
+      name: "KLING",
+      description: "Advanced AI video generation model",
     },
     {
       id: "dall-e",
@@ -74,7 +79,7 @@ function ModalCreateScene({
     setSceneDescription("");
     setSelectedCharacters([]);
     setSelectedSpot("");
-    setAiModel("gpt");
+    setAiModel("runway");
     setAiPrompt("");
     setVideoDuration(5);
     setGeneratedVideoUrl(null);
@@ -209,6 +214,9 @@ function ModalCreateScene({
           break;
         case "runway":
           estimatedTime = 90;
+          break;
+        case "kling":
+          estimatedTime = 75;
           break;
         case "dall-e":
           estimatedTime = 30;
