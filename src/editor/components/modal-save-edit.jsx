@@ -1,10 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Save } from "lucide-react";
 import Cookies from "js-cookie";
 
-function ModalSaveEdit({ isOpen, onClose, arrayVideoMake, masterVolume, currentTime, onSaved }) {
+function ModalSaveEdit({
+  isOpen,
+  onClose,
+  arrayVideoMake,
+  masterVolume,
+  currentTime,
+  currentEditId,
+  currentEditName,
+  onSaved,
+}) {
   const [editName, setEditName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Pre-populate edit name when editing existing project
+  useEffect(() => {
+    if (isOpen) {
+      setEditName(currentEditName || "");
+    }
+  }, [isOpen, currentEditName]);
 
   const handleClose = () => {
     setEditName("");
@@ -18,16 +34,23 @@ function ModalSaveEdit({ isOpen, onClose, arrayVideoMake, masterVolume, currentT
     try {
       const editData = {
         name: editName.trim(),
-        timeline: arrayVideoMake,
-        settings: {
-          masterVolume: masterVolume,
-          currentTime: currentTime,
-        },
-        metadata: {
-          createdAt: new Date().toISOString(),
-          version: "1.0",
-        },
+        edition_array: JSON.stringify({
+          timeline: arrayVideoMake || [],
+          settings: {
+            masterVolume: masterVolume || 1,
+            currentTime: currentTime || 0,
+          },
+          metadata: {
+            createdAt: new Date().toISOString(),
+            version: "1.0",
+          },
+        }),
       };
+
+      // Add ID if updating existing edit
+      if (currentEditId) {
+        editData.id = currentEditId;
+      }
 
       const response = await fetch(
         `${import.meta.env.VITE_APP_BACKEND_URL}editor/save-edit`,
@@ -42,20 +65,27 @@ function ModalSaveEdit({ isOpen, onClose, arrayVideoMake, masterVolume, currentT
       );
 
       const responseData = await response.json();
+      console.log("Save response:", responseData); // Debug log
 
-      if (response.ok && responseData.success) {
+      if (response.ok && responseData.code === 200) {
+        console.log("Edit saved successfully:", responseData.edition);
         if (onSaved) {
-          onSaved(responseData.data);
+          onSaved({
+            ...responseData.edition,
+            name: editName.trim(),
+            id: responseData.edition?.id || currentEditId,
+          });
         }
         handleClose();
-        alert("Edit saved successfully!");
       } else {
         console.error("Error saving edit:", responseData);
-        alert("Error saving edit. Please try again.");
+        alert(
+          `Error saving edit: ${responseData.message || "Please try again."}`
+        );
       }
     } catch (error) {
       console.error("Error saving edit:", error);
-      alert("Error saving edit. Please try again.");
+      alert(`Error saving edit: ${error.message || "Please try again."}`);
     } finally {
       setIsLoading(false);
     }
@@ -98,14 +128,35 @@ function ModalSaveEdit({ isOpen, onClose, arrayVideoMake, masterVolume, currentT
 
           {/* Edit Info */}
           <div className="mb-6 p-4 bg-darkBoxSub rounded-lg">
-            <h3 className="text-white montserrat-medium text-sm mb-2">Edit Summary</h3>
+            <h3 className="text-white montserrat-medium text-sm mb-2">
+              Edit Summary
+            </h3>
             <div className="text-gray-400 text-sm space-y-1">
-              <p>• Elements: {arrayVideoMake.length}</p>
-              <p>• Duration: {Math.max(...arrayVideoMake.map(item => item.endTime), 0)}s</p>
-              <p>• Master Volume: {Math.round(masterVolume * 100)}%</p>
-              <p>• Videos: {arrayVideoMake.filter(item => item.channel === "video").length}</p>
-              <p>• Images: {arrayVideoMake.filter(item => item.channel === "image").length}</p>
-              <p>• Audio: {arrayVideoMake.filter(item => item.channel === "music" || item.channel === "voice").length}</p>
+              <p>• Elements: {arrayVideoMake?.length || 0}</p>
+              <p>
+                • Duration:{" "}
+                {arrayVideoMake?.length > 0
+                  ? Math.max(...arrayVideoMake.map((item) => item.endTime), 0)
+                  : 0}
+                s
+              </p>
+              <p>• Master Volume: {Math.round((masterVolume || 1) * 100)}%</p>
+              <p>
+                • Videos:{" "}
+                {arrayVideoMake?.filter((item) => item.channel === "video")
+                  ?.length || 0}
+              </p>
+              <p>
+                • Images:{" "}
+                {arrayVideoMake?.filter((item) => item.channel === "image")
+                  ?.length || 0}
+              </p>
+              <p>
+                • Audio:{" "}
+                {arrayVideoMake?.filter(
+                  (item) => item.channel === "music" || item.channel === "voice"
+                )?.length || 0}
+              </p>
             </div>
           </div>
 

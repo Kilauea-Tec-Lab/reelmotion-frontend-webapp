@@ -24,7 +24,7 @@ function ModalExportEdit({
     setIsLoading(true);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_APP_BACKEND_URL}projects`,
+        `${import.meta.env.VITE_APP_BACKEND_URL}projects/get-pending`,
         {
           method: "GET",
           headers: {
@@ -58,19 +58,19 @@ function ModalExportEdit({
       const exportData = {
         project_id: selectedProjectId,
         edit_name: editName || "Exported Edit",
-        timeline: arrayVideoMake,
+        timeline: arrayVideoMake || [],
         metadata: {
           exportedAt: new Date().toISOString(),
-          totalElements: arrayVideoMake?.length,
-          duration: Math.max(
-            ...arrayVideoMake?.map((item) => item.endTime || 0),
-            0
-          ),
+          totalElements: arrayVideoMake?.length || 0,
+          duration:
+            arrayVideoMake?.length > 0
+              ? Math.max(...arrayVideoMake.map((item) => item.endTime || 0), 0)
+              : 0,
         },
       };
 
       const response = await fetch(
-        `${import.meta.env.VITE_APP_BACKEND_URL}editor/export-edit`,
+        `${import.meta.env.VITE_APP_BACKEND_URL}editor/render-video`,
         {
           method: "POST",
           headers: {
@@ -138,34 +138,29 @@ function ModalExportEdit({
               <p>• Total Elements: {arrayVideoMake?.length ?? 0}</p>
               <p>
                 • Duration:{" "}
-                {Math.max(
-                  ...arrayVideoMake?.map((item) => item.endTime || 0),
-                  0
-                )}
+                {arrayVideoMake?.length > 0
+                  ? Math.max(
+                      ...arrayVideoMake.map((item) => item.endTime || 0),
+                      0
+                    )
+                  : 0}
                 s
               </p>
               <p>
                 • Videos:{" "}
-                {
-                  arrayVideoMake?.filter((item) => item.channel === "video")
-                    ?.length
-                }
+                {arrayVideoMake?.filter((item) => item.channel === "video")
+                  ?.length || 0}
               </p>
               <p>
                 • Images:{" "}
-                {
-                  arrayVideoMake?.filter((item) => item.channel === "image")
-                    ?.length
-                }
+                {arrayVideoMake?.filter((item) => item.channel === "image")
+                  ?.length || 0}
               </p>
               <p>
                 • Audio:{" "}
-                {
-                  arrayVideoMake?.filter(
-                    (item) =>
-                      item.channel === "music" || item.channel === "voice"
-                  ).length
-                }
+                {arrayVideoMake?.filter(
+                  (item) => item.channel === "music" || item.channel === "voice"
+                )?.length || 0}
               </p>
             </div>
           </div>

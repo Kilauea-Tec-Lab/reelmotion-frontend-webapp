@@ -13,11 +13,16 @@ import {
   Save,
   FolderOpen,
   Download,
+  Upload,
+  Plus,
 } from "lucide-react";
 import { useLoaderData } from "react-router-dom";
+import Cookies from "js-cookie";
 import ModalSaveEdit from "./components/modal-save-edit";
 import ModalLoadEdit from "./components/modal-load-edit";
 import ModalExportEdit from "./components/modal-export-edit";
+import ModalConfirmDelete from "./components/modal-confirm-delete";
+import { handleImageDrop } from "./functions";
 
 // Editor - Advanced Timeline Video Editor
 //
@@ -87,19 +92,19 @@ function Editor() {
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [currentEditName, setCurrentEditName] = useState("");
+  const [currentEditId, setCurrentEditId] = useState(null); // Track current edit ID
 
   // States for image dragging in preview area
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [draggingImageElement, setDraggingImageElement] = useState(null);
   const [imageDragStart, setImageDragStart] = useState({ x: 0, y: 0 });
 
-  const images = [
-    {
-      url: "/logos/logo_reelmotion.webp",
-      name: "Logo ReelMotion",
-      duration: 5, // default duration for images
-    },
-  ];
+  // States for image upload
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [images, setImages] = useState(data?.images || []);
+  const [showDeleteImageModal, setShowDeleteImageModal] = useState(false);
+  const [imageToDelete, setImageToDelete] = useState(null);
+  const [isDeletingImage, setIsDeletingImage] = useState(false);
 
   const musicFiles = [
     {
@@ -146,8 +151,18 @@ function Editor() {
   };
 
   // Functions for drag and drop
-  const handleDragStart = (e, video, type = "video") => {
-    setDraggedItem({ ...video, type });
+  const handleDragStart = (e, item, type = "video") => {
+    // Debug: log the item to see its structure
+    console.log("Dragging item:", item, "Type:", type);
+
+    // Normalize the item to ensure it has a 'url' property
+    const normalizedItem = {
+      ...item,
+      type,
+      url: item.url || item.image_url, // Ensure url property exists
+    };
+
+    setDraggedItem(normalizedItem);
     e.dataTransfer.effectAllowed = "copy";
   };
 
@@ -297,38 +312,43 @@ function Editor() {
           }
         }
 
-        // Apply color correction
+        // Apply color correction (FFmpeg-accurate CSS mapping)
         const filters = [];
         if (activeVideo.colorCorrection) {
           const cc = activeVideo.colorCorrection;
 
+          // Brightness: FFmpeg -1.0 to 1.0 -> CSS brightness() more accurate
           if (cc.brightness !== 0) {
-            filters.push(`brightness(${1 + cc.brightness / 100})`);
+            // More accurate FFmpeg brightness mapping
+            filters.push(`brightness(${1 + cc.brightness * 0.8})`);
           }
-          if (cc.contrast !== 0) {
-            filters.push(`contrast(${1 + cc.contrast / 100})`);
+
+          // Contrast: FFmpeg 0.0 to 4.0 -> CSS contrast() exact mapping
+          if (cc.contrast !== 1) {
+            filters.push(`contrast(${cc.contrast})`);
           }
-          if (cc.saturation !== 0) {
-            filters.push(`saturate(${1 + cc.saturation / 100})`);
+
+          // Saturation: FFmpeg 0.0 to 3.0 -> CSS saturate() exact mapping
+          if (cc.saturation !== 1) {
+            filters.push(`saturate(${cc.saturation})`);
           }
+
+          // Gamma: More accurate approximation
+          if (cc.gamma !== 1) {
+            // Better gamma approximation for CSS
+            const gammaCorrection = Math.pow(0.5, 1 / cc.gamma) * 2;
+            filters.push(`brightness(${gammaCorrection * 0.9})`);
+          }
+
+          // Hue: FFmpeg -180 to 180 -> CSS hue-rotate() exact mapping
           if (cc.hue !== 0) {
             filters.push(`hue-rotate(${cc.hue}deg)`);
           }
-          // Simulate temperature using sepia and hue-rotate
-          if (cc.temperature !== 0) {
-            const tempIntensity = Math.abs(cc.temperature) / 100;
-            if (cc.temperature > 0) {
-              // Warm (sepia + hue towards yellow)
-              filters.push(`sepia(${tempIntensity * 0.3})`);
-              filters.push(`hue-rotate(${cc.temperature * 0.3}deg)`);
-            } else {
-              // Cool (hue towards blue)
-              filters.push(`hue-rotate(${cc.temperature * 1.5}deg)`);
-            }
-          }
-          // Simulate tint using hue-rotate
-          if (cc.tint !== 0) {
-            filters.push(`hue-rotate(${cc.tint * 1.8}deg)`);
+
+          // Vibrance: More conservative approximation
+          if (cc.vibrance !== 0) {
+            const vibranceEffect = 1 + cc.vibrance * 0.3; // Reduced multiplier for accuracy
+            filters.push(`saturate(${vibranceEffect})`);
           }
         }
 
@@ -491,7 +511,7 @@ function Editor() {
       startTime: formatDuration(startTime),
       endTime: formatDuration(startTime + elementDuration), // use real duration
       type: draggedItem.type,
-      url: draggedItem.url,
+      url: draggedItem.url || draggedItem.image_url, // Handle both url and image_url properties
       title: draggedItem.title || draggedItem.name,
       duration: formatDuration(elementDuration), // current duration in timeline
       originalDuration: originalDuration, // original media duration (null for images)
@@ -500,17 +520,21 @@ function Editor() {
       effects: [],
       volume: targetChannel === "music" || targetChannel === "voice" ? 0.5 : 1,
       opacity: 1,
-      position: { x: 0, y: 0 },
+      // FFmpeg compatible position (normalized coordinates 0-1)
+      position: {
+        x: 0.5, // center horizontally (0=left, 1=right)
+        y: 0.5, // center vertically (0=top, 1=bottom)
+      },
       scale: 1,
-      zIndex: 1,
-      // Specific properties for videos
+      zIndex: targetChannel === "image" ? 10 : 1, // Imágenes tienen z-index más alto por defecto
+      // FFmpeg compatible color correction
       colorCorrection: {
-        brightness: 0, // -100 to 100
-        contrast: 0, // -100 to 100
-        saturation: 0, // -100 to 100
-        hue: 0, // -180 to 180
-        temperature: 0, // -100 to 100 (warm/cool)
-        tint: 0, // -100 to 100 (magenta/green)
+        brightness: 0, // -1.0 to 1.0 (FFmpeg: -1.0 to 1.0)
+        contrast: 1, // 0.0 to 4.0 (FFmpeg: 0.0 to 4.0, 1.0 = normal)
+        saturation: 1, // 0.0 to 3.0 (FFmpeg: 0.0 to 3.0, 1.0 = normal)
+        gamma: 1, // 0.1 to 10.0 (FFmpeg: 0.1 to 10.0, 1.0 = normal)
+        hue: 0, // -180 to 180 degrees (FFmpeg: -180 to 180)
+        vibrance: 0, // -2.0 to 2.0 (FFmpeg: -2.0 to 2.0)
       },
     };
 
@@ -551,10 +575,8 @@ function Editor() {
     e.stopPropagation();
     setIsDraggingImage(true);
     setDraggingImageElement(element);
-    setImageDragStart({
-      x: e.clientX - (element.position?.x || 0),
-      y: e.clientY - (element.position?.y || 0),
-    });
+    // For normalized coordinates, we don't need to store drag start offset
+    setImageDragStart({ x: 0, y: 0 });
     document.body.style.cursor = "grabbing";
   };
 
@@ -592,27 +614,52 @@ function Editor() {
       if (isDraggingImage && draggingImageElement) {
         console.log("Moving image during drag"); // Debug log
         e.preventDefault();
-        const newPosition = {
-          x: e.clientX - imageDragStart.x,
-          y: e.clientY - imageDragStart.y,
-        };
 
-        // Update position in real time using callback to avoid stale closure
-        setArrayVideoMake((prevArray) =>
-          prevArray.map((item) =>
-            item.id === draggingImageElement.id
-              ? { ...item, position: newPosition }
-              : item
-          )
-        );
+        // Get preview container dimensions
+        const previewContainer = document.querySelector(".w-2\\/4.rounded-4xl");
+        if (previewContainer) {
+          const rect = previewContainer.getBoundingClientRect();
+          const scale = draggingImageElement.scale || 1;
 
-        // Update selected element if it's the one being dragged
-        setSelectedElement((prevSelected) => {
-          if (prevSelected && prevSelected.id === draggingImageElement.id) {
-            return { ...prevSelected, position: newPosition };
-          }
-          return prevSelected;
-        });
+          // Calculate raw normalized position (0-1)
+          // FFmpeg coordinates: (0,0) = top-left, (1,1) = bottom-right
+          const rawX = Math.max(
+            0,
+            Math.min(1, (e.clientX - rect.left) / rect.width)
+          );
+          const rawY = Math.max(
+            0,
+            Math.min(1, (e.clientY - rect.top) / rect.height)
+          );
+
+          // Apply scale constraints to prevent image from going outside container
+          // For scaled images, limit positioning range
+          const halfScale = scale / 2;
+          const minBound = halfScale;
+          const maxBound = 1 - halfScale;
+
+          const newPosition = {
+            x: Math.max(minBound, Math.min(maxBound, rawX)),
+            y: Math.max(minBound, Math.min(maxBound, rawY)), // Direct Y mapping for FFmpeg compatibility
+          };
+
+          // Update position in real time using callback to avoid stale closure
+          setArrayVideoMake((prevArray) =>
+            prevArray.map((item) =>
+              item.id === draggingImageElement.id
+                ? { ...item, position: newPosition }
+                : item
+            )
+          );
+
+          // Update selected element if it's the one being dragged
+          setSelectedElement((prevSelected) => {
+            if (prevSelected && prevSelected.id === draggingImageElement.id) {
+              return { ...prevSelected, position: newPosition };
+            }
+            return prevSelected;
+          });
+        }
       }
 
       // Handle element resizing
@@ -1042,19 +1089,66 @@ function Editor() {
     setShowExportModal(true);
   };
 
+  const handleNewProject = () => {
+    // Clear current project state
+    setArrayVideoMake([]);
+    setCurrentTime(0);
+    setSelectedElement(null);
+    setCurrentEditName("");
+    setCurrentEditId(null);
+    setMasterVolume(1);
+
+    // Stop playback
+    setIsPlaying(false);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
   // Modal handlers
-  const handleSaveEdit = (editName) => {
+  const handleSaveEdit = (editData) => {
     // This will be called from the save modal
-    console.log("Saving edit:", editName);
-    setCurrentEditName(editName);
+    console.log("Saving edit:", editData);
+    setCurrentEditName(editData.name);
+    if (editData.id) {
+      setCurrentEditId(editData.id);
+    }
     setShowSaveModal(false);
   };
 
   const handleLoadEdit = (editData) => {
     // This will be called from the load modal
     console.log("Loading edit:", editData);
-    setArrayVideoMake(editData.timeline);
+
+    // Load the timeline from edition_array
+    if (editData.edition_array) {
+      try {
+        const timelineData =
+          typeof editData.edition_array === "string"
+            ? JSON.parse(editData.edition_array)
+            : editData.edition_array;
+
+        if (timelineData.timeline) {
+          setArrayVideoMake(timelineData.timeline);
+        }
+
+        // Load settings if available
+        if (timelineData.settings) {
+          if (timelineData.settings.masterVolume !== undefined) {
+            setMasterVolume(timelineData.settings.masterVolume);
+          }
+          if (timelineData.settings.currentTime !== undefined) {
+            setCurrentTime(timelineData.settings.currentTime);
+          }
+        }
+      } catch (error) {
+        console.error("Error parsing edition_array:", error);
+      }
+    }
+
     setCurrentEditName(editData.name);
+    setCurrentEditId(editData.id);
     setShowLoadModal(false);
   };
 
@@ -1066,25 +1160,9 @@ function Editor() {
 
   // Automatically load project when component mounts
   useEffect(() => {
-    const savedProject = localStorage.getItem("reelmotion_project");
-    if (savedProject) {
-      try {
-        const projectData = JSON.parse(savedProject);
-        if (projectData.timeline && projectData.timeline.length > 0) {
-          const shouldLoad = window.confirm(
-            "Do you want to load the last saved project?"
-          );
-          if (shouldLoad) {
-            setArrayVideoMake(projectData.timeline);
-            if (projectData.settings) {
-              setMasterVolume(projectData.settings.masterVolume || 1);
-            }
-          }
-        }
-      } catch (error) {
-        console.warn("Error loading saved project:", error);
-      }
-    }
+    // Removed automatic project loading alert
+    // Users can manually load projects using the Load button
+    console.log("Editor component mounted");
   }, []);
 
   // Sync selected element with changes in the array
@@ -1110,13 +1188,126 @@ function Editor() {
     }
   }, [selectedElement?.colorCorrection, selectedElement?.volume]);
 
+  // Functions for image drag and drop upload
+  const handleImageContainerDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "copy";
+  };
+
+  const handleImageContainerDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const files = Array.from(e.dataTransfer.files);
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+
+    if (imageFiles.length === 0) {
+      alert("Por favor, solo suelta archivos de imagen");
+      return;
+    }
+
+    setIsUploadingImages(true);
+    try {
+      const newImages = await handleImageDrop(imageFiles);
+      setImages((prevImages) => [...prevImages, ...newImages]);
+      console.log("Imágenes subidas exitosamente:", newImages);
+    } catch (error) {
+      console.error("Error subiendo imágenes:", error);
+      alert("Error al subir las imágenes. Por favor, intenta nuevamente.");
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
+
+  const handleImageInputChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setIsUploadingImages(true);
+    try {
+      const newImages = await handleImageDrop(files);
+      setImages((prevImages) => [...prevImages, ...newImages]);
+      console.log("Imágenes subidas exitosamente:", newImages);
+    } catch (error) {
+      console.error("Error subiendo imágenes:", error);
+      alert("Error al subir las imágenes. Por favor, intenta nuevamente.");
+    } finally {
+      setIsUploadingImages(false);
+      // Reset input
+      e.target.value = "";
+    }
+  };
+
+  // Functions for image deletion
+  const handleDeleteImageClick = (e, image) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setImageToDelete(image);
+    setShowDeleteImageModal(true);
+  };
+
+  const handleConfirmDeleteImage = async () => {
+    if (!imageToDelete) return;
+
+    setIsDeletingImage(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}editor/delete-image`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: JSON.stringify({ id: imageToDelete.id }),
+        }
+      );
+
+      const responseData = await response.json();
+
+      if (response.ok && responseData.code === 200) {
+        // Remove deleted image from list
+        setImages((prevImages) =>
+          prevImages.filter((img) => img.id !== imageToDelete.id)
+        );
+        setShowDeleteImageModal(false);
+        setImageToDelete(null);
+      } else {
+        console.error("Error deleting image:", responseData);
+        alert(
+          `Error deleting image: ${responseData.message || "Please try again."}`
+        );
+      }
+    } catch (error) {
+      console.error("Error deleting image:", error);
+      alert(`Error deleting image: ${error.message || "Please try again."}`);
+    } finally {
+      setIsDeletingImage(false);
+    }
+  };
+
+  const handleCloseDeleteImageModal = () => {
+    if (!isDeletingImage) {
+      setShowDeleteImageModal(false);
+      setImageToDelete(null);
+    }
+  };
+
   return (
     <div className="bg-primarioDark w-full h-[91.8vh] pr-4">
       {/* Header */}
       <div className="flex justify-between">
-        <span className="text-white text-3xl font-leagueGothic font-medium ">
-          Video Editor
-        </span>
+        <div className="flex flex-col">
+          <span className="text-white text-3xl font-leagueGothic font-medium">
+            Video Editor
+          </span>
+          {currentEditName && (
+            <span className="text-gray-400 text-sm font-montserrat">
+              {currentEditName}
+            </span>
+          )}
+        </div>
         {/* Timeline Header */}
         <div
           className={
@@ -1204,6 +1395,16 @@ function Editor() {
           </div>
         </div>
         <div className="gap-4 flex">
+          {currentEditName && (
+            <button
+              type="button"
+              onClick={handleNewProject}
+              className="bg-gray-600 text-white px-6 py-2 rounded-3xl font-medium hover:bg-gray-500 flex items-center gap-2"
+            >
+              <Plus size={18} />
+              New
+            </button>
+          )}
           <button
             type="button"
             onClick={handleSaveProject}
@@ -1387,23 +1588,80 @@ function Editor() {
                 </div>
               </div>
             ) : menuActive == 3 ? (
-              <div className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full">
-                <div className="grid grid-cols-2 gap-4">
+              <div
+                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full"
+                onDragOver={handleImageContainerDragOver}
+                onDrop={handleImageContainerDrop}
+              >
+                {/* Upload area - only show when no images */}
+                {images.length === 0 && (
+                  <div className="mb-4 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-primarioLogo transition-colors duration-200">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageInputChange}
+                      className="hidden"
+                      id="image-upload"
+                      disabled={isUploadingImages}
+                    />
+                    <label
+                      htmlFor="image-upload"
+                      className="cursor-pointer flex flex-col items-center gap-2"
+                    >
+                      <Upload size={32} className="text-gray-400" />
+                      <span className="text-gray-400 text-sm">
+                        {isUploadingImages
+                          ? "Uploading images..."
+                          : "Drag images here or click to select"}
+                      </span>
+                    </label>
+                  </div>
+                )}
+
+                {/* Hidden input for drag & drop when images exist */}
+                {images.length > 0 && (
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageInputChange}
+                    className="hidden"
+                    id="image-upload-hidden"
+                    disabled={isUploadingImages}
+                  />
+                )}
+
+                {/* Images grid */}
+                <div
+                  className={`grid grid-cols-2 gap-4 overflow-y-auto ${
+                    images.length === 0 ? "max-h-[calc(100%-140px)]" : "h-full"
+                  }`}
+                >
                   {images.map((image, index) => (
                     <div
                       key={index}
-                      draggable
+                      draggable={!isUploadingImages}
                       onDragStart={(e) => handleDragStart(e, image, "image")}
-                      className="bg-darkBox cursor-pointer hover:bg-opacity-80 rounded-2xl transition-all duration-200 hover:scale-105"
+                      className="bg-darkBox cursor-pointer overflow-x-hidden h-32 hover:bg-opacity-80 rounded-2xl transition-all duration-200 hover:scale-105 relative group"
                     >
+                      {/* Delete Button - Only visible on hover */}
+                      <button
+                        onClick={(e) => handleDeleteImageClick(e, image)}
+                        className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        title="Delete image"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+
                       <img
-                        src={image.url}
-                        className="rounded-t-2xl w-full h-auto object-cover"
+                        src={image.image_url}
+                        className="rounded-t-2xl w-full max-h-18 object-cover"
                         alt={image.name}
                       />
                       <div className="pb-4 pt-1 px-1">
                         <span
-                          className="text-[#E7E7E7] text-xs line-clamp-2 mt-2"
+                          className="text-[#E7E7E7] text-xs line-clamp-1 mt-2"
                           title={image.name}
                         >
                           {image.name}
@@ -1411,6 +1669,12 @@ function Editor() {
                       </div>
                     </div>
                   ))}
+
+                  {images.length === 0 && !isUploadingImages && (
+                    <div className="col-span-2 text-center py-8">
+                      <span className="text-gray-400">No images available</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : menuActive == 4 ? (
@@ -1496,30 +1760,89 @@ function Editor() {
                 currentTime < item.endTime
             )
             .sort((a, b) => (a.zIndex || 1) - (b.zIndex || 1))
-            .map((item) => (
-              <div
-                key={item.id}
-                className="absolute inset-4 flex items-center justify-center overflow-hidden"
-                style={{ zIndex: item.zIndex || 1 }}
-              >
-                <img
-                  src={item.url}
-                  alt={item.title}
-                  className="object-contain max-w-full max-h-full cursor-move"
+            .map((item) => {
+              const scale = item.scale || 1;
+              
+              // Convert normalized position (0-1) to CSS positioning
+              // FFmpeg coordinates: (0,0) = top-left, (1,1) = bottom-right
+              const posX = item.position?.x || 0.5;
+              const posY = item.position?.y || 0.5;
+              
+              // Calculate actual position as percentage
+              const leftPercent = posX * 100;
+              const topPercent = posY * 100; // Direct mapping - no inversion needed for FFmpeg compatibility
+              
+              // Apply color correction using FFmpeg-accurate formulas
+              const filters = [];
+              if (item.colorCorrection) {
+                const cc = item.colorCorrection;
+
+                // Brightness: FFmpeg -1.0 to 1.0 -> CSS brightness() more accurate
+                if (cc.brightness !== 0) {
+                  // More accurate FFmpeg brightness mapping
+                  filters.push(`brightness(${1 + cc.brightness * 0.8})`);
+                }
+
+                // Contrast: FFmpeg 0.0 to 4.0 -> CSS contrast() exact mapping
+                if (cc.contrast !== 1) {
+                  filters.push(`contrast(${cc.contrast})`);
+                }
+
+                // Saturation: FFmpeg 0.0 to 3.0 -> CSS saturate() exact mapping
+                if (cc.saturation !== 1) {
+                  filters.push(`saturate(${cc.saturation})`);
+                }
+
+                // Gamma: More accurate approximation
+                if (cc.gamma !== 1) {
+                  // Better gamma approximation for CSS
+                  const gammaCorrection = Math.pow(0.5, 1 / cc.gamma) * 2;
+                  filters.push(`brightness(${gammaCorrection * 0.9})`);
+                }
+
+                // Hue: FFmpeg -180 to 180 -> CSS hue-rotate() exact mapping
+                if (cc.hue !== 0) {
+                  filters.push(`hue-rotate(${cc.hue}deg)`);
+                }
+
+                // Vibrance: More conservative approximation
+                if (cc.vibrance !== 0) {
+                  const vibranceEffect = 1 + cc.vibrance * 0.3; // Reduced multiplier for accuracy
+                  filters.push(`saturate(${vibranceEffect})`);
+                }
+              }
+
+              return (
+                <div
+                  key={item.id}
+                  className="absolute rounded-4xl overflow-hidden pointer-events-none"
                   style={{
-                    opacity: item.opacity || 1,
-                    transform: `scale(${item.scale || 1}) translate(${
-                      item.position?.x || 0
-                    }px, ${item.position?.y || 0}px)`,
-                    maxWidth: "100%",
-                    maxHeight: "100%",
-                    pointerEvents: "auto",
+                    zIndex: (item.zIndex || 1) + 10,
+                    left: `${leftPercent}%`,
+                    top: `${topPercent}%`,
+                    width: `${scale * 100}%`,
+                    height: `${scale * 100}%`,
+                    transform: `translate(-50%, -50%)`, // Center the image on the position
                   }}
-                  onMouseDown={(e) => handleImageDragStart(e, item)}
-                  onClick={(e) => handleSelectElement(item, e)}
-                />
-              </div>
-            ))}
+                >
+                  <img
+                    src={item.url}
+                    alt={item.title}
+                    className="cursor-move"
+                    style={{
+                      opacity: item.opacity || 1,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      pointerEvents: "auto",
+                      filter: filters.length > 0 ? filters.join(" ") : "none",
+                    }}
+                    onMouseDown={(e) => handleImageDragStart(e, item)}
+                    onClick={(e) => handleSelectElement(item, e)}
+                  />
+                </div>
+              );
+            })}
         </div>
         <div className="w-1/4 bg-darkBox rounded-4xl p-6 overflow-y-scroll">
           <div className="text-white mb-4">
@@ -1596,27 +1919,29 @@ function Editor() {
                   />
                 </div>
 
-                {/* Color Correction */}
+                {/* FFmpeg Compatible Color Correction */}
                 <div className="border-t border-gray-600 pt-4">
                   <h4 className="text-sm font-medium text-gray-300 mb-3">
-                    Color Correction
+                    Color Correction (FFmpeg Compatible)
                   </h4>
 
                   <div>
                     <label className="text-sm font-medium text-gray-300 block mb-2">
                       Brightness:{" "}
-                      {selectedElement.colorCorrection?.brightness || 0}
+                      {(
+                        selectedElement.colorCorrection?.brightness || 0
+                      ).toFixed(2)}
                     </label>
                     <input
                       type="range"
-                      min="-100"
-                      max="100"
-                      step="1"
+                      min="-1"
+                      max="1"
+                      step="0.01"
                       value={selectedElement.colorCorrection?.brightness || 0}
                       onChange={(e) =>
                         updateSelectedElement(
                           "colorCorrection.brightness",
-                          parseInt(e.target.value)
+                          parseFloat(e.target.value)
                         )
                       }
                       className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
@@ -1625,18 +1950,21 @@ function Editor() {
 
                   <div>
                     <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Contrast: {selectedElement.colorCorrection?.contrast || 0}
+                      Contrast:{" "}
+                      {(selectedElement.colorCorrection?.contrast || 1).toFixed(
+                        2
+                      )}
                     </label>
                     <input
                       type="range"
-                      min="-100"
-                      max="100"
-                      step="1"
-                      value={selectedElement.colorCorrection?.contrast || 0}
+                      min="0"
+                      max="4"
+                      step="0.01"
+                      value={selectedElement.colorCorrection?.contrast || 1}
                       onChange={(e) =>
                         updateSelectedElement(
                           "colorCorrection.contrast",
-                          parseInt(e.target.value)
+                          parseFloat(e.target.value)
                         )
                       }
                       className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
@@ -1646,18 +1974,41 @@ function Editor() {
                   <div>
                     <label className="text-sm font-medium text-gray-300 block mb-2">
                       Saturation:{" "}
-                      {selectedElement.colorCorrection?.saturation || 0}
+                      {(
+                        selectedElement.colorCorrection?.saturation || 1
+                      ).toFixed(2)}
                     </label>
                     <input
                       type="range"
-                      min="-100"
-                      max="100"
-                      step="1"
-                      value={selectedElement.colorCorrection?.saturation || 0}
+                      min="0"
+                      max="3"
+                      step="0.01"
+                      value={selectedElement.colorCorrection?.saturation || 1}
                       onChange={(e) =>
                         updateSelectedElement(
                           "colorCorrection.saturation",
-                          parseInt(e.target.value)
+                          parseFloat(e.target.value)
+                        )
+                      }
+                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-300 block mb-2">
+                      Gamma:{" "}
+                      {(selectedElement.colorCorrection?.gamma || 1).toFixed(2)}
+                    </label>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="10"
+                      step="0.01"
+                      value={selectedElement.colorCorrection?.gamma || 1}
+                      onChange={(e) =>
+                        updateSelectedElement(
+                          "colorCorrection.gamma",
+                          parseFloat(e.target.value)
                         )
                       }
                       className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
@@ -1686,39 +2037,21 @@ function Editor() {
 
                   <div>
                     <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Temperature:{" "}
-                      {selectedElement.colorCorrection?.temperature || 0}
+                      Vibrance:{" "}
+                      {(selectedElement.colorCorrection?.vibrance || 0).toFixed(
+                        2
+                      )}
                     </label>
                     <input
                       type="range"
-                      min="-100"
-                      max="100"
-                      step="1"
-                      value={selectedElement.colorCorrection?.temperature || 0}
+                      min="-2"
+                      max="2"
+                      step="0.01"
+                      value={selectedElement.colorCorrection?.vibrance || 0}
                       onChange={(e) =>
                         updateSelectedElement(
-                          "colorCorrection.temperature",
-                          parseInt(e.target.value)
-                        )
-                      }
-                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Tint: {selectedElement.colorCorrection?.tint || 0}
-                    </label>
-                    <input
-                      type="range"
-                      min="-100"
-                      max="100"
-                      step="1"
-                      value={selectedElement.colorCorrection?.tint || 0}
-                      onChange={(e) =>
-                        updateSelectedElement(
-                          "colorCorrection.tint",
-                          parseInt(e.target.value)
+                          "colorCorrection.vibrance",
+                          parseFloat(e.target.value)
                         )
                       }
                       className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
@@ -1733,11 +2066,11 @@ function Editor() {
                       updateSelectedElement("volume", 1);
                       updateSelectedElement("zIndex", 1);
                       updateSelectedElement("colorCorrection.brightness", 0);
-                      updateSelectedElement("colorCorrection.contrast", 0);
-                      updateSelectedElement("colorCorrection.saturation", 0);
+                      updateSelectedElement("colorCorrection.contrast", 1);
+                      updateSelectedElement("colorCorrection.saturation", 1);
+                      updateSelectedElement("colorCorrection.gamma", 1);
                       updateSelectedElement("colorCorrection.hue", 0);
-                      updateSelectedElement("colorCorrection.temperature", 0);
-                      updateSelectedElement("colorCorrection.tint", 0);
+                      updateSelectedElement("colorCorrection.vibrance", 0);
                     }}
                     className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
                   >
@@ -1760,6 +2093,55 @@ function Editor() {
                   </p>
                 </div>
 
+                {/* Position Controls - FFmpeg compatible (0-1 normalized) */}
+                <div className="border-b border-gray-600 pb-4">
+                  <h4 className="text-sm font-medium text-gray-300 mb-3">
+                    Position
+                  </h4>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-300 block mb-2">
+                      X Position:{" "}
+                      {((selectedElement.position?.x || 0.5) * 100).toFixed(1)}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={selectedElement.position?.x || 0.5}
+                      onChange={(e) =>
+                        updateSelectedElement("position", {
+                          ...selectedElement.position,
+                          x: parseFloat(e.target.value),
+                        })
+                      }
+                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-300 block mb-2">
+                      Y Position:{" "}
+                      {((selectedElement.position?.y || 0.5) * 100).toFixed(1)}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={selectedElement.position?.y || 0.5}
+                      onChange={(e) =>
+                        updateSelectedElement("position", {
+                          ...selectedElement.position,
+                          y: parseFloat(e.target.value),
+                        })
+                      }
+                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
+                    />
+                  </div>
+                </div>
+
                 {/* Opacity Control */}
                 <div>
                   <label className="text-sm font-medium text-gray-300 block mb-2">
@@ -1769,7 +2151,7 @@ function Editor() {
                     type="range"
                     min="0"
                     max="1"
-                    step="0.1"
+                    step="0.01"
                     value={selectedElement.opacity || 1}
                     onChange={(e) =>
                       updateSelectedElement(
@@ -1784,12 +2166,12 @@ function Editor() {
                 {/* Size Control */}
                 <div>
                   <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Size: {Math.round((selectedElement.scale || 1) * 100)}%
+                    Scale: {((selectedElement.scale || 1) * 100).toFixed(0)}%
                   </label>
                   <input
                     type="range"
                     min="0.1"
-                    max="1.5"
+                    max="3.0"
                     step="0.1"
                     value={selectedElement.scale || 1}
                     onChange={(e) =>
@@ -1816,14 +2198,160 @@ function Editor() {
                   />
                 </div>
 
+                {/* FFmpeg Compatible Color Correction */}
+                <div className="border-t border-gray-600 pt-4">
+                  <h4 className="text-sm font-medium text-gray-300 mb-3">
+                    Color Correction (FFmpeg Compatible)
+                  </h4>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-300 block mb-2">
+                      Brightness:{" "}
+                      {(
+                        selectedElement.colorCorrection?.brightness || 0
+                      ).toFixed(2)}
+                    </label>
+                    <input
+                      type="range"
+                      min="-1"
+                      max="1"
+                      step="0.01"
+                      value={selectedElement.colorCorrection?.brightness || 0}
+                      onChange={(e) =>
+                        updateSelectedElement(
+                          "colorCorrection.brightness",
+                          parseFloat(e.target.value)
+                        )
+                      }
+                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-300 block mb-2">
+                      Contrast:{" "}
+                      {(selectedElement.colorCorrection?.contrast || 1).toFixed(
+                        2
+                      )}
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="4"
+                      step="0.01"
+                      value={selectedElement.colorCorrection?.contrast || 1}
+                      onChange={(e) =>
+                        updateSelectedElement(
+                          "colorCorrection.contrast",
+                          parseFloat(e.target.value)
+                        )
+                      }
+                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-300 block mb-2">
+                      Saturation:{" "}
+                      {(
+                        selectedElement.colorCorrection?.saturation || 1
+                      ).toFixed(2)}
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="3"
+                      step="0.01"
+                      value={selectedElement.colorCorrection?.saturation || 1}
+                      onChange={(e) =>
+                        updateSelectedElement(
+                          "colorCorrection.saturation",
+                          parseFloat(e.target.value)
+                        )
+                      }
+                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-300 block mb-2">
+                      Gamma:{" "}
+                      {(selectedElement.colorCorrection?.gamma || 1).toFixed(2)}
+                    </label>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="10"
+                      step="0.01"
+                      value={selectedElement.colorCorrection?.gamma || 1}
+                      onChange={(e) =>
+                        updateSelectedElement(
+                          "colorCorrection.gamma",
+                          parseFloat(e.target.value)
+                        )
+                      }
+                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-300 block mb-2">
+                      Hue: {selectedElement.colorCorrection?.hue || 0}°
+                    </label>
+                    <input
+                      type="range"
+                      min="-180"
+                      max="180"
+                      step="1"
+                      value={selectedElement.colorCorrection?.hue || 0}
+                      onChange={(e) =>
+                        updateSelectedElement(
+                          "colorCorrection.hue",
+                          parseInt(e.target.value)
+                        )
+                      }
+                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-300 block mb-2">
+                      Vibrance:{" "}
+                      {(selectedElement.colorCorrection?.vibrance || 0).toFixed(
+                        2
+                      )}
+                    </label>
+                    <input
+                      type="range"
+                      min="-2"
+                      max="2"
+                      step="0.01"
+                      value={selectedElement.colorCorrection?.vibrance || 0}
+                      onChange={(e) =>
+                        updateSelectedElement(
+                          "colorCorrection.vibrance",
+                          parseFloat(e.target.value)
+                        )
+                      }
+                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
+                    />
+                  </div>
+                </div>
+
                 {/* Action buttons */}
                 <div className="flex gap-2 mt-6">
                   <button
                     onClick={() => {
                       updateSelectedElement("opacity", 1);
                       updateSelectedElement("scale", 1);
-                      updateSelectedElement("position", { x: 0, y: 0 });
+                      updateSelectedElement("position", { x: 0.5, y: 0.5 });
                       updateSelectedElement("zIndex", 1);
+                      updateSelectedElement("colorCorrection.brightness", 0);
+                      updateSelectedElement("colorCorrection.contrast", 1);
+                      updateSelectedElement("colorCorrection.saturation", 1);
+                      updateSelectedElement("colorCorrection.gamma", 1);
+                      updateSelectedElement("colorCorrection.hue", 0);
+                      updateSelectedElement("colorCorrection.vibrance", 0);
                     }}
                     className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
                   >
@@ -2323,8 +2851,12 @@ function Editor() {
         <ModalSaveEdit
           isOpen={showSaveModal}
           onClose={() => setShowSaveModal(false)}
-          onSave={handleSaveEdit}
-          timeline={arrayVideoMake}
+          onSaved={handleSaveEdit}
+          arrayVideoMake={arrayVideoMake}
+          masterVolume={masterVolume}
+          currentTime={currentTime}
+          currentEditId={currentEditId}
+          currentEditName={currentEditName}
         />
       )}
 
@@ -2341,10 +2873,21 @@ function Editor() {
           isOpen={showExportModal}
           onClose={() => setShowExportModal(false)}
           onExport={handleExportEdit}
-          timeline={arrayVideoMake}
+          arrayVideoMake={arrayVideoMake}
           editName={currentEditName}
         />
       )}
+
+      {/* Delete Image Confirmation Modal */}
+      <ModalConfirmDelete
+        isOpen={showDeleteImageModal}
+        onClose={handleCloseDeleteImageModal}
+        onConfirm={handleConfirmDeleteImage}
+        title="Delete Image"
+        message="Are you sure you want to delete this image?"
+        itemName={imageToDelete?.name}
+        isLoading={isDeletingImage}
+      />
     </div>
   );
 }
