@@ -6,6 +6,7 @@ import ModalCreateProject from "../create_elements/modal-create-project";
 import ModalCreateFolder from "../create_elements/modal-create-folder";
 import ModalEditProject from "../create_elements/modal-edit-project";
 import ModalDeleteProject from "../create_elements/modal-delete-project";
+import ModalPreview from "../components/modal-preview";
 import { useLoaderData } from "react-router-dom";
 import { createPusherClient } from "@/pusher";
 import { getFolders, getProjects } from "../create_elements/functions";
@@ -17,7 +18,9 @@ function Home() {
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [showEditProjectModal, setShowEditProjectModal] = useState(false);
   const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [previewProject, setPreviewProject] = useState(null);
   const [foldersData, setFoldersData] = useState(folders?.data);
   const [projectsData, setProjectsData] = useState(projects?.data);
 
@@ -43,6 +46,11 @@ function Home() {
   const handleDeleteProject = (project) => {
     setSelectedProject(project);
     setShowDeleteProjectModal(true);
+  };
+
+  const handlePreviewVideo = (project) => {
+    setPreviewProject(project);
+    setShowPreviewModal(true);
   };
 
   const handleProjectDeleted = (deletedProject) => {
@@ -142,6 +150,7 @@ function Home() {
           recentsProjects={projectsData}
           onEditProject={handleEditProject}
           onDeleteProject={handleDeleteProject}
+          onPreviewVideo={handlePreviewVideo}
         />
       )}
       {/*Carrousel Folders */}
@@ -184,6 +193,15 @@ function Home() {
         }}
         project={selectedProject}
         onConfirm={handleProjectDeleted}
+      />
+      <ModalPreview
+        isOpen={showPreviewModal}
+        onClose={() => {
+          setShowPreviewModal(false);
+          setPreviewProject(null);
+        }}
+        type="video"
+        data={previewProject}
       />
     </div>
   );

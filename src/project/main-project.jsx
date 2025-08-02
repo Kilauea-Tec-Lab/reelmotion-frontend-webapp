@@ -76,6 +76,10 @@ function MainProject() {
   const [previewData, setPreviewData] = useState(null);
   const [previewType, setPreviewType] = useState(null);
 
+  // Verificar si el proyecto está completo
+  const isProjectComplete =
+    project?.status === "complete" || project?.status === "completed";
+
   //WEBSOCKET
   const pusherClient = createPusherClient();
 
@@ -337,8 +341,18 @@ function MainProject() {
           </h2>
           <button
             type="button"
-            className="mt-2 px-2 py-2 bg-[#f2f243] text-primarioDark rounded-lg hover:bg-[#f2f243]"
+            className={`mt-2 px-2 py-2 rounded-lg transition-colors ${
+              isProjectComplete
+                ? "bg-gray-500 text-gray-300 cursor-not-allowed"
+                : "bg-[#f2f243] text-primarioDark hover:bg-[#f2f243]"
+            }`}
             onClick={handleCreateCharacter}
+            disabled={isProjectComplete}
+            title={
+              isProjectComplete
+                ? "Cannot create characters in completed projects"
+                : "Create Character"
+            }
           >
             <Plus size={15} />
           </button>
@@ -392,7 +406,17 @@ function MainProject() {
                             </button>
                             <button
                               onClick={() => handleDeleteCharacter(character)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-darkBoxSub transition-colors rounded-b-lg"
+                              disabled={isProjectComplete}
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg ${
+                                isProjectComplete
+                                  ? "text-gray-500 cursor-not-allowed hover:bg-transparent"
+                                  : "text-red-400 hover:bg-darkBoxSub"
+                              }`}
+                              title={
+                                isProjectComplete
+                                  ? "Cannot delete characters in completed projects"
+                                  : "Delete Character"
+                              }
                             >
                               <Trash2 className="w-4 h-4" />
                               Delete
@@ -427,8 +451,18 @@ function MainProject() {
           </h2>
           <button
             type="button"
-            className="mt-2 px-2 py-2 bg-[#f2f243] text-primarioDark rounded-lg hover:bg-[#f2f243]"
+            className={`mt-2 px-2 py-2 rounded-lg transition-colors ${
+              isProjectComplete
+                ? "bg-gray-500 text-gray-300 cursor-not-allowed"
+                : "bg-[#f2f243] text-primarioDark hover:bg-[#f2f243]"
+            }`}
             onClick={handleCreateSpot}
+            disabled={isProjectComplete}
+            title={
+              isProjectComplete
+                ? "Cannot create spots in completed projects"
+                : "Create Spot"
+            }
           >
             <Plus size={15} />
           </button>
@@ -480,7 +514,17 @@ function MainProject() {
                             </button>
                             <button
                               onClick={() => handleDeleteSpot(spot)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-darkBoxSub transition-colors rounded-b-lg"
+                              disabled={isProjectComplete}
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg ${
+                                isProjectComplete
+                                  ? "text-gray-500 cursor-not-allowed hover:bg-transparent"
+                                  : "text-red-400 hover:bg-darkBoxSub"
+                              }`}
+                              title={
+                                isProjectComplete
+                                  ? "Cannot delete spots in completed projects"
+                                  : "Delete Spot"
+                              }
                             >
                               <Trash2 className="w-4 h-4" />
                               Delete
@@ -515,8 +559,18 @@ function MainProject() {
           </h2>
           <button
             type="button"
-            className="mt-2 px-2 py-2 bg-[#f2f243] text-primarioDark rounded-lg hover:bg-[#f2f243]"
+            className={`mt-2 px-2 py-2 rounded-lg transition-colors ${
+              isProjectComplete
+                ? "bg-gray-500 text-gray-300 cursor-not-allowed"
+                : "bg-[#f2f243] text-primarioDark hover:bg-[#f2f243]"
+            }`}
             onClick={handleCreateVoice}
+            disabled={isProjectComplete}
+            title={
+              isProjectComplete
+                ? "Cannot create voices in completed projects"
+                : "Create Voice"
+            }
           >
             <Plus size={15} />
           </button>
@@ -568,7 +622,17 @@ function MainProject() {
                             </button>
                             <button
                               onClick={() => handleDeleteVoice(voice)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-darkBoxSub transition-colors rounded-b-lg"
+                              disabled={isProjectComplete}
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg ${
+                                isProjectComplete
+                                  ? "text-gray-500 cursor-not-allowed hover:bg-transparent"
+                                  : "text-red-400 hover:bg-darkBoxSub"
+                              }`}
+                              title={
+                                isProjectComplete
+                                  ? "Cannot delete voices in completed projects"
+                                  : "Delete Voice"
+                              }
                             >
                               <Trash2 className="w-4 h-4" />
                               Delete
@@ -603,8 +667,18 @@ function MainProject() {
           </h2>
           <button
             type="button"
-            className="mt-2 px-2 py-2 bg-[#f2f243] text-primarioDark rounded-lg hover:bg-[#f2f243]"
+            className={`mt-2 px-2 py-2 rounded-lg transition-colors ${
+              isProjectComplete
+                ? "bg-gray-500 text-gray-300 cursor-not-allowed"
+                : "bg-[#f2f243] text-primarioDark hover:bg-[#f2f243]"
+            }`}
             onClick={handleCreateScene}
+            disabled={isProjectComplete}
+            title={
+              isProjectComplete
+                ? "Cannot create scenes in completed projects"
+                : "Create Scene"
+            }
           >
             <Plus size={15} />
           </button>
@@ -656,7 +730,17 @@ function MainProject() {
                             </button>
                             <button
                               onClick={() => handleDeleteScene(scene)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-darkBoxSub transition-colors rounded-b-lg"
+                              disabled={isProjectComplete}
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg ${
+                                isProjectComplete
+                                  ? "text-gray-500 cursor-not-allowed hover:bg-transparent"
+                                  : "text-red-400 hover:bg-darkBoxSub"
+                              }`}
+                              title={
+                                isProjectComplete
+                                  ? "Cannot delete scenes in completed projects"
+                                  : "Delete Scene"
+                              }
                             >
                               <Trash2 className="w-4 h-4" />
                               Delete

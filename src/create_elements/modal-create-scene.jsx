@@ -633,12 +633,6 @@ function ModalCreateScene({
                       {videoDuration} seconds
                     </p>
                   </div>
-                  <div>
-                    <p className="text-gray-400">Generation Time:</p>
-                    <p className="text-[#F2D543] font-medium">
-                      ~{estimatedTime}s
-                    </p>
-                  </div>
                 </div>
               </div>
             )}
@@ -661,7 +655,7 @@ function ModalCreateScene({
                 {isGenerating ? (
                   <>
                     <div className="w-4 h-4 border-2 border-primarioDark border-t-transparent rounded-full animate-spin"></div>
-                    Generating Video... ({Math.max(0, estimatedTime)}s)
+                    Generating Video...
                   </>
                 ) : (
                   <>
