@@ -2,7 +2,12 @@ import { useState } from "react";
 import { MoreHorizontal, Edit, Eye, Trash2, Film } from "lucide-react";
 import { Link } from "react-router-dom";
 
-function RecentProjects({ recentsProjects, onEditProject, onDeleteProject }) {
+function RecentProjects({
+  recentsProjects,
+  onEditProject,
+  onDeleteProject,
+  onPreviewVideo,
+}) {
   const [hoveredProject, setHoveredProject] = useState(null);
   const [showMenu, setShowMenu] = useState(null);
 
@@ -20,6 +25,13 @@ function RecentProjects({ recentsProjects, onEditProject, onDeleteProject }) {
     }
   };
 
+  const handleDoubleClick = (project) => {
+    // Solo abrir el modal si el proyecto tiene video
+    if (project.video_url && onPreviewVideo) {
+      onPreviewVideo(project);
+    }
+  };
+
   return (
     <div>
       <div className="flex overflow-x-auto gap-4 mt-6 pb-2">
@@ -34,7 +46,10 @@ function RecentProjects({ recentsProjects, onEditProject, onDeleteProject }) {
             }}
           >
             {/* Video Preview Card */}
-            <div className="relative rounded-lg overflow-hidden group">
+            <div
+              className="relative rounded-lg overflow-hidden group cursor-pointer"
+              onDoubleClick={() => handleDoubleClick(project)}
+            >
               {/* Video Preview */}
               <div className="relative h-40 flex items-center justify-center">
                 {project.video_url ? (
@@ -49,12 +64,10 @@ function RecentProjects({ recentsProjects, onEditProject, onDeleteProject }) {
                     <Film className="w-12 h-12 text-gray-500" />
                   </div>
                 )}
-
                 {/* Duration Badge */}
                 <div className="absolute bottom-2 left-2 bg-[#36354090] montserrat-medium text-white text-xs px-2 py-1 rounded">
                   {project.duration}s
                 </div>
-
                 {/* Three Dots Menu */}
                 {hoveredProject === project.id && (
                   <div className="absolute top-2 right-2">
@@ -93,7 +106,6 @@ function RecentProjects({ recentsProjects, onEditProject, onDeleteProject }) {
                   </div>
                 )}
               </div>
-
               {/* Project Info */}
               <div className="p-4">
                 <h3

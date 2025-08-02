@@ -317,38 +317,67 @@ function Editor() {
         if (activeVideo.colorCorrection) {
           const cc = activeVideo.colorCorrection;
 
-          // Brightness: FFmpeg -1.0 to 1.0 -> CSS brightness() more accurate
+          // Brightness: FFmpeg -1.0 to 1.0 -> CSS brightness()
+          // FFmpeg eq filter uses additive brightness, CSS uses multiplicative
           if (cc.brightness !== 0) {
-            // More accurate FFmpeg brightness mapping
-            filters.push(`brightness(${1 + cc.brightness * 0.8})`);
+            // Convert FFmpeg additive brightness to CSS multiplicative brightness
+            // FFmpeg: output = input + brightness
+            // CSS: output = input * brightness
+            // Approximation: CSS_value = 1 + (ffmpeg_value * intensity_factor)
+            const cssValue = 1 + cc.brightness * 0.6; // Reduced factor for better match
+            filters.push(`brightness(${Math.max(0.1, cssValue)})`);
           }
 
-          // Contrast: FFmpeg 0.0 to 4.0 -> CSS contrast() exact mapping
+          // Contrast: FFmpeg 0.0 to 4.0 -> CSS contrast()
+          // FFmpeg eq filter: (input - 0.5) * contrast + 0.5
+          // CSS contrast: input * contrast
+          // They work differently, need conversion
           if (cc.contrast !== 1) {
-            filters.push(`contrast(${cc.contrast})`);
+            // Convert FFmpeg contrast to CSS contrast
+            // FFmpeg contrast of 0.91 should look like CSS contrast of ~0.55-0.65
+            let cssContrast;
+            if (cc.contrast < 1) {
+              // For reduced contrast, the difference is more pronounced
+              cssContrast = 0.3 + cc.contrast * 0.7; // Maps 0->0.3, 1->1.0
+            } else {
+              // For increased contrast, closer mapping
+              cssContrast = cc.contrast * 0.85 + 0.15; // Slightly reduce high contrast
+            }
+            filters.push(`contrast(${Math.max(0.1, cssContrast)})`);
           }
 
-          // Saturation: FFmpeg 0.0 to 3.0 -> CSS saturate() exact mapping
+          // Saturation: FFmpeg 0.0 to 3.0 -> CSS saturate()
+          // These are closer but still need adjustment
           if (cc.saturation !== 1) {
-            filters.push(`saturate(${cc.saturation})`);
+            // FFmpeg saturation tends to be more intense than CSS
+            let cssSaturation;
+            if (cc.saturation < 1) {
+              cssSaturation = cc.saturation * 0.85 + 0.15; // Less desaturation
+            } else {
+              cssSaturation = 1 + (cc.saturation - 1) * 0.75; // Reduce oversaturation
+            }
+            filters.push(`saturate(${Math.max(0, cssSaturation)})`);
           }
 
-          // Gamma: More accurate approximation
+          // Gamma: No direct CSS equivalent, approximate with brightness
           if (cc.gamma !== 1) {
-            // Better gamma approximation for CSS
-            const gammaCorrection = Math.pow(0.5, 1 / cc.gamma) * 2;
-            filters.push(`brightness(${gammaCorrection * 0.9})`);
+            // Improved gamma approximation
+            const gammaEffect = Math.pow(0.5, 1 / cc.gamma) * 2;
+            const adjustedGamma = 1 + (gammaEffect - 1) * 0.7; // Reduce intensity
+            filters.push(`brightness(${Math.max(0.1, adjustedGamma)})`);
           }
 
-          // Hue: FFmpeg -180 to 180 -> CSS hue-rotate() exact mapping
+          // Hue: FFmpeg -180 to 180 -> CSS hue-rotate()
+          // This one should be accurate
           if (cc.hue !== 0) {
             filters.push(`hue-rotate(${cc.hue}deg)`);
           }
 
-          // Vibrance: More conservative approximation
+          // Vibrance: No direct CSS equivalent, approximate with saturation
           if (cc.vibrance !== 0) {
-            const vibranceEffect = 1 + cc.vibrance * 0.3; // Reduced multiplier for accuracy
-            filters.push(`saturate(${vibranceEffect})`);
+            // Even more conservative vibrance to avoid over-saturation
+            const vibranceEffect = 1 + cc.vibrance * 0.2;
+            filters.push(`saturate(${Math.max(0, vibranceEffect)})`);
           }
         }
 
@@ -1762,53 +1791,75 @@ function Editor() {
             .sort((a, b) => (a.zIndex || 1) - (b.zIndex || 1))
             .map((item) => {
               const scale = item.scale || 1;
-              
+
               // Convert normalized position (0-1) to CSS positioning
               // FFmpeg coordinates: (0,0) = top-left, (1,1) = bottom-right
               const posX = item.position?.x || 0.5;
               const posY = item.position?.y || 0.5;
-              
+
               // Calculate actual position as percentage
               const leftPercent = posX * 100;
               const topPercent = posY * 100; // Direct mapping - no inversion needed for FFmpeg compatibility
-              
+
               // Apply color correction using FFmpeg-accurate formulas
               const filters = [];
               if (item.colorCorrection) {
                 const cc = item.colorCorrection;
 
-                // Brightness: FFmpeg -1.0 to 1.0 -> CSS brightness() more accurate
+                // Brightness: FFmpeg -1.0 to 1.0 -> CSS brightness()
+                // FFmpeg eq filter uses additive brightness, CSS uses multiplicative
                 if (cc.brightness !== 0) {
-                  // More accurate FFmpeg brightness mapping
-                  filters.push(`brightness(${1 + cc.brightness * 0.8})`);
+                  // Convert FFmpeg additive brightness to CSS multiplicative brightness
+                  const cssValue = 1 + cc.brightness * 0.6; // Reduced factor for better match
+                  filters.push(`brightness(${Math.max(0.1, cssValue)})`);
                 }
 
-                // Contrast: FFmpeg 0.0 to 4.0 -> CSS contrast() exact mapping
+                // Contrast: FFmpeg 0.0 to 4.0 -> CSS contrast()
+                // FFmpeg eq filter: (input - 0.5) * contrast + 0.5
+                // CSS contrast: input * contrast
                 if (cc.contrast !== 1) {
-                  filters.push(`contrast(${cc.contrast})`);
+                  // Convert FFmpeg contrast to CSS contrast
+                  let cssContrast;
+                  if (cc.contrast < 1) {
+                    // For reduced contrast, the difference is more pronounced
+                    cssContrast = 0.3 + cc.contrast * 0.7; // Maps 0->0.3, 1->1.0
+                  } else {
+                    // For increased contrast, closer mapping
+                    cssContrast = cc.contrast * 0.85 + 0.15; // Slightly reduce high contrast
+                  }
+                  filters.push(`contrast(${Math.max(0.1, cssContrast)})`);
                 }
 
-                // Saturation: FFmpeg 0.0 to 3.0 -> CSS saturate() exact mapping
+                // Saturation: FFmpeg 0.0 to 3.0 -> CSS saturate()
                 if (cc.saturation !== 1) {
-                  filters.push(`saturate(${cc.saturation})`);
+                  // FFmpeg saturation tends to be more intense than CSS
+                  let cssSaturation;
+                  if (cc.saturation < 1) {
+                    cssSaturation = cc.saturation * 0.85 + 0.15; // Less desaturation
+                  } else {
+                    cssSaturation = 1 + (cc.saturation - 1) * 0.75; // Reduce oversaturation
+                  }
+                  filters.push(`saturate(${Math.max(0, cssSaturation)})`);
                 }
 
-                // Gamma: More accurate approximation
+                // Gamma: No direct CSS equivalent, approximate with brightness
                 if (cc.gamma !== 1) {
-                  // Better gamma approximation for CSS
-                  const gammaCorrection = Math.pow(0.5, 1 / cc.gamma) * 2;
-                  filters.push(`brightness(${gammaCorrection * 0.9})`);
+                  // Improved gamma approximation
+                  const gammaEffect = Math.pow(0.5, 1 / cc.gamma) * 2;
+                  const adjustedGamma = 1 + (gammaEffect - 1) * 0.7; // Reduce intensity
+                  filters.push(`brightness(${Math.max(0.1, adjustedGamma)})`);
                 }
 
-                // Hue: FFmpeg -180 to 180 -> CSS hue-rotate() exact mapping
+                // Hue: FFmpeg -180 to 180 -> CSS hue-rotate()
                 if (cc.hue !== 0) {
                   filters.push(`hue-rotate(${cc.hue}deg)`);
                 }
 
                 // Vibrance: More conservative approximation
                 if (cc.vibrance !== 0) {
-                  const vibranceEffect = 1 + cc.vibrance * 0.3; // Reduced multiplier for accuracy
-                  filters.push(`saturate(${vibranceEffect})`);
+                  // Even more conservative vibrance to avoid over-saturation
+                  const vibranceEffect = 1 + cc.vibrance * 0.2;
+                  filters.push(`saturate(${Math.max(0, vibranceEffect)})`);
                 }
               }
 
@@ -2875,6 +2926,7 @@ function Editor() {
           onExport={handleExportEdit}
           arrayVideoMake={arrayVideoMake}
           editName={currentEditName}
+          editId={currentEditId}
         />
       )}
 

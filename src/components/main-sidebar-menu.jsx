@@ -14,15 +14,17 @@ import {
   User2,
   Cog,
   Settings2Icon,
+  HomeIcon,
 } from "lucide-react";
 import { div } from "framer-motion/client";
 
 function MainSidebarMenu() {
   const menuItems = [
-    { id: 1, name: "Projects", icon: VideoIcon, path: "/" },
-    { id: 2, name: "Editor", icon: Film, path: "/editor" },
-    { id: 1, name: "Profile", icon: User2, path: "/profile" },
-    { id: 1, name: "Settings", icon: Settings2Icon, path: "/settings" },
+    { id: 1, name: "Discover", icon: HomeIcon, path: "/discover" },
+    { id: 2, name: "Projects", icon: VideoIcon, path: "/" },
+    { id: 3, name: "Editor", icon: Film, path: "/editor" },
+    { id: 4, name: "Profile", icon: User2, path: "/profile" },
+    { id: 5, name: "Settings", icon: Settings2Icon, path: "/settings" },
   ];
 
   return (
