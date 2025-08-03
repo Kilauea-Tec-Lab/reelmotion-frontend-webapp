@@ -99,6 +99,12 @@ function Editor() {
   const [draggingImageElement, setDraggingImageElement] = useState(null);
   const [imageDragStart, setImageDragStart] = useState({ x: 0, y: 0 });
 
+  // States for image resizing in preview area
+  const [isResizingImage, setIsResizingImage] = useState(false);
+  const [resizingImageElement, setResizingImageElement] = useState(null);
+  const [resizeImageType, setResizeImageType] = useState(null);
+  const [initialImageBounds, setInitialImageBounds] = useState(null);
+
   // States for image upload
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [images, setImages] = useState(data?.images || []);
@@ -152,9 +158,6 @@ function Editor() {
 
   // Functions for drag and drop
   const handleDragStart = (e, item, type = "video") => {
-    // Debug: log the item to see its structure
-    console.log("Dragging item:", item, "Type:", type);
-
     // Normalize the item to ensure it has a 'url' property
     const normalizedItem = {
       ...item,
@@ -599,7 +602,6 @@ function Editor() {
 
   // Function to handle image drag start in preview area
   const handleImageDragStart = (e, element) => {
-    console.log("Starting image drag for element:", element.id); // Debug log
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingImage(true);
@@ -607,6 +609,52 @@ function Editor() {
     // For normalized coordinates, we don't need to store drag start offset
     setImageDragStart({ x: 0, y: 0 });
     document.body.style.cursor = "grabbing";
+  };
+
+  // Function to handle image resize start in preview area
+  const handleImageResizeStart = (e, element, resizeType) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizingImage(true);
+    setResizingImageElement(element);
+    setResizeImageType(resizeType);
+
+    // Store initial bounds for proportional scaling
+    const previewContainer = document.querySelector(".w-2\\/4.rounded-4xl");
+    if (previewContainer) {
+      const rect = previewContainer.getBoundingClientRect();
+      setInitialImageBounds({
+        containerWidth: rect.width,
+        containerHeight: rect.height,
+        initialScale: element.scale || 1,
+        startX: e.clientX,
+        startY: e.clientY,
+        centerX: element.position?.x || 0.5,
+        centerY: element.position?.y || 0.5,
+      });
+    }
+
+    document.body.style.cursor = getResizeCursor(resizeType);
+  };
+
+  // Helper function to get appropriate cursor for resize type
+  const getResizeCursor = (resizeType) => {
+    switch (resizeType) {
+      case "top-left":
+      case "bottom-right":
+        return "nw-resize";
+      case "top-right":
+      case "bottom-left":
+        return "ne-resize";
+      case "top":
+      case "bottom":
+        return "n-resize";
+      case "left":
+      case "right":
+        return "e-resize";
+      default:
+        return "grab";
+    }
   };
 
   // Effect to handle global mouse events
@@ -641,7 +689,6 @@ function Editor() {
 
       // Handle image drag in preview area
       if (isDraggingImage && draggingImageElement) {
-        console.log("Moving image during drag"); // Debug log
         e.preventDefault();
 
         // Get preview container dimensions
@@ -691,6 +738,72 @@ function Editor() {
         }
       }
 
+      // Handle image resizing in preview area
+      if (isResizingImage && resizingImageElement && initialImageBounds) {
+        e.preventDefault();
+
+        const deltaX = e.clientX - initialImageBounds.startX;
+        const deltaY = e.clientY - initialImageBounds.startY;
+
+        // Calculate new scale based on resize type
+        let newScale = initialImageBounds.initialScale;
+        const sensitivity = 0.005; // Adjust sensitivity as needed
+
+        switch (resizeImageType) {
+          case "top-left":
+            // Scale up when dragging away from center, down when dragging towards center
+            newScale =
+              initialImageBounds.initialScale +
+              (-deltaX - deltaY) * sensitivity;
+            break;
+          case "top-right":
+            newScale =
+              initialImageBounds.initialScale + (deltaX - deltaY) * sensitivity;
+            break;
+          case "bottom-left":
+            newScale =
+              initialImageBounds.initialScale +
+              (-deltaX + deltaY) * sensitivity;
+            break;
+          case "bottom-right":
+            newScale =
+              initialImageBounds.initialScale + (deltaX + deltaY) * sensitivity;
+            break;
+          case "top":
+          case "bottom":
+            newScale =
+              initialImageBounds.initialScale +
+              Math.abs(deltaY) * sensitivity * (deltaY < 0 ? -1 : 1);
+            break;
+          case "left":
+          case "right":
+            newScale =
+              initialImageBounds.initialScale +
+              Math.abs(deltaX) * sensitivity * (deltaX < 0 ? -1 : 1);
+            break;
+        }
+
+        // Clamp scale between reasonable bounds
+        newScale = Math.max(0.1, Math.min(3.0, newScale));
+
+        // Update scale in real time
+        setArrayVideoMake((prevArray) =>
+          prevArray.map((item) =>
+            item.id === resizingImageElement.id
+              ? { ...item, scale: newScale }
+              : item
+          )
+        );
+
+        // Update selected element if it's the one being resized
+        setSelectedElement((prevSelected) => {
+          if (prevSelected && prevSelected.id === resizingImageElement.id) {
+            return { ...prevSelected, scale: newScale };
+          }
+          return prevSelected;
+        });
+      }
+
       // Handle element resizing
       if (isResizing && timelineRef.current) {
         const rect = timelineRef.current.getBoundingClientRect();
@@ -724,10 +837,18 @@ function Editor() {
 
       // Handle end of image drag
       if (isDraggingImage) {
-        console.log("Stopping image drag"); // Debug log
         setIsDraggingImage(false);
         setDraggingImageElement(null);
         setImageDragStart({ x: 0, y: 0 });
+        document.body.style.cursor = "default";
+      }
+
+      // Handle end of image resize
+      if (isResizingImage) {
+        setIsResizingImage(false);
+        setResizingImageElement(null);
+        setResizeImageType(null);
+        setInitialImageBounds(null);
         document.body.style.cursor = "default";
       }
 
@@ -769,6 +890,7 @@ function Editor() {
       draggingElement ||
       isDraggingVolume ||
       isDraggingImage ||
+      isResizingImage ||
       isResizing
     ) {
       document.addEventListener("mousemove", handleMouseMove);
@@ -792,6 +914,10 @@ function Editor() {
     isDraggingImage,
     draggingImageElement,
     imageDragStart,
+    isResizingImage,
+    resizingImageElement,
+    resizeImageType,
+    initialImageBounds,
     isResizing,
     resizingElement,
     resizeType,
@@ -1138,7 +1264,6 @@ function Editor() {
   // Modal handlers
   const handleSaveEdit = (editData) => {
     // This will be called from the save modal
-    console.log("Saving edit:", editData);
     setCurrentEditName(editData.name);
     if (editData.id) {
       setCurrentEditId(editData.id);
@@ -1148,7 +1273,6 @@ function Editor() {
 
   const handleLoadEdit = (editData) => {
     // This will be called from the load modal
-    console.log("Loading edit:", editData);
 
     // Load the timeline from edition_array
     if (editData.edition_array) {
@@ -1182,17 +1306,8 @@ function Editor() {
   };
 
   const handleExportEdit = (projectId) => {
-    // This will be called from the export modal
-    console.log("Exporting edit to project:", projectId);
     setShowExportModal(false);
   };
-
-  // Automatically load project when component mounts
-  useEffect(() => {
-    // Removed automatic project loading alert
-    // Users can manually load projects using the Load button
-    console.log("Editor component mounted");
-  }, []);
 
   // Sync selected element with changes in the array
   useEffect(() => {
@@ -1240,9 +1355,7 @@ function Editor() {
     try {
       const newImages = await handleImageDrop(imageFiles);
       setImages((prevImages) => [...prevImages, ...newImages]);
-      console.log("Imágenes subidas exitosamente:", newImages);
     } catch (error) {
-      console.error("Error subiendo imágenes:", error);
       alert("Error al subir las imágenes. Por favor, intenta nuevamente.");
     } finally {
       setIsUploadingImages(false);
@@ -1257,9 +1370,7 @@ function Editor() {
     try {
       const newImages = await handleImageDrop(files);
       setImages((prevImages) => [...prevImages, ...newImages]);
-      console.log("Imágenes subidas exitosamente:", newImages);
     } catch (error) {
-      console.error("Error subiendo imágenes:", error);
       alert("Error al subir las imágenes. Por favor, intenta nuevamente.");
     } finally {
       setIsUploadingImages(false);
@@ -1618,10 +1729,26 @@ function Editor() {
               </div>
             ) : menuActive == 3 ? (
               <div
-                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full"
+                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative"
                 onDragOver={handleImageContainerDragOver}
                 onDrop={handleImageContainerDrop}
               >
+                {/* Add Image Button - always visible in top right corner */}
+                <button
+                  onClick={() => {
+                    const input =
+                      images.length > 0
+                        ? document.getElementById("image-upload-hidden")
+                        : document.getElementById("image-upload");
+                    input?.click();
+                  }}
+                  className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                  title="Add images"
+                  disabled={isUploadingImages}
+                >
+                  <Plus size={20} />
+                </button>
+
                 {/* Upload area - only show when no images */}
                 {images.length === 0 && (
                   <div className="mb-4 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-primarioLogo transition-colors duration-200">
@@ -1748,7 +1875,7 @@ function Editor() {
           {/* Video principal - siempre en el DOM */}
           <video
             ref={mainVideoRef}
-            className="rounded-4xl bg-black h-full max-w-full mx-auto block object-contain"
+            className="rounded-4xl bg-gray-900 h-full max-w-full mx-auto block object-contain"
             muted={false}
           />
           {/* Placeholder cuando no hay videos o cuando no está reproduciendo */}
@@ -1866,7 +1993,11 @@ function Editor() {
               return (
                 <div
                   key={item.id}
-                  className="absolute rounded-4xl overflow-hidden pointer-events-none"
+                  className={`absolute rounded-4xl overflow-visible pointer-events-none group ${
+                    selectedElement?.id === item.id
+                      ? "ring-2 ring-primarioLogo ring-opacity-80"
+                      : ""
+                  }`}
                   style={{
                     zIndex: (item.zIndex || 1) + 10,
                     left: `${leftPercent}%`,
@@ -1879,7 +2010,7 @@ function Editor() {
                   <img
                     src={item.url}
                     alt={item.title}
-                    className="cursor-move"
+                    className="cursor-move rounded-4xl"
                     style={{
                       opacity: item.opacity || 1,
                       width: "100%",
@@ -1887,10 +2018,97 @@ function Editor() {
                       objectFit: "contain",
                       pointerEvents: "auto",
                       filter: filters.length > 0 ? filters.join(" ") : "none",
+                      backgroundColor: "transparent", // Ensure transparent background for PNGs
                     }}
                     onMouseDown={(e) => handleImageDragStart(e, item)}
                     onClick={(e) => handleSelectElement(item, e)}
                   />
+
+                  {/* Resize handles - only show when selected */}
+                  {selectedElement?.id === item.id && (
+                    <>
+                      {/* Top-left corner */}
+                      <div
+                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-nw-resize pointer-events-auto"
+                        style={{ top: "-6px", left: "-6px" }}
+                        onMouseDown={(e) =>
+                          handleImageResizeStart(e, item, "top-left")
+                        }
+                      />
+                      {/* Top-right corner */}
+                      <div
+                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-ne-resize pointer-events-auto"
+                        style={{ top: "-6px", right: "-6px" }}
+                        onMouseDown={(e) =>
+                          handleImageResizeStart(e, item, "top-right")
+                        }
+                      />
+                      {/* Bottom-left corner */}
+                      <div
+                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-sw-resize pointer-events-auto"
+                        style={{ bottom: "-6px", left: "-6px" }}
+                        onMouseDown={(e) =>
+                          handleImageResizeStart(e, item, "bottom-left")
+                        }
+                      />
+                      {/* Bottom-right corner */}
+                      <div
+                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-se-resize pointer-events-auto"
+                        style={{ bottom: "-6px", right: "-6px" }}
+                        onMouseDown={(e) =>
+                          handleImageResizeStart(e, item, "bottom-right")
+                        }
+                      />
+                      {/* Top side */}
+                      <div
+                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-n-resize pointer-events-auto"
+                        style={{
+                          top: "-6px",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                        }}
+                        onMouseDown={(e) =>
+                          handleImageResizeStart(e, item, "top")
+                        }
+                      />
+                      {/* Bottom side */}
+                      <div
+                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-s-resize pointer-events-auto"
+                        style={{
+                          bottom: "-6px",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                        }}
+                        onMouseDown={(e) =>
+                          handleImageResizeStart(e, item, "bottom")
+                        }
+                      />
+                      {/* Left side */}
+                      <div
+                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-w-resize pointer-events-auto"
+                        style={{
+                          left: "-6px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                        }}
+                        onMouseDown={(e) =>
+                          handleImageResizeStart(e, item, "left")
+                        }
+                      />
+                      {/* Right side */}
+                      <div
+                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-e-resize pointer-events-auto"
+                        style={{
+                          right: "-6px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                        }}
+                        onMouseDown={(e) =>
+                          handleImageResizeStart(e, item, "right")
+                        }
+                      />
+                    </>
+                  )}
                 </div>
               );
             })}
