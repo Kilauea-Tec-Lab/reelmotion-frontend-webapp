@@ -32,13 +32,14 @@ export async function getDiscoverPosts(page = 1, limit = 10) {
 export async function likePost(postId) {
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_APP_BACKEND_URL}discover/posts/${postId}/like`,
+      `${import.meta.env.VITE_APP_BACKEND_URL}discover/like-post`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: "Bearer " + Cookies.get("token"),
         },
+        body: JSON.stringify({ post_id: postId }),
       }
     );
 
@@ -50,32 +51,6 @@ export async function likePost(postId) {
     return data;
   } catch (error) {
     console.error("Error liking post:", error);
-    return { success: false, error: error.message };
-  }
-}
-
-// Quitar like de un post
-export async function unlikePost(postId) {
-  try {
-    const response = await fetch(
-      `${import.meta.env.VITE_APP_BACKEND_URL}discover/posts/${postId}/unlike`,
-      {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + Cookies.get("token"),
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Error unliking post:", error);
     return { success: false, error: error.message };
   }
 }
@@ -93,7 +68,7 @@ export async function addComment(postId, content) {
           "Content-Type": "application/json",
           Authorization: "Bearer " + Cookies.get("token"),
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, post_id: postId }),
       }
     );
 

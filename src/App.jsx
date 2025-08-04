@@ -22,6 +22,10 @@ const router = createBrowserRouter([
     errorElement: <ErrorBoundary />,
   },
   {
+    path: "discover/post/:id",
+    element: <PostDetail />,
+  },
+  {
     path: "/",
     element: <MainLayout />,
     loader: userInfoLoader,
@@ -46,10 +50,6 @@ const router = createBrowserRouter([
         path: "discover",
         element: <Discover />,
         loader: () => getDiscoverPosts(1, 10),
-      },
-      {
-        path: "discover/post/:id",
-        element: <PostDetail />,
       },
       {
         path: "project/:id",

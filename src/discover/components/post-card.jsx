@@ -9,12 +9,12 @@ import {
   Maximize,
   Minimize,
 } from "lucide-react";
-import { likePost, unlikePost, addComment } from "../functions";
+import { likePost, addComment } from "../functions";
 import CommentsSection from "./comments-section";
 import ShareModal from "./share-modal";
 
-function PostCard({ post, onUpdate }) {
-  const [isLiked, setIsLiked] = useState(post.is_liked || false);
+function PostCard({ post, onUpdate, public_post }) {
+  const [isLiked, setIsLiked] = useState(post.own_like || false);
   const [likesCount, setLikesCount] = useState(post.likes_count || 0);
   const [showComments, setShowComments] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -27,16 +27,12 @@ function PostCard({ post, onUpdate }) {
 
   const handleLike = async () => {
     const newLikedState = !isLiked;
-    const newCount = newLikedState ? likesCount + 1 : likesCount - 1;
 
     // Optimistic update
     setIsLiked(newLikedState);
-    setLikesCount(newCount);
 
     try {
-      const response = newLikedState
-        ? await likePost(post.id)
-        : await unlikePost(post.id);
+      const response = await likePost(post.id);
 
       if (response.success) {
         onUpdate(post.id, {
@@ -52,7 +48,6 @@ function PostCard({ post, onUpdate }) {
       // Revert on error
       setIsLiked(!newLikedState);
       setLikesCount(newLikedState ? newCount - 1 : newCount + 1);
-      console.error("Error updating like:", error);
     }
   };
 
@@ -71,7 +66,6 @@ function PostCard({ post, onUpdate }) {
         });
       }
     } catch (error) {
-      console.error("Error adding comment:", error);
     } finally {
       setIsSubmittingComment(false);
     }
@@ -105,9 +99,9 @@ function PostCard({ post, onUpdate }) {
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full overflow-hidden bg-darkBoxSub flex items-center justify-center">
-            {post.user?.profile_image ? (
+            {post?.user?.profile_image ? (
               <img
-                src={post.user.profile_image}
+                src={post?.user?.profile_image}
                 alt={post.user.name}
                 className="w-full h-full object-cover"
               />
@@ -120,13 +114,10 @@ function PostCard({ post, onUpdate }) {
               {post.user?.name || "Anonymous"}
             </h3>
             <p className="text-gray-400 montserrat-light text-xs">
-              {formatDate(post.created_at)}
+              {formatDate(post.updated_at)}
             </p>
           </div>
         </div>
-        <button className="text-gray-400 hover:text-white transition-colors p-1">
-          <MoreHorizontal size={20} />
-        </button>
       </div>
 
       {/* Post Content */}
@@ -188,34 +179,58 @@ function PostCard({ post, onUpdate }) {
       {/* Post Actions */}
       <div className="p-4 flex-shrink-0 border-t border-darkBoxSub">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleLike}
-              className={`flex items-center gap-2 transition-colors ${
-                isLiked ? "text-red-500" : "text-gray-400 hover:text-red-500"
-              }`}
-            >
-              <Heart size={24} className={isLiked ? "fill-current" : ""} />
-              <span className="montserrat-medium text-sm">{likesCount}</span>
-            </button>
+          {public_post == false ? (
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleLike}
+                className={`flex items-center gap-2 transition-colors ${
+                  isLiked ? "text-red-500" : "text-gray-400 hover:text-red-500"
+                }`}
+              >
+                <Heart size={24} className={isLiked ? "fill-current" : ""} />
+                <span className="montserrat-medium text-sm">{post?.likes}</span>
+              </button>
 
-            <button
-              onClick={() => setShowComments(!showComments)}
-              className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-            >
-              <MessageCircle size={24} />
-              <span className="montserrat-medium text-sm">
-                {post.comments_count || 0}
-              </span>
-            </button>
+              <button
+                onClick={() => setShowComments(!showComments)}
+                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+              >
+                <MessageCircle size={24} />
+                <span className="montserrat-medium text-sm">
+                  {post?.comments?.lenght || 0}
+                </span>
+              </button>
 
-            <button
-              onClick={() => setShowShareModal(true)}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <Share size={24} />
-            </button>
-          </div>
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <Share size={24} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-4">
+              <div
+                className={`flex items-center gap-2 transition-colors ${
+                  isLiked ? "text-red-500" : "text-gray-400 hover:text-red-500"
+                }`}
+              >
+                <Heart size={24} className={isLiked ? "fill-current" : ""} />
+                <span className="montserrat-medium text-sm">{post?.likes}</span>
+              </div>
+
+              <div className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                <MessageCircle size={24} />
+                <span className="montserrat-medium text-sm">
+                  {post?.comments?.lenght || 0}
+                </span>
+              </div>
+
+              <div className="text-gray-400 hover:text-white transition-colors">
+                <Share size={24} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Like count */}
@@ -226,29 +241,33 @@ function PostCard({ post, onUpdate }) {
         )}
 
         {/* Add Comment */}
-        <form
-          onSubmit={handleAddComment}
-          className="flex items-center gap-3 mt-3"
-        >
-          <input
-            type="text"
-            placeholder="Add a comment..."
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            className="flex-1 bg-darkBoxSub text-white placeholder-gray-400 px-4 py-2 rounded-full montserrat-light text-sm focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
-            disabled={isSubmittingComment}
-          />
-          <button
-            type="submit"
-            disabled={!commentText.trim() || isSubmittingComment}
-            className="text-[#F2D543] hover:text-[#f2f243] disabled:text-gray-500 disabled:cursor-not-allowed transition-colors p-2"
+        {public_post == false ? (
+          <form
+            onSubmit={handleAddComment}
+            className="flex items-center gap-3 mt-3"
           >
-            <Send size={18} />
-          </button>
-        </form>
+            <input
+              type="text"
+              placeholder="Add a comment..."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              className="flex-1 bg-darkBoxSub text-white placeholder-gray-400 px-4 py-2 rounded-full montserrat-light text-sm focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
+              disabled={isSubmittingComment}
+            />
+            <button
+              type="submit"
+              disabled={!commentText.trim() || isSubmittingComment}
+              className="text-[#F2D543] hover:text-[#f2f243] disabled:text-gray-500 disabled:cursor-not-allowed transition-colors p-2"
+            >
+              <Send size={18} />
+            </button>
+          </form>
+        ) : (
+          false
+        )}
 
         {/* Comments Section */}
-        {showComments && (
+        {showComments && public_post == false ? (
           <div className="max-h-32 overflow-y-auto">
             <CommentsSection
               comments={comments}
@@ -256,6 +275,8 @@ function PostCard({ post, onUpdate }) {
               onCommentsUpdate={setComments}
             />
           </div>
+        ) : (
+          false
         )}
       </div>
 

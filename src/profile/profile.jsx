@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Camera,
   Settings,
@@ -7,16 +7,36 @@ import {
   Phone,
   MapPin,
   Calendar,
+  Tag,
+  Edit3,
+  Save,
+  X,
 } from "lucide-react";
 import { useLoaderData } from "react-router-dom";
+import { updateUserProfile } from "./functions";
 
 function Profile() {
-  const { user } = useLoaderData();
-  const [profileImage, setProfileImage] = useState(
-    user?.data?.profile_image || null
-  );
+  const user = useLoaderData();
+  const [profileImage, setProfileImage] = useState(user?.data?.image || null);
+  const [previewImage, setPreviewImage] = useState(null); // Nueva imagen seleccionada (vista previa)
+  const [selectedImageFile, setSelectedImageFile] = useState(null); // Archivo de imagen para envío
   const [isUploading, setIsUploading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: user?.data?.name || "",
+    email: user?.data?.email || "",
+    phone: user?.data?.phone || "",
+  });
   const fileInputRef = useRef(null);
+
+  // Limpiar URL del objeto cuando el componente se desmonte
+  useEffect(() => {
+    return () => {
+      if (previewImage) {
+        URL.revokeObjectURL(previewImage);
+      }
+    };
+  }, [previewImage]);
 
   const handleImageUpload = async (event) => {
     const file = event.target.files[0];
@@ -34,39 +54,72 @@ function Profile() {
       return;
     }
 
+    // Solo crear vista previa, no subir al backend aún
+    const imageUrl = URL.createObjectURL(file);
+    setPreviewImage(imageUrl);
+    setSelectedImageFile(file);
+  };
+
+  const handleEditToggle = () => {
+    if (isEditing) {
+      // Cancelar edición
+      setIsEditing(false);
+      setPreviewImage(null);
+      setSelectedImageFile(null);
+      setEditForm({
+        name: user?.data?.name || "",
+        email: user?.data?.email || "",
+        phone: user?.data?.phone || "",
+      });
+    } else {
+      // Activar edición
+      setIsEditing(true);
+    }
+  };
+
+  const handleSaveProfile = async () => {
     setIsUploading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("profile_image", file);
+      const profileData = {
+        name: editForm.name,
+        email: editForm.email,
+        phone: editForm.phone,
+      };
 
-      const response = await fetch(
-        `${import.meta.env.VITE_APP_BACKEND_URL}user/upload-profile-image`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${
-              document.cookie.split("token=")[1]?.split(";")[0]
-            }`,
-          },
-          body: formData,
+      // Agregar imagen solo si hay una nueva seleccionada
+      if (selectedImageFile) {
+        profileData.profile_image = selectedImageFile;
+      }
+
+      const result = await updateUserProfile(profileData);
+
+      if (result.success) {
+        // Actualizar el estado con la nueva información
+        if (result?.data?.image) {
+          setProfileImage(result?.data?.image);
         }
-      );
 
-      const result = await response.json();
+        // Limpiar vista previa
+        setPreviewImage(null);
+        setSelectedImageFile(null);
+        setIsEditing(false);
 
-      if (response.ok && result.success) {
-        setProfileImage(result.data.profile_image_url);
-      } else {
-        console.error("Error uploading image:", result);
-        alert("Error uploading image. Please try again.");
+        window.location.reload(); // Recargar la página para reflejar los cambios
       }
     } catch (error) {
-      console.error("Error uploading image:", error);
-      alert("Error uploading image. Please try again.");
+      console.error("Error saving profile:", error);
+      alert("Error updating profile. Please try again.");
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleInputChange = (field, value) => {
+    setEditForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
   };
 
   const triggerFileInput = () => {
@@ -81,10 +134,36 @@ function Profile() {
           <h1 className="text-white montserrat-medium text-3xl tracking-wider">
             Profile
           </h1>
-          <button className="flex items-center gap-2 bg-darkBox hover:bg-darkBoxSub transition-colors px-4 py-2 rounded-lg text-white">
-            <Settings size={18} />
-            Settings
-          </button>
+
+          {/* Edit/Save/Cancel Buttons */}
+          {!isEditing ? (
+            <button
+              onClick={handleEditToggle}
+              className="flex items-center gap-2 bg-darkBox hover:bg-darkBoxSub transition-colors px-4 py-2 rounded-lg text-white"
+            >
+              <Edit3 size={18} />
+              Edit
+            </button>
+          ) : (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSaveProfile}
+                disabled={isUploading}
+                className="flex items-center gap-2 bg-[#F2D543] hover:bg-[#f2f243] transition-colors px-4 py-2 rounded-lg text-primarioDark font-medium disabled:opacity-50"
+              >
+                <Save size={18} />
+                {isUploading ? "Saving..." : "Save"}
+              </button>
+              <button
+                onClick={handleEditToggle}
+                disabled={isUploading}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 transition-colors px-4 py-2 rounded-lg text-white disabled:opacity-50"
+              >
+                <X size={18} />
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -94,9 +173,9 @@ function Profile() {
               {/* Profile Image */}
               <div className="relative mx-auto w-32 h-32 mb-6">
                 <div className="w-full h-full rounded-full overflow-hidden bg-darkBoxSub flex items-center justify-center">
-                  {profileImage ? (
+                  {previewImage || profileImage ? (
                     <img
-                      src={profileImage}
+                      src={previewImage || profileImage}
                       alt="Profile"
                       className="w-full h-full object-cover"
                     />
@@ -105,14 +184,16 @@ function Profile() {
                   )}
                 </div>
 
-                {/* Upload Button */}
-                <button
-                  onClick={triggerFileInput}
-                  disabled={isUploading}
-                  className="absolute bottom-0 right-0 bg-[#F2D543] hover:bg-[#f2f243] transition-colors p-2 rounded-full text-primarioDark disabled:opacity-50"
-                >
-                  <Camera size={16} />
-                </button>
+                {/* Upload Button - Solo visible en modo edición */}
+                {isEditing && (
+                  <button
+                    onClick={triggerFileInput}
+                    disabled={isUploading}
+                    className="absolute bottom-0 right-0 bg-[#F2D543] hover:bg-[#f2f243] transition-colors p-2 rounded-full text-primarioDark disabled:opacity-50"
+                  >
+                    <Camera size={16} />
+                  </button>
+                )}
 
                 <input
                   ref={fileInputRef}
@@ -125,15 +206,30 @@ function Profile() {
 
               {/* User Name and Role */}
               <div className="text-center">
-                <h2 className="text-white montserrat-medium text-xl mb-2">
-                  {user?.data?.name || "User Name"}
-                </h2>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    className="bg-darkBoxSub rounded-lg px-3 py-2 text-white text-xl text-center montserrat-medium mb-2 w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
+                    placeholder="Enter your name"
+                  />
+                ) : (
+                  <h2 className="text-white montserrat-medium text-xl mb-2">
+                    {user?.data?.name || "User Name"}
+                  </h2>
+                )}
                 <p className="text-gray-400 montserrat-light text-sm">
-                  {user?.data?.role || "Content Creator"}
+                  Content Creator
                 </p>
                 {isUploading && (
                   <p className="text-[#F2D543] montserrat-light text-xs mt-2">
-                    Uploading image...
+                    Saving changes...
+                  </p>
+                )}
+                {previewImage && !isUploading && (
+                  <p className="text-blue-400 montserrat-light text-xs mt-2">
+                    New image selected
                   </p>
                 )}
               </div>
@@ -153,13 +249,25 @@ function Profile() {
                   <div className="bg-darkBoxSub p-2 rounded-lg">
                     <Mail size={18} className="text-[#F2D543]" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-gray-400 montserrat-light text-sm">
                       Email
                     </p>
-                    <p className="text-white montserrat-regular">
-                      {user?.data?.email || "Not provided"}
-                    </p>
+                    {isEditing ? (
+                      <input
+                        type="email"
+                        value={editForm.email}
+                        onChange={(e) =>
+                          handleInputChange("email", e.target.value)
+                        }
+                        className="bg-darkBoxSub rounded-lg px-3 py-2 text-white montserrat-regular w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
+                        placeholder="Enter your email"
+                      />
+                    ) : (
+                      <p className="text-white montserrat-regular">
+                        {user?.data?.email || "Not provided"}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -168,27 +276,39 @@ function Profile() {
                   <div className="bg-darkBoxSub p-2 rounded-lg">
                     <Phone size={18} className="text-[#F2D543]" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-gray-400 montserrat-light text-sm">
                       Phone
                     </p>
-                    <p className="text-white montserrat-regular">
-                      {user?.data?.phone || "Not provided"}
-                    </p>
+                    {isEditing ? (
+                      <input
+                        type="tel"
+                        value={editForm.phone}
+                        onChange={(e) =>
+                          handleInputChange("phone", e.target.value)
+                        }
+                        className="bg-darkBoxSub rounded-lg px-3 py-2 text-white montserrat-regular w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
+                        placeholder="Enter your phone number"
+                      />
+                    ) : (
+                      <p className="text-white montserrat-regular">
+                        {user?.data?.phone || "Not provided"}
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 {/* Location */}
                 <div className="flex items-center gap-3">
                   <div className="bg-darkBoxSub p-2 rounded-lg">
-                    <MapPin size={18} className="text-[#F2D543]" />
+                    <User size={18} className="text-[#F2D543]" />
                   </div>
                   <div>
                     <p className="text-gray-400 montserrat-light text-sm">
-                      Location
+                      Username
                     </p>
                     <p className="text-white montserrat-regular">
-                      {user?.data?.location || "Not provided"}
+                      {user?.data?.username || "Username"}
                     </p>
                   </div>
                 </div>
@@ -220,7 +340,7 @@ function Profile() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-darkBoxSub rounded-lg p-4 text-center">
                     <p className="text-[#F2D543] montserrat-medium text-2xl">
-                      {user?.data?.projects_count || 0}
+                      {user?.projects || 0}
                     </p>
                     <p className="text-gray-400 montserrat-light text-sm">
                       Total Projects
@@ -229,7 +349,7 @@ function Profile() {
 
                   <div className="bg-darkBoxSub rounded-lg p-4 text-center">
                     <p className="text-[#F2D543] montserrat-medium text-2xl">
-                      {user?.data?.completed_projects_count || 0}
+                      {user?.projects_complete || 0}
                     </p>
                     <p className="text-gray-400 montserrat-light text-sm">
                       Completed
@@ -238,7 +358,7 @@ function Profile() {
 
                   <div className="bg-darkBoxSub rounded-lg p-4 text-center">
                     <p className="text-[#F2D543] montserrat-medium text-2xl">
-                      {user?.data?.folders_count || 0}
+                      {user?.folders || 0}
                     </p>
                     <p className="text-gray-400 montserrat-light text-sm">
                       Folders
