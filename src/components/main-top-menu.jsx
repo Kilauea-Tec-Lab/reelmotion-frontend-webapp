@@ -57,7 +57,15 @@ function MainTopMenu({ user_info }) {
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center space-x-2 p-2 text-[#808191] rounded-lg transition-colors hover:bg-darkBoxSub"
           >
-            <User className="h-5 w-5" />
+            {user_info?.image ? (
+              <img
+                src={user_info.image}
+                alt="User Avatar"
+                className="h-8 w-8 rounded-full"
+              />
+            ) : (
+              <User className="h-8 w-8 rounded-full" />
+            )}
             <span className="text-sm font-medium">{user_info?.name}</span>
             <ChevronDown
               className={`h-4 w-4 transition-transform ${

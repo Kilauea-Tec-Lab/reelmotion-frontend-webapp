@@ -19,11 +19,68 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
   const [creationType, setCreationType] = useState("upload"); // 'upload' or 'ai'
   const [aiModel, setAiModel] = useState("gpt");
   const [aiPrompt, setAiPrompt] = useState("");
+  const [selectedImageStyle, setSelectedImageStyle] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGeneratedImage, setHasGeneratedImage] = useState(false);
+
+  // Estilos de imagen disponibles para spots/locations
+  const imageStyles = [
+    {
+      id: "hyper-realism",
+      name: "Hyper-realism",
+      prompt:
+        ", hyper-realistic location, ultra detailed, 8K resolution, photorealistic, professional photography",
+    },
+    {
+      id: "cartoon",
+      name: "Cartoon",
+      prompt: ", cartoon style location, animated, colorful, whimsical",
+    },
+    {
+      id: "anime",
+      name: "Anime",
+      prompt: ", anime style location, manga inspired, detailed background",
+    },
+    {
+      id: "oil-painting",
+      name: "Oil Painting",
+      prompt:
+        ", oil painting style location, artistic brushstrokes, classic art",
+    },
+    {
+      id: "watercolor",
+      name: "Watercolor",
+      prompt: ", watercolor painting location, soft colors, artistic",
+    },
+    {
+      id: "comic-book",
+      name: "Comic Book",
+      prompt: ", comic book style location, bold colors, dynamic composition",
+    },
+    {
+      id: "fantasy",
+      name: "Fantasy Art",
+      prompt: ", fantasy art style location, magical, ethereal, detailed",
+    },
+    {
+      id: "cyberpunk",
+      name: "Cyberpunk",
+      prompt: ", cyberpunk style location, neon lights, futuristic, high-tech",
+    },
+  ];
+
+  // Función para crear el prompt final con el estilo seleccionado
+  const createFinalPrompt = () => {
+    const basePrompt = aiPrompt.trim();
+    const stylePrompt = selectedImageStyle
+      ? imageStyles.find((style) => style.id === selectedImageStyle)?.prompt ||
+        ""
+      : "";
+    return basePrompt + stylePrompt;
+  };
 
   const handleClose = () => {
     setSpotName("");
@@ -31,6 +88,7 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
     setCreationType("upload");
     setAiModel("gpt");
     setAiPrompt("");
+    setSelectedImageStyle("");
     setSelectedFile(null);
     setPreviewUrl(null);
     setIsGenerating(false);
@@ -78,8 +136,10 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
 
     setIsGenerating(true);
     try {
+      // Crear el prompt final con el estilo seleccionado
+      const finalPrompt = createFinalPrompt();
       // Agregar contexto al prompt para mejorar la calidad del spot
-      const enhancedPrompt = `${aiPrompt}. This location/spot will be used in video production, please without characters, so please ensure the location is clearly visible, well-framed, centered in the image, with good lighting and details. The location should be the main focus of the image, not too small or cut off, with a clear and professional appearance suitable for video content, please only the location.`;
+      const enhancedPrompt = `${finalPrompt}. This location/spot will be used in video production, please without characters, so please ensure the location is clearly visible, well-framed, centered in the image, with good lighting and details. The location should be the main focus of the image, not too small or cut off, with a clear and professional appearance suitable for video content, please only the location.`;
 
       let response;
       let responseData;
@@ -435,6 +495,42 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
                         Freepik
                       </option>
                     </select>
+                  </div>
+
+                  {/* Image Style Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-3 montserrat-regular">
+                      Select Image Style
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {imageStyles.map((style) => (
+                        <button
+                          key={style.id}
+                          type="button"
+                          onClick={() =>
+                            setSelectedImageStyle(
+                              style.id === selectedImageStyle ? "" : style.id
+                            )
+                          }
+                          className={`p-2 border rounded-lg text-xs transition-all ${
+                            selectedImageStyle === style.id
+                              ? "border-[#F2D543] bg-[#F2D54315] text-[#F2D543]"
+                              : "border-gray-600 hover:border-gray-500 hover:bg-darkBox text-gray-300"
+                          }`}
+                        >
+                          {style.name}
+                        </button>
+                      ))}
+                    </div>
+                    {selectedImageStyle && (
+                      <p className="mt-2 text-xs text-[#F2D543] montserrat-regular">
+                        Style selected:{" "}
+                        {
+                          imageStyles.find((s) => s.id === selectedImageStyle)
+                            ?.name
+                        }
+                      </p>
+                    )}
                   </div>
 
                   {/* AI Prompt */}

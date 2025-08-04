@@ -18,11 +18,69 @@ function ModalCreateCharacter({
   const [creationType, setCreationType] = useState("upload"); // 'upload' or 'ai'
   const [aiModel, setAiModel] = useState("gpt");
   const [aiPrompt, setAiPrompt] = useState("");
+  const [selectedImageStyle, setSelectedImageStyle] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGeneratedImage, setHasGeneratedImage] = useState(false);
+
+  // Estilos de imagen disponibles
+  const imageStyles = [
+    {
+      id: "hyper-realism",
+      name: "Hyper-realism",
+      prompt:
+        ", hyper-realistic character portrait, ultra detailed, 8K resolution, photorealistic, professional photography",
+    },
+    {
+      id: "cartoon",
+      name: "Cartoon",
+      prompt: ", cartoon style character, animated, colorful, whimsical",
+    },
+    {
+      id: "anime",
+      name: "Anime",
+      prompt:
+        ", anime style character, manga inspired, detailed character design",
+    },
+    {
+      id: "oil-painting",
+      name: "Oil Painting",
+      prompt:
+        ", oil painting style character portrait, artistic brushstrokes, classic art",
+    },
+    {
+      id: "watercolor",
+      name: "Watercolor",
+      prompt: ", watercolor painting character, soft colors, artistic",
+    },
+    {
+      id: "comic-book",
+      name: "Comic Book",
+      prompt: ", comic book style character, bold colors, dynamic poses",
+    },
+    {
+      id: "fantasy",
+      name: "Fantasy Art",
+      prompt: ", fantasy art style character, magical, ethereal, detailed",
+    },
+    {
+      id: "cyberpunk",
+      name: "Cyberpunk",
+      prompt: ", cyberpunk style character, neon lights, futuristic, high-tech",
+    },
+  ];
+
+  // Función para crear el prompt final con el estilo seleccionado
+  const createFinalPrompt = () => {
+    const basePrompt = aiPrompt.trim();
+    const stylePrompt = selectedImageStyle
+      ? imageStyles.find((style) => style.id === selectedImageStyle)?.prompt ||
+        ""
+      : "";
+    return basePrompt + stylePrompt;
+  };
 
   const handleClose = () => {
     setCharacterName("");
@@ -30,6 +88,7 @@ function ModalCreateCharacter({
     setCreationType("upload");
     setAiModel("gpt");
     setAiPrompt("");
+    setSelectedImageStyle("");
     setSelectedFile(null);
     setPreviewUrl(null);
     setIsGenerating(false);
@@ -77,8 +136,10 @@ function ModalCreateCharacter({
 
     setIsGenerating(true);
     try {
+      // Crear el prompt final con el estilo seleccionado
+      const finalPrompt = createFinalPrompt();
       // Agregar contexto al prompt para mejorar la calidad del personaje
-      const enhancedPrompt = `${aiPrompt}. This character will be used in video production.`;
+      const enhancedPrompt = `${finalPrompt}. This character will be used in video production.`;
 
       let response;
       let responseData;
@@ -436,6 +497,42 @@ function ModalCreateCharacter({
                         Freepik
                       </option>
                     </select>
+                  </div>
+
+                  {/* Image Style Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-3 montserrat-regular">
+                      Select Image Style
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {imageStyles.map((style) => (
+                        <button
+                          key={style.id}
+                          type="button"
+                          onClick={() =>
+                            setSelectedImageStyle(
+                              style.id === selectedImageStyle ? "" : style.id
+                            )
+                          }
+                          className={`p-2 border rounded-lg text-xs transition-all ${
+                            selectedImageStyle === style.id
+                              ? "border-[#F2D543] bg-[#F2D54315] text-[#F2D543]"
+                              : "border-gray-600 hover:border-gray-500 hover:bg-darkBox text-gray-300"
+                          }`}
+                        >
+                          {style.name}
+                        </button>
+                      ))}
+                    </div>
+                    {selectedImageStyle && (
+                      <p className="mt-2 text-xs text-[#F2D543] montserrat-regular">
+                        Style selected:{" "}
+                        {
+                          imageStyles.find((s) => s.id === selectedImageStyle)
+                            ?.name
+                        }
+                      </p>
+                    )}
                   </div>
 
                   {/* AI Prompt */}

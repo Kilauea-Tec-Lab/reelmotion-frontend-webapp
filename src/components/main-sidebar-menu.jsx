@@ -20,11 +20,11 @@ import { div } from "framer-motion/client";
 
 function MainSidebarMenu() {
   const menuItems = [
-    { id: 1, name: "Discover", icon: HomeIcon, path: "/discover" },
+    { id: 1, name: "Discovery", icon: HomeIcon, path: "/discover" }, //9390  Entrega a Efectivo  1940 Es en tarjeta   4087 egreso de caja    3083   Lo que es 3363   Corte de ayer
     { id: 2, name: "Projects", icon: VideoIcon, path: "/" },
     { id: 3, name: "Editor", icon: Film, path: "/editor" },
     { id: 4, name: "Profile", icon: User2, path: "/profile" },
-    { id: 5, name: "Settings", icon: Settings2Icon, path: "/settings" },
+    //{ id: 5, name: "Settings", icon: Settings2Icon, path: "/settings" },
   ];
 
   return (

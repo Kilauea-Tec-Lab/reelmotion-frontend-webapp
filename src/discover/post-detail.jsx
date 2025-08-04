@@ -82,24 +82,24 @@ function PostDetail() {
 
   return (
     <div className="min-h-screen bg-primarioDark">
-      {/* Header */}
-      <div className="sticky top-0 bg-primarioDark border-b border-darkBoxSub z-10 p-4">
-        <div className="max-w-2xl mx-auto flex items-center gap-4">
+      /* Header */
+      <div className="sticky top-0 bg-primarioDark border-b border-darkBoxSub z-10 p-0 w-full">
+        <div className="flex items-center justify-between px-4">
+          <img
+            src="/logos/logo_reelmotion.webp"
+            alt="Reelmotion Logo"
+            className="sm:h-10 h-8"
+          />
           <button
-            onClick={() => navigate("/discover")}
-            className="text-white hover:text-[#F2D543] transition-colors p-2"
+            onClick={() => navigate("/")}
+            className="bg-[#F2D543] text-primarioDark text-sm px-3 py-1 rounded-3xl montserrat-medium hover:bg-[#f2f243] transition-colors"
           >
-            <ArrowLeft size={24} />
+            Sign In
           </button>
-          <h1 className="text-white montserrat-medium text-xl tracking-wider">
-            Post
-          </h1>
         </div>
       </div>
-
-      {/* Post */}
-      <div className="max-w-2xl mx-auto py-6">
-        <PostCard post={post} onUpdate={handlePostUpdate} />
+      <div className="max-w-2xl mx-auto py-6 px-4">
+        <PostCard post={post} onUpdate={handlePostUpdate} public_post={true} />
       </div>
     </div>
   );

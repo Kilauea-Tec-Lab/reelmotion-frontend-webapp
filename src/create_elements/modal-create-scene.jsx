@@ -38,6 +38,7 @@ function ModalCreateScene({
   const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
   const [hasGeneratedImage, setHasGeneratedImage] = useState(false);
   const [imagePrompt, setImagePrompt] = useState("");
+  const [selectedImageStyle, setSelectedImageStyle] = useState("");
 
   // Mock data - En producción esto vendría de props o API
 
@@ -47,14 +48,14 @@ function ModalCreateScene({
       name: "Runway ML",
       description: "Professional video AI model",
     },
-    {
+    /*{
       id: "kling",
       name: "KLING",
       description: "Advanced AI video generation model",
-    },
+    },*/
     {
       id: "dall-e",
-      name: "DALL-E Video",
+      name: "",
       description: "DALL-E model for video generation",
     },
     {
@@ -62,17 +63,74 @@ function ModalCreateScene({
       name: "Veo-3",
       description: "Advanced video generation model",
     },
-    {
+    /*{
       id: "veo-2",
       name: "Veo-2",
       description: "Second generation Veo model for video",
-    },
+    },*/
   ];
 
   const durationOptions = [
     { value: 5, label: "5 seconds", estimatedTime: 30 },
     { value: 10, label: "10 seconds", estimatedTime: 45 },
   ];
+
+  // Estilos de imagen disponibles
+  const imageStyles = [
+    {
+      id: "hyper-realism",
+      name: "Hyper-realism",
+      prompt: `A hyper-realistic 8K composite image of the provided characters merged into a single scene.
+Each character must preserve their facial features, body shape, proportions, hair style, clothing, and skin texture as seen in the reference images.
+Ultra realistic cinematic lighting with real shadows, film grain, visible pores, slight imperfections, and lifelike skin tones.
+`,
+    },
+    {
+      id: "cartoon",
+      name: "Cartoon",
+      prompt: ", cartoon style, animated, colorful, whimsical",
+    },
+    {
+      id: "anime",
+      name: "Anime",
+      prompt: ", anime style, manga inspired, detailed character design",
+    },
+    {
+      id: "oil-painting",
+      name: "Oil Painting",
+      prompt: ", oil painting style, artistic brushstrokes, classic art",
+    },
+    {
+      id: "watercolor",
+      name: "Watercolor",
+      prompt: ", watercolor painting, soft colors, artistic",
+    },
+    {
+      id: "comic-book",
+      name: "Comic Book",
+      prompt: ", comic book style, bold colors, dynamic poses",
+    },
+    {
+      id: "fantasy",
+      name: "Fantasy Art",
+      prompt: ", fantasy art style, magical, ethereal, detailed",
+    },
+    {
+      id: "cyberpunk",
+      name: "Cyberpunk",
+      prompt: ", cyberpunk style, neon lights, futuristic, high-tech",
+    },
+  ];
+
+  // Función para crear el prompt final con el estilo seleccionado
+  const createFinalPrompt = () => {
+    const basePrompt = imagePrompt.trim();
+    const stylePrompt = selectedImageStyle
+      ? imageStyles.find((style) => style.id === selectedImageStyle)?.prompt ||
+        ""
+      : "";
+    return basePrompt + stylePrompt;
+  };
 
   const handleClose = () => {
     setSceneName("");
@@ -90,6 +148,7 @@ function ModalCreateScene({
     setGeneratedImageUrl(null);
     setHasGeneratedImage(false);
     setImagePrompt("");
+    setSelectedImageStyle("");
     onClose();
   };
 
@@ -110,16 +169,18 @@ function ModalCreateScene({
   };
 
   const handleGenerateImage = async () => {
-    if (!selectedCharacters.length || !selectedSpot || !imagePrompt.trim())
+    // Validar que al menos tengamos characters O spot, y el prompt
+    if ((!selectedCharacters.length && !selectedSpot) || !imagePrompt.trim())
       return;
 
     setIsGeneratingImage(true);
     try {
       // Crear el payload con los datos requeridos
+      const finalPrompt = createFinalPrompt();
       const payload = {
-        prompt: imagePrompt,
-        characters: selectedCharacters, // Array de character IDs
-        spot: selectedSpot, // Spot ID
+        prompt: finalPrompt,
+        characters: selectedCharacters, // Array de character IDs (puede estar vacío)
+        spot: selectedSpot, // Spot ID (puede estar vacío)
         project_id: projectId, // ID del proyecto
       };
 
@@ -192,12 +253,12 @@ function ModalCreateScene({
   const handleDiscardGeneratedImage = () => {
     setGeneratedImageUrl(null);
     setHasGeneratedImage(false);
+    setSelectedImageStyle("");
   };
 
   const handleGenerateScene = async () => {
     if (
-      !selectedCharacters.length ||
-      !selectedSpot ||
+      (!selectedCharacters.length && !selectedSpot) ||
       !aiPrompt.trim() ||
       !hasGeneratedImage
     )
@@ -279,8 +340,7 @@ function ModalCreateScene({
     if (
       !sceneName.trim() ||
       !sceneDescription.trim() ||
-      !selectedCharacters.length ||
-      !selectedSpot ||
+      (!selectedCharacters.length && !selectedSpot) ||
       !generatedVideoUrl ||
       !promptImageUrl
     )
@@ -358,9 +418,13 @@ function ModalCreateScene({
         <div className="p-6">
           {/* Character Selection */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-white mb-4 montserrat-regular">
-              Select Characters *
+            <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+              Select Characters (Optional)
             </label>
+            <p className="text-xs text-gray-400 mb-4 montserrat-regular">
+              You can select characters only, spot only, or both for keyframe
+              generation
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {characters.map((character) => (
                 <div
@@ -401,7 +465,7 @@ function ModalCreateScene({
           {/* Spot Selection */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-white mb-4 montserrat-regular">
-              Select Spot/Location *
+              Select Spot/Location (Optional)
             </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {spots.map((spot) => (
@@ -444,6 +508,41 @@ function ModalCreateScene({
               </h3>
             </div>
 
+            {/* Image Style Selection - Solo visible si no hay imagen generada */}
+            {!generatedImageUrl && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-white mb-3 montserrat-regular">
+                  Select Image Style
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {imageStyles.map((style) => (
+                    <button
+                      key={style.id}
+                      type="button"
+                      onClick={() =>
+                        setSelectedImageStyle(
+                          style.id === selectedImageStyle ? "" : style.id
+                        )
+                      }
+                      className={`p-2 border rounded-lg text-xs transition-all ${
+                        selectedImageStyle === style.id
+                          ? "border-[#F2D543] bg-[#F2D54315] text-[#F2D543]"
+                          : "border-gray-600 hover:border-gray-500 hover:bg-darkBox text-gray-300"
+                      }`}
+                    >
+                      {style.name}
+                    </button>
+                  ))}
+                </div>
+                {selectedImageStyle && (
+                  <p className="mt-2 text-xs text-[#F2D543] montserrat-regular">
+                    Style selected:{" "}
+                    {imageStyles.find((s) => s.id === selectedImageStyle)?.name}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Image Prompt - Solo visible si no hay imagen generada */}
             {!generatedImageUrl && (
               <>
@@ -467,8 +566,7 @@ function ModalCreateScene({
                     type="button"
                     onClick={handleGenerateImage}
                     disabled={
-                      !selectedCharacters.length ||
-                      !selectedSpot ||
+                      (!selectedCharacters.length && !selectedSpot) ||
                       !imagePrompt.trim() ||
                       isGeneratingImage
                     }
@@ -644,8 +742,7 @@ function ModalCreateScene({
                 type="button"
                 onClick={handleGenerateScene}
                 disabled={
-                  !selectedCharacters.length ||
-                  !selectedSpot ||
+                  (!selectedCharacters.length && !selectedSpot) ||
                   !aiPrompt.trim() ||
                   !hasGeneratedImage ||
                   isGenerating
@@ -738,8 +835,7 @@ function ModalCreateScene({
               disabled={
                 !sceneName.trim() ||
                 !sceneDescription.trim() ||
-                !selectedCharacters.length ||
-                !selectedSpot ||
+                (!selectedCharacters.length && !selectedSpot) ||
                 !generatedVideoUrl ||
                 !promptImageUrl
               }
