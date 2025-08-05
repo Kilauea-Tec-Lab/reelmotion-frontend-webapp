@@ -139,8 +139,8 @@ function Login() {
       </video>
       {/* Capa difuminada en negro al 50% sobre el video */}
       <div className="absolute top-0 left-0 w-full h-full bg-[#00000080] z-10">
-        <div className="relative z-20  flex  h-full">
-          <div className="w-1/2 px-16 py-16">
+        <div className="relative z-20  sm:flex  h-full">
+          <div className="sm:w-1/2 sm:px-16 sm:py-16 px-4 py-4">
             <img
               src="/logos/logo_reelmotion.webp"
               alt="Logo Reelmotion IA"
@@ -188,7 +188,7 @@ function Login() {
               </div>
             )}
           </div>
-          <div className="w-1/2 h-full flex items-center justify-center">
+          <div className="sm:w-1/2 h-full flex items-center justify-center">
             {typeRecord == 1 ? (
               <div className="text-left w-full space-y-6 flex flex-col">
                 <h1 className="text-white text-2xl montserrat-light">
