@@ -22,8 +22,6 @@ function PostDetail() {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
-              Authorization:
-                "Bearer " + document.cookie.split("token=")[1]?.split(";")[0],
             },
           }
         );
