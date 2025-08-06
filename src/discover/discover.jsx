@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useLoaderData } from "react-router-dom";
 import PostCard from "./components/post-card";
 import PostCardSkeleton from "./components/post-card-skeleton";
+import PinterestGrid from "./components/pinterest-grid";
+import PostModal from "./components/post-modal";
 import { getDiscoverPosts } from "./functions";
 
 function Discover() {
@@ -14,8 +16,10 @@ function Discover() {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(initialData?.data?.current_page || 1);
   const [hasMore, setHasMore] = useState(
-    initialData?.data?.length > 0 ? !!initialData?.data?.next_page_url : false // No hay más páginas para datos de prueba
+    initialData?.data?.length > 0 ? !!initialData?.data?.next_page_url : false
   );
+  const [selectedPostId, setSelectedPostId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const loadMorePosts = async () => {
     if (loading || !hasMore) return;
@@ -46,6 +50,16 @@ function Discover() {
     );
   };
 
+  const handleCardClick = (postId) => {
+    setSelectedPostId(postId);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedPostId(null);
+  };
+
   useEffect(() => {
     const handleScroll = () => {
       if (
@@ -68,22 +82,33 @@ function Discover() {
       {/* Header */}
 
       {/* Posts Feed */}
-      <div className="max-w-4xl mx-auto py-6 px-4">
+      <div className="max-w-7xl mx-auto py-6 px-4">
         {posts.length > 0 ? (
           <div className="space-y-8">
-            {posts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                onUpdate={handlePostUpdate}
-                public_post={false}
-              />
-            ))}
+            {/* Pinterest Grid */}
+            <PinterestGrid posts={posts} onCardClick={handleCardClick} />
 
             {loading && (
-              <div className="space-y-8">
-                <PostCardSkeleton />
-                <PostCardSkeleton />
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-8">
+                {Array.from({ length: 10 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="bg-darkBox rounded-lg overflow-hidden"
+                  >
+                    <div className="w-full h-48 bg-darkBoxSub animate-pulse"></div>
+                    <div className="p-3 space-y-2">
+                      <div className="h-4 bg-darkBoxSub animate-pulse rounded"></div>
+                      <div className="h-3 bg-darkBoxSub animate-pulse rounded w-3/4"></div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-darkBoxSub animate-pulse rounded-full"></div>
+                          <div className="h-3 bg-darkBoxSub animate-pulse rounded w-16"></div>
+                        </div>
+                        <div className="h-3 bg-darkBoxSub animate-pulse rounded w-8"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -107,6 +132,13 @@ function Discover() {
           </div>
         )}
       </div>
+
+      {/* Post Modal */}
+      <PostModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        postId={selectedPostId}
+      />
     </div>
   );
 }

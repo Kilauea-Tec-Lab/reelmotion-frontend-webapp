@@ -59,16 +59,14 @@ export async function likePost(postId) {
 export async function addComment(postId, content) {
   try {
     const response = await fetch(
-      `${
-        import.meta.env.VITE_APP_BACKEND_URL
-      }discover/posts/${postId}/comments`,
+      `${import.meta.env.VITE_APP_BACKEND_URL}discover/add-comment`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: "Bearer " + Cookies.get("token"),
         },
-        body: JSON.stringify({ content, post_id: postId }),
+        body: JSON.stringify({ post_id: postId, content }),
       }
     );
 
@@ -80,6 +78,33 @@ export async function addComment(postId, content) {
     return data;
   } catch (error) {
     console.error("Error adding comment:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Compartir post
+export async function sharePost(postId, platform) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_APP_BACKEND_URL}discover/share-post`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + Cookies.get("token"),
+        },
+        body: JSON.stringify({ post_id: postId, platform }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error sharing post:", error);
     return { success: false, error: error.message };
   }
 }
@@ -137,6 +162,32 @@ export async function replyToComment(commentId, content) {
     return data;
   } catch (error) {
     console.error("Error replying to comment:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Obtener un post individual por ID
+export async function getPostById(postId) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_APP_BACKEND_URL}discover/post/${postId}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + Cookies.get("token"),
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching post:", error);
     return { success: false, error: error.message };
   }
 }
