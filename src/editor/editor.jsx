@@ -1435,7 +1435,7 @@ function Editor() {
   };
 
   return (
-    <div className="bg-primarioDark w-full h-[91.8vh] pr-4">
+    <div className="bg-primarioDark w-full h-[95vh] pr-4">
       {/* Header */}
       <div className="flex justify-between">
         <div className="flex flex-col">
@@ -1993,8 +1993,8 @@ function Editor() {
               return (
                 <div
                   key={item.id}
-                  className={`absolute rounded-4xl overflow-visible pointer-events-none group ${
-                    selectedElement?.id === item.id
+                  className={`absolute rounded-0 overflow-visible pointer-events-none group ${
+                    selectedElement?.id === item.id && !isPlaying
                       ? "ring-2 ring-primarioLogo ring-opacity-80"
                       : ""
                   }`}
@@ -2010,7 +2010,7 @@ function Editor() {
                   <img
                     src={item.url}
                     alt={item.title}
-                    className="cursor-move rounded-4xl"
+                    className="cursor-move rounded-0"
                     style={{
                       opacity: item.opacity || 1,
                       width: "100%",
@@ -2024,8 +2024,8 @@ function Editor() {
                     onClick={(e) => handleSelectElement(item, e)}
                   />
 
-                  {/* Resize handles - only show when selected */}
-                  {selectedElement?.id === item.id && (
+                  {/* Resize handles - only show when selected and not playing */}
+                  {selectedElement?.id === item.id && !isPlaying && (
                     <>
                       {/* Top-left corner */}
                       <div

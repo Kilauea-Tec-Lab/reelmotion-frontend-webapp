@@ -25,6 +25,7 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGeneratedImage, setHasGeneratedImage] = useState(false);
+  const [generationError, setGenerationError] = useState(null);
 
   // Estilos de imagen disponibles para spots/locations
   const imageStyles = [
@@ -93,6 +94,7 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
     setPreviewUrl(null);
     setIsGenerating(false);
     setHasGeneratedImage(false);
+    setGenerationError(null);
     onClose();
   };
 
@@ -135,6 +137,8 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
     if (!aiPrompt.trim()) return;
 
     setIsGenerating(true);
+    setGenerationError(null); // Limpiar errores anteriores
+    
     try {
       // Crear el prompt final con el estilo seleccionado
       const finalPrompt = createFinalPrompt();
@@ -163,11 +167,47 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
         const base64Image = `data:image/jpeg;base64,${responseData.data.image_base64}`;
         setPreviewUrl(base64Image);
         setHasGeneratedImage(true);
+        setGenerationError(null); // Limpiar errores si la generación fue exitosa
       } else {
-        console.error("Error: No se pudo generar la imagen");
+        // Manejar errores específicos del backend
+        let errorMessage = "Error generating image. Please try again.";
+        
+        if (responseData && responseData.message) {
+          const message = responseData.message;
+          
+          // Detectar error de moderación de OpenAI
+          if (
+            message.includes("moderation_blocked") ||
+            message.includes("safety system")
+          ) {
+            errorMessage =
+              "Your content was blocked by the AI safety system. Please try rephrasing your description with different words or avoid potentially sensitive content.";
+          }
+          // Detectar otros errores específicos
+          else if (message.includes("rate_limit")) {
+            errorMessage =
+              "Rate limit exceeded. Please wait a moment and try again.";
+          } else if (
+            message.includes("insufficient_quota") ||
+            message.includes("billing")
+          ) {
+            errorMessage =
+              "Service temporarily unavailable. Please try again later.";
+          }
+          // Error genérico con mensaje del servidor
+          else {
+            errorMessage = `Generation failed: ${message.split("\n")[0]}`; // Solo primera línea del error
+          }
+        }
+        
+        setGenerationError(errorMessage);
+        console.error("Error generating image:", responseData);
       }
     } catch (error) {
       console.error("Error generating image:", error);
+      setGenerationError(
+        "Network error. Please check your connection and try again."
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -176,6 +216,7 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
   const handleDiscardGeneratedImage = () => {
     setPreviewUrl(null);
     setHasGeneratedImage(false);
+    setGenerationError(null); // Limpiar errores al descartar
   };
 
   // Función para comprimir y convertir archivo a base64
@@ -472,8 +513,8 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
           {/* AI Generation Section */}
           {creationType === "ai" && (
             <div className="mb-6 space-y-4">
-              {/* AI Generation Controls - Solo mostrar si no hay imagen generada */}
-              {!hasGeneratedImage && (
+              {/* AI Generation Controls - Solo mostrar si no hay imagen generada y no se está generando */}
+              {!hasGeneratedImage && !isGenerating && (
                 <>
                   {/* AI Model Selection */}
                   <div>
@@ -540,7 +581,13 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
                     </label>
                     <textarea
                       value={aiPrompt}
-                      onChange={(e) => setAiPrompt(e.target.value)}
+                      onChange={(e) => {
+                        setAiPrompt(e.target.value);
+                        // Limpiar error cuando el usuario modifica el prompt
+                        if (generationError) {
+                          setGenerationError(null);
+                        }
+                      }}
                       placeholder="Describe the location you want to generate... (e.g., A cozy coffee shop interior with warm lighting and wooden furniture)"
                       rows={4}
                       className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular resize-none"
@@ -552,12 +599,20 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
                     type="button"
                     onClick={handleGenerateAI}
                     disabled={!aiPrompt.trim() || isGenerating}
-                    className="w-full px-4 py-3 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543] flex items-center justify-center gap-2"
+                    className={`w-full px-4 py-3 rounded-lg transition-all duration-300 font-medium montserrat-medium flex items-center justify-center gap-2 ${
+                      isGenerating
+                        ? "bg-[#F2D543] text-primarioDark animate-pulse cursor-not-allowed"
+                        : "bg-[#F2D543] text-primarioDark hover:bg-[#f2f243] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543]"
+                    }`}
                   >
                     {isGenerating ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-primarioDark border-t-transparent rounded-full animate-spin"></div>
-                        Generating...
+                        <div className="relative">
+                          <div className="w-5 h-5 border-3 border-primarioDark border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                        <span className="animate-pulse">
+                          Generating your spot...
+                        </span>
                       </>
                     ) : (
                       <>
@@ -566,7 +621,54 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
                       </>
                     )}
                   </button>
+
+                  {/* Error Message */}
+                  {generationError && (
+                    <div className="mt-3 p-3 bg-red-900 bg-opacity-20 border border-red-600 rounded-lg">
+                      <p className="text-red-400 text-sm montserrat-regular">
+                        {generationError}
+                      </p>
+                    </div>
+                  )}
                 </>
+              )}
+
+              {/* Generating State - Mostrar mientras se genera la imagen */}
+              {isGenerating && !hasGeneratedImage && (
+                <div className="text-center py-8 space-y-4">
+                  <div className="flex justify-center">
+                    <div className="relative">
+                      <div className="w-16 h-16 border-4 border-[#F2D543] border-t-transparent rounded-full animate-spin"></div>
+                      <div
+                        className="absolute inset-2 w-12 h-12 border-4 border-transparent border-r-[#F2D543] rounded-full animate-spin"
+                        style={{ animationDelay: "0.2s" }}
+                      ></div>
+                      <div
+                        className="absolute inset-4 w-8 h-8 border-4 border-[#F2D543] border-b-transparent rounded-full animate-spin"
+                        style={{ animationDelay: "0.4s" }}
+                      ></div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-white text-lg font-medium montserrat-medium animate-pulse">
+                      Creating your spot...
+                    </h3>
+                    <p className="text-gray-400 text-sm montserrat-regular">
+                      Please wait while AI generates your location image
+                    </p>
+                    <div className="flex justify-center space-x-1 mt-4">
+                      <div className="w-2 h-2 bg-[#F2D543] rounded-full animate-bounce"></div>
+                      <div
+                        className="w-2 h-2 bg-[#F2D543] rounded-full animate-bounce"
+                        style={{ animationDelay: "0.1s" }}
+                      ></div>
+                      <div
+                        className="w-2 h-2 bg-[#F2D543] rounded-full animate-bounce"
+                        style={{ animationDelay: "0.2s" }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {/* AI Generated Preview - Solo mostrar si hay imagen generada */}

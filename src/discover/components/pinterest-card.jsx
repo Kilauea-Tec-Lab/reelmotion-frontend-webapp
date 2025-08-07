@@ -18,29 +18,31 @@ function PinterestCard({ post, onClick }) {
     >
       {/* Card Container */}
       <div className="bg-darkBox rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-        {/* Video Container */}
         <div className="relative">
-          <video
-            src={post.video_url || post.image_url}
-            className={`w-full h-48 object-cover transition-opacity duration-300 ${
-              videoLoaded ? "opacity-100" : "opacity-0"
-            }`}
-            onLoadedData={() => setVideoLoaded(true)}
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            onMouseEnter={(e) => e.target.play()}
-            onMouseLeave={(e) => {
-              e.target.pause();
-              e.target.currentTime = 0;
-            }}
-          />
-
-          {/* Loading placeholder */}
+          {(post.video_url || post.image_url) && (
+            <video
+              src={post.video_url || post.image_url}
+              className={`w-full h-48 object-cover transition-opacity duration-300 ${
+                videoLoaded ? "opacity-100" : "opacity-0"
+              }`}
+              onLoadedData={() => setVideoLoaded(true)}
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              style={{ display: videoLoaded ? "block" : "none" }}
+              onMouseEnter={(e) => e.target.play()}
+              onMouseLeave={(e) => {
+                e.target.pause();
+                e.target.currentTime = 0;
+              }}
+            />
+          )}
           {!videoLoaded && (
             <div className="w-full h-48 bg-darkBoxSub animate-pulse flex items-center justify-center">
-              <div className="w-8 h-8 border-2 border-gray-600 border-t-[#F2D543] rounded-full animate-spin"></div>
+              <div className="w-8 h-8 border-2 border-gray-600 border-t-[#F2D543] rounded-full animate-spin">
+                {" "}
+              </div>
             </div>
           )}
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import PinterestCard from "./pinterest-card";
 
 function PinterestGrid({ posts, onCardClick }) {
-  const [columns, setColumns] = useState(5);
+  const [columns, setColumns] = useState(4);
   const [columnItems, setColumnItems] = useState([]);
   const gridRef = useRef(null);
 
@@ -14,7 +14,7 @@ function PinterestGrid({ posts, onCardClick }) {
       else if (width < 768) setColumns(2); // md
       else if (width < 1024) setColumns(3); // lg
       else if (width < 1280) setColumns(4); // xl
-      else setColumns(5); // 2xl
+      else setColumns(4); // 2xl
     };
 
     updateColumns();

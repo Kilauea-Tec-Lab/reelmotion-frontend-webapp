@@ -55,6 +55,16 @@ function ModalExportEdit({
     }
   };
 
+  const downloadVideo = (videoUrl, fileName) => {
+    const link = document.createElement("a");
+    link.href = videoUrl;
+    link.download = fileName || "exported-video.mp4";
+    link.target = "_blank";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleExport = async () => {
     if (!selectedProjectId || !arrayVideoMake?.length) return;
 
@@ -96,6 +106,12 @@ function ModalExportEdit({
           render_time_seconds: responseData.render_time_seconds,
           message: responseData.message,
         });
+
+        // Automatically download the video
+        const fileName = `${editName || "exported-edit"}-${new Date()
+          .toISOString()
+          .slice(0, 10)}.mp4`;
+        downloadVideo(responseData.video_url, fileName);
       } else {
         console.error("Error exporting edit:", responseData);
         alert("Error exporting edit. Please try again.");
@@ -165,7 +181,7 @@ function ModalExportEdit({
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 overflow-auto max-h-screen bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-darkBox rounded-lg w-full max-w-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-600">
@@ -389,7 +405,7 @@ function ModalExportEdit({
                   ) : (
                     <>
                       <Upload className="w-4 h-4" />
-                      Render Video
+                      Render and Download
                     </>
                   )}
                 </button>
