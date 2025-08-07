@@ -85,7 +85,7 @@ function ModalCreateScene({
       id: "hyper-realism",
       name: "Hyper-realism",
       prompt: `A hyper-realistic 8K composite image of the provided characters merged into a single scene.
-Each character must preserve their facial features, body shape, proportions, hair style, clothing, and skin texture as seen in the reference images.
+Each character must preserve facial features as close as possible to the reference image, body shape, proportions, hair style, clothing, and skin texture as seen in the reference images.
 Ultra realistic cinematic lighting with real shadows, film grain, visible pores, slight imperfections, and lifelike skin tones.
 `,
     },
@@ -181,7 +181,7 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
 
     setIsGeneratingImage(true);
     setImageGenerationError(null); // Limpiar errores anteriores
-    
+
     try {
       // Crear el payload con los datos requeridos
       const finalPrompt = createFinalPrompt();
@@ -222,10 +222,10 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
       } else {
         // Manejar errores específicos del backend
         let errorMessage = "Error generating image. Please try again.";
-        
+
         if (responseData && responseData.message) {
           const message = responseData.message;
-          
+
           // Detectar error de moderación de OpenAI
           if (
             message.includes("moderation_blocked") ||
@@ -250,7 +250,7 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
             errorMessage = `Generation failed: ${message.split("\n")[0]}`; // Solo primera línea del error
           }
         }
-        
+
         setImageGenerationError(errorMessage);
         console.error("Error: No se pudo generar la imagen", responseData);
       }
@@ -376,10 +376,10 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
       } else {
         // Manejar errores específicos del backend
         let errorMessage = "Error generating video. Please try again.";
-        
+
         if (responseData && responseData.message) {
           const message = responseData.message;
-          
+
           // Detectar error de moderación
           if (
             message.includes("moderation_blocked") ||
@@ -404,7 +404,7 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
             errorMessage = `Generation failed: ${message.split("\n")[0]}`; // Solo primera línea del error
           }
         }
-        
+
         setVideoGenerationError(errorMessage);
         console.error("Error generating video:", responseData);
       }
@@ -957,7 +957,8 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
                   Creating video scene...
                 </h3>
                 <p className="text-gray-400 text-sm montserrat-regular">
-                  Please wait while AI generates your video (estimated: {estimatedTime}s)
+                  Please wait while AI generates your video (estimated:{" "}
+                  {estimatedTime}s)
                 </p>
                 <div className="flex justify-center space-x-1 mt-4">
                   <div className="w-2 h-2 bg-[#F2D543] rounded-full animate-bounce"></div>
