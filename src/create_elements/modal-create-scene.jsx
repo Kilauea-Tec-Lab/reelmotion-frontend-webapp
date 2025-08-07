@@ -39,6 +39,10 @@ function ModalCreateScene({
   const [hasGeneratedImage, setHasGeneratedImage] = useState(false);
   const [imagePrompt, setImagePrompt] = useState("");
   const [selectedImageStyle, setSelectedImageStyle] = useState("");
+  const [imageGenerationError, setImageGenerationError] = useState(null);
+
+  // Estados para generación de video
+  const [videoGenerationError, setVideoGenerationError] = useState(null);
 
   // Mock data - En producción esto vendría de props o API
 
@@ -149,6 +153,8 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
     setHasGeneratedImage(false);
     setImagePrompt("");
     setSelectedImageStyle("");
+    setImageGenerationError(null);
+    setVideoGenerationError(null);
     onClose();
   };
 
@@ -174,6 +180,8 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
       return;
 
     setIsGeneratingImage(true);
+    setImageGenerationError(null); // Limpiar errores anteriores
+    
     try {
       // Crear el payload con los datos requeridos
       const finalPrompt = createFinalPrompt();
@@ -210,11 +218,47 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
         const base64Image = `data:image/jpeg;base64,${responseData.data.image_base64}`;
         setGeneratedImageUrl(base64Image);
         setHasGeneratedImage(true);
+        setImageGenerationError(null); // Limpiar errores si la generación fue exitosa
       } else {
+        // Manejar errores específicos del backend
+        let errorMessage = "Error generating image. Please try again.";
+        
+        if (responseData && responseData.message) {
+          const message = responseData.message;
+          
+          // Detectar error de moderación de OpenAI
+          if (
+            message.includes("moderation_blocked") ||
+            message.includes("safety system")
+          ) {
+            errorMessage =
+              "Your content was blocked by the AI safety system. Please try rephrasing your description with different words or avoid potentially sensitive content.";
+          }
+          // Detectar otros errores específicos
+          else if (message.includes("rate_limit")) {
+            errorMessage =
+              "Rate limit exceeded. Please wait a moment and try again.";
+          } else if (
+            message.includes("insufficient_quota") ||
+            message.includes("billing")
+          ) {
+            errorMessage =
+              "Service temporarily unavailable. Please try again later.";
+          }
+          // Error genérico con mensaje del servidor
+          else {
+            errorMessage = `Generation failed: ${message.split("\n")[0]}`; // Solo primera línea del error
+          }
+        }
+        
+        setImageGenerationError(errorMessage);
         console.error("Error: No se pudo generar la imagen", responseData);
       }
     } catch (error) {
       console.error("Error generating image:", error);
+      setImageGenerationError(
+        "Network error. Please check your connection and try again."
+      );
     } finally {
       setIsGeneratingImage(false);
     }
@@ -254,6 +298,7 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
     setGeneratedImageUrl(null);
     setHasGeneratedImage(false);
     setSelectedImageStyle("");
+    setImageGenerationError(null); // Limpiar errores al descartar
   };
 
   const handleGenerateScene = async () => {
@@ -265,6 +310,7 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
       return;
 
     setIsGenerating(true);
+    setVideoGenerationError(null); // Limpiar errores anteriores
 
     try {
       // Configurar tiempo estimado según el modelo
@@ -325,12 +371,48 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
         if (responseData.prompt_image_url) {
           setPromptImageUrl(responseData.prompt_image_url);
         }
+        setVideoGenerationError(null); // Limpiar errores si la generación fue exitosa
         console.log("Video generated successfully:", responseData);
       } else {
+        // Manejar errores específicos del backend
+        let errorMessage = "Error generating video. Please try again.";
+        
+        if (responseData && responseData.message) {
+          const message = responseData.message;
+          
+          // Detectar error de moderación
+          if (
+            message.includes("moderation_blocked") ||
+            message.includes("safety system")
+          ) {
+            errorMessage =
+              "Your content was blocked by the AI safety system. Please try rephrasing your description with different words or avoid potentially sensitive content.";
+          }
+          // Detectar otros errores específicos
+          else if (message.includes("rate_limit")) {
+            errorMessage =
+              "Rate limit exceeded. Please wait a moment and try again.";
+          } else if (
+            message.includes("insufficient_quota") ||
+            message.includes("billing")
+          ) {
+            errorMessage =
+              "Service temporarily unavailable. Please try again later.";
+          }
+          // Error genérico con mensaje del servidor
+          else {
+            errorMessage = `Generation failed: ${message.split("\n")[0]}`; // Solo primera línea del error
+          }
+        }
+        
+        setVideoGenerationError(errorMessage);
         console.error("Error generating video:", responseData);
       }
     } catch (error) {
       console.error("Error generating scene:", error);
+      setVideoGenerationError(
+        "Network error. Please check your connection and try again."
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -552,7 +634,13 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
                   </label>
                   <textarea
                     value={imagePrompt}
-                    onChange={(e) => setImagePrompt(e.target.value)}
+                    onChange={(e) => {
+                      setImagePrompt(e.target.value);
+                      // Limpiar error cuando el usuario modifica el prompt
+                      if (imageGenerationError) {
+                        setImageGenerationError(null);
+                      }
+                    }}
                     placeholder="Describe the main frame/scene you want to generate... (e.g., A knight and sorceress facing each other in a moonlit castle courtyard)"
                     rows={3}
                     className="w-full px-4 py-3 bg-darkBox rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular resize-none"
@@ -570,12 +658,20 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
                       !imagePrompt.trim() ||
                       isGeneratingImage
                     }
-                    className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600 flex items-center justify-center gap-2"
+                    className={`w-full px-4 py-3 rounded-lg transition-all duration-300 font-medium montserrat-medium flex items-center justify-center gap-2 ${
+                      isGeneratingImage
+                        ? "bg-blue-600 text-white animate-pulse cursor-not-allowed"
+                        : "bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+                    }`}
                   >
                     {isGeneratingImage ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Generating Image...
+                        <div className="relative">
+                          <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                        <span className="animate-pulse">
+                          Generating key frame...
+                        </span>
                       </>
                     ) : (
                       <>
@@ -584,8 +680,55 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
                       </>
                     )}
                   </button>
+
+                  {/* Error Message for Image Generation */}
+                  {imageGenerationError && (
+                    <div className="mt-3 p-3 bg-red-900 bg-opacity-20 border border-red-600 rounded-lg">
+                      <p className="text-red-400 text-sm montserrat-regular">
+                        {imageGenerationError}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </>
+            )}
+
+            {/* Generating Image State - Mostrar mientras se genera la imagen */}
+            {isGeneratingImage && !generatedImageUrl && (
+              <div className="text-center py-8 space-y-4">
+                <div className="flex justify-center">
+                  <div className="relative">
+                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <div
+                      className="absolute inset-2 w-12 h-12 border-4 border-transparent border-r-blue-500 rounded-full animate-spin"
+                      style={{ animationDelay: "0.2s" }}
+                    ></div>
+                    <div
+                      className="absolute inset-4 w-8 h-8 border-4 border-blue-500 border-b-transparent rounded-full animate-spin"
+                      style={{ animationDelay: "0.4s" }}
+                    ></div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-white text-lg font-medium montserrat-medium animate-pulse">
+                    Creating key frame...
+                  </h3>
+                  <p className="text-gray-400 text-sm montserrat-regular">
+                    Please wait while AI generates your scene image
+                  </p>
+                  <div className="flex justify-center space-x-1 mt-4">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                    <div
+                      className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                      style={{ animationDelay: "0.1s" }}
+                    ></div>
+                    <div
+                      className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                      style={{ animationDelay: "0.2s" }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Generated Image Preview */}
@@ -656,7 +799,13 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
                 </label>
                 <textarea
                   value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
+                  onChange={(e) => {
+                    setAiPrompt(e.target.value);
+                    // Limpiar error cuando el usuario modifica el prompt
+                    if (videoGenerationError) {
+                      setVideoGenerationError(null);
+                    }
+                  }}
                   placeholder="Describe the motion/animation for the video... (e.g., The knight slowly draws his sword while the sorceress raises her hands to cast a spell, wind blows through their hair)"
                   rows={4}
                   className="w-full px-4 py-3 bg-darkBox rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular resize-none"
@@ -747,12 +896,20 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
                   !hasGeneratedImage ||
                   isGenerating
                 }
-                className="w-full px-4 py-3 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543] flex items-center justify-center gap-2"
+                className={`w-full px-4 py-3 rounded-lg transition-all duration-300 font-medium montserrat-medium flex items-center justify-center gap-2 ${
+                  isGenerating
+                    ? "bg-[#F2D543] text-primarioDark animate-pulse cursor-not-allowed"
+                    : "bg-[#F2D543] text-primarioDark hover:bg-[#f2f243] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543]"
+                }`}
               >
                 {isGenerating ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-primarioDark border-t-transparent rounded-full animate-spin"></div>
-                    Generating Video...
+                    <div className="relative">
+                      <div className="w-5 h-5 border-3 border-primarioDark border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <span className="animate-pulse">
+                      Generating video scene...
+                    </span>
                   </>
                 ) : (
                   <>
@@ -761,11 +918,59 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
                   </>
                 )}
               </button>
+
+              {/* Error Message for Video Generation */}
+              {videoGenerationError && (
+                <div className="mt-3 p-3 bg-red-900 bg-opacity-20 border border-red-600 rounded-lg">
+                  <p className="text-red-400 text-sm montserrat-regular">
+                    {videoGenerationError}
+                  </p>
+                </div>
+              )}
+
               {!hasGeneratedImage && (
                 <p className="text-orange-400 text-sm mt-2 text-center montserrat-regular">
                   Please generate a key frame first before creating the video
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Generating Video State - Mostrar mientras se genera el video */}
+          {isGenerating && !generatedVideoUrl && (
+            <div className="text-center py-8 space-y-4">
+              <div className="flex justify-center">
+                <div className="relative">
+                  <div className="w-16 h-16 border-4 border-[#F2D543] border-t-transparent rounded-full animate-spin"></div>
+                  <div
+                    className="absolute inset-2 w-12 h-12 border-4 border-transparent border-r-[#F2D543] rounded-full animate-spin"
+                    style={{ animationDelay: "0.2s" }}
+                  ></div>
+                  <div
+                    className="absolute inset-4 w-8 h-8 border-4 border-[#F2D543] border-b-transparent rounded-full animate-spin"
+                    style={{ animationDelay: "0.4s" }}
+                  ></div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-white text-lg font-medium montserrat-medium animate-pulse">
+                  Creating video scene...
+                </h3>
+                <p className="text-gray-400 text-sm montserrat-regular">
+                  Please wait while AI generates your video (estimated: {estimatedTime}s)
+                </p>
+                <div className="flex justify-center space-x-1 mt-4">
+                  <div className="w-2 h-2 bg-[#F2D543] rounded-full animate-bounce"></div>
+                  <div
+                    className="w-2 h-2 bg-[#F2D543] rounded-full animate-bounce"
+                    style={{ animationDelay: "0.1s" }}
+                  ></div>
+                  <div
+                    className="w-2 h-2 bg-[#F2D543] rounded-full animate-bounce"
+                    style={{ animationDelay: "0.2s" }}
+                  ></div>
+                </div>
+              </div>
             </div>
           )}
 
