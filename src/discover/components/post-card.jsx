@@ -8,6 +8,11 @@ import {
   Send,
   Maximize,
   Minimize,
+  Expand,
+  Volume2,
+  VolumeX,
+  Play,
+  Pause,
 } from "lucide-react";
 import { likePost, addComment, getPostById } from "../functions";
 import CommentsSection from "./comments-section";
@@ -22,6 +27,11 @@ function PostCard({ post, onUpdate, public_post }) {
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isVideoFullWidth, setIsVideoFullWidth] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [volume, setVolume] = useState(1);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [showControls, setShowControls] = useState(false);
   const videoRef = useRef(null);
   const [postInfo, setPostInfo] = useState(post);
 
@@ -46,6 +56,14 @@ function PostCard({ post, onUpdate, public_post }) {
     return () => {
       pusherClient.unsubscribe(`private-get-project-discover.${postInfo?.id}`);
     };
+  }, []);
+
+  // Video initialization
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.volume = volume;
+      videoRef.current.muted = isMuted;
+    }
   }, []);
 
   const handleLike = async () => {
@@ -88,6 +106,69 @@ function PostCard({ post, onUpdate, public_post }) {
       }
       setIsVideoPlaying(!isVideoPlaying);
     }
+  };
+
+  const handleFullscreen = () => {
+    if (videoRef.current) {
+      if (videoRef.current.requestFullscreen) {
+        videoRef.current.requestFullscreen();
+      } else if (videoRef.current.webkitRequestFullscreen) {
+        videoRef.current.webkitRequestFullscreen();
+      } else if (videoRef.current.mozRequestFullScreen) {
+        videoRef.current.mozRequestFullScreen();
+      } else if (videoRef.current.msRequestFullscreen) {
+        videoRef.current.msRequestFullscreen();
+      }
+    }
+  };
+
+  const handleVolumeToggle = () => {
+    if (videoRef.current) {
+      const newMutedState = !isMuted;
+      setIsMuted(newMutedState);
+      videoRef.current.muted = newMutedState;
+    }
+  };
+
+  const handleVolumeChange = (e) => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    if (videoRef.current) {
+      videoRef.current.volume = newVolume;
+      if (newVolume === 0) {
+        setIsMuted(true);
+        videoRef.current.muted = true;
+      } else if (isMuted) {
+        setIsMuted(false);
+        videoRef.current.muted = false;
+      }
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+
+  const handleSeek = (e) => {
+    const newTime = parseFloat(e.target.value);
+    setCurrentTime(newTime);
+    if (videoRef.current) {
+      videoRef.current.currentTime = newTime;
+    }
+  };
+
+  const formatTime = (time) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
   const formatDate = (dateString) => {
@@ -138,7 +219,11 @@ function PostCard({ post, onUpdate, public_post }) {
       )}
 
       {/* Video Content */}
-      <div className="relative">
+      <div
+        className="relative"
+        onMouseEnter={() => setShowControls(true)}
+        onMouseLeave={() => setShowControls(false)}
+      >
         <video
           ref={videoRef}
           src={postInfo.video_url}
@@ -150,15 +235,17 @@ function PostCard({ post, onUpdate, public_post }) {
             minHeight: window.innerWidth < 768 ? "250px" : "350px",
           }}
           loop
-          muted
+          muted={isMuted}
           playsInline
           onClick={handleVideoClick}
           onPlay={() => setIsVideoPlaying(true)}
           onPause={() => setIsVideoPlaying(false)}
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
         />
 
-        {/* Video Controls Overlay */}
-        <div className="absolute top-4 right-4 flex gap-2 z-10 opacity-0 hover:opacity-100 transition-opacity">
+        {/* Video Controls Top Right - Always visible */}
+        <div className="absolute top-4 right-4 flex gap-2 z-10">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -169,19 +256,97 @@ function PostCard({ post, onUpdate, public_post }) {
           >
             {isVideoFullWidth ? <Minimize size={18} /> : <Maximize size={18} />}
           </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleFullscreen();
+            }}
+            className="bg-black bg-opacity-60 hover:bg-opacity-80 text-white p-2 rounded-full transition-all backdrop-blur-sm"
+            title="Fullscreen"
+          >
+            <Expand size={18} />
+          </button>
         </div>
 
-        {/* Play/Pause Overlay */}
+        {/* Video Controls Bottom - Show on hover for normal view, always for full width */}
         <div
-          className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
-          onClick={handleVideoClick}
+          className={`absolute bottom-4 left-4 right-4 z-10 transition-opacity duration-300 ${
+            isVideoFullWidth || showControls ? "opacity-100" : "opacity-0"
+          }`}
         >
-          {!isVideoPlaying && (
+          <div className="bg-black bg-opacity-60 backdrop-blur-sm rounded-lg flex p-3 gap-4">
+            {/* Timeline */}
+            <div className="flex items-center gap-3 w-3/4">
+              {/* Play/Pause */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleVideoClick();
+                }}
+                className="text-white hover:text-[#F2D543] transition-colors"
+              >
+                {isVideoPlaying ? <Pause size={15} /> : <Play size={15} />}
+              </button>
+              <span className="text-white text-xs font-mono min-w-[35px]">
+                {formatTime(currentTime)}
+              </span>
+              <input
+                type="range"
+                min="0"
+                max={duration || 0}
+                value={currentTime}
+                onChange={handleSeek}
+                className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-0"
+              />
+              <span className="text-white text-xs font-mono min-w-[35px]">
+                {formatTime(duration)}
+              </span>
+            </div>
+
+            {/* Controls */}
+            <div className="flex items-center justify-between w-1/4">
+              <div className="flex items-center gap-3">
+                {/* Volume */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleVolumeToggle();
+                    }}
+                    className="text-white hover:text-[#F2D543] transition-colors"
+                  >
+                    {isMuted || volume === 0 ? (
+                      <VolumeX size={15} />
+                    ) : (
+                      <Volume2 size={15} />
+                    )}
+                  </button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={isMuted ? 0 : volume}
+                    onChange={handleVolumeChange}
+                    className="w-20 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-0"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Play/Pause Overlay - Only show when paused and no controls visible */}
+        {!isVideoPlaying && !showControls && !isVideoFullWidth && (
+          <div
+            className="absolute inset-0 flex items-center justify-center transition-opacity cursor-pointer"
+            onClick={handleVideoClick}
+          >
             <div className="bg-black bg-opacity-50 rounded-full p-4">
               <div className="w-0 h-0 border-l-[20px] border-l-white border-t-[12px] border-t-transparent border-b-[12px] border-b-transparent ml-1"></div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Post Actions */}
