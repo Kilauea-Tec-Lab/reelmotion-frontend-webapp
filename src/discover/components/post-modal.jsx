@@ -47,7 +47,7 @@ function PostModal({ isOpen, onClose, postId }) {
 
   return (
     <div className="fixed inset-0 bg-[#00000040] bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-transparent rounded-lg overflow-y-auto relative">
+      <div className="bg-transparent rounded-lg overflow-hidden relative">
         {/* Close Button */}
         <button
           onClick={handleClose}

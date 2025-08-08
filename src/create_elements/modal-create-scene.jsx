@@ -11,7 +11,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import Cookies from "js-cookie";
-import { createRunwayVideo } from "../project/functions";
 
 function ModalCreateScene({
   isOpen,
@@ -43,6 +42,14 @@ function ModalCreateScene({
 
   // Estados para generación de video
   const [videoGenerationError, setVideoGenerationError] = useState(null);
+
+  // Estados para sistema de prompts profesionales
+  const [isProPromptMode, setIsProPromptMode] = useState(true);
+  const [shotType, setShotType] = useState("");
+  const [characterAction, setCharacterAction] = useState("");
+  const [cameraMovement, setCameraMovement] = useState("");
+  const [lighting, setLighting] = useState("");
+  const [additionalMotion, setAdditionalMotion] = useState("");
 
   // Mock data - En producción esto vendría de props o API
 
@@ -84,45 +91,42 @@ function ModalCreateScene({
     {
       id: "hyper-realism",
       name: "Hyper-realism",
-      prompt: `A hyper-realistic 8K composite image of the provided characters merged into a single scene.
-Each character must preserve facial features as close as possible to the reference image, body shape, proportions, hair style, clothing, and skin texture as seen in the reference images.
-Ultra realistic cinematic lighting with real shadows, film grain, visible pores, slight imperfections, and lifelike skin tones.
-`,
+      prompt: `A hyper-realistic 8K composite image of me merged into a single cinematic scene. The main character must appear exactly as in my original photo—no facial edits, no digital makeup, no artificial smoothing or contouring. Preserve all real facial details, skin texture, shadows, and emotional expression to achieve an authentic and powerful representation. Maintain body shape, proportions, hairstyle, clothing, and skin tone consistent with the reference. Use ultra-realistic cinematic lighting with soft natural shadows, subtle film grain, visible pores, minor imperfections, and lifelike skin tones. Prioritize photorealistic resemblance, with ultra-realistic textures and lighting, especially in the face.`,
     },
     {
       id: "cartoon",
       name: "Cartoon",
-      prompt: ", cartoon style, animated, colorful, whimsical",
+      prompt: `Cartoon style, animated, colorful, whimsical. The character must retain their exact facial features, proportions, hairstyle, clothing, and expression from the original photo. Do not exaggerate or alter the facial structure. Render in a playful 2D cartoon aesthetic while preserving all recognizable traits.`,
     },
     {
       id: "anime",
       name: "Anime",
-      prompt: ", anime style, manga inspired, detailed character design",
+      prompt: `Anime style, manga-inspired, detailed character design. Render the subject in high-quality anime art while preserving the exact face structure, hairstyle, clothing, skin tone, and body proportions from the original image. Avoid generic anime faces—facial resemblance to the reference is essential.`,
     },
     {
       id: "oil-painting",
       name: "Oil Painting",
-      prompt: ", oil painting style, artistic brushstrokes, classic art",
+      prompt: `Oil painting style with classic artistic brushstrokes. Render the character as a traditional portrait while maintaining accurate facial features, body shape, hairstyle, clothing, and skin tone from the reference photo. Preserve expression and emotion. Do not stylize the face beyond recognition.`,
     },
     {
       id: "watercolor",
       name: "Watercolor",
-      prompt: ", watercolor painting, soft colors, artistic",
+      prompt: `Watercolor painting style, soft colors, artistic texture. While adapting to the watercolor medium, maintain accurate facial structure, expression, clothing, hairstyle, and overall likeness to the original image.`,
     },
     {
       id: "comic-book",
       name: "Comic Book",
-      prompt: ", comic book style, bold colors, dynamic poses",
+      prompt: `Comic book style, bold lines, dynamic poses. Render the character in a high-energy comic panel while preserving the facial structure, skin tone, clothing, and hairstyle exactly as seen in the reference image. No generic comic stylization of the face.`,
     },
     {
       id: "fantasy",
       name: "Fantasy Art",
-      prompt: ", fantasy art style, magical, ethereal, detailed",
+      prompt: `Fantasy art style, magical, ethereal, and detailed. Render the character in a fantasy world but keep the facial features, body shape, hairstyle, clothing, and skin tone true to the original photo. No facial alterations or fantasy transformations unless explicitly specified.`,
     },
     {
       id: "cyberpunk",
       name: "Cyberpunk",
-      prompt: ", cyberpunk style, neon lights, futuristic, high-tech",
+      prompt: `Cyberpunk style, neon lights, futuristic cityscape, high-tech details. Render the character in a sci-fi setting while preserving the exact facial structure, skin tone, hairstyle, clothing, and body shape from the original image. No artificial beautification or stylized facial changes.`,
     },
   ];
 
@@ -134,6 +138,51 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
         ""
       : "";
     return basePrompt + stylePrompt;
+  };
+
+  // Función para crear el prompt profesional para video
+  const createProVideoPrompt = () => {
+    // Obtener información de personajes y spot seleccionados
+    const selectedCharacterNames = characters
+      .filter((char) => selectedCharacters.includes(char.id))
+      .map((char) => char.name)
+      .join(" and ");
+
+    const selectedSpotData = spots.find(
+      (spot) => spot.id.toString() === selectedSpot
+    );
+
+    // Crear descripción de quién está en la imagen
+    let featuring = "";
+    if (selectedCharacterNames && selectedSpotData) {
+      featuring = `${selectedCharacterNames} in ${selectedSpotData.name}`;
+    } else if (selectedCharacterNames) {
+      featuring = selectedCharacterNames;
+    } else if (selectedSpotData) {
+      featuring = `characters in ${selectedSpotData.name}`;
+    } else {
+      featuring = "the main character";
+    }
+
+    // Crear descripción del lugar
+    const location = selectedSpotData
+      ? selectedSpotData.name
+      : "the scene location";
+
+    // Construir el prompt profesional
+    const proPrompt = `A ${
+      shotType || "medium shot"
+    }, featuring ${featuring}, in ${location}. The ${
+      selectedCharacterNames || "character"
+    } performs ${characterAction || "their main action"}. The camera is ${
+      cameraMovement || "static"
+    }. Lighting is ${
+      lighting || "natural daylight"
+    }. Additional motion includes ${
+      additionalMotion || "subtle environmental movement"
+    }. Highly cinematic, photorealistic. No text or subtitles.`;
+
+    return proPrompt;
   };
 
   const handleClose = () => {
@@ -155,6 +204,13 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
     setSelectedImageStyle("");
     setImageGenerationError(null);
     setVideoGenerationError(null);
+    // Limpiar estados del prompt profesional
+    setIsProPromptMode(true); // Mantener Pro Prompt activado por defecto
+    setShotType("");
+    setCharacterAction("");
+    setCameraMovement("");
+    setLighting("");
+    setAdditionalMotion("");
     onClose();
   };
 
@@ -283,10 +339,6 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
         project_id: projectId,
       };
 
-      // Aquí puedes llamar a tu API para guardar el key frame
-      // Por ahora solo mostraremos los datos en consola
-      console.log("Key Frame Data to save:", keyFrameData);
-
       // Cerrar el modal después de guardar
       handleClose();
     } catch (error) {
@@ -301,10 +353,21 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
     setImageGenerationError(null); // Limpiar errores al descartar
   };
 
+  const handleDiscardGeneratedVideo = () => {
+    setGeneratedVideoUrl(null);
+    setPromptImageUrl(null);
+    setVideoGenerationError(null); // Limpiar errores al descartar
+  };
+
   const handleGenerateScene = async () => {
+    // Validación para modo profesional vs modo simple
+    const hasValidPrompt = isProPromptMode
+      ? shotType.trim() && characterAction.trim() // Mínimo requerido para modo pro
+      : aiPrompt.trim(); // Modo simple requiere el textarea
+
     if (
       (!selectedCharacters.length && !selectedSpot) ||
-      !aiPrompt.trim() ||
+      !hasValidPrompt ||
       !hasGeneratedImage
     )
       return;
@@ -338,15 +401,16 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
       setEstimatedTime(estimatedTime);
 
       // Preparar los datos para enviar al backend
+      const finalVideoPrompt = isProPromptMode
+        ? createProVideoPrompt()
+        : aiPrompt;
       const videoPayload = {
-        prompt: aiPrompt, // Video Motion/Animation Description
+        prompt: finalVideoPrompt, // Video Motion/Animation Description (profesional o simple)
         ai_model: aiModel, // id del modelo seleccionado (deepseek, runway, etc)
         video_duration: videoDuration, // Duración del video
         image_base64: generatedImageUrl.replace("data:image/jpeg;base64,", ""), // Imagen en base64 sin prefijo
         project_id: projectId, // ID del proyecto
       };
-
-      console.log("Video Generation Payload:", videoPayload);
 
       // Llamar a la API para generar el video
       const response = await fetch(
@@ -372,7 +436,6 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
           setPromptImageUrl(responseData.prompt_image_url);
         }
         setVideoGenerationError(null); // Limpiar errores si la generación fue exitosa
-        console.log("Video generated successfully:", responseData);
       } else {
         // Manejar errores específicos del backend
         let errorMessage = "Error generating video. Please try again.";
@@ -439,8 +502,6 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
         video_url: generatedVideoUrl,
         prompt_image_url: promptImageUrl,
       };
-
-      console.log("Scene Data to save:", sceneData);
 
       // Aquí puedes llamar a tu API para crear la escena
       const response = await fetch(
@@ -794,23 +855,191 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
 
               {/* Scene Prompt */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
-                  Video Motion/Animation Description *
-                </label>
-                <textarea
-                  value={aiPrompt}
-                  onChange={(e) => {
-                    setAiPrompt(e.target.value);
-                    // Limpiar error cuando el usuario modifica el prompt
-                    if (videoGenerationError) {
-                      setVideoGenerationError(null);
-                    }
-                  }}
-                  placeholder="Describe the motion/animation for the video... (e.g., The knight slowly draws his sword while the sorceress raises her hands to cast a spell, wind blows through their hair)"
-                  rows={4}
-                  className="w-full px-4 py-3 bg-darkBox rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular resize-none"
-                  required
-                />
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium text-white montserrat-regular">
+                    Video Motion/Animation Description *
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400 montserrat-regular">
+                      Simple
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsProPromptMode(!isProPromptMode)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:ring-offset-2 ${
+                        isProPromptMode ? "bg-[#F2D543]" : "bg-gray-600"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          isProPromptMode ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                    <span className="text-xs text-gray-400 montserrat-regular">
+                      Pro Prompt
+                    </span>
+                  </div>
+                </div>
+
+                {/* Modo Simple */}
+                {!isProPromptMode && (
+                  <textarea
+                    value={aiPrompt}
+                    onChange={(e) => {
+                      setAiPrompt(e.target.value);
+                      // Limpiar error cuando el usuario modifica el prompt
+                      if (videoGenerationError) {
+                        setVideoGenerationError(null);
+                      }
+                    }}
+                    placeholder="Describe the motion/animation for the video... (e.g., The knight slowly draws his sword while the sorceress raises her hands to cast a spell, wind blows through their hair)"
+                    rows={4}
+                    className="w-full px-4 py-3 bg-darkBox rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular resize-none"
+                    required
+                  />
+                )}
+
+                {/* Modo Pro Prompt */}
+                {isProPromptMode && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Tipo de Plano y Perspectiva */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-2 montserrat-regular">
+                          Shot Type & Perspective *
+                        </label>
+                        <select
+                          value={shotType}
+                          onChange={(e) => setShotType(e.target.value)}
+                          className="w-full px-3 py-2 bg-darkBox rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular text-sm"
+                          required
+                        >
+                          <option value="">Select shot type...</option>
+                          <option value="extreme wide shot">
+                            Extreme Wide Shot
+                          </option>
+                          <option value="wide shot">Wide Shot</option>
+                          <option value="medium shot">Medium Shot</option>
+                          <option value="close-up">Close-up</option>
+                          <option value="extreme close-up">
+                            Extreme Close-up
+                          </option>
+                          <option value="over-the-shoulder shot">
+                            Over-the-shoulder Shot
+                          </option>
+                          <option value="bird's eye view">
+                            Bird's Eye View
+                          </option>
+                          <option value="low angle shot">Low Angle Shot</option>
+                          <option value="high angle shot">
+                            High Angle Shot
+                          </option>
+                        </select>
+                      </div>
+
+                      {/* Movimiento de Cámara */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-2 montserrat-regular">
+                          Camera Movement
+                        </label>
+                        <select
+                          value={cameraMovement}
+                          onChange={(e) => setCameraMovement(e.target.value)}
+                          className="w-full px-3 py-2 bg-darkBox rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular text-sm"
+                        >
+                          <option value="">Select movement...</option>
+                          <option value="static">Static</option>
+                          <option value="slow zoom in">Slow Zoom In</option>
+                          <option value="slow zoom out">Slow Zoom Out</option>
+                          <option value="pan left">Pan Left</option>
+                          <option value="pan right">Pan Right</option>
+                          <option value="tilt up">Tilt Up</option>
+                          <option value="tilt down">Tilt Down</option>
+                          <option value="dolly in">Dolly In</option>
+                          <option value="dolly out">Dolly Out</option>
+                          <option value="tracking shot">Tracking Shot</option>
+                          <option value="handheld">Handheld</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Acción del Personaje */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-300 mb-2 montserrat-regular">
+                        Character Action *
+                      </label>
+                      <input
+                        type="text"
+                        value={characterAction}
+                        onChange={(e) => setCharacterAction(e.target.value)}
+                        placeholder="e.g., slowly draws his sword while looking at the enemy"
+                        className="w-full px-3 py-2 bg-darkBox rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Iluminación */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-2 montserrat-regular">
+                          Lighting
+                        </label>
+                        <select
+                          value={lighting}
+                          onChange={(e) => setLighting(e.target.value)}
+                          className="w-full px-3 py-2 bg-darkBox rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular text-sm"
+                        >
+                          <option value="">Select lighting...</option>
+                          <option value="natural daylight">
+                            Natural Daylight
+                          </option>
+                          <option value="golden hour">Golden Hour</option>
+                          <option value="blue hour">Blue Hour</option>
+                          <option value="moonlight">Moonlight</option>
+                          <option value="candlelight">Candlelight</option>
+                          <option value="firelight">Firelight</option>
+                          <option value="neon lighting">Neon Lighting</option>
+                          <option value="dramatic shadows">
+                            Dramatic Shadows
+                          </option>
+                          <option value="soft diffused light">
+                            Soft Diffused Light
+                          </option>
+                          <option value="harsh directional light">
+                            Harsh Directional Light
+                          </option>
+                        </select>
+                      </div>
+
+                      {/* Movimiento Adicional */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-2 montserrat-regular">
+                          Additional Motion
+                        </label>
+                        <input
+                          type="text"
+                          value={additionalMotion}
+                          onChange={(e) => setAdditionalMotion(e.target.value)}
+                          placeholder="e.g., wind blowing through hair, falling leaves"
+                          className="w-full px-3 py-2 bg-darkBox rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Preview del Prompt Generado */}
+                    {(shotType || characterAction) && (
+                      <div className="mt-4 p-3 bg-gray-800 rounded-lg border border-gray-600">
+                        <label className="block text-xs font-medium text-gray-300 mb-2 montserrat-regular">
+                          Generated Prompt Preview:
+                        </label>
+                        <p className="text-sm text-gray-200 montserrat-regular leading-relaxed">
+                          {createProVideoPrompt()}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Video Duration */}
@@ -892,7 +1121,9 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
                 onClick={handleGenerateScene}
                 disabled={
                   (!selectedCharacters.length && !selectedSpot) ||
-                  !aiPrompt.trim() ||
+                  (isProPromptMode
+                    ? !shotType.trim() || !characterAction.trim()
+                    : !aiPrompt.trim()) ||
                   !hasGeneratedImage ||
                   isGenerating
                 }
@@ -978,9 +1209,18 @@ Ultra realistic cinematic lighting with real shadows, film grain, visible pores,
           {/* Video Preview - Mostrar solo si ya hay video generado */}
           {generatedVideoUrl && (
             <div className="mb-6 p-4 bg-darkBoxSub rounded-lg border border-gray-600">
-              <h3 className="text-white montserrat-medium text-sm mb-3">
-                ✓ Generated Scene Video
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white montserrat-medium text-sm">
+                  ✓ Generated Scene Video
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleDiscardGeneratedVideo}
+                  className="text-red-400 hover:text-red-300 text-sm montserrat-regular"
+                >
+                  Discard & Generate New
+                </button>
+              </div>
               <video
                 src={generatedVideoUrl}
                 controls

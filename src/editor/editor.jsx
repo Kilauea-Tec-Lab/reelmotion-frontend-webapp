@@ -1435,7 +1435,7 @@ function Editor() {
   };
 
   return (
-    <div className="bg-primarioDark w-full h-[95vh] pr-4">
+    <div className="bg-primarioDark w-full h-[100vh] pr-4 scroll-auto">
       {/* Header */}
       <div className="flex justify-between">
         <div className="flex flex-col">
