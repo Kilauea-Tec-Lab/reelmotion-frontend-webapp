@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Heart,
   MessageCircle,
@@ -9,46 +9,57 @@ import {
   Maximize,
   Minimize,
 } from "lucide-react";
-import { likePost, addComment } from "../functions";
+import { likePost, addComment, getPostById } from "../functions";
 import CommentsSection from "./comments-section";
 import ShareModal from "./share-modal";
+import { createPusherClient } from "../../pusher";
 
 function PostCard({ post, onUpdate, public_post }) {
-  const [isLiked, setIsLiked] = useState(post.own_like || false);
   const [likesCount, setLikesCount] = useState(post.likes_count || 0);
   const [showComments, setShowComments] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [comments, setComments] = useState(post.comments || []);
   const [commentText, setCommentText] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isVideoFullWidth, setIsVideoFullWidth] = useState(false);
   const videoRef = useRef(null);
+  const [postInfo, setPostInfo] = useState(post);
+
+  const pusherClient = createPusherClient();
+
+  async function getPost(postId) {
+    const info = await getPostById(postId);
+    setPostInfo(info?.data);
+  }
+
+  // WebSocket Effects
+  useEffect(() => {
+    let channel = pusherClient.subscribe(
+      `private-get-project-discover.${postInfo?.id}`
+    );
+
+    channel.bind("fill-project-discover", ({ project_id }) => {
+      getPost(project_id);
+    });
+
+    return () => {
+      pusherClient.unsubscribe(`private-get-project-discover.${postInfo?.id}`);
+    };
+  }, []);
 
   const handleLike = async () => {
-    const newLikedState = !isLiked;
-
-    // Optimistic update
-    setIsLiked(newLikedState);
+    const newLikedState = !postInfo?.own_like;
 
     try {
-      const response = await likePost(post.id);
+      const response = await likePost(postInfo.id);
 
       if (response.success) {
-        onUpdate(post.id, {
+        onUpdate(postInfo.id, {
           is_liked: newLikedState,
-          likes_count: newCount,
         });
       } else {
-        // Revert on error
-        setIsLiked(!newLikedState);
-        setLikesCount(newLikedState ? newCount - 1 : newCount + 1);
       }
-    } catch (error) {
-      // Revert on error
-      setIsLiked(!newLikedState);
-      setLikesCount(newLikedState ? newCount - 1 : newCount + 1);
-    }
+    } catch (error) {}
   };
 
   const handleAddComment = async (e) => {
@@ -57,16 +68,12 @@ function PostCard({ post, onUpdate, public_post }) {
 
     setIsSubmittingComment(true);
     try {
-      const response = await addComment(post.id, commentText.trim());
-      if (response.success && response.data) {
-        setComments((prev) => [response.data, ...prev]);
-        setCommentText("");
-        onUpdate(post.id, {
-          comments_count: (post.comments_count || 0) + 1,
-        });
-      }
+      const response = await addComment(postInfo.id, commentText.trim());
+      setCommentText("");
     } catch (error) {
+      console.error("Error adding comment:", error);
     } finally {
+      setCommentText("");
       setIsSubmittingComment(false);
     }
   };
@@ -94,15 +101,15 @@ function PostCard({ post, onUpdate, public_post }) {
   };
 
   return (
-    <div className="bg-darkBox rounded-2xl overflow-hidden max-h-[90vh] flex flex-col w-full max-w-4xl mx-auto">
+    <div className="bg-darkBox rounded-2xl overflow-auto max-h-[90vh] w-full max-w-4xl mx-auto">
       {/* Post Header */}
-      <div className="flex items-center justify-between p-4">
+      <div className="flex items-center justify-between p-4 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full overflow-hidden bg-darkBoxSub flex items-center justify-center">
-            {post?.user?.profile_image ? (
+            {postInfo?.user?.profile_image ? (
               <img
-                src={post?.user?.profile_image}
-                alt={post.user.name}
+                src={postInfo?.user?.profile_image}
+                alt={postInfo.user.name}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -111,34 +118,34 @@ function PostCard({ post, onUpdate, public_post }) {
           </div>
           <div>
             <h3 className="text-white montserrat-medium text-sm">
-              {post.user?.name || "Anonymous"}
+              {postInfo.user?.name || "Anonymous"}
             </h3>
             <p className="text-gray-400 montserrat-light text-xs">
-              {formatDate(post.updated_at)}
+              {formatDate(postInfo.updated_at)}
             </p>
           </div>
         </div>
       </div>
 
       {/* Post Content */}
-      {post.description && (
+      {postInfo.description && (
         <div className="px-4 pb-3">
           <p className="text-white montserrat-regular text-sm leading-relaxed">
-            {post.description}
+            {postInfo.description}
           </p>
         </div>
       )}
 
       {/* Video Content */}
-      <div className="relative flex-1 min-h-0">
+      <div className="relative">
         <video
           ref={videoRef}
-          src={post.video_url}
-          className={`w-full h-full object-cover cursor-pointer transition-all duration-300 ${
+          src={postInfo.video_url}
+          className={`w-full object-cover cursor-pointer transition-all duration-300 ${
             isVideoFullWidth ? "object-contain bg-black" : "object-cover"
           }`}
           style={{
-            maxHeight: isVideoFullWidth ? "65vh" : "55vh",
+            height: isVideoFullWidth ? "65vh" : "55vh",
             minHeight: window.innerWidth < 768 ? "250px" : "350px",
           }}
           loop
@@ -177,18 +184,25 @@ function PostCard({ post, onUpdate, public_post }) {
       </div>
 
       {/* Post Actions */}
-      <div className="p-4 flex-shrink-0 border-t border-darkBoxSub">
+      <div className="p-4 border-t border-darkBoxSub ">
         <div className="flex items-center justify-between mb-3">
           {public_post == false ? (
             <div className="flex items-center gap-4">
               <button
                 onClick={handleLike}
                 className={`flex items-center gap-2 transition-colors ${
-                  isLiked ? "text-red-500" : "text-gray-400 hover:text-red-500"
+                  postInfo?.own_like
+                    ? "text-red-500"
+                    : "text-gray-400 hover:text-red-500"
                 }`}
               >
-                <Heart size={24} className={isLiked ? "fill-current" : ""} />
-                <span className="montserrat-medium text-sm">{post?.likes}</span>
+                <Heart
+                  size={24}
+                  className={postInfo?.own_like ? "fill-current" : ""}
+                />
+                <span className="montserrat-medium text-sm">
+                  {postInfo?.likes}
+                </span>
               </button>
 
               <button
@@ -197,7 +211,7 @@ function PostCard({ post, onUpdate, public_post }) {
               >
                 <MessageCircle size={24} />
                 <span className="montserrat-medium text-sm">
-                  {post?.comments?.lenght || 0}
+                  {postInfo?.comments?.length || 0}
                 </span>
               </button>
 
@@ -212,17 +226,24 @@ function PostCard({ post, onUpdate, public_post }) {
             <div className="flex items-center gap-4">
               <div
                 className={`flex items-center gap-2 transition-colors ${
-                  isLiked ? "text-red-500" : "text-gray-400 hover:text-red-500"
+                  postInfo?.own_like
+                    ? "text-red-500"
+                    : "text-gray-400 hover:text-red-500"
                 }`}
               >
-                <Heart size={24} className={isLiked ? "fill-current" : ""} />
-                <span className="montserrat-medium text-sm">{post?.likes}</span>
+                <Heart
+                  size={24}
+                  className={postInfo?.own_like ? "fill-current" : ""}
+                />
+                <span className="montserrat-medium text-sm">
+                  {postInfo?.likes}
+                </span>
               </div>
 
               <div className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
                 <MessageCircle size={24} />
                 <span className="montserrat-medium text-sm">
-                  {post?.comments?.lenght || 0}
+                  {postInfo?.comments?.length || 0}
                 </span>
               </div>
 
@@ -268,11 +289,10 @@ function PostCard({ post, onUpdate, public_post }) {
 
         {/* Comments Section */}
         {showComments && public_post == false ? (
-          <div className="max-h-32 overflow-y-auto">
+          <div className="mt-4">
             <CommentsSection
-              comments={comments}
-              postId={post.id}
-              onCommentsUpdate={setComments}
+              comments={postInfo?.comments || []}
+              postId={postInfo.id}
             />
           </div>
         ) : (

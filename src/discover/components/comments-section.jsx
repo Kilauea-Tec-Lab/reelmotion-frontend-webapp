@@ -86,11 +86,11 @@ function CommentsSection({ comments, postId, onCommentsUpdate }) {
   const CommentItem = ({ comment, isReply = false }) => (
     <div className={`${isReply ? "ml-8 mt-2" : "mt-4"}`}>
       <div className="flex items-start gap-3">
-        <div className="w-8 h-8 rounded-full overflow-hidden bg-darkBoxSub flex items-center justify-center flex-shrink-0">
+        <div className="w-8 h-8 rounded-full overflow-hidden bg-darkBoxSub flex items-center justify-center flex-shrink-0 mt-2">
           {comment.user?.profile_image ? (
             <img
               src={comment.user.profile_image}
-              alt={comment.user.name}
+              alt={comment.user.username}
               className="w-full h-full object-cover"
             />
           ) : (
@@ -101,18 +101,18 @@ function CommentsSection({ comments, postId, onCommentsUpdate }) {
         <div className="flex-1">
           <div className="bg-darkBoxSub rounded-2xl px-4 py-2">
             <h4 className="text-white montserrat-medium text-sm">
-              {comment.user?.name || "Anonymous"}
+              {comment.user?.username || "Anonymous"}
             </h4>
             <p className="text-gray-200 montserrat-regular text-sm mt-1 leading-relaxed">
-              {comment.content}
+              {comment.comment}
             </p>
           </div>
-
           <div className="flex items-center gap-4 mt-2 px-2">
             <span className="text-gray-400 montserrat-light text-xs">
               {formatDate(comment.created_at)}
             </span>
 
+            {/* 
             <button
               onClick={() =>
                 handleLikeComment(
@@ -154,6 +154,7 @@ function CommentsSection({ comments, postId, onCommentsUpdate }) {
                 {comment.replies_count === 1 ? "reply" : "replies"}
               </button>
             )}
+              */}
           </div>
 
           {/* Reply Form */}
