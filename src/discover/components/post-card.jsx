@@ -34,6 +34,7 @@ function PostCard({ post, onUpdate, public_post }) {
 
   // WebSocket Effects
   useEffect(() => {
+    if (public_post == true) return;
     let channel = pusherClient.subscribe(
       `private-get-project-discover.${postInfo?.id}`
     );
