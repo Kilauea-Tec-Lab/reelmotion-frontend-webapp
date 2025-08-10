@@ -11,6 +11,7 @@ import {
   Edit3,
   Save,
   X,
+  Wallet,
 } from "lucide-react";
 import { useLoaderData } from "react-router-dom";
 import { updateUserProfile } from "./functions";
@@ -329,10 +330,23 @@ function Profile() {
                     </p>
                   </div>
                 </div>
+
+                {/* Member Since */}
+                <div className="flex items-center gap-3">
+                  <div className="bg-darkBoxSub p-2 rounded-lg">
+                    <Wallet size={18} className="text-[#F2D543]" />
+                  </div>
+                  <div>
+                    <p className="text-gray-400 montserrat-light text-sm">
+                      Solana Wallet Address
+                    </p>
+                    <p className="text-white montserrat-regular"></p>
+                  </div>
+                </div>
               </div>
 
               {/* Stats Section */}
-              <div className="mt-8 pt-6 border-t border-darkBoxSub">
+              <div className="mt-8 pt-6">
                 <h4 className="text-white montserrat-medium text-lg mb-4">
                   Activity Stats
                 </h4>
