@@ -380,13 +380,14 @@ function PostCard({ post, onUpdate, public_post }) {
                   {postInfo?.comments?.length || 0}
                 </span>
               </button>
-
-              <button
-                onClick={() => setShowShareModal(true)}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                <Share size={24} />
-              </button>
+              {postInfo?.own_person && (
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <Share size={24} />
+                </button>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-4">
@@ -411,10 +412,6 @@ function PostCard({ post, onUpdate, public_post }) {
                 <span className="montserrat-medium text-sm">
                   {postInfo?.comments?.length || 0}
                 </span>
-              </div>
-
-              <div className="text-gray-400 hover:text-white transition-colors">
-                <Share size={24} />
               </div>
             </div>
           )}
