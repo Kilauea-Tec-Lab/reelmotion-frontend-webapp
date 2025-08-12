@@ -128,3 +128,84 @@ export async function handleImageDrop(files) {
 
   return uploadedImages;
 }
+
+// Function to create audio (music/voice) via API
+export async function createAudio(type, base64Audio, audioName) {
+  // type should be 'music' or 'voice'
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_APP_BACKEND_URL}editor/create-${type}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + Cookies.get("token"),
+        },
+        body: JSON.stringify({
+          // Use a generic key the backend can map; adjust if needed server-side
+          base_64_audio: base64Audio,
+          name: audioName,
+        }),
+      }
+    );
+
+    const responseData = await response.json();
+
+    if (response.ok && responseData.code === 200) {
+      // Try to normalize different possible payload shapes
+      const key = type; // 'music' or 'voice'
+      const item =
+        responseData[key] ||
+        responseData.data ||
+        responseData.item ||
+        responseData;
+
+      const urlField =
+        item?.url ||
+        item?.audio_url ||
+        item?.[`${type}_url`] ||
+        item?.file_url ||
+        null;
+
+      return {
+        id: item?.id || `${type}_${Date.now()}`,
+        name: item?.name || audioName,
+        url: urlField,
+        user_id: item?.user_id,
+        duration: type === "music" ? 30 : 15,
+        type,
+      };
+    } else {
+      throw new Error(responseData.message || `Error creating ${type}`);
+    }
+  } catch (error) {
+    console.error(`Error creating ${type}:`, error);
+    throw error;
+  }
+}
+
+// Function to handle audio (music/voice) drop and upload
+export async function handleAudioDrop(files, type) {
+  const uploaded = [];
+
+  for (const file of files) {
+    try {
+      if (!file.type.startsWith("audio/")) {
+        console.warn(`File ${file.name} is not an audio file`);
+        continue;
+      }
+
+      // Convert to base64 (no compression for audio)
+      const base64 = await fileToBase64(file);
+
+      // Upload to server
+      const audioData = await createAudio(type, base64, file.name);
+
+      uploaded.push(audioData);
+    } catch (error) {
+      console.error(`Error processing ${type} ${file.name}:`, error);
+    }
+  }
+
+  return uploaded;
+}
