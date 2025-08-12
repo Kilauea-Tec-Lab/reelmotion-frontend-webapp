@@ -15,6 +15,8 @@ import {
   Download,
   Upload,
   Plus,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import { useLoaderData } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -22,7 +24,7 @@ import ModalSaveEdit from "./components/modal-save-edit";
 import ModalLoadEdit from "./components/modal-load-edit";
 import ModalExportEdit from "./components/modal-export-edit";
 import ModalConfirmDelete from "./components/modal-confirm-delete";
-import { handleImageDrop } from "./functions";
+import { handleImageDrop, handleAudioDrop } from "./functions";
 
 // Editor - Advanced Timeline Video Editor
 //
@@ -45,6 +47,8 @@ function Editor() {
   const [draggedItem, setDraggedItem] = useState(null);
   const [arrayVideoMake, setArrayVideoMake] = useState([]);
   const [videoDurations, setVideoDurations] = useState({});
+  // Collapsible projects state (collapsed by default)
+  const [expandedProjects, setExpandedProjects] = useState({});
 
   // Extract projects and scenes from loader data
   const projects = data?.projects || [];
@@ -62,6 +66,7 @@ function Editor() {
   const intervalRef = useRef(null);
   const mainVideoRef = useRef(null);
   const audioRefs = useRef({});
+  const [audioDurations, setAudioDurations] = useState({}); // url -> seconds
   const imageRefs = useRef({});
   const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
   const timelineRef = useRef(null);
@@ -113,20 +118,26 @@ function Editor() {
   const [isDeletingImage, setIsDeletingImage] = useState(false);
 
   const musicFiles = [
-    {
-      url: "/test/sample_music.mp3", // Placeholder - replace with actual music files
-      name: "Sample Music Track",
-      duration: 120, // default duration for music
-    },
+    // Will be filled from API uploads; keep placeholder if empty
   ];
 
   const voiceFiles = [
-    {
-      url: "/test/sample_voice.wav", // Placeholder - replace with actual voice files
-      name: "Sample Voice Track",
-      duration: 60, // default duration for voice
-    },
+    // Will be filled from API uploads; keep placeholder if empty
   ];
+
+  // State for music uploads and deletion
+  const [isUploadingMusic, setIsUploadingMusic] = useState(false);
+  const [musicList, setMusicList] = useState([]);
+  const [showDeleteMusicModal, setShowDeleteMusicModal] = useState(false);
+  const [musicToDelete, setMusicToDelete] = useState(null);
+  const [isDeletingMusic, setIsDeletingMusic] = useState(false);
+
+  // State for voice uploads and deletion
+  const [isUploadingVoice, setIsUploadingVoice] = useState(false);
+  const [voiceList, setVoiceList] = useState([]);
+  const [showDeleteVoiceModal, setShowDeleteVoiceModal] = useState(false);
+  const [voiceToDelete, setVoiceToDelete] = useState(null);
+  const [isDeletingVoice, setIsDeletingVoice] = useState(false);
 
   // Functions to control volume
   const handleVolumeClick = (e) => {
@@ -162,7 +173,12 @@ function Editor() {
     const normalizedItem = {
       ...item,
       type,
-      url: item.url || item.image_url, // Ensure url property exists
+      url:
+        item.url ||
+        item.image_url ||
+        item.audio_url ||
+        item.music_url ||
+        item.voice_url, // Ensure url property exists
     };
 
     setDraggedItem(normalizedItem);
@@ -195,6 +211,24 @@ function Editor() {
     });
   };
 
+  // Function to get the real duration of an audio file
+  const getAudioDuration = (audioUrl) => {
+    return new Promise((resolve) => {
+      if (!audioUrl) return resolve(0);
+      const audio = document.createElement("audio");
+      audio.preload = "metadata";
+      audio.onloadedmetadata = function () {
+        const duration = formatDuration(audio.duration || 0);
+        resolve(duration || 0);
+      };
+      audio.onerror = function () {
+        console.warn(`Could not load audio: ${audioUrl}`);
+        resolve(0);
+      };
+      audio.src = audioUrl;
+    });
+  };
+
   // Function to handle when video metadata is loaded
   const handleVideoMetadata = async (videoUrl, videoElement) => {
     const duration = formatDuration(videoElement.duration);
@@ -211,6 +245,13 @@ function Editor() {
     const endTimes = arrayVideoMake.map((item) => item.endTime);
     const maxEndTime = endTimes.length > 0 ? Math.max(...endTimes) : 0;
     return Math.max(maxEndTime, 120); // minimum 2 minutes
+  };
+
+  // Calculate the end of actual content (last element end time)
+  const getContentEndTime = () => {
+    if (arrayVideoMake.length === 0) return 0;
+    const endTimes = arrayVideoMake.map((item) => item.endTime);
+    return endTimes.length > 0 ? Math.max(...endTimes) : 0;
   };
 
   // Function to get active element at a given time
@@ -260,12 +301,13 @@ function Editor() {
           setCurrentTime((prevTime) => {
             const newTime = prevTime + 0.2; // update every 200ms for better performance
 
-            // If we reach the end, stop
-            if (newTime >= getTimelineDuration()) {
+            // Stop when reaching the end of actual content
+            const contentEnd = getContentEndTime();
+            if (contentEnd === 0 || newTime >= contentEnd) {
               setIsPlaying(false);
               clearInterval(intervalRef.current);
               intervalRef.current = null;
-              return 0; // reset
+              return contentEnd; // stop at end
             }
 
             return newTime;
@@ -401,13 +443,30 @@ function Editor() {
       }
     }
 
-    // Handle audio (simplified)
+    // Handle audio (music and voice)
     activeElements.forEach((element) => {
       if (element.channel === "music" || element.channel === "voice") {
         if (!audioRefs.current[element.id]) {
           const audio = new Audio(element.url);
-          audio.volume = masterVolume; // Apply master volume
+          audio.preload = "auto";
+          audio.muted = false;
+          // Set initial volume correctly
+          const elementVolume =
+            element.volume !== undefined ? element.volume : 0.5;
+          audio.volume = elementVolume * masterVolume;
           audioRefs.current[element.id] = audio;
+
+          // Debug logging for voice elements
+          if (element.channel === "voice") {
+            console.log(`Voice audio created:`, {
+              id: element.id,
+              url: element.url,
+              elementVolume,
+              masterVolume,
+              finalVolume: audio.volume,
+              title: element.title,
+            });
+          }
         }
 
         const audio = audioRefs.current[element.id];
@@ -415,11 +474,49 @@ function Editor() {
         // Adjust for start trim
         const adjustedTime = elementTime + (element.trimStart || 0);
 
-        if (Math.abs(audio.currentTime - adjustedTime) > 0.3) {
-          audio.currentTime = adjustedTime;
-        }
-        if (audio.paused) {
-          audio.play().catch(() => {});
+        // Update combined volume continuously
+        const elementVolume =
+          element.volume !== undefined ? element.volume : 0.5;
+        audio.volume = elementVolume * masterVolume;
+
+        // Check if we're within the valid range of the audio
+        const maxAudioTime =
+          (element.originalDuration || element.duration) -
+          (element.trimEnd || 0);
+        const minAudioTime = element.trimStart || 0;
+
+        if (adjustedTime >= minAudioTime && adjustedTime <= maxAudioTime) {
+          // Seek and play audio with same precision as video
+          const seekAndPlay = () => {
+            try {
+              // Only seek if there's a significant difference (like video does)
+              if (Math.abs(audio.currentTime - adjustedTime) > 0.1) {
+                audio.currentTime = adjustedTime;
+              }
+            } catch (e) {
+              console.warn("Audio seek failed:", e);
+            }
+
+            // Only play if timeline is playing
+            if (isPlaying && audio.paused) {
+              audio.play().catch((e) => console.warn("Audio play failed:", e));
+            }
+          };
+
+          if (audio.readyState >= 1) {
+            seekAndPlay();
+          } else {
+            const onLoadedMetadata = () => {
+              seekAndPlay();
+              audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+            };
+            audio.addEventListener("loadedmetadata", onLoadedMetadata);
+          }
+        } else {
+          // We're outside the valid range, pause the audio
+          if (!audio.paused) {
+            audio.pause();
+          }
         }
       }
     });
@@ -451,6 +548,30 @@ function Editor() {
       });
     };
   }, []);
+
+  // Auto-pause when timeline becomes empty or when scrubbing past last element
+  useEffect(() => {
+    if (isPlaying && arrayVideoMake.length === 0) {
+      setIsPlaying(false);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setCurrentTime(0);
+    }
+  }, [arrayVideoMake.length, isPlaying]);
+
+  useEffect(() => {
+    const contentEnd = getContentEndTime();
+    if (isPlaying && contentEnd > 0 && currentTime >= contentEnd) {
+      setIsPlaying(false);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setCurrentTime(contentEnd);
+    }
+  }, [currentTime, isPlaying]);
 
   // Effect to handle timeline changes or when playback stops
   useEffect(() => {
@@ -487,12 +608,30 @@ function Editor() {
     e.preventDefault();
     if (!draggedItem) return;
 
-    // Determine correct channel based on element type
+    // Determine correct channel based on element type and enforce channel restrictions
     let targetChannel = channel;
+    if (draggedItem.type === "video" && channel !== "video") {
+      console.warn("Video elements can only be dropped in video channel");
+      return;
+    } else if (draggedItem.type === "image" && channel !== "image") {
+      console.warn("Image elements can only be dropped in image channel");
+      return;
+    } else if (draggedItem.type === "music" && channel !== "music") {
+      console.warn("Music elements can only be dropped in music channel");
+      return;
+    } else if (draggedItem.type === "voice" && channel !== "voice") {
+      console.warn("Voice elements can only be dropped in voice channel");
+      return;
+    }
+
     if (draggedItem.type === "video") {
       targetChannel = "video";
     } else if (draggedItem.type === "image") {
       targetChannel = "image";
+    } else if (draggedItem.type === "music") {
+      targetChannel = "music";
+    } else if (draggedItem.type === "voice") {
+      targetChannel = "voice";
     }
 
     // Get real element duration
@@ -517,9 +656,51 @@ function Editor() {
       elementDuration = draggedItem.duration || 5; // 5 seconds for images
       originalDuration = null; // Images don't have fixed duration
     } else if (draggedItem.type === "music" || draggedItem.type === "voice") {
-      // For audio, assume default duration (this should be improved with real loading)
-      elementDuration = 30; // 30 seconds default for audio
-      originalDuration = 30;
+      // For audio, get real duration from loader data or probe it
+      const aUrl =
+        draggedItem.url ||
+        draggedItem.audio_url ||
+        draggedItem.music_url ||
+        draggedItem.voice_url;
+
+      // First check if we have it in audioDurations cache
+      if (
+        aUrl &&
+        audioDurations[aUrl] &&
+        Number.isFinite(audioDurations[aUrl]) &&
+        audioDurations[aUrl] > 0
+      ) {
+        elementDuration = audioDurations[aUrl];
+      }
+      // Then check if the item itself has a valid duration
+      else if (
+        draggedItem.duration &&
+        Number.isFinite(draggedItem.duration) &&
+        draggedItem.duration > 0
+      ) {
+        elementDuration = draggedItem.duration;
+        // Cache it for future use
+        if (aUrl) {
+          setAudioDurations((prev) => ({ ...prev, [aUrl]: elementDuration }));
+        }
+      }
+      // As last resort, probe the audio file
+      else if (aUrl) {
+        const dur = await getAudioDuration(aUrl);
+        elementDuration =
+          dur && Number.isFinite(dur) && dur > 0
+            ? dur
+            : draggedItem.type === "music"
+            ? 30
+            : 15;
+        setAudioDurations((prev) => ({ ...prev, [aUrl]: elementDuration }));
+      }
+      // Final fallback
+      else {
+        elementDuration = draggedItem.type === "music" ? 30 : 15;
+      }
+
+      originalDuration = elementDuration;
     }
 
     // Find last element in target channel to avoid overlaps
@@ -543,7 +724,12 @@ function Editor() {
       startTime: formatDuration(startTime),
       endTime: formatDuration(startTime + elementDuration), // use real duration
       type: draggedItem.type,
-      url: draggedItem.url || draggedItem.image_url, // Handle both url and image_url properties
+      url:
+        draggedItem.url ||
+        draggedItem.image_url ||
+        draggedItem.audio_url ||
+        draggedItem.music_url ||
+        draggedItem.voice_url, // normalize url
       title: draggedItem.title || draggedItem.name,
       duration: formatDuration(elementDuration), // current duration in timeline
       originalDuration: originalDuration, // original media duration (null for images)
@@ -574,6 +760,167 @@ function Editor() {
     setDraggedItem(null);
   };
 
+  // Helper: click-to-add item to the next available position in its channel
+  const addItemToTimeline = async (rawItem, type = "video") => {
+    if (!rawItem) return;
+    const item = {
+      ...rawItem,
+      type,
+      url:
+        rawItem.url ||
+        rawItem.image_url ||
+        rawItem.audio_url ||
+        rawItem.music_url ||
+        rawItem.voice_url,
+    };
+
+    // Determine channel
+    let targetChannel = item.type;
+    if (item.type === "video") targetChannel = "video";
+    else if (item.type === "image") targetChannel = "image";
+    else if (item.type === "music") targetChannel = "music";
+    else if (item.type === "voice") targetChannel = "voice";
+
+    // Duration
+    let elementDuration = 10;
+    let originalDuration = 10;
+    if (item.type === "video") {
+      if (videoDurations[item.url]) {
+        elementDuration = videoDurations[item.url];
+        originalDuration = videoDurations[item.url];
+      } else {
+        elementDuration = await getVideoDuration(item.url);
+        originalDuration = elementDuration;
+        setVideoDurations((prev) => ({ ...prev, [item.url]: elementDuration }));
+      }
+    } else if (item.type === "image") {
+      elementDuration = item.duration || 5;
+      originalDuration = null;
+    } else if (item.type === "music" || item.type === "voice") {
+      // For audio, prioritize real duration from loader data or cache
+      const aUrl = item.url;
+
+      // First check cache
+      if (
+        aUrl &&
+        audioDurations[aUrl] &&
+        Number.isFinite(audioDurations[aUrl]) &&
+        audioDurations[aUrl] > 0
+      ) {
+        elementDuration = audioDurations[aUrl];
+      }
+      // Then check item's own duration property
+      else if (
+        item.duration &&
+        Number.isFinite(item.duration) &&
+        item.duration > 0
+      ) {
+        elementDuration = item.duration;
+        // Cache it
+        if (aUrl) {
+          setAudioDurations((prev) => ({ ...prev, [aUrl]: elementDuration }));
+        }
+      }
+      // Probe the audio file
+      else if (aUrl) {
+        const dur = await getAudioDuration(aUrl);
+        elementDuration =
+          dur && Number.isFinite(dur) && dur > 0
+            ? dur
+            : item.type === "music"
+            ? 30
+            : 15;
+        setAudioDurations((prev) => ({ ...prev, [aUrl]: elementDuration }));
+      }
+      // Final fallback
+      else {
+        elementDuration = item.type === "music" ? 30 : 15;
+      }
+
+      originalDuration = elementDuration;
+    }
+
+    // Find start time after last in channel
+    const elementsInChannel = arrayVideoMake.filter(
+      (it) => it.channel === targetChannel
+    );
+    let startTime = 0;
+    if (elementsInChannel.length > 0) {
+      startTime = Math.max(...elementsInChannel.map((it) => it.endTime));
+    }
+
+    const newElement = {
+      id: `${targetChannel}_${Date.now()}`,
+      channel: targetChannel,
+      startTime: formatDuration(startTime),
+      endTime: formatDuration(startTime + elementDuration),
+      type: item.type,
+      url: item.url || item.image_url,
+      title: item.title || item.name,
+      duration: formatDuration(elementDuration),
+      originalDuration,
+      trimStart: 0,
+      trimEnd: 0,
+      effects: [],
+      volume: targetChannel === "music" || targetChannel === "voice" ? 0.5 : 1,
+      opacity: 1,
+      position: { x: 0.5, y: 0.5 },
+      scale: 1,
+      zIndex: targetChannel === "image" ? 10 : 1,
+      colorCorrection: {
+        brightness: 0,
+        contrast: 1,
+        saturation: 1,
+        gamma: 1,
+        hue: 0,
+        vibrance: 0,
+      },
+    };
+
+    setArrayVideoMake((prev) => [...prev, newElement]);
+  };
+
+  // Collapsible project toggler
+  const toggleProject = (projectId) => {
+    setExpandedProjects((prev) => ({
+      ...prev,
+      [projectId]: !prev[projectId],
+    }));
+  };
+
+  // Initialize library from loader data: music and voices
+  useEffect(() => {
+    const normalizeAudio = (it, type) => ({
+      ...it,
+      type,
+      url: it?.url || it?.audio_url || it?.music_url || it?.voice_url,
+    });
+    const mus = Array.isArray(data?.music)
+      ? data.music.map((m) => normalizeAudio(m, "music"))
+      : [];
+    const voi = Array.isArray(data?.voices)
+      ? data.voices.map((v) => normalizeAudio(v, "voice"))
+      : [];
+    if (mus.length) setMusicList(mus);
+    if (voi.length) setVoiceList(voi);
+
+    // Preload and cache durations
+    const preload = async (items) => {
+      for (const it of items) {
+        const u = it.url;
+        if (!u || audioDurations[u]) continue;
+        const d = await getAudioDuration(u);
+        if (d && d > 0) {
+          setAudioDurations((prev) => ({ ...prev, [u]: d }));
+          it.duration = d; // reflect in UI
+        }
+      }
+    };
+    preload(mus);
+    preload(voi);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.music, data?.voices]);
+
   // Function to handle timeline click
   const handleTimelineClick = (e) => {
     // Don't process if we're dragging an element
@@ -588,6 +935,8 @@ function Editor() {
         Math.min(percentage * getTimelineDuration(), getTimelineDuration())
       );
       setCurrentTime(newTime);
+      // Immediately sync media positions on seek (won't auto-play when paused)
+      syncMediaWithTime(newTime);
     }
   };
 
@@ -1045,7 +1394,10 @@ function Editor() {
     const isMediaWithFixedDuration =
       element.type === "video" ||
       element.type === "music" ||
-      element.type === "voice";
+      element.type === "voice" ||
+      element.channel === "video" ||
+      element.channel === "music" ||
+      element.channel === "voice";
 
     if (type === "start") {
       // Resize from start
@@ -1362,6 +1714,188 @@ function Editor() {
     }
   };
 
+  // Music drag-over and drop handlers (reuse image drag-over to show copy cursor)
+  const handleMusicContainerDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "copy";
+  };
+
+  const handleMusicContainerDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const files = Array.from(e.dataTransfer.files);
+    const audioFiles = files.filter((file) => file.type.startsWith("audio/"));
+
+    if (audioFiles.length === 0) {
+      alert("Por favor, suelta archivos de audio válidos");
+      return;
+    }
+
+    setIsUploadingMusic(true);
+    try {
+      const newMusic = await handleAudioDrop(audioFiles, "music");
+      setMusicList((prev) => [...prev, ...newMusic]);
+    } catch (error) {
+      alert("Error al subir música. Intenta nuevamente.");
+    } finally {
+      setIsUploadingMusic(false);
+    }
+  };
+
+  const handleMusicInputChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setIsUploadingMusic(true);
+    try {
+      const newMusic = await handleAudioDrop(files, "music");
+      setMusicList((prev) => [...prev, ...newMusic]);
+    } catch (error) {
+      alert("Error al subir música. Intenta nuevamente.");
+    } finally {
+      setIsUploadingMusic(false);
+      e.target.value = "";
+    }
+  };
+
+  // Delete music
+  const handleDeleteMusicClick = (e, music) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setMusicToDelete(music);
+    setShowDeleteMusicModal(true);
+  };
+
+  const handleConfirmDeleteMusic = async () => {
+    if (!musicToDelete) return;
+    setIsDeletingMusic(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}editor/destroy-music`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: JSON.stringify({ id: musicToDelete.id }),
+        }
+      );
+      const data = await response.json();
+      if (response.ok && data.code === 200) {
+        setMusicList((prev) => prev.filter((m) => m.id !== musicToDelete.id));
+        setShowDeleteMusicModal(false);
+        setMusicToDelete(null);
+      } else {
+        alert(data.message || "No se pudo eliminar la música");
+      }
+    } catch (err) {
+      alert("Error al eliminar música");
+    } finally {
+      setIsDeletingMusic(false);
+    }
+  };
+
+  const handleCloseDeleteMusicModal = () => {
+    if (!isDeletingMusic) {
+      setShowDeleteMusicModal(false);
+      setMusicToDelete(null);
+    }
+  };
+
+  // Voice drag-over and drop handlers
+  const handleVoiceContainerDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "copy";
+  };
+
+  const handleVoiceContainerDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const files = Array.from(e.dataTransfer.files);
+    const audioFiles = files.filter((file) => file.type.startsWith("audio/"));
+
+    if (audioFiles.length === 0) {
+      alert("Por favor, suelta archivos de audio válidos");
+      return;
+    }
+
+    setIsUploadingVoice(true);
+    try {
+      const newVoice = await handleAudioDrop(audioFiles, "voice");
+      setVoiceList((prev) => [...prev, ...newVoice]);
+    } catch (error) {
+      alert("Error al subir voz. Intenta nuevamente.");
+    } finally {
+      setIsUploadingVoice(false);
+    }
+  };
+
+  const handleVoiceInputChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setIsUploadingVoice(true);
+    try {
+      const newVoice = await handleAudioDrop(files, "voice");
+      setVoiceList((prev) => [...prev, ...newVoice]);
+    } catch (error) {
+      alert("Error al subir voz. Intenta nuevamente.");
+    } finally {
+      setIsUploadingVoice(false);
+      e.target.value = "";
+    }
+  };
+
+  // Delete voice
+  const handleDeleteVoiceClick = (e, voice) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setVoiceToDelete(voice);
+    setShowDeleteVoiceModal(true);
+  };
+
+  const handleConfirmDeleteVoice = async () => {
+    if (!voiceToDelete) return;
+    setIsDeletingVoice(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}editor/destroy-voice`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: JSON.stringify({ id: voiceToDelete.id }),
+        }
+      );
+      const data = await response.json();
+      if (response.ok && data.code === 200) {
+        setVoiceList((prev) => prev.filter((m) => m.id !== voiceToDelete.id));
+        setShowDeleteVoiceModal(false);
+        setVoiceToDelete(null);
+      } else {
+        alert(data.message || "No se pudo eliminar la voz");
+      }
+    } catch (err) {
+      alert("Error al eliminar voz");
+    } finally {
+      setIsDeletingVoice(false);
+    }
+  };
+
+  const handleCloseDeleteVoiceModal = () => {
+    if (!isDeletingVoice) {
+      setShowDeleteVoiceModal(false);
+      setVoiceToDelete(null);
+    }
+  };
+
   const handleImageInputChange = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
@@ -1473,7 +2007,7 @@ function Editor() {
               </button>
             )}
           </div>{" "}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 line-clamp-1">
             <Volume2 size={20} className="text-white" />
             <div
               ref={volumeRef}
@@ -1526,7 +2060,7 @@ function Editor() {
                 </span>
               )}
               {draggingElement && (
-                <span className="text-blue-400">
+                <span className="text-blue-400 line-clamp-1">
                   {" "}
                   | Moving: {draggingElement.title}
                 </span>
@@ -1623,26 +2157,57 @@ function Editor() {
                   <div className="space-y-6">
                     {projects.map((project) => (
                       <div key={project.id} className="space-y-3">
-                        {/* Project Header */}
-                        <div className="border-b border-gray-600 pb-2">
-                          <h3 className="text-white font-medium text-lg">
-                            {project.name}
-                          </h3>
+                        {/* Project Header - collapsible */}
+                        <button
+                          type="button"
+                          onClick={() => toggleProject(project.id)}
+                          className="w-full flex items-center justify-between border-b border-gray-600 pb-2 hover:bg-darkBox rounded-md px-2 py-1"
+                          title="Toggle project"
+                        >
+                          <div className="flex items-center gap-2">
+                            {expandedProjects[project.id] ? (
+                              <ChevronDown
+                                size={16}
+                                className="text-gray-300"
+                              />
+                            ) : (
+                              <ChevronRight
+                                size={16}
+                                className="text-gray-300"
+                              />
+                            )}
+                            <h3 className="text-white font-medium text-base line-clamp-1">
+                              {project.name}
+                            </h3>
+                          </div>
                           <p className="text-gray-400 text-sm">
-                            {project.scenes?.length || 0} scenes available
+                            {project.scenes?.length || 0} scenes
                           </p>
-                        </div>
+                        </button>
 
                         {/* Project Videos Grid */}
-                        {project.scenes && project.scenes.length > 0 ? (
+                        {expandedProjects[project.id] &&
+                        project.scenes &&
+                        project.scenes.length > 0 ? (
                           <div className="grid grid-cols-2 gap-4">
-                            {project.scenes.map((scene, index) => (
+                            {project.scenes.map((scene) => (
                               <div
                                 key={scene.id}
                                 draggable
                                 onDragStart={(e) =>
                                   handleDragStart(
                                     e,
+                                    {
+                                      id: scene.id,
+                                      url: scene.video_url,
+                                      title: scene.name,
+                                      projectName: project.name,
+                                    },
+                                    "video"
+                                  )
+                                }
+                                onClick={() =>
+                                  addItemToTimeline(
                                     {
                                       id: scene.id,
                                       url: scene.video_url,
@@ -1675,11 +2240,11 @@ function Editor() {
                               </div>
                             ))}
                           </div>
-                        ) : (
+                        ) : expandedProjects[project.id] ? (
                           <div className="text-gray-400 text-sm italic">
                             No scenes available in this project
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     ))}
                   </div>
@@ -1695,29 +2260,101 @@ function Editor() {
                 )}
               </div>
             ) : menuActive == 2 ? (
-              <div className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full">
-                <div className="grid grid-cols-1 gap-4">
-                  {musicFiles.map((music, index) => (
-                    <div
-                      key={index}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, music, "music")}
-                      className="bg-darkBox cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:scale-105"
+              <div
+                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative"
+                onDragOver={handleMusicContainerDragOver}
+                onDrop={handleMusicContainerDrop}
+              >
+                {/* Add Music Button */}
+                <button
+                  onClick={() =>
+                    (musicList.length > 0
+                      ? document.getElementById("music-upload-hidden")
+                      : document.getElementById("music-upload")
+                    )?.click()
+                  }
+                  className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                  title="Agregar música"
+                  disabled={isUploadingMusic}
+                >
+                  <Plus size={20} />
+                </button>
+
+                {/* Upload area when empty */}
+                {musicList.length === 0 && (
+                  <div className="mb-4 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-primarioLogo transition-colors duration-200">
+                    <input
+                      type="file"
+                      multiple
+                      accept="audio/*"
+                      onChange={handleMusicInputChange}
+                      className="hidden"
+                      id="music-upload"
+                      disabled={isUploadingMusic}
+                    />
+                    <label
+                      htmlFor="music-upload"
+                      className="cursor-pointer flex flex-col items-center gap-2"
                     >
+                      <Upload size={32} className="text-gray-400" />
+                      <span className="text-gray-400 text-sm">
+                        {isUploadingMusic
+                          ? "Subiendo música..."
+                          : "Arrastra aquí archivos de audio o haz clic para seleccionar"}
+                      </span>
+                    </label>
+                  </div>
+                )}
+
+                {/* Hidden input when list exists */}
+                {musicList.length > 0 && (
+                  <input
+                    type="file"
+                    multiple
+                    accept="audio/*"
+                    onChange={handleMusicInputChange}
+                    className="hidden"
+                    id="music-upload-hidden"
+                    disabled={isUploadingMusic}
+                  />
+                )}
+
+                {/* Music list */}
+                <div className="overflow-y-auto h-full space-y-3">
+                  {musicList.map((music, index) => (
+                    <div
+                      key={music.id || index}
+                      draggable={!isUploadingMusic}
+                      onDragStart={(e) => handleDragStart(e, music, "music")}
+                      onClick={() => addItemToTimeline(music, "music")}
+                      className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
+                    >
+                      {/* Delete Button */}
+                      <button
+                        onClick={(e) => handleDeleteMusicClick(e, music)}
+                        className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        title="Eliminar música"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+
                       <div className="flex items-center gap-3">
                         <Music size={24} className="text-primarioLogo" />
-                        <div>
-                          <span className="text-[#E7E7E7] text-sm font-medium block">
-                            {music.name}
-                          </span>
+                        <div className="w-3/4">
+                          <div className="w-full line-clamp-1">
+                            <span className="text-[#E7E7E7] text-sm font-medium line-clamp-1">
+                              {music.name}
+                            </span>
+                          </div>
                           <span className="text-gray-400 text-xs">
-                            {music.duration}s
+                            {music.duration || 30}s
                           </span>
                         </div>
                       </div>
                     </div>
                   ))}
-                  {musicFiles.length === 0 && (
+
+                  {musicList.length === 0 && !isUploadingMusic && (
                     <div className="text-center py-8">
                       <Music size={48} className="text-gray-400 mx-auto mb-2" />
                       <span className="text-gray-400">
@@ -1799,6 +2436,7 @@ function Editor() {
                       key={index}
                       draggable={!isUploadingImages}
                       onDragStart={(e) => handleDragStart(e, image, "image")}
+                      onClick={() => addItemToTimeline(image, "image")}
                       className="bg-darkBox cursor-pointer overflow-x-hidden h-32 hover:bg-opacity-80 rounded-2xl transition-all duration-200 hover:scale-105 relative group"
                     >
                       {/* Delete Button - Only visible on hover */}
@@ -1834,29 +2472,101 @@ function Editor() {
                 </div>
               </div>
             ) : menuActive == 4 ? (
-              <div className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full">
-                <div className="grid grid-cols-1 gap-4">
-                  {voiceFiles.map((voice, index) => (
-                    <div
-                      key={index}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, voice, "voice")}
-                      className="bg-darkBox cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:scale-105"
+              <div
+                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative"
+                onDragOver={handleVoiceContainerDragOver}
+                onDrop={handleVoiceContainerDrop}
+              >
+                {/* Add Voice Button */}
+                <button
+                  onClick={() =>
+                    (voiceList.length > 0
+                      ? document.getElementById("voice-upload-hidden")
+                      : document.getElementById("voice-upload")
+                    )?.click()
+                  }
+                  className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                  title="Agregar voz"
+                  disabled={isUploadingVoice}
+                >
+                  <Plus size={20} />
+                </button>
+
+                {/* Upload area when empty */}
+                {voiceList.length === 0 && (
+                  <div className="mb-4 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-primarioLogo transition-colors duration-200">
+                    <input
+                      type="file"
+                      multiple
+                      accept="audio/*"
+                      onChange={handleVoiceInputChange}
+                      className="hidden"
+                      id="voice-upload"
+                      disabled={isUploadingVoice}
+                    />
+                    <label
+                      htmlFor="voice-upload"
+                      className="cursor-pointer flex flex-col items-center gap-2"
                     >
+                      <Upload size={32} className="text-gray-400" />
+                      <span className="text-gray-400 text-sm">
+                        {isUploadingVoice
+                          ? "Subiendo voz..."
+                          : "Arrastra aquí archivos de audio o haz clic para seleccionar"}
+                      </span>
+                    </label>
+                  </div>
+                )}
+
+                {/* Hidden input when list exists */}
+                {voiceList.length > 0 && (
+                  <input
+                    type="file"
+                    multiple
+                    accept="audio/*"
+                    onChange={handleVoiceInputChange}
+                    className="hidden"
+                    id="voice-upload-hidden"
+                    disabled={isUploadingVoice}
+                  />
+                )}
+
+                {/* Voice list */}
+                <div className="space-y-3 overflow-y-auto h-full">
+                  {voiceList.map((voice, index) => (
+                    <div
+                      key={voice.id || index}
+                      draggable={!isUploadingVoice}
+                      onDragStart={(e) => handleDragStart(e, voice, "voice")}
+                      onClick={() => addItemToTimeline(voice, "voice")}
+                      className="bg-darkBox cursor-pointer h-20 hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 relative group"
+                    >
+                      {/* Delete Button */}
+                      <button
+                        onClick={(e) => handleDeleteVoiceClick(e, voice)}
+                        className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        title="Eliminar voz"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+
                       <div className="flex items-center gap-3">
                         <Mic size={24} className="text-primarioLogo" />
-                        <div>
-                          <span className="text-[#E7E7E7] text-sm font-medium block">
-                            {voice.name}
-                          </span>
+                        <div className="w-3/4">
+                          <div className="w-full line-clamp-1">
+                            <span className="text-[#E7E7E7] text-sm font-medium block">
+                              {voice.name}
+                            </span>
+                          </div>
                           <span className="text-gray-400 text-xs">
-                            {voice.duration}s
+                            {voice.duration || 15}s
                           </span>
                         </div>
                       </div>
                     </div>
                   ))}
-                  {voiceFiles.length === 0 && (
+
+                  {voiceList.length === 0 && !isUploadingVoice && (
                     <div className="text-center py-8">
                       <Mic size={48} className="text-gray-400 mx-auto mb-2" />
                       <span className="text-gray-400">
@@ -2122,6 +2832,10 @@ function Editor() {
                   ? `Edit Image: ${selectedElement.title}`
                   : selectedElement && selectedElement.type === "video"
                   ? `Edit Video: ${selectedElement.title}`
+                  : selectedElement && selectedElement.type === "music"
+                  ? `Edit Music: ${selectedElement.title}`
+                  : selectedElement && selectedElement.type === "voice"
+                  ? `Edit Voice: ${selectedElement.title}`
                   : "Editor Controls"
               }
             >
@@ -2129,6 +2843,10 @@ function Editor() {
                 ? `Edit Image: ${selectedElement.title}`
                 : selectedElement && selectedElement.type === "video"
                 ? `Edit Video: ${selectedElement.title}`
+                : selectedElement && selectedElement.type === "music"
+                ? `Edit Music: ${selectedElement.title}`
+                : selectedElement && selectedElement.type === "voice"
+                ? `Edit Voice: ${selectedElement.title}`
                 : "Editor Controls"}
             </h3>
 
@@ -2634,6 +3352,156 @@ function Editor() {
                   </button>
                 </div>
               </div>
+            ) : selectedElement && selectedElement.type === "music" ? (
+              <div className="space-y-4">
+                <div className="text-sm text-gray-300 mb-4">
+                  <p>Duration: {selectedElement.duration}s</p>
+                  {selectedElement.originalDuration && (
+                    <p>Original: {selectedElement.originalDuration}s</p>
+                  )}
+                  <p className="text-xs mt-1">Click again to deselect</p>
+                </div>
+
+                {/* Volume Control for Music */}
+                <div>
+                  <label className="text-sm font-medium text-gray-300 block mb-2">
+                    Volume:{" "}
+                    {Math.round(
+                      (selectedElement.volume !== undefined
+                        ? selectedElement.volume
+                        : 0.5) * 100
+                    )}
+                    %
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={Math.round(
+                      (selectedElement.volume !== undefined
+                        ? selectedElement.volume
+                        : 0.5) * 100
+                    )}
+                    onChange={(e) =>
+                      updateSelectedElement(
+                        "volume",
+                        parseInt(e.target.value) / 100
+                      )
+                    }
+                    className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
+                  />
+                </div>
+
+                {/* Trim Controls for Music */}
+                <div className="border-t border-gray-600 pt-4">
+                  <h4 className="text-sm font-medium text-gray-300 mb-3">
+                    Trim Controls
+                  </h4>
+                  <div className="text-xs text-gray-400 mb-2">
+                    Trim Start: {(selectedElement.trimStart || 0).toFixed(2)}s
+                  </div>
+                  <div className="text-xs text-gray-400 mb-2">
+                    Trim End: {(selectedElement.trimEnd || 0).toFixed(2)}s
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    Use the handles on the timeline element to trim
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-2 mt-6">
+                  <button
+                    onClick={() => {
+                      updateSelectedElement("volume", 0.5);
+                    }}
+                    className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    onClick={() => setSelectedElement(null)}
+                    className="flex-1 bg-primarioLogo text-black px-3 py-2 rounded-lg text-sm hover:bg-opacity-80 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : selectedElement && selectedElement.type === "voice" ? (
+              <div className="space-y-4">
+                <div className="text-sm text-gray-300 mb-4">
+                  <p>Duration: {selectedElement.duration}s</p>
+                  {selectedElement.originalDuration && (
+                    <p>Original: {selectedElement.originalDuration}s</p>
+                  )}
+                  <p className="text-xs mt-1">Click again to deselect</p>
+                </div>
+
+                {/* Volume Control for Voice */}
+                <div>
+                  <label className="text-sm font-medium text-gray-300 block mb-2">
+                    Volume:{" "}
+                    {Math.round(
+                      (selectedElement.volume !== undefined
+                        ? selectedElement.volume
+                        : 0.5) * 100
+                    )}
+                    %
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={Math.round(
+                      (selectedElement.volume !== undefined
+                        ? selectedElement.volume
+                        : 0.5) * 100
+                    )}
+                    onChange={(e) =>
+                      updateSelectedElement(
+                        "volume",
+                        parseInt(e.target.value) / 100
+                      )
+                    }
+                    className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
+                  />
+                </div>
+
+                {/* Trim Controls for Voice */}
+                <div className="border-t border-gray-600 pt-4">
+                  <h4 className="text-sm font-medium text-gray-300 mb-3">
+                    Trim Controls
+                  </h4>
+                  <div className="text-xs text-gray-400 mb-2">
+                    Trim Start: {(selectedElement.trimStart || 0).toFixed(2)}s
+                  </div>
+                  <div className="text-xs text-gray-400 mb-2">
+                    Trim End: {(selectedElement.trimEnd || 0).toFixed(2)}s
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    Use the handles on the timeline element to trim
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-2 mt-6">
+                  <button
+                    onClick={() => {
+                      updateSelectedElement("volume", 0.5);
+                    }}
+                    className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    onClick={() => setSelectedElement(null)}
+                    className="flex-1 bg-primarioLogo text-black px-3 py-2 rounded-lg text-sm hover:bg-opacity-80 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             ) : arrayVideoMake.length === 0 ? (
               <div className="text-sm text-gray-300 space-y-2">
                 <p>• Drag videos, images, music or voice to the timeline</p>
@@ -2684,6 +3552,14 @@ function Editor() {
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, "video")}
             >
+              {/* Vertical playhead line */}
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
+                style={{
+                  left: `${(currentTime / getTimelineDuration()) * 100}%`,
+                  transform: "translateX(-50%)",
+                }}
+              />
               {/* Render timeline elements for video channel */}
               {arrayVideoMake
                 .filter((item) => item.channel === "video")
@@ -2788,6 +3664,14 @@ function Editor() {
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, "image")}
             >
+              {/* Vertical playhead line */}
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
+                style={{
+                  left: `${(currentTime / getTimelineDuration()) * 100}%`,
+                  transform: "translateX(-50%)",
+                }}
+              />
               {/* Render timeline elements for image/text channel */}
               {arrayVideoMake
                 .filter((item) => item.channel === "image")
@@ -2876,6 +3760,14 @@ function Editor() {
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, "music")}
             >
+              {/* Vertical playhead line */}
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
+                style={{
+                  left: `${(currentTime / getTimelineDuration()) * 100}%`,
+                  transform: "translateX(-50%)",
+                }}
+              />
               {/* Renderizar elementos del timeline para el canal de música */}
               {arrayVideoMake
                 .filter((item) => item.channel === "music")
@@ -2886,6 +3778,10 @@ function Editor() {
                       draggingElement?.id === item.id
                         ? "opacity-50 scale-105 transition-none"
                         : "transition-all duration-200"
+                    } ${
+                      selectedElement?.id === item.id
+                        ? "ring-2 ring-[#DC569D] ring-opacity-80"
+                        : ""
                     }`}
                     style={{
                       left: `${
@@ -2903,25 +3799,35 @@ function Editor() {
                     }}
                     onMouseEnter={() => setHoveredElement(item.id)}
                     onMouseLeave={() => setHoveredElement(null)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelectElement(item, e);
+                    }}
                     onMouseDown={(e) => {
+                      // Only start drag if not clicking on resize handles or buttons
                       if (
                         !e.target.closest("button") &&
                         !e.target.classList.contains("resize-handle")
                       ) {
-                        handleElementDragStart(e, item);
+                        // Don't start drag immediately, wait for mouse move
+                        const startDrag = () => {
+                          handleElementDragStart(e, item);
+                        };
+                        // Add a small delay to allow click selection first
+                        setTimeout(startDrag, 50);
                       }
                     }}
                   >
                     {/* Manija de redimensionamiento izquierda */}
                     <div
-                      className="resize-handle absolute left-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                      className="resize-handle absolute left-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
                       onMouseDown={(e) => handleResizeStart(e, item, "start")}
                       title="Recortar inicio"
                     ></div>
 
                     {/* Manija de redimensionamiento derecha */}
                     <div
-                      className="resize-handle absolute right-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                      className="resize-handle absolute right-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
                       onMouseDown={(e) => handleResizeStart(e, item, "end")}
                       title="Recortar final"
                     ></div>
@@ -2959,6 +3865,14 @@ function Editor() {
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, "voice")}
             >
+              {/* Vertical playhead line */}
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
+                style={{
+                  left: `${(currentTime / getTimelineDuration()) * 100}%`,
+                  transform: "translateX(-50%)",
+                }}
+              />
               {/* Renderizar elementos del timeline para el canal de voz */}
               {arrayVideoMake
                 .filter((item) => item.channel === "voice")
@@ -2969,6 +3883,10 @@ function Editor() {
                       draggingElement?.id === item.id
                         ? "opacity-50 scale-105 transition-none"
                         : "transition-all duration-200"
+                    } ${
+                      selectedElement?.id === item.id
+                        ? "ring-2 ring-[#DC569D] ring-opacity-80"
+                        : ""
                     }`}
                     style={{
                       left: `${
@@ -2986,6 +3904,7 @@ function Editor() {
                     }}
                     onMouseEnter={() => setHoveredElement(item.id)}
                     onMouseLeave={() => setHoveredElement(null)}
+                    onClick={(e) => handleSelectElement(item, e)}
                     onMouseDown={(e) => {
                       if (
                         !e.target.closest("button") &&
@@ -2997,14 +3916,14 @@ function Editor() {
                   >
                     {/* Manija de redimensionamiento izquierda */}
                     <div
-                      className="resize-handle absolute left-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                      className="resize-handle absolute left-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
                       onMouseDown={(e) => handleResizeStart(e, item, "start")}
                       title="Recortar inicio"
                     ></div>
 
                     {/* Manija de redimensionamiento derecha */}
                     <div
-                      className="resize-handle absolute right-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                      className="resize-handle absolute right-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
                       onMouseDown={(e) => handleResizeStart(e, item, "end")}
                       title="Recortar final"
                     ></div>
@@ -3077,9 +3996,25 @@ function Editor() {
                   e.preventDefault();
                   setIsDraggingTimeline(true);
                 }}
-              ></div>
+              >
+                {/* Línea vertical hacia arriba desde la bolita */}
+                <div
+                  className="absolute left-1/2 -translate-x-1/2 bottom-full w-0.5 bg-primarioLogo"
+                  style={{ height: "190px", zIndex: 60 }}
+                />
+              </div>
               {/* Indicador visual cuando se hace hover */}
               <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-3 opacity-0 group-hover:opacity-20 bg-primarioLogo rounded-full transition-opacity duration-200"></div>
+            </div>
+            {/* Vertical playhead line under the ruler */}
+            <div className="relative h-3 mt-1">
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60"
+                style={{
+                  left: `${(currentTime / getTimelineDuration()) * 100}%`,
+                  transform: "translateX(-50%)",
+                }}
+              />
             </div>
             <div className="flex justify-between text-xs text-gray-400 mt-1">
               <span>0:00</span>
@@ -3157,6 +4092,28 @@ function Editor() {
         message="Are you sure you want to delete this image?"
         itemName={imageToDelete?.name}
         isLoading={isDeletingImage}
+      />
+
+      {/* Delete Music Confirmation Modal */}
+      <ModalConfirmDelete
+        isOpen={showDeleteMusicModal}
+        onClose={handleCloseDeleteMusicModal}
+        onConfirm={handleConfirmDeleteMusic}
+        title="Eliminar música"
+        message="¿Seguro que quieres eliminar esta pista de música?"
+        itemName={musicToDelete?.name}
+        isLoading={isDeletingMusic}
+      />
+
+      {/* Delete Voice Confirmation Modal */}
+      <ModalConfirmDelete
+        isOpen={showDeleteVoiceModal}
+        onClose={handleCloseDeleteVoiceModal}
+        onConfirm={handleConfirmDeleteVoice}
+        title="Eliminar voz"
+        message="¿Seguro que quieres eliminar esta pista de voz?"
+        itemName={voiceToDelete?.name}
+        isLoading={isDeletingVoice}
       />
     </div>
   );
