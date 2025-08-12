@@ -20,10 +20,10 @@ import {
 } from "lucide-react";
 import { useLoaderData } from "react-router-dom";
 import Cookies from "js-cookie";
-import ModalSaveEdit from "./components/modal-save-edit";
-import ModalLoadEdit from "./components/modal-load-edit";
-import ModalExportEdit from "./components/modal-export-edit";
-import ModalConfirmDelete from "./components/modal-confirm-delete";
+import ModalSaveEdit from "./modals/modal-save-edit";
+import ModalLoadEdit from "./modals/modal-load-edit";
+import ModalExportEdit from "./modals/modal-export-edit";
+import ModalConfirmDelete from "./modals/modal-confirm-delete";
 import { handleImageDrop, handleAudioDrop } from "./functions";
 
 // Editor - Advanced Timeline Video Editor
@@ -912,7 +912,16 @@ function Editor() {
         const d = await getAudioDuration(u);
         if (d && d > 0) {
           setAudioDurations((prev) => ({ ...prev, [u]: d }));
-          it.duration = d; // reflect in UI
+          // reflect in UI data object
+          it.duration = d;
+          // For voices, also update state so the gallery shows real duration
+          if (it.type === "voice") {
+            setVoiceList((prev) =>
+              Array.isArray(prev)
+                ? prev.map((v) => (v.url === u ? { ...v, duration: d } : v))
+                : prev
+            );
+          }
         }
       }
     };
@@ -2539,7 +2548,7 @@ function Editor() {
                       draggable={!isUploadingVoice}
                       onDragStart={(e) => handleDragStart(e, voice, "voice")}
                       onClick={() => addItemToTimeline(voice, "voice")}
-                      className="bg-darkBox cursor-pointer h-20 hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 relative group"
+                      className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
                     >
                       {/* Delete Button */}
                       <button
@@ -2559,7 +2568,10 @@ function Editor() {
                             </span>
                           </div>
                           <span className="text-gray-400 text-xs">
-                            {voice.duration || 15}s
+                            {voice.duration ||
+                              (audioDurations[voice.url] ?? null) ||
+                              15}
+                            s
                           </span>
                         </div>
                       </div>
