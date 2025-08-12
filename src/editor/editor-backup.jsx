@@ -4,19 +4,10 @@ import {
   Play,
   Pause,
   Volume2,
-  ClapperboardIcon,
-  Music,
-  Image,
-  X,
-  Trash2,
-  Mic,
   Save,
   FolderOpen,
   Download,
-  Upload,
   Plus,
-  ChevronRight,
-  ChevronDown,
 } from "lucide-react";
 import { useLoaderData } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -25,6 +16,10 @@ import ModalLoadEdit from "./modals/modal-load-edit";
 import ModalExportEdit from "./modals/modal-export-edit";
 import ModalConfirmDelete from "./modals/modal-confirm-delete";
 import { handleImageDrop, handleAudioDrop } from "./functions";
+import MediaLibrary from "./components/MediaLibrary";
+import VideoPreview from "./components/VideoPreview";
+import ControlsEditor from "./components/ControlsEditor";
+import Timeline from "./components/Timeline";
 
 // Editor - Advanced Timeline Video Editor
 //
@@ -2116,28 +2111,84 @@ function Editor() {
       </div>
       {/* ACTION BAR */}
       <div className="flex gap-6 mt-2 h-[45vh]">
-        <div className="bg-darkBox w-1/4 rounded-4xl flex">
-          <div className="w-1/5">
-            <div
-              onClick={() => setMenuActive(1)}
-              className={
-                menuActive == 1
-                  ? "bg-darkBoxSub text-primarioLogo text-center flex items-center justify-center h-16 cursor-pointer rounded-tl-4xl"
-                  : "text-white text-center flex items-center justify-center h-16 cursor-pointer rounded-tl-4xl"
-              }
-            >
-              <ClapperboardIcon />
-            </div>
-            <div
-              onClick={() => setMenuActive(2)}
-              className={
-                menuActive == 2
-                  ? "bg-darkBoxSub text-primarioLogo text-center flex items-center justify-center h-16 cursor-pointer"
-                  : "text-white text-center flex items-center justify-center h-16 cursor-pointer"
-              }
-            >
-              <Music />
-            </div>
+        <MediaLibrary
+          menuActive={menuActive}
+          setMenuActive={setMenuActive}
+          projects={projects}
+          expandedProjects={expandedProjects}
+          toggleProject={toggleProject}
+          handleDragStart={handleDragStart}
+          addItemToTimeline={addItemToTimeline}
+          // Music props
+          musicList={musicList}
+          isUploadingMusic={isUploadingMusic}
+          handleMusicInputChange={handleMusicInputChange}
+          handleMusicContainerDragOver={handleMusicContainerDragOver}
+          handleMusicContainerDrop={handleMusicContainerDrop}
+          handleDeleteMusicClick={handleDeleteMusicClick}
+          audioDurations={audioDurations}
+          // Images props
+          images={images}
+          isUploadingImages={isUploadingImages}
+          handleImageInputChange={handleImageInputChange}
+          handleImageContainerDragOver={handleImageContainerDragOver}
+          handleImageContainerDrop={handleImageContainerDrop}
+          handleDeleteImageClick={handleDeleteImageClick}
+          // Voice props
+          voiceList={voiceList}
+          isUploadingVoice={isUploadingVoice}
+          handleVoiceInputChange={handleVoiceInputChange}
+          handleVoiceContainerDragOver={handleVoiceContainerDragOver}
+          handleVoiceContainerDrop={handleVoiceContainerDrop}
+          handleDeleteVoiceClick={handleDeleteVoiceClick}
+        />
+        <VideoPreview
+          arrayVideoMake={arrayVideoMake}
+          currentTime={currentTime}
+          mainVideoRef={mainVideoRef}
+          masterVolume={masterVolume}
+          getActiveElements={getActiveElements}
+          handleImageMouseDown={handleImageMouseDown}
+          handleImageMouseMove={handleImageMouseMove}
+          handleImageMouseUp={handleImageMouseUp}
+          isDraggingImage={isDraggingImage}
+          isResizingImage={isResizingImage}
+        />
+        <ControlsEditor
+          selectedElement={selectedElement}
+          updateSelectedElement={updateSelectedElement}
+          handleDeleteElement={handleDeleteElement}
+          setSelectedElement={setSelectedElement}
+        />
+      </div>
+      {/* TIMELINE */}
+      <div className="mt-6">
+        <Timeline
+          arrayVideoMake={arrayVideoMake}
+          currentTime={currentTime}
+          getTimelineDuration={getTimelineDuration}
+          getElementRenderPosition={getElementRenderPosition}
+          getElementColor={getElementColor}
+          hoveredElement={hoveredElement}
+          setHoveredElement={setHoveredElement}
+          handleSelectElement={handleSelectElement}
+          handleElementDragStart={handleElementDragStart}
+          handleResizeStart={handleResizeStart}
+          handleDeleteElement={handleDeleteElement}
+          draggingElement={draggingElement}
+          selectedElement={selectedElement}
+          handleDragOver={handleDragOver}
+          handleDrop={handleDrop}
+          timelineRef={timelineRef}
+          handleTimelineMouseDown={handleTimelineMouseDown}
+          handleTimelineClick={handleTimelineClick}
+          isDraggingTimeline={isDraggingTimeline}
+        />
+      </div>
+
+      {/* Modals */}
+      {showSaveModal && (
+        <ModalSaveEdit
             <div
               onClick={() => setMenuActive(3)}
               className={
