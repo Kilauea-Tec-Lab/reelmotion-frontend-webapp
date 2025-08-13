@@ -94,9 +94,9 @@ function Home() {
   });
 
   return (
-    <div className="p-6 min-h-screen bg-primarioDark">
+    <div className="p-6 min-h-screen bg-primarioDark pt-5">
       <div className="flex items-center justify-between mb-8">
-        <span className="text-white montserrat-medium text-2xl tracking-wider">
+        <span className="text-white montserrat-medium text-2xl tracking-wider pt-1">
           Projects
         </span>
         <div className="relative">

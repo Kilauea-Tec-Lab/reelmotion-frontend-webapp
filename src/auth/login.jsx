@@ -140,11 +140,11 @@ function Login() {
       {/* Capa difuminada en negro al 50% sobre el video */}
       <div className="absolute top-0 left-0 w-full h-full bg-[#00000080] z-10">
         <div className="relative z-20  sm:flex  h-full">
-          <div className="sm:w-1/2 sm:px-16 sm:py-16 px-4 py-4">
+          <div className="sm:w-1/2 sm:px-6 sm:py-6 px-4 py-4 text-right">
             <img
-              src="/logos/logo_reelmotion.webp"
+              src="/logos/logo_reelmotion_new.png"
               alt="Logo Reelmotion IA"
-              className="w-2/6"
+              className="w-96"
             />
             <div className="px-10 pt-20 space-y-6">
               <h1 className="text-white text-4xl font-semibold tracking-wide montserrat-semibold">
@@ -155,7 +155,7 @@ function Login() {
               </h2>
             </div>
             {typeRecord == 1 ? (
-              <div className="px-10 pt-14 space-y-2">
+              <div className="px-10 pt-10 space-y-2">
                 <h3 className="text-white montserrat-light tracking-wider text-sm">
                   If you don't have an account
                 </h3>
@@ -171,7 +171,7 @@ function Login() {
                 </button>
               </div>
             ) : (
-              <div className="px-10 pt-14 space-y-2">
+              <div className="px-10 pt-10 space-y-2">
                 <h3 className="text-white montserrat-light tracking-wider text-sm">
                   If you have an account
                 </h3>
@@ -188,9 +188,25 @@ function Login() {
               </div>
             )}
           </div>
-          <div className="sm:w-1/2 h-full flex items-center justify-center">
+          <div className="sm:w-1/2 h-full justify-center">
+            <div class="w-full flex justify-end gap-4 px-6 py-12">
+              <a
+                href="https://www.reelmeinmedia.com/"
+                target="_blank"
+                className="bg-primarioLogo px-4 pb-1 rounded-xl font-medium hover:bg-primarioLogo text-white"
+              >
+                Reel Me In Media
+              </a>
+              <a
+                href="#"
+                target="_blank"
+                className="bg-primarioLogo px-4 pb-1 rounded-xl font-medium hover:bg-primarioLogo text-white"
+              >
+                Affiliate Program
+              </a>
+            </div>
             {typeRecord == 1 ? (
-              <div className="text-left w-full space-y-6 flex flex-col">
+              <div className="text-left w-full space-y-6 flex flex-col justify-center mt-20">
                 <h1 className="text-white text-2xl montserrat-light">
                   Sign In
                 </h1>
@@ -246,7 +262,7 @@ function Login() {
                 </div>
               </div>
             ) : (
-              <div className="text-left w-full space-y-6 flex flex-col">
+              <div className="text-left w-full space-y-6 flex flex-col justify-center mt-18">
                 <h1 className="text-white text-2xl montserrat-light">
                   Create Account
                 </h1>

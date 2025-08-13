@@ -2341,7 +2341,7 @@ function Editor() {
                       {/* Delete Button */}
                       <button
                         onClick={(e) => handleDeleteMusicClick(e, music)}
-                        className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
                         title="Eliminar música"
                       >
                         <Trash2 className="w-3 h-3" />
@@ -2451,7 +2451,7 @@ function Editor() {
                       {/* Delete Button - Only visible on hover */}
                       <button
                         onClick={(e) => handleDeleteImageClick(e, image)}
-                        className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
                         title="Delete image"
                       >
                         <Trash2 className="w-3 h-3" />
@@ -2553,7 +2553,7 @@ function Editor() {
                       {/* Delete Button */}
                       <button
                         onClick={(e) => handleDeleteVoiceClick(e, voice)}
-                        className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
                         title="Eliminar voz"
                       >
                         <Trash2 className="w-3 h-3" />
@@ -3658,7 +3658,7 @@ function Editor() {
                             handleDeleteElement(item.id);
                             setHoveredElement(null);
                           }}
-                          className="bg-red-500 hover:bg-red-600 text-white p-1 rounded-md transition-all duration-200 shadow-lg"
+                          className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
                           title="Eliminar escena"
                         >
                           <Trash2 size={12} />
@@ -3752,7 +3752,7 @@ function Editor() {
                             handleDeleteElement(item.id);
                             setHoveredElement(null);
                           }}
-                          className="bg-red-500 hover:bg-red-600 text-white p-1 rounded-md transition-all duration-200 shadow-lg"
+                          className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
                           title="Eliminar elemento"
                         >
                           <Trash2 size={12} />
@@ -3857,7 +3857,7 @@ function Editor() {
                             handleDeleteElement(item.id);
                             setHoveredElement(null);
                           }}
-                          className="bg-red-500 hover:bg-red-600 text-white p-1 rounded-md transition-all duration-200 shadow-lg"
+                          className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
                           title="Eliminar música"
                         >
                           <Trash2 size={12} />
@@ -3953,7 +3953,7 @@ function Editor() {
                             handleDeleteElement(item.id);
                             setHoveredElement(null);
                           }}
-                          className="bg-red-500 hover:bg-red-600 text-white p-1 rounded-md transition-all duration-200 shadow-lg"
+                          className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
                           title="Eliminar voz"
                         >
                           <Trash2 size={12} />

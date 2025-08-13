@@ -9,9 +9,15 @@ import {
   Link,
 } from "lucide-react";
 
-function ShareModal({ post, onClose }) {
+function ShareModal({ post, onClose, showShare, isSameUser }) {
   const [copied, setCopied] = useState(false);
   const postUrl = `${window.location.origin}/discover/post/${post.id}`;
+
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
 
   const shareOptions = [
     {
@@ -75,8 +81,11 @@ function ShareModal({ post, onClose }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  return showShare ? (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={handleBackdropClick}
+    >
       <div className="bg-darkBox rounded-2xl p-6 w-full max-w-md">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -125,18 +134,22 @@ function ShareModal({ post, onClose }) {
         </div>
 
         {/* Share Options */}
-        <div className="space-y-3 mb-6">
-          {shareOptions.map((option) => (
-            <button
-              key={option.name}
-              onClick={() => handleShare(option)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white transition-colors ${option.color}`}
-            >
-              <option.icon size={20} />
-              <span className="montserrat-medium">Share on {option.name}</span>
-            </button>
-          ))}
-        </div>
+        {isSameUser && (
+          <div className="space-y-3 mb-6">
+            {shareOptions.map((option) => (
+              <button
+                key={option.name}
+                onClick={() => handleShare(option)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white transition-colors ${option.color}`}
+              >
+                <option.icon size={20} />
+                <span className="montserrat-medium">
+                  Share on {option.name}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Copy Link */}
         <div className="border-t border-darkBoxSub pt-4">
@@ -176,7 +189,7 @@ function ShareModal({ post, onClose }) {
         </div>
       </div>
     </div>
-  );
+  ) : null;
 }
 
 export default ShareModal;

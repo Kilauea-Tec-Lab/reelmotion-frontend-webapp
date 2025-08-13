@@ -39,7 +39,7 @@ function MainTopMenu({ user_info }) {
   }
 
   return (
-    <header className="bg-primarioDark h-15 pt-1 flex items-center justify-between px-6 fixed top-0 left-0 right-0 z-50">
+    <header className="bg-primarioDark h-15 pt-1 flex items-center justify-between px-6 fixed top-0 left-0 right-0 z-50  border-b pb-2 border-gray-800">
       {/* Logo y navegación principal */}
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-2">

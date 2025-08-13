@@ -43,8 +43,8 @@ function ModalDeleteScene({ isOpen, onClose, scene, onConfirm }) {
         {/* Header */}
         <div className="flex items-center justify-between p-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-900 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-red-400" />
+            <div className="p-2 bg-[#DC569D30] rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-primarioLogo" />
             </div>
             <h2 className="text-xl font-semibold text-white montserrat-medium">
               Delete Scene
@@ -79,8 +79,8 @@ function ModalDeleteScene({ isOpen, onClose, scene, onConfirm }) {
           </div>
 
           {/* Warning Message */}
-          <div className="mb-6 p-4 bg-red-900 bg-opacity-20 border border-red-800 rounded-lg">
-            <p className="text-red-300 text-sm montserrat-regular">
+          <div className="mb-6 p-4 bg-[#DC569D30] bg-opacity-20 border border-primarioLogo rounded-lg">
+            <p className="text-[#DC569D] text-sm montserrat-regular">
               <strong>Warning:</strong> This action cannot be undone. Deleting
               this scene will permanently remove it and all associated data
               including the generated video.
@@ -99,7 +99,7 @@ function ModalDeleteScene({ isOpen, onClose, scene, onConfirm }) {
             <button
               onClick={handleDelete}
               disabled={isDeleting}
-              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-2 bg-primarioLogo text-white rounded-lg hover:bg-[#DC569D50] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isDeleting ? (
                 <>

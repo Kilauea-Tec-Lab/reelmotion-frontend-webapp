@@ -529,7 +529,7 @@ function ModalCreateCharacter({
                       className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
                     >
                       <option value="gpt" className="bg-darkBoxSub text-white">
-                        GPT
+                        Sora
                       </option>
                       <option
                         value="freepik"

@@ -97,7 +97,7 @@ function RecentProjects({
                         </button>
                         <button
                           onClick={() => handleDeleteClick(project)}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-darkBox transition-colors rounded-b-lg"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-primarioLogo hover:bg-darkBox transition-colors rounded-b-lg"
                         >
                           <Trash2 className="w-4 h-4" /> Delete
                         </button>

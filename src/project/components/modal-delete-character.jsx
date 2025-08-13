@@ -23,8 +23,8 @@ function ModalDeleteCharacter({ isOpen, onClose, character, onConfirm }) {
         {/* Header */}
         <div className="flex items-center justify-between p-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-900 bg-opacity-20 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-red-400" />
+            <div className="w-10 h-10 bg-[#DC569D30] bg-opacity-20 rounded-lg flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-primarioLogo" />
             </div>
             <h2 className="text-xl font-semibold text-white montserrat-medium">
               Delete Character
@@ -48,14 +48,14 @@ function ModalDeleteCharacter({ isOpen, onClose, character, onConfirm }) {
               </span>
               ?
             </p>
-            <div className="bg-red-900 bg-opacity-10 border border-red-500 border-opacity-30 rounded-lg p-4">
+            <div className="bg-[#DC569D30] bg-opacity-10 border border-primarioLogo border-opacity-30 rounded-lg p-4">
               <div className="flex gap-3">
-                <User className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                <User className="w-5 h-5 text-[#DC569D] flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-red-300 text-sm montserrat-medium mb-1">
+                  <p className="text-[#DC569D] text-sm montserrat-medium mb-1">
                     This action cannot be undone
                   </p>
-                  <p className="text-red-200 text-sm montserrat-regular">
+                  <p className="text-[#DC569D] text-sm montserrat-regular">
                     The character and all its associated data will be
                     permanently deleted from your project.
                   </p>
@@ -95,7 +95,7 @@ function ModalDeleteCharacter({ isOpen, onClose, character, onConfirm }) {
             </button>
             <button
               onClick={handleDelete}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors montserrat-medium flex items-center gap-2"
+              className="px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-[#DC569D50] transition-colors montserrat-medium flex items-center gap-2"
             >
               <Trash2 className="w-4 h-4" />
               Delete Character

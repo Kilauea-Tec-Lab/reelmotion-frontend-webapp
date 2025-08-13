@@ -23,8 +23,8 @@ function ModalDeleteProject({ isOpen, onClose, project, onConfirm }) {
         {/* Header */}
         <div className="flex items-center justify-between p-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-900 bg-opacity-20 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-red-400" />
+            <div className="w-10 h-10 bg-[#DC569D30] bg-opacity-20 rounded-lg flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-primarioLogo" />
             </div>
             <h2 className="text-xl font-semibold text-white montserrat-medium">
               Delete Project
@@ -45,14 +45,14 @@ function ModalDeleteProject({ isOpen, onClose, project, onConfirm }) {
               Are you sure you want to delete the project{" "}
               <span className="font-medium text-white">"{project?.name}"</span>?
             </p>
-            <div className="bg-opacity-10 border border-red-500 border-opacity-30 rounded-lg p-4">
+            <div className="bg-opacity-10 border border-primarioLogo border-opacity-30 rounded-lg p-4">
               <div className="flex gap-3">
-                <Film className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                <Film className="w-5 h-5 text-[#DC569D] flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-red-400 font-medium montserrat-medium text-sm mb-1">
+                  <p className="text-[#DC569D] font-medium montserrat-medium text-sm mb-1">
                     This action cannot be undone
                   </p>
-                  <p className="text-red-300 text-sm montserrat-regular">
+                  <p className="text-[#DC569D] text-sm montserrat-regular">
                     All project data, including videos, edits, and settings will
                     be permanently deleted.
                   </p>
@@ -72,7 +72,7 @@ function ModalDeleteProject({ isOpen, onClose, project, onConfirm }) {
             <button
               onClick={() => handleDelete()}
               type="button"
-              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium montserrat-medium flex items-center gap-2"
+              className="px-6 py-2 bg-primarioLogo text-white rounded-lg hover:bg-[#DC569D50] transition-colors font-medium montserrat-medium flex items-center gap-2"
             >
               <Trash2 className="w-4 h-4" />
               Delete Project
