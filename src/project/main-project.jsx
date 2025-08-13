@@ -410,7 +410,7 @@ function MainProject() {
                               className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg ${
                                 isProjectComplete
                                   ? "text-gray-500 cursor-not-allowed hover:bg-transparent"
-                                  : "text-red-400 hover:bg-darkBoxSub"
+                                  : "text-primarioLogo hover:bg-darkBoxSub"
                               }`}
                               title={
                                 isProjectComplete
@@ -518,7 +518,7 @@ function MainProject() {
                               className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg ${
                                 isProjectComplete
                                   ? "text-gray-500 cursor-not-allowed hover:bg-transparent"
-                                  : "text-red-400 hover:bg-darkBoxSub"
+                                  : "text-primarioLogo hover:bg-darkBoxSub"
                               }`}
                               title={
                                 isProjectComplete
@@ -734,7 +734,7 @@ function MainProject() {
                               className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg ${
                                 isProjectComplete
                                   ? "text-gray-500 cursor-not-allowed hover:bg-transparent"
-                                  : "text-red-400 hover:bg-darkBoxSub"
+                                  : "text-primarioLogo hover:bg-darkBoxSub"
                               }`}
                               title={
                                 isProjectComplete

@@ -74,11 +74,11 @@ function ModalCreateScene({
       name: "Veo-3",
       description: "Advanced video generation model",
     },
-    /*{
-      id: "veo-2",
-      name: "Veo-2",
-      description: "Second generation Veo model for video",
-    },*/
+    {
+      id: "runway",
+      name: "Seedance 1.0",
+      description: "Second generation Seedance model for video",
+    },
   ];
 
   const durationOptions = [

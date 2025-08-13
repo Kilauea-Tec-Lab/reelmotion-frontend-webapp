@@ -34,6 +34,7 @@ function PostCard({ post, onUpdate, public_post }) {
   const [showControls, setShowControls] = useState(false);
   const videoRef = useRef(null);
   const [postInfo, setPostInfo] = useState(post);
+  const [isSameUser, setIsSameUser] = useState(post?.own_person);
 
   const pusherClient = createPusherClient();
 
@@ -380,14 +381,13 @@ function PostCard({ post, onUpdate, public_post }) {
                   {postInfo?.comments?.length || 0}
                 </span>
               </button>
-              {postInfo?.own_person && (
-                <button
-                  onClick={() => setShowShareModal(true)}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <Share size={24} />
-                </button>
-              )}
+
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <Share size={24} />
+              </button>
             </div>
           ) : (
             <div className="flex items-center gap-4">
@@ -464,9 +464,13 @@ function PostCard({ post, onUpdate, public_post }) {
       </div>
 
       {/* Share Modal */}
-      {showShareModal && (
-        <ShareModal post={post} onClose={() => setShowShareModal(false)} />
-      )}
+
+      <ShareModal
+        post={post}
+        onClose={() => setShowShareModal(false)}
+        showShare={showShareModal}
+        isSameUser={isSameUser}
+      />
     </div>
   );
 }

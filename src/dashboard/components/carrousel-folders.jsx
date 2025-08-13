@@ -98,7 +98,7 @@ function CarrouselFolders({ folder, folders }) {
                 </button>
                 <button
                   onClick={handleDeleteFolder}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-darkBox transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-primarioLogo hover:bg-darkBox transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
                   Destroy
@@ -127,7 +127,7 @@ function CarrouselFolders({ folder, folders }) {
             }}
           >
             {/* Video Preview Card - 3/5 del tamaño original */}
-            <div className="relative rounded-lg overflow-hidden group">
+            <div className="relative rounded-lg overflow-hidden group pt-4">
               {/* Video Preview */}
               <div className="relative h-24 flex items-center justify-center">
                 {project.video_url ? (
@@ -179,7 +179,7 @@ function CarrouselFolders({ folder, folders }) {
                         </button>
                         <button
                           onClick={() => handleDeleteProject(project)}
-                          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-red-400 hover:bg-darkBox transition-colors"
+                          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-primarioLogo hover:bg-darkBox transition-colors"
                         >
                           <Trash2 className="w-3 h-3" />
                           Destroy
@@ -191,7 +191,7 @@ function CarrouselFolders({ folder, folders }) {
               </div>
 
               {/* Project Info */}
-              <div className="p-2">
+              <div className="p-2 pt-4">
                 <h3
                   className="text-white font-medium text-xs mb-0.5 montserrat-regular line-clamp-1"
                   title={project.name}

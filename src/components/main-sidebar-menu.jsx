@@ -28,9 +28,11 @@ function MainSidebarMenu() {
   ];
 
   return (
-    <aside className="bg-primarioDark text-white w-64 min-h-screen fixed left-0 top-15 z-40">
+    <aside className="bg-primarioDark text-white w-64 min-h-screen fixed left-0 top-15 z-40 border-r border-gray-800">
       <div className="flex flex-col h-full px-6 pt-8">
-        <h1 className="text-[#808191] text-xs tracking-wider">MENU</h1>
+        <div className="pb-4 border-b border-gray-800">
+          <h1 className="text-[#808191] text-xs tracking-wider">MENU</h1>
+        </div>
         {/* Navegación principal */}
         <nav className="flex-1 pt-5">
           <ul className="space-y-2">
