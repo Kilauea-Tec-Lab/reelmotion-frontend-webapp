@@ -17,7 +17,9 @@ function ModalConfirmDelete({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-600">
           <div className="flex items-center gap-3">
-            <AlertTriangle className="w-6 h-6 text-red-500" />
+            <div className="w-10 h-10 bg-[#DC569D30] bg-opacity-20 rounded-lg flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-primarioLogo" />
+            </div>
             <h2 className="text-xl font-semibold text-white montserrat-medium">
               {title}
             </h2>
@@ -36,8 +38,8 @@ function ModalConfirmDelete({
           <div className="mb-6">
             <p className="text-gray-300 mb-2">{message}</p>
             {itemName && (
-              <div className="p-3 bg-red-900/20 border border-red-800 rounded-lg">
-                <p className="text-red-300 font-medium break-words">
+              <div className="bg-[#DC569D30] bg-opacity-10 border border-primarioLogo border-opacity-30 rounded-lg p-4">
+                <p className="text-[#DC569D] font-medium break-words">
                   "{itemName}"
                 </p>
               </div>
@@ -61,7 +63,7 @@ function ModalConfirmDelete({
               type="button"
               onClick={onConfirm}
               disabled={isLoading}
-              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-[#DC569D50] transition-colors montserrat-medium flex items-center gap-2"
             >
               {isLoading ? (
                 <>

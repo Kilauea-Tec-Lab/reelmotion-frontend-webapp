@@ -2283,7 +2283,7 @@ function Editor() {
                     )?.click()
                   }
                   className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                  title="Agregar música"
+                  title="Add Music"
                   disabled={isUploadingMusic}
                 >
                   <Plus size={20} />
@@ -2308,8 +2308,8 @@ function Editor() {
                       <Upload size={32} className="text-gray-400" />
                       <span className="text-gray-400 text-sm">
                         {isUploadingMusic
-                          ? "Subiendo música..."
-                          : "Arrastra aquí archivos de audio o haz clic para seleccionar"}
+                          ? "Uploading music..."
+                          : "Drag audio files here or click to select"}
                       </span>
                     </label>
                   </div>
@@ -2367,7 +2367,7 @@ function Editor() {
                     <div className="text-center py-8">
                       <Music size={48} className="text-gray-400 mx-auto mb-2" />
                       <span className="text-gray-400">
-                        No hay archivos de música disponibles
+                        No music files available
                       </span>
                     </div>
                   )}
@@ -2495,7 +2495,7 @@ function Editor() {
                     )?.click()
                   }
                   className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                  title="Agregar voz"
+                  title="Add Voice"
                   disabled={isUploadingVoice}
                 >
                   <Plus size={20} />
@@ -2520,8 +2520,8 @@ function Editor() {
                       <Upload size={32} className="text-gray-400" />
                       <span className="text-gray-400 text-sm">
                         {isUploadingVoice
-                          ? "Subiendo voz..."
-                          : "Arrastra aquí archivos de audio o haz clic para seleccionar"}
+                          ? "Uploading voice..."
+                          : "Drag audio files here or click to select"}
                       </span>
                     </label>
                   </div>
@@ -2582,7 +2582,7 @@ function Editor() {
                     <div className="text-center py-8">
                       <Mic size={48} className="text-gray-400 mx-auto mb-2" />
                       <span className="text-gray-400">
-                        No hay archivos de voz disponibles
+                        No voice files available
                       </span>
                     </div>
                   )}
@@ -4111,8 +4111,8 @@ function Editor() {
         isOpen={showDeleteMusicModal}
         onClose={handleCloseDeleteMusicModal}
         onConfirm={handleConfirmDeleteMusic}
-        title="Eliminar música"
-        message="¿Seguro que quieres eliminar esta pista de música?"
+        title="Delete Music"
+        message="Are you sure you want to delete this music file?"
         itemName={musicToDelete?.name}
         isLoading={isDeletingMusic}
       />
@@ -4122,8 +4122,8 @@ function Editor() {
         isOpen={showDeleteVoiceModal}
         onClose={handleCloseDeleteVoiceModal}
         onConfirm={handleConfirmDeleteVoice}
-        title="Eliminar voz"
-        message="¿Seguro que quieres eliminar esta pista de voz?"
+        title="Delete Voice"
+        message="Are you sure you want to delete this voice file?"
         itemName={voiceToDelete?.name}
         isLoading={isDeletingVoice}
       />
