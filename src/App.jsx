@@ -32,7 +32,7 @@ const router = createBrowserRouter([
     errorElement: <ErrorBoundary />,
     children: [
       {
-        index: true,
+        path: "projects",
         element: <Home />,
         loader: multiloaderGet,
       },
@@ -47,7 +47,7 @@ const router = createBrowserRouter([
         loader: userInfoLoader,
       },
       {
-        path: "discover",
+        index: true,
         element: <Discover />,
         loader: () => getDiscoverPosts(1, 10),
       },
