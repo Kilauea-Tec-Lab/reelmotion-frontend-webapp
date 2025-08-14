@@ -1978,10 +1978,10 @@ function Editor() {
   };
 
   return (
-    <div className="bg-primarioDark w-full h-[100vh] pr-4 scroll-auto">
+    <div className="bg-primarioDark w-full h-[100vh] scroll-auto px-6 py-4">
       {/* Header */}
       <div className="flex justify-between">
-        <div className="flex flex-col">
+        <div className="flex flex-col ml-2">
           <span className="text-white text-3xl font-leagueGothic font-medium">
             Video Editor
           </span>
@@ -2077,7 +2077,7 @@ function Editor() {
             </span>
           </div>
         </div>
-        <div className="gap-4 flex">
+        <div className="gap-4 flex pb-4">
           {currentEditName && (
             <button
               type="button"

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Bell, User, Search, LogOut, ChevronDown } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Bell, User, Search, LogOut, ChevronDown, Cog } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 
 function MainTopMenu({ user_info }) {
@@ -90,6 +90,13 @@ function MainTopMenu({ user_info }) {
           {/* Dropdown Menu */}
           {showUserMenu && (
             <div className="absolute top-12 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[160px]">
+              <Link
+                to="/profile"
+                className="w-full text-left flex items-center gap-2 px-4 py-3 text-sm text-white montserrat-light hover:bg-darkBox transition-colors rounded-lg"
+              >
+                <Cog size={16} />
+                Settings
+              </Link>
               <button
                 onClick={() => {
                   setShowUserMenu(false);

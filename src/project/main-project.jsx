@@ -323,7 +323,7 @@ function MainProject() {
           </button>
           <button
             type="button"
-            className="mt-2 px-2 py-2 bg-red-900 text-red-200 rounded-lg hover:bg-red-600"
+            className="mt-2 px-2 py-2 bg-[#DC569D30] text-primarioLogo rounded-lg hover:bg-primarioLogo"
             onClick={handleDeleteProject}
           >
             <Trash2 size={15} />
