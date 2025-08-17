@@ -158,7 +158,7 @@ function Profile() {
               <button
                 onClick={handleEditToggle}
                 disabled={isUploading}
-                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 transition-colors px-4 py-2 rounded-lg text-white disabled:opacity-50"
+                className="flex items-center gap-2 bg-primarioLogo transition-colors px-4 py-2 rounded-lg text-white disabled:opacity-50"
               >
                 <X size={18} />
                 Cancel

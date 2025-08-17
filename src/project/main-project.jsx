@@ -8,6 +8,7 @@ import ModalCreateCharacter from "../create_elements/modal-create-character";
 import ModalCreateSpot from "../create_elements/modal-create-spot";
 import ModalCreateVoice from "../create_elements/modal-create-voice";
 import ModalCreateScene from "../create_elements/modal-create-scene";
+import ModalCreateFrame from "../create_elements/modal-create-frame";
 import ModalEditCharacter from "./components/modal-edit-character";
 import ModalDeleteCharacter from "./components/modal-delete-character";
 import ModalEditSpot from "./components/modal-edit-spot";
@@ -24,9 +25,6 @@ function MainProject() {
   const navigate = useNavigate();
   const [project, setProject] = useState(data?.data);
 
-  // Obtener user de alguna manera - puede venir en data o necesitamos obtenerlo
-  const user = data?.user || data?.data?.user;
-
   async function fillProject() {
     const response = await getProjects(project?.id);
     setProject(response?.data);
@@ -40,6 +38,7 @@ function MainProject() {
   const [isCreateSpotModalOpen, setIsCreateSpotModalOpen] = useState(false);
   const [isCreateVoiceModalOpen, setIsCreateVoiceModalOpen] = useState(false);
   const [isCreateSceneModalOpen, setIsCreateSceneModalOpen] = useState(false);
+  const [isCreateFrameModalOpen, setIsCreateFrameModalOpen] = useState(false);
 
   // Estados para el menú de opciones de personajes
   const [hoveredCharacter, setHoveredCharacter] = useState(null);
@@ -63,6 +62,13 @@ function MainProject() {
   const [isEditVoiceModalOpen, setIsEditVoiceModalOpen] = useState(false);
   const [isDeleteVoiceModalOpen, setIsDeleteVoiceModalOpen] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(null);
+
+  // Estados para el menú de opciones de frames
+  const [hoveredFrame, setHoveredFrame] = useState(null);
+  const [showFrameMenu, setShowFrameMenu] = useState(null);
+  const [isEditFrameModalOpen, setIsEditFrameModalOpen] = useState(false);
+  const [isDeleteFrameModalOpen, setIsDeleteFrameModalOpen] = useState(false);
+  const [selectedFrame, setSelectedFrame] = useState(null);
 
   // Estados para el menú de opciones de scenes
   const [hoveredScene, setHoveredScene] = useState(null);
@@ -165,6 +171,22 @@ function MainProject() {
       scenes: [...(prevProject.scenes || []), sceneData],
     }));
     setIsCreateSceneModalOpen(false);
+  };
+
+  const handleFrameCreated = (frameData) => {
+    // Validar que el frame tenga los datos necesarios
+    if (!frameData || !frameData.id) {
+      console.error("Invalid frame data received:", frameData);
+      return;
+    }
+
+    // Actualizar el estado del proyecto con el nuevo frame
+    console.log("Frame created:", frameData);
+    setProject((prevProject) => ({
+      ...prevProject,
+      frames: [...(prevProject.frames || []), frameData],
+    }));
+    setIsCreateFrameModalOpen(false);
   };
 
   const handleEditCharacter = (character) => {
@@ -298,6 +320,44 @@ function MainProject() {
     }));
     setIsDeleteSceneModalOpen(false);
     setSelectedScene(null);
+  };
+
+  // Funciones para manejar frames
+  const handleEditFrame = (frame) => {
+    setSelectedFrame(frame);
+    setIsEditFrameModalOpen(true);
+    setShowFrameMenu(null);
+  };
+
+  const handleDeleteFrame = (frame) => {
+    console.log("Delete frame:", frame);
+    setSelectedFrame(frame);
+    setIsDeleteFrameModalOpen(true);
+    setShowFrameMenu(null);
+  };
+
+  const handleFrameUpdated = (updatedFrame) => {
+    // Actualizar el estado del proyecto con el frame modificado
+    setProject((prevProject) => ({
+      ...prevProject,
+      frames:
+        prevProject.frames?.map((f) =>
+          f.id === updatedFrame.id ? updatedFrame : f
+        ) || [],
+    }));
+    setIsEditFrameModalOpen(false);
+    setSelectedFrame(null);
+  };
+
+  const handleFrameDeleted = (deletedFrame) => {
+    // Actualizar el estado del proyecto removiendo el frame
+    console.log("Frame deleted:", deletedFrame);
+    setProject((prevProject) => ({
+      ...prevProject,
+      frames: prevProject.frames?.filter((f) => f.id !== deletedFrame.id) || [],
+    }));
+    setIsDeleteFrameModalOpen(false);
+    setSelectedFrame(null);
   };
 
   // Función para abrir el modal de preview
@@ -659,6 +719,132 @@ function MainProject() {
           )}
         </div>
       </div>
+      {/* Storyboard */}
+      <div className="mt-9">
+        <div className="flex gap-4 items-center align-middle">
+          <h2 className="text-white montserrat-medium text-xl tracking-wider">
+            Storyboard
+          </h2>
+          <button
+            type="button"
+            className={`mt-2 px-2 py-2 rounded-lg transition-colors ${
+              isProjectComplete
+                ? "bg-gray-500 text-gray-300 cursor-not-allowed"
+                : "bg-[#f2f243] text-primarioDark hover:bg-[#f2f243]"
+            }`}
+            onClick={() => setIsCreateFrameModalOpen(true)}
+            disabled={isProjectComplete}
+            title={
+              isProjectComplete
+                ? "Cannot create frames in completed projects"
+                : "Create Frame"
+            }
+          >
+            <Plus size={15} />
+          </button>
+        </div>
+        <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
+          {project?.frames?.length > 0 ? (
+            <div className="grid grid-cols-7 overflow-auto gap-4">
+              {project.frames
+                .filter((frame) => frame && frame.id)
+                .map((frame) => (
+                  <div
+                    key={frame.id}
+                    className="pb-2 bg-darkBoxSub px-3 pt-3 rounded-xl space-y-4 relative"
+                    onMouseEnter={() => setHoveredFrame(frame.id)}
+                    onMouseLeave={() => {
+                      setHoveredFrame(null);
+                      setShowFrameMenu(null);
+                    }}
+                    onDoubleClick={() =>
+                      handlePreview(
+                        frame,
+                        frame?.media_type || frame?.type || "image"
+                      )
+                    }
+                  >
+                    <div className="relative">
+                      {frame?.media_type === "video" ||
+                      frame?.type === "video" ? (
+                        <video
+                          src={frame?.media_url}
+                          className="w-32 h-32 object-cover rounded-2xl"
+                          muted
+                          loop
+                          preload="metadata"
+                        />
+                      ) : (
+                        <img
+                          src={frame?.media_url}
+                          alt=""
+                          className="w-32 h-32 object-cover rounded-2xl"
+                        />
+                      )}
+
+                      {/* Three Dots Menu */}
+                      {hoveredFrame === frame.id && (
+                        <div className="absolute top-2 right-2">
+                          <button
+                            onClick={() =>
+                              setShowFrameMenu(
+                                showFrameMenu === frame.id ? null : frame.id
+                              )
+                            }
+                            className="bg-[#36354080] px-1 py-1 bg-opacity-75 text-white hover:bg-opacity-90 rounded-full transition-all"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
+
+                          {/* Dropdown Menu */}
+                          {showFrameMenu === frame.id && (
+                            <div className="absolute top-8 right-0 bg-darkBox rounded-lg shadow-lg z-10 min-w-[100px] border border-gray-600">
+                              <button
+                                onClick={() => handleEditFrame(frame)}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-darkBoxSub transition-colors rounded-t-lg"
+                              >
+                                <Edit className="w-4 h-4" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteFrame(frame)}
+                                disabled={isProjectComplete}
+                                className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg ${
+                                  isProjectComplete
+                                    ? "text-gray-500 cursor-not-allowed hover:bg-transparent"
+                                    : "text-primarioLogo hover:bg-darkBoxSub"
+                                }`}
+                                title={
+                                  isProjectComplete
+                                    ? "Cannot delete frames in completed projects"
+                                    : "Delete Frame"
+                                }
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <h1
+                      className="text-[#a2a3b4] montserrat-medium text-sm tracking-wider line-clamp-1"
+                      title={frame.name}
+                    >
+                      {frame.name}
+                    </h1>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <span className="text-[#808191]">
+              No frames found for this project.
+            </span>
+          )}
+        </div>
+      </div>
       {/* Scenes */}
       <div className="mt-9">
         <div className="flex gap-4 items-center align-middle">
@@ -834,9 +1020,19 @@ function MainProject() {
         isOpen={isCreateSceneModalOpen}
         onClose={() => setIsCreateSceneModalOpen(false)}
         projectId={project?.id}
-        characters={project?.characters || []}
-        spots={project?.spots || []}
+        availableFrames={project?.frames || []}
+        availableScenes={project?.scenes || []}
         onSceneCreated={handleSceneCreated}
+      />
+
+      <ModalCreateFrame
+        isOpen={isCreateFrameModalOpen}
+        onClose={() => setIsCreateFrameModalOpen(false)}
+        projectId={project?.id}
+        spots={project?.spots || []}
+        characters={project?.characters || []}
+        existingFrames={project?.frames || []}
+        onFrameCreated={handleFrameCreated}
       />
 
       <ModalEditScene
