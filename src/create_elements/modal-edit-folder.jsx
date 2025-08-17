@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { X, Folder, FolderOpen, Star, Lock, Users } from "lucide-react";
 import { editFolder } from "./functions";
+import UserSearchComponent from "./user-search-component";
 
 function ModalEditFolder({ isOpen, onClose, folder }) {
   const [folderName, setFolderName] = useState("");
   const [folderDescription, setFolderDescription] = useState("");
   const [selectedType, setSelectedType] = useState("");
   const [folderColor, setFolderColor] = useState("#F2D543");
+  const [selectedUsers, setSelectedUsers] = useState([]);
 
   const folderTypes = [
     {
@@ -53,19 +55,27 @@ function ModalEditFolder({ isOpen, onClose, folder }) {
       setFolderDescription(folder.description || "");
       setSelectedType(folder.folder_type || "regular");
       setFolderColor(folder.color || "#F2D543");
+      setSelectedUsers(folder.shared_users || []);
     }
   }, [folder, isOpen]);
 
   async function handleSubmit() {
     if (!folderName || !selectedType) return;
 
-    const infoUpdate = await editFolder({
+    const folderData = {
       id: folder.id,
       name: folderName,
       description: folderDescription,
       folder_type: selectedType,
       color: folderColor,
-    });
+    };
+
+    // Add shared users if folder type is shared
+    if (selectedType === "shared" && selectedUsers.length > 0) {
+      folderData.shared_users = selectedUsers.map((user) => user.id);
+    }
+
+    const infoUpdate = await editFolder(folderData);
 
     // Cerrar modal después de actualizar
     handleClose();
@@ -76,6 +86,7 @@ function ModalEditFolder({ isOpen, onClose, folder }) {
     setFolderDescription("");
     setSelectedType("");
     setFolderColor("#F2D543");
+    setSelectedUsers([]);
     onClose();
   };
 
@@ -197,6 +208,16 @@ function ModalEditFolder({ isOpen, onClose, folder }) {
               </div>
             </div>
           </div>
+
+          {/* User Sharing - Only show when shared type is selected */}
+          {selectedType === "shared" && (
+            <div className="mb-8">
+              <UserSearchComponent
+                selectedUsers={selectedUsers}
+                onUsersChange={setSelectedUsers}
+              />
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-3 justify-end pt-4 ">

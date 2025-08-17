@@ -470,6 +470,7 @@ function PostCard({ post, onUpdate, public_post }) {
         onClose={() => setShowShareModal(false)}
         showShare={showShareModal}
         isSameUser={isSameUser}
+        videoUrl={postInfo.video_url}
       />
     </div>
   );

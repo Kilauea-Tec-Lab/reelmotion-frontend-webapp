@@ -35,6 +35,7 @@ export async function createFolder(data) {
     description: data.description,
     folder_type: data.folder_type,
     color: data.color,
+    shared_users: data.shared_users || [], // Array of user IDs to share with
   };
 
   const response = await fetch(
@@ -59,6 +60,7 @@ export async function editFolder(data) {
     description: data.description,
     folder_type: data.folder_type,
     color: data.color,
+    shared_users: data.shared_users || [], // Array of user IDs to share with
   };
 
   const response = await fetch(
@@ -178,4 +180,59 @@ export async function destroyProject(data) {
   );
 
   return response;
+}
+
+// Search users by username
+export async function searchUsers(username) {
+  try {
+    const response = await fetch(
+      `${
+        import.meta.env.VITE_APP_BACKEND_URL
+      }users/search?username=${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + Cookies.get("token"),
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error searching users:", error);
+    return { success: false, error: error.message, data: [] };
+  }
+}
+
+export async function searchProjects(projectName) {
+  try {
+    const response = await fetch(
+      `${
+        import.meta.env.VITE_APP_BACKEND_URL
+      }projects/search?name=${encodeURIComponent(projectName)}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + Cookies.get("token"),
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error searching projects:", error);
+    return { success: false, error: error.message, data: [] };
+  }
 }

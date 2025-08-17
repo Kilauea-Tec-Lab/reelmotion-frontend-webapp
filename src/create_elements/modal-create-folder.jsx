@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { X, Folder, FolderOpen, Star, Lock, Users } from "lucide-react";
 import { createFolder } from "./functions";
+import UserSearchComponent from "./user-search-component";
 
 function ModalCreateFolder({ isOpen, onClose }) {
   const [folderName, setFolderName] = useState("");
   const [folderDescription, setFolderDescription] = useState("");
   const [selectedType, setSelectedType] = useState("");
   const [folderColor, setFolderColor] = useState("#F2D543");
+  const [selectedUsers, setSelectedUsers] = useState([]);
 
   const folderTypes = [
     {
@@ -49,12 +51,19 @@ function ModalCreateFolder({ isOpen, onClose }) {
   async function handleSubmit() {
     if (!folderName || !selectedType) return;
 
-    const createFolderFunction = await createFolder({
+    const folderData = {
       name: folderName,
       description: folderDescription,
       folder_type: selectedType,
       color: folderColor,
-    });
+    };
+
+    // Add shared users if folder type is shared
+    if (selectedType === "shared" && selectedUsers.length > 0) {
+      folderData.shared_users = selectedUsers.map((user) => user.id);
+    }
+
+    const createFolderFunction = await createFolder(folderData);
 
     const response = await createFolderFunction.json();
 
@@ -66,6 +75,7 @@ function ModalCreateFolder({ isOpen, onClose }) {
     setFolderDescription("");
     setSelectedType("");
     setFolderColor("#F2D543");
+    setSelectedUsers([]);
     onClose();
   }
 
@@ -74,6 +84,7 @@ function ModalCreateFolder({ isOpen, onClose }) {
     setFolderDescription("");
     setSelectedType("");
     setFolderColor("#F2D543");
+    setSelectedUsers([]);
     onClose();
   };
 
@@ -195,6 +206,16 @@ function ModalCreateFolder({ isOpen, onClose }) {
               </div>
             </div>
           </div>
+
+          {/* User Sharing - Only show when shared type is selected */}
+          {selectedType === "shared" && (
+            <div className="mb-8">
+              <UserSearchComponent
+                selectedUsers={selectedUsers}
+                onUsersChange={setSelectedUsers}
+              />
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-3 justify-end pt-4 ">

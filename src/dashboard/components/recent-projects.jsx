@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MoreHorizontal, Edit, Eye, Trash2, Film } from "lucide-react";
 import { Link } from "react-router-dom";
+import PostModal from "../../discover/components/post-modal";
 
 function RecentProjects({
   recentsProjects,
@@ -10,6 +11,8 @@ function RecentProjects({
 }) {
   const [hoveredProject, setHoveredProject] = useState(null);
   const [showMenu, setShowMenu] = useState(null);
+  const [selectedPostId, setSelectedPostId] = useState(null);
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
 
   const handleEditClick = (project) => {
     setShowMenu(null);
@@ -25,11 +28,17 @@ function RecentProjects({
     }
   };
 
-  const handleDoubleClick = (project) => {
-    // Solo abrir el modal si el proyecto tiene video
-    if (project.video_url && onPreviewVideo) {
-      onPreviewVideo(project);
+  const handleProjectClick = (project) => {
+    // Si el proyecto tiene video, abrir el post-card modal
+    if (project.video_url) {
+      setSelectedPostId(project.id);
+      setIsPostModalOpen(true);
     }
+  };
+
+  const handleClosePostModal = () => {
+    setIsPostModalOpen(false);
+    setSelectedPostId(null);
   };
 
   return (
@@ -48,7 +57,7 @@ function RecentProjects({
             {/* Video Preview Card */}
             <div
               className="relative rounded-lg overflow-hidden group cursor-pointer"
-              onDoubleClick={() => handleDoubleClick(project)}
+              onClick={() => handleProjectClick(project)}
             >
               {/* Video Preview */}
               <div className="relative h-40 flex items-center justify-center">
@@ -122,6 +131,13 @@ function RecentProjects({
           </div>
         ))}
       </div>
+
+      {/* Post Modal */}
+      <PostModal
+        isOpen={isPostModalOpen}
+        onClose={handleClosePostModal}
+        postId={selectedPostId}
+      />
     </div>
   );
 }

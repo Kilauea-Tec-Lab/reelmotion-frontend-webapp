@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   MoreHorizontal,
   Edit,
@@ -12,6 +12,7 @@ import ModalEditFolder from "../../create_elements/modal-edit-folder";
 import ModalDeleteFolder from "../../create_elements/modal-delete-folder";
 import ModalEditProject from "../../create_elements/modal-edit-project";
 import ModalDeleteProject from "../../create_elements/modal-delete-project";
+import PostModal from "../../discover/components/post-modal";
 import { destroyFolder, destroyProject } from "../../create_elements/functions";
 import { Link } from "react-router-dom";
 
@@ -25,6 +26,8 @@ function CarrouselFolders({ folder, folders }) {
   const [showEditProjectModal, setShowEditProjectModal] = useState(false);
   const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedPostId, setSelectedPostId] = useState(null);
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
 
   const handleEditFolder = () => {
     setShowEditModal(true);
@@ -46,6 +49,33 @@ function CarrouselFolders({ folder, folders }) {
     setSelectedProject(project);
     setShowDeleteProjectModal(true);
     setShowMenu(null);
+  };
+
+  const handleProjectClick = (project) => {
+    // Si el proyecto tiene video, abrir el post-card modal
+    if (project.video_url) {
+      setSelectedPostId(project.id);
+      setIsPostModalOpen(true);
+    }
+  };
+
+  const handleClosePostModal = () => {
+    setIsPostModalOpen(false);
+    setSelectedPostId(null);
+  };
+
+  const handleVideoHover = (videoElement, shouldPlay) => {
+    if (videoElement) {
+      if (shouldPlay) {
+        videoElement.currentTime = 0;
+        videoElement.play().catch(() => {
+          // Si no se puede reproducir automáticamente, seguir con muted
+        });
+      } else {
+        videoElement.pause();
+        videoElement.currentTime = 0;
+      }
+    }
   };
 
   async function handleConfirmDelete(folderToDelete) {
@@ -127,14 +157,32 @@ function CarrouselFolders({ folder, folders }) {
             }}
           >
             {/* Video Preview Card - 3/5 del tamaño original */}
-            <div className="relative rounded-lg overflow-hidden group pt-4">
+            <div
+              className="relative rounded-lg overflow-hidden group pt-4 cursor-pointer"
+              onClick={() => handleProjectClick(project)}
+            >
               {/* Video Preview */}
-              <div className="relative h-24 flex items-center justify-center">
+              <div
+                className="relative h-24 flex items-center justify-center"
+                onMouseEnter={(e) => {
+                  const video = e.currentTarget.querySelector("video");
+                  if (video && project.video_url) {
+                    handleVideoHover(video, true);
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  const video = e.currentTarget.querySelector("video");
+                  if (video && project.video_url) {
+                    handleVideoHover(video, false);
+                  }
+                }}
+              >
                 {project.video_url ? (
                   <video
                     src={project.video_url}
                     className="w-full h-full object-cover rounded-3xl"
                     muted
+                    loop
                     preload="metadata"
                   />
                 ) : (
@@ -229,6 +277,13 @@ function CarrouselFolders({ folder, folders }) {
         onClose={() => setShowDeleteProjectModal(false)}
         project={selectedProject}
         onConfirm={handleConfirmDeleteProject}
+      />
+
+      {/* Post Modal */}
+      <PostModal
+        isOpen={isPostModalOpen}
+        onClose={handleClosePostModal}
+        postId={selectedPostId}
       />
     </div>
   );
