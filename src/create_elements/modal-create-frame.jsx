@@ -1,0 +1,1129 @@
+import { useState } from "react";
+import {
+  X,
+  Users,
+  MapPin,
+  Upload,
+  Image as ImageIcon,
+  Sparkles,
+  FileVideo,
+  Layers,
+} from "lucide-react";
+import Cookies from "js-cookie";
+
+function ModalCreateFrame({
+  isOpen,
+  onClose,
+  projectId,
+  spots,
+  characters,
+  existingFrames,
+  onFrameCreated,
+}) {
+  const [frameName, setFrameName] = useState("");
+  const [frameDescription, setFrameDescription] = useState("");
+  const [creationMode, setCreationMode] = useState(""); // "upload", "existing", "ai"
+
+  // Estados para modo AI
+  const [selectedCharacters, setSelectedCharacters] = useState([]);
+  const [selectedSpot, setSelectedSpot] = useState("");
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [selectedImageStyle, setSelectedImageStyle] = useState("");
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
+  const [imageGenerationError, setImageGenerationError] = useState(null);
+
+  // Estados para modo upload
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploadPreview, setUploadPreview] = useState(null);
+
+  // Estados para modo existing frame
+  const [selectedExistingFrame, setSelectedExistingFrame] = useState("");
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [selectedExistingImageStyle, setSelectedExistingImageStyle] =
+    useState("");
+  const [isGeneratingFromExisting, setIsGeneratingFromExisting] =
+    useState(false);
+  const [existingGeneratedImageUrl, setExistingGeneratedImageUrl] =
+    useState(null);
+  const [existingImageGenerationError, setExistingImageGenerationError] =
+    useState(null);
+
+  // Estado para el botón de submit
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Estilos de imagen disponibles
+  const imageStyles = [
+    {
+      id: "hyper-realism",
+      name: "Hyper-realism",
+      prompt: `Hyper-realistic 8K image with ultra-realistic textures. The result must exactly match the provided reference images without alterations.`,
+    },
+    {
+      id: "cartoon",
+      name: "Cartoon",
+      prompt: `Cartoon style, colorful and playful. The result must exactly match the provided reference images without alterations.`,
+    },
+    {
+      id: "anime",
+      name: "Anime",
+      prompt: `Anime style, manga-inspired. The result must exactly match the provided reference images without alterations while drawn in detailed anime art.`,
+    },
+    {
+      id: "oil-painting",
+      name: "Oil Painting",
+      prompt: `Oil painting style with classic brushstrokes. The result must exactly match the provided reference images without alterations while painted as an oil portrait.`,
+    },
+    {
+      id: "watercolor",
+      name: "Watercolor",
+      prompt: `Watercolor painting style with soft colors. The result must exactly match the provided reference images without alterations while expressed in watercolor textures.`,
+    },
+    {
+      id: "comic-book",
+      name: "Comic Book",
+      prompt: `Comic book style with bold lines and dynamic look. The result must exactly match the provided reference images without alterations while illustrated as a comic panel.`,
+    },
+    {
+      id: "fantasy",
+      name: "Fantasy Art",
+      prompt: `Fantasy art style, magical and ethereal. The result must exactly match the provided reference images without alterations while placed in a fantasy setting.`,
+    },
+    {
+      id: "cyberpunk",
+      name: "Cyberpunk",
+      prompt: `Cyberpunk style with neon lights and futuristic details. The result must exactly match the provided reference images without alterations while set in a sci-fi cityscape.`,
+    },
+  ];
+
+  const handleClose = () => {
+    setFrameName("");
+    setFrameDescription("");
+    setCreationMode("");
+    setSelectedCharacters([]);
+    setSelectedSpot("");
+    setImagePrompt("");
+    setSelectedImageStyle("");
+    setIsGeneratingImage(false);
+    setGeneratedImageUrl(null);
+    setImageGenerationError(null);
+    setUploadedFile(null);
+    setUploadPreview(null);
+    setSelectedExistingFrame("");
+    setCustomPrompt("");
+    setSelectedExistingImageStyle("");
+    setIsGeneratingFromExisting(false);
+    setExistingGeneratedImageUrl(null);
+    setExistingImageGenerationError(null);
+    setIsSubmitting(false);
+    onClose();
+  };
+
+  const handleCharacterToggle = (characterId) => {
+    setSelectedCharacters((prev) => {
+      if (prev.includes(characterId)) {
+        return prev.filter((id) => id !== characterId);
+      } else {
+        return [...prev, characterId];
+      }
+    });
+  };
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setUploadedFile(file);
+
+      // Crear preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setUploadPreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const createFinalPrompt = () => {
+    const basePrompt = imagePrompt.trim();
+    const stylePrompt = selectedImageStyle
+      ? imageStyles?.find((style) => style.id === selectedImageStyle)?.prompt ||
+        ""
+      : "";
+    return basePrompt + ". The style is: " + stylePrompt;
+  };
+
+  const handleGenerateImage = async () => {
+    if ((!selectedCharacters.length && !selectedSpot) || !imagePrompt.trim())
+      return;
+
+    setIsGeneratingImage(true);
+    setImageGenerationError(null);
+
+    try {
+      const finalPrompt = createFinalPrompt();
+      const payload = {
+        prompt: finalPrompt,
+        characters: selectedCharacters,
+        spot: selectedSpot,
+        project_id: projectId,
+      };
+
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}ai/create-scene-image`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const responseData = await response.json();
+
+      if (
+        responseData &&
+        responseData.success &&
+        responseData.data &&
+        responseData.data.image_base64
+      ) {
+        const base64Image = `data:image/jpeg;base64,${responseData.data.image_base64}`;
+        setGeneratedImageUrl(base64Image);
+        setImageGenerationError(null);
+      } else {
+        let errorMessage = "Error generating image. Please try again.";
+        if (responseData && responseData.message) {
+          const message = responseData.message;
+          if (
+            message.includes("moderation_blocked") ||
+            message.includes("safety system")
+          ) {
+            errorMessage =
+              "Your content was blocked by the AI safety system. Please try rephrasing your description with different words or avoid potentially sensitive content.";
+          } else if (message.includes("rate_limit")) {
+            errorMessage =
+              "Rate limit exceeded. Please wait a moment and try again.";
+          } else if (
+            message.includes("insufficient_quota") ||
+            message.includes("billing")
+          ) {
+            errorMessage =
+              "Service temporarily unavailable. Please try again later.";
+          } else {
+            errorMessage = `Generation failed: ${message.split("\n")[0]}`;
+          }
+        }
+        setImageGenerationError(errorMessage);
+      }
+    } catch (error) {
+      console.error("Error generating image:", error);
+      setImageGenerationError(
+        "Network error. Please check your connection and try again."
+      );
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+
+  const handleGenerateFromExisting = async () => {
+    if (!selectedExistingFrame || !customPrompt.trim()) return;
+
+    setIsGeneratingFromExisting(true);
+    setExistingImageGenerationError(null);
+
+    try {
+      const selectedFrameData = existingFrames.find(
+        (frame) => frame.id.toString() === selectedExistingFrame
+      );
+
+      const stylePrompt = selectedExistingImageStyle
+        ? imageStyles?.find((style) => style.id === selectedExistingImageStyle)
+            ?.prompt || ""
+        : "";
+
+      const finalPrompt =
+        customPrompt.trim() +
+        (stylePrompt ? ". The style is: " + stylePrompt : "");
+
+      const payload = {
+        prompt: finalPrompt,
+        image_url: selectedFrameData?.media_url,
+      };
+
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}ai/create-scene-by-image`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const responseData = await response.json();
+
+      if (
+        responseData &&
+        responseData.success &&
+        responseData.data &&
+        responseData.data.image_base64
+      ) {
+        const base64Image = `data:image/jpeg;base64,${responseData.data.image_base64}`;
+        setExistingGeneratedImageUrl(base64Image);
+        setExistingImageGenerationError(null);
+      } else {
+        let errorMessage = "Error generating image. Please try again.";
+        if (responseData && responseData.message) {
+          const message = responseData.message;
+          if (
+            message.includes("moderation_blocked") ||
+            message.includes("safety system")
+          ) {
+            errorMessage =
+              "Your content was blocked by the AI safety system. Please try rephrasing your description with different words or avoid potentially sensitive content.";
+          } else if (message.includes("rate_limit")) {
+            errorMessage =
+              "Rate limit exceeded. Please wait a moment and try again.";
+          } else if (
+            message.includes("insufficient_quota") ||
+            message.includes("billing")
+          ) {
+            errorMessage =
+              "Service temporarily unavailable. Please try again later.";
+          } else {
+            errorMessage = `Generation failed: ${message.split("\n")[0]}`;
+          }
+        }
+        setExistingImageGenerationError(errorMessage);
+      }
+    } catch (error) {
+      console.error("Error generating image from existing frame:", error);
+      setExistingImageGenerationError(
+        "Network error. Please check your connection and try again."
+      );
+    } finally {
+      setIsGeneratingFromExisting(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!frameName.trim() || !frameDescription.trim() || !creationMode) return;
+
+    setIsSubmitting(true);
+
+    let frameData = {
+      name: frameName,
+      description: frameDescription,
+      project_id: projectId,
+      creation_mode: creationMode,
+    };
+
+    // Agregar datos específicos según el modo
+    if (creationMode === "ai" && generatedImageUrl) {
+      frameData.image_base64 = generatedImageUrl.replace(
+        "data:image/jpeg;base64,",
+        ""
+      );
+      frameData.characters = selectedCharacters;
+      frameData.spot = selectedSpot;
+      frameData.prompt = imagePrompt;
+      frameData.media_type = "image"; // AI siempre genera imágenes
+    } else if (creationMode === "upload" && uploadedFile) {
+      // Determinar el tipo de media basado en el archivo
+      let mediaType = "image"; // default
+      if (uploadedFile.type.startsWith("video/")) {
+        mediaType = "video";
+      } else if (uploadedFile.type.startsWith("image/")) {
+        mediaType = "image";
+      }
+
+      frameData.media_type = mediaType;
+
+      // Convertir archivo a base64
+      const reader = new FileReader();
+      reader.onload = async () => {
+        frameData.image_base64 = reader.result.split(",")[1]; // Remover prefijo
+        await submitFrame(frameData);
+      };
+      reader.readAsDataURL(uploadedFile);
+      return;
+    } else if (creationMode === "existing" && selectedExistingFrame) {
+      if (existingGeneratedImageUrl) {
+        // Si se generó una nueva imagen con IA, usar esa
+        frameData.image_base64 = existingGeneratedImageUrl.replace(
+          "data:image/jpeg;base64,",
+          ""
+        );
+        frameData.source_frame_id = selectedExistingFrame;
+        frameData.custom_prompt = customPrompt;
+        frameData.media_type = "image"; // IA siempre genera imágenes
+      } else {
+        // Si no se generó nueva imagen, solo referenciar el frame existente
+        frameData.source_frame_id = selectedExistingFrame;
+        frameData.custom_prompt = customPrompt;
+        frameData.media_type = "iframe"; // Reutilización de frame existente
+      }
+    }
+
+    await submitFrame(frameData);
+  };
+
+  const submitFrame = async (frameData) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}projects/create-frame`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: JSON.stringify(frameData),
+        }
+      );
+
+      const responseData = await response.json();
+
+      if (response.ok && responseData.success) {
+        if (onFrameCreated) {
+          onFrameCreated(responseData.data);
+        }
+        handleClose();
+      } else {
+        console.error("Error creating frame:", responseData);
+      }
+    } catch (error) {
+      console.error("Error creating frame:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const selectedCharacterNames = characters
+    .filter((char) => selectedCharacters.includes(char.id))
+    .map((char) => char.name)
+    .join(", ");
+
+  const selectedSpotData = spots.find(
+    (spot) => spot.id.toString() === selectedSpot
+  );
+
+  return (
+    <div className="fixed inset-0 bg-[#00000091] bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-darkBox rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6">
+          <h2 className="text-xl font-semibold text-white montserrat-medium">
+            Create Key Frame
+          </h2>
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-700"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6">
+          {/* Creation Mode Selection */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-white mb-4 montserrat-regular">
+              How do you want to create the frame? *
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Upload Frame */}
+              <div
+                onClick={() => setCreationMode("upload")}
+                className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  creationMode === "upload"
+                    ? "border-[#F2D543] bg-[#F2D54315]"
+                    : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
+                }`}
+              >
+                <div className="flex flex-col items-center gap-3">
+                  <div
+                    className={`p-3 rounded-lg ${
+                      creationMode === "upload"
+                        ? "bg-[#F2D543] text-primarioDark"
+                        : "bg-gray-700 text-gray-300"
+                    }`}
+                  >
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <div className="text-center">
+                    <h3 className="font-medium text-white montserrat-medium text-sm">
+                      Upload Frame
+                    </h3>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Upload a photo or video
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Use Existing Frame */}
+              <div
+                onClick={() => setCreationMode("existing")}
+                className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  creationMode === "existing"
+                    ? "border-[#F2D543] bg-[#F2D54315]"
+                    : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
+                }`}
+              >
+                <div className="flex flex-col items-center gap-3">
+                  <div
+                    className={`p-3 rounded-lg ${
+                      creationMode === "existing"
+                        ? "bg-[#F2D543] text-primarioDark"
+                        : "bg-gray-700 text-gray-300"
+                    }`}
+                  >
+                    <Layers className="w-6 h-6" />
+                  </div>
+                  <div className="text-center">
+                    <h3 className="font-medium text-white montserrat-medium text-sm">
+                      Use Another Frame
+                    </h3>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Select and modify existing frame
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Create with AI */}
+              <div
+                onClick={() => setCreationMode("ai")}
+                className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  creationMode === "ai"
+                    ? "border-[#F2D543] bg-[#F2D54315]"
+                    : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
+                }`}
+              >
+                <div className="flex flex-col items-center gap-3">
+                  <div
+                    className={`p-3 rounded-lg ${
+                      creationMode === "ai"
+                        ? "bg-[#F2D543] text-primarioDark"
+                        : "bg-gray-700 text-gray-300"
+                    }`}
+                  >
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <div className="text-center">
+                    <h3 className="font-medium text-white montserrat-medium text-sm">
+                      Create with AI
+                    </h3>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Generate with AI assistance
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Upload Mode Content */}
+          {creationMode === "upload" && (
+            <div className="mb-6 p-4 bg-darkBoxSub rounded-lg border border-gray-600">
+              <div className="flex items-center gap-2 mb-4">
+                <Upload className="w-4 h-4 text-[#F2D543]" />
+                <h3 className="text-white montserrat-medium text-sm">
+                  Upload Your Frame
+                </h3>
+              </div>
+
+              <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="cursor-pointer flex flex-col items-center gap-3"
+                >
+                  <FileVideo className="w-12 h-12 text-gray-400" />
+                  <div>
+                    <p className="text-white montserrat-medium">
+                      Click to upload or drag and drop
+                    </p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      PNG, JPG, GIF, MP4 up to 10MB
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {uploadPreview && (
+                <div className="mt-4">
+                  <p className="text-white montserrat-medium text-sm mb-2">
+                    Preview:
+                  </p>
+                  {uploadedFile?.type?.startsWith("video/") ? (
+                    <video
+                      src={uploadPreview}
+                      controls
+                      className="w-full max-h-64 rounded-lg bg-black"
+                    />
+                  ) : (
+                    <img
+                      src={uploadPreview}
+                      alt="Upload preview"
+                      className="w-full max-h-64 object-contain rounded-lg bg-black"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Existing Frame Mode Content */}
+          {creationMode === "existing" && (
+            <div className="mb-6 p-4 bg-darkBoxSub rounded-lg border border-gray-600">
+              <div className="flex items-center gap-2 mb-4">
+                <Layers className="w-4 h-4 text-[#F2D543]" />
+                <h3 className="text-white montserrat-medium text-sm">
+                  Select Existing Frame
+                </h3>
+              </div>
+
+              {existingFrames && existingFrames.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                    {existingFrames.map((frame) => (
+                      <div
+                        key={frame.id}
+                        onClick={() =>
+                          setSelectedExistingFrame(frame.id.toString())
+                        }
+                        className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                          selectedExistingFrame === frame.id.toString()
+                            ? "border-[#F2D543] bg-[#F2D54315]"
+                            : "border-gray-600 hover:border-gray-500 hover:bg-darkBox"
+                        }`}
+                      >
+                        <div className="aspect-video bg-gray-800 rounded mb-2 flex items-center justify-center overflow-hidden">
+                          {frame.media_url || frame.image_url ? (
+                            frame?.media_type === "video" ||
+                            frame?.type === "video" ? (
+                              <video
+                                src={frame.media_url || frame.image_url}
+                                className="w-full h-full object-cover rounded"
+                                muted
+                                loop
+                                preload="metadata"
+                              />
+                            ) : (
+                              <img
+                                src={frame.media_url || frame.image_url}
+                                alt={frame.name}
+                                className="w-full h-full object-cover rounded"
+                              />
+                            )
+                          ) : (
+                            <ImageIcon className="w-6 h-6 text-gray-400" />
+                          )}
+                        </div>
+                        <p className="text-white text-xs montserrat-medium truncate">
+                          {frame.name}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+                      Custom Prompt (Optional)
+                    </label>
+                    <textarea
+                      value={customPrompt}
+                      onChange={(e) => {
+                        setCustomPrompt(e.target.value);
+                        if (existingImageGenerationError) {
+                          setExistingImageGenerationError(null);
+                        }
+                      }}
+                      placeholder="Add modifications or new prompt for this frame..."
+                      rows={3}
+                      className="w-full px-4 py-3 bg-darkBox rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular resize-none"
+                    />
+                  </div>
+
+                  {/* AI Enhancement Section - Only show if frame is selected and prompt is provided */}
+                  {selectedExistingFrame && customPrompt.trim() && (
+                    <div className="mt-6 p-4 bg-darkBox rounded-lg border border-gray-600">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Sparkles className="w-4 h-4 text-[#F2D543]" />
+                        <h3 className="text-white montserrat-medium text-sm">
+                          AI Enhancement (Optional)
+                        </h3>
+                      </div>
+
+                      {!existingGeneratedImageUrl && (
+                        <>
+                          {/* Style Selection for Existing Frame */}
+                          <div className="mb-4">
+                            <label className="block text-sm font-medium text-white mb-3 montserrat-regular">
+                              Select Style (Optional)
+                            </label>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                              {imageStyles.map((style) => (
+                                <button
+                                  key={style.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedExistingImageStyle(
+                                      style.id === selectedExistingImageStyle
+                                        ? ""
+                                        : style.id
+                                    )
+                                  }
+                                  className={`p-2 border rounded-lg text-xs transition-all ${
+                                    selectedExistingImageStyle === style.id
+                                      ? "border-[#F2D543] bg-[#F2D54315] text-[#F2D543]"
+                                      : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub text-gray-300"
+                                  }`}
+                                >
+                                  {style.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Generate Enhanced Frame Button */}
+                          <button
+                            type="button"
+                            onClick={handleGenerateFromExisting}
+                            disabled={isGeneratingFromExisting}
+                            className={`w-full px-4 py-3 rounded-lg transition-all duration-300 font-medium montserrat-medium flex items-center justify-center gap-2 ${
+                              isGeneratingFromExisting
+                                ? "bg-purple-600 text-white animate-pulse cursor-not-allowed"
+                                : "bg-purple-600 text-white hover:bg-purple-700"
+                            }`}
+                          >
+                            {isGeneratingFromExisting ? (
+                              <>
+                                <div className="relative">
+                                  <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                                <span className="animate-pulse">
+                                  Generating enhanced frame...
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-4 h-4" />
+                                Generate Enhanced Frame
+                              </>
+                            )}
+                          </button>
+
+                          {/* Error Message for Enhancement */}
+                          {existingImageGenerationError && (
+                            <div className="mt-3 p-3 bg-red-900 bg-opacity-20 border border-red-600 rounded-lg">
+                              <p className="text-red-400 text-sm montserrat-regular">
+                                {existingImageGenerationError}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {/* Enhanced Image Preview */}
+                      {existingGeneratedImageUrl && (
+                        <div className="mt-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-white montserrat-medium text-sm">
+                              Enhanced Frame
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setExistingGeneratedImageUrl(null);
+                                setExistingImageGenerationError(null);
+                              }}
+                              className="text-red-400 hover:text-red-300 text-sm montserrat-regular"
+                            >
+                              Discard & Use Original
+                            </button>
+                          </div>
+                          <img
+                            src={existingGeneratedImageUrl}
+                            alt="Enhanced frame"
+                            className="w-full max-h-64 object-contain rounded-lg bg-black"
+                          />
+                          <p className="mt-2 text-green-400 text-sm montserrat-regular">
+                            ✓ Frame enhanced successfully!
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-6">
+                  <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-400 montserrat-regular">
+                    No existing frames found in this project
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* AI Mode Content */}
+          {creationMode === "ai" && (
+            <>
+              {/* Character Selection */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+                  Select Characters (Optional)
+                </label>
+                <p className="text-xs text-gray-400 mb-4 montserrat-regular">
+                  You can select characters only, spot only, or both for
+                  keyframe generation
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {characters.map((character) => (
+                    <div
+                      key={character.id}
+                      onClick={() => handleCharacterToggle(character.id)}
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        selectedCharacters.includes(character.id)
+                          ? "border-[#F2D543] bg-[#F2D54315]"
+                          : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`p-2 rounded-lg ${
+                            selectedCharacters.includes(character.id)
+                              ? "bg-[#F2D543] text-primarioDark"
+                              : "bg-gray-700 text-gray-300"
+                          }`}
+                        >
+                          <Users className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-white montserrat-medium text-sm">
+                            {character.name}
+                          </h3>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {selectedCharacters.length > 0 && (
+                  <p className="mt-2 text-sm text-[#F2D543] montserrat-regular">
+                    Selected: {selectedCharacterNames}
+                  </p>
+                )}
+              </div>
+
+              {/* Spot Selection */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-white mb-4 montserrat-regular">
+                  Select Spot/Location (Optional)
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {spots.map((spot) => (
+                    <div
+                      key={spot.id}
+                      onClick={() => setSelectedSpot(spot.id.toString())}
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        selectedSpot === spot.id.toString()
+                          ? "border-[#F2D543] bg-[#F2D54315]"
+                          : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`p-2 rounded-lg ${
+                            selectedSpot === spot.id.toString()
+                              ? "bg-[#F2D543] text-primarioDark"
+                              : "bg-gray-700 text-gray-300"
+                          }`}
+                        >
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-white montserrat-medium text-sm">
+                            {spot.name}
+                          </h3>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Step 1: Image Generation Section */}
+              <div className="mb-6 p-4 bg-darkBoxSub rounded-lg border border-gray-600">
+                <div className="flex items-center gap-2 mb-4">
+                  <ImageIcon className="w-4 h-4 text-[#F2D543]" />
+                  <h3 className="text-white montserrat-medium text-sm">
+                    Step 1: Generate Key Frame
+                  </h3>
+                </div>
+
+                {/* Image Style Selection */}
+                {!generatedImageUrl && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-white mb-3 montserrat-regular">
+                      Select Image Style
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {imageStyles.map((style) => (
+                        <button
+                          key={style.id}
+                          type="button"
+                          onClick={() =>
+                            setSelectedImageStyle(
+                              style.id === selectedImageStyle ? "" : style.id
+                            )
+                          }
+                          className={`p-2 border rounded-lg text-xs transition-all ${
+                            selectedImageStyle === style.id
+                              ? "border-[#F2D543] bg-[#F2D54315] text-[#F2D543]"
+                              : "border-gray-600 hover:border-gray-500 hover:bg-darkBox text-gray-300"
+                          }`}
+                        >
+                          {style.name}
+                        </button>
+                      ))}
+                    </div>
+                    {selectedImageStyle && (
+                      <p className="mt-2 text-xs text-[#F2D543] montserrat-regular">
+                        Style selected:{" "}
+                        {
+                          imageStyles.find((s) => s.id === selectedImageStyle)
+                            ?.name
+                        }
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Image Prompt */}
+                {!generatedImageUrl && (
+                  <>
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+                        Key Frame Description *
+                      </label>
+                      <textarea
+                        value={imagePrompt}
+                        onChange={(e) => {
+                          setImagePrompt(e.target.value);
+                          if (imageGenerationError) {
+                            setImageGenerationError(null);
+                          }
+                        }}
+                        placeholder="Describe the main frame/scene you want to generate... (e.g., A knight and sorceress facing each other in a moonlit castle courtyard)"
+                        rows={3}
+                        className="w-full px-4 py-3 bg-darkBox rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular resize-none"
+                        required
+                      />
+                    </div>
+
+                    {/* Generate Image Button */}
+                    <div className="mb-4">
+                      <button
+                        type="button"
+                        onClick={handleGenerateImage}
+                        disabled={
+                          (!selectedCharacters.length && !selectedSpot) ||
+                          !imagePrompt.trim() ||
+                          isGeneratingImage
+                        }
+                        className={`w-full px-4 py-3 rounded-lg transition-all duration-300 font-medium montserrat-medium flex items-center justify-center gap-2 ${
+                          isGeneratingImage
+                            ? "bg-blue-600 text-white animate-pulse cursor-not-allowed"
+                            : "bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+                        }`}
+                      >
+                        {isGeneratingImage ? (
+                          <>
+                            <div className="relative">
+                              <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                            <span className="animate-pulse">
+                              Generating key frame...
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4" />
+                            Generate Key Frame
+                          </>
+                        )}
+                      </button>
+
+                      {/* Error Message for Image Generation */}
+                      {imageGenerationError && (
+                        <div className="mt-3 p-3 bg-red-900 bg-opacity-20 border border-red-600 rounded-lg">
+                          <p className="text-red-400 text-sm montserrat-regular">
+                            {imageGenerationError}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* Generating Image State */}
+                {isGeneratingImage && !generatedImageUrl && (
+                  <div className="text-center py-8 space-y-4">
+                    <div className="flex justify-center">
+                      <div className="relative">
+                        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <div
+                          className="absolute inset-2 w-12 h-12 border-4 border-transparent border-r-blue-500 rounded-full animate-spin"
+                          style={{ animationDelay: "0.2s" }}
+                        ></div>
+                        <div
+                          className="absolute inset-4 w-8 h-8 border-4 border-blue-500 border-b-transparent rounded-full animate-spin"
+                          style={{ animationDelay: "0.4s" }}
+                        ></div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-white text-lg font-medium montserrat-medium animate-pulse">
+                        Creating key frame...
+                      </h3>
+                      <p className="text-gray-400 text-sm montserrat-regular">
+                        Please wait while AI generates your scene image
+                      </p>
+                      <div className="flex justify-center space-x-1 mt-4">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                        <div
+                          className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                          style={{ animationDelay: "0.1s" }}
+                        ></div>
+                        <div
+                          className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                          style={{ animationDelay: "0.2s" }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Generated Image Preview */}
+                {generatedImageUrl && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white montserrat-medium text-sm">
+                        Generated Key Frame
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGeneratedImageUrl(null);
+                          setImageGenerationError(null);
+                        }}
+                        className="text-red-400 hover:text-red-300 text-sm montserrat-regular"
+                      >
+                        Discard & Generate New
+                      </button>
+                    </div>
+                    <img
+                      src={generatedImageUrl}
+                      alt="Generated frame"
+                      className="w-full max-h-64 object-contain rounded-lg bg-black"
+                    />
+                    <div className="mt-4 flex flex-col gap-3">
+                      <p className="text-green-400 text-sm montserrat-regular">
+                        ✓ Key frame generated successfully!
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Frame Name */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+              Frame Name *
+            </label>
+            <input
+              type="text"
+              value={frameName}
+              onChange={(e) => setFrameName(e.target.value)}
+              placeholder="Enter frame name..."
+              className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
+              required
+            />
+          </div>
+
+          {/* Frame Description */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+              Frame Description *
+            </label>
+            <textarea
+              value={frameDescription}
+              onChange={(e) => setFrameDescription(e.target.value)}
+              placeholder="Describe this frame and its purpose..."
+              rows={3}
+              className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular resize-none"
+              required
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 justify-end pt-4">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 hover:text-white transition-colors montserrat-regular"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={
+                !frameName.trim() ||
+                !frameDescription.trim() ||
+                !creationMode ||
+                (creationMode === "ai" && !generatedImageUrl) ||
+                (creationMode === "upload" && !uploadedFile) ||
+                (creationMode === "existing" && !selectedExistingFrame) ||
+                isSubmitting
+              }
+              className={`px-6 py-2 rounded-lg transition-all duration-300 font-medium montserrat-medium flex items-center justify-center gap-2 min-w-[140px] ${
+                isSubmitting
+                  ? "bg-green-600 text-white animate-pulse cursor-not-allowed"
+                  : "bg-[#F2D543] text-primarioDark hover:bg-[#f2f243] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543]"
+              }`}
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="relative">
+                    <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                  <span className="animate-pulse">Creating...</span>
+                </>
+              ) : (
+                "Create Frame"
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default ModalCreateFrame;

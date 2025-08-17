@@ -596,6 +596,15 @@ function ModalCreateCharacter({
                     />
                   </div>
 
+                  {/* Message when button is disabled */}
+                  {!aiPrompt.trim() && !isGenerating && (
+                    <div className="p-1">
+                      <p className="text-yellow-400 text-sm montserrat-regular text-center">
+                        Please enter a description to generate your character
+                      </p>
+                    </div>
+                  )}
+
                   {/* Generate Button */}
                   <button
                     type="button"

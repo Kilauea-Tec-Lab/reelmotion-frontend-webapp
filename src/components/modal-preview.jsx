@@ -87,7 +87,7 @@ function ModalPreview({ isOpen, onClose, type, data }) {
         return (
           <div className="w-full h-full flex items-center justify-center">
             <img
-              src={data.image_url}
+              src={data.image_url || data.media_url}
               alt={data.name}
               className="max-w-full max-h-full object-contain rounded-lg"
             />
@@ -100,7 +100,7 @@ function ModalPreview({ isOpen, onClose, type, data }) {
             <div className="flex-1 flex items-center justify-center bg-black rounded-lg overflow-hidden">
               <video
                 ref={videoRef}
-                src={data.video_url}
+                src={data.video_url || data.media_url}
                 className="max-w-full max-h-full object-contain"
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleTimeUpdate}
