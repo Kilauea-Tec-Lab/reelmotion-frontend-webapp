@@ -395,7 +395,12 @@ function ModalCreateScene({
         } else if (aiModel === "runway-aleph") {
           // Para Aleph, si no hay prompt_image_url, usar la URL del video/frame original como fallback
           const selectedData = getSelectedData();
-          setPromptImageUrl(selectedData?.media_url || selectedData?.video_url || selectedData?.url || null);
+          setPromptImageUrl(
+            selectedData?.media_url ||
+              selectedData?.video_url ||
+              selectedData?.url ||
+              null
+          );
         }
         setVideoGenerationError(null); // Limpiar errores si la generación fue exitosa
       } else {

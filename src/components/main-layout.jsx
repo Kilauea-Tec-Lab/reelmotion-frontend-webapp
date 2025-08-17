@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Outlet, useLoaderData } from "react-router-dom";
 import MainTopMenu from "./main-top-menu";
 import MainSidebarMenu from "./main-sidebar-menu";
+import HelpButton from "./help-button";
 
 function MainLayout() {
   const loaderData = useLoaderData();
@@ -19,6 +20,9 @@ function MainLayout() {
       <main className="ml-64 pt-15 min-h-screen">
         <Outlet />
       </main>
+
+      {/* Help Button */}
+      <HelpButton />
     </div>
   );
 }

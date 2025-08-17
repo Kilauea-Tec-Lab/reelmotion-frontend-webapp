@@ -1,14 +1,21 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Bell, User, Search, LogOut, ChevronDown, Cog } from "lucide-react";
+import { Bell, User, Search, LogOut, ChevronDown, Cog, Play } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
+import { searchProjects } from "../create_elements/functions";
 
 function MainTopMenu({ user_info }) {
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const menuRef = useRef(null);
   const notificationsRef = useRef(null);
+  const searchRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
 
   // Mock notifications data - en producción vendría del backend
   const notifications = [];
@@ -27,16 +34,69 @@ function MainTopMenu({ user_info }) {
       ) {
         setShowNotifications(false);
       }
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowSearchResults(false);
+      }
     }
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Búsqueda de proyectos con debounce
+  useEffect(() => {
+    if (searchTerm.trim().length < 2) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Set new timeout for search
+    searchTimeoutRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const response = await searchProjects(searchTerm.trim());
+        
+        if (response.success && response.data && Array.isArray(response.data)) {
+          setSearchResults(response.data);
+          setShowSearchResults(response.data.length > 0);
+        } else {
+          setSearchResults([]);
+          setShowSearchResults(false);
+        }
+      } catch (error) {
+        console.error("Search error:", error);
+        setSearchResults([]);
+        setShowSearchResults(false);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500); // 500ms delay
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm]);
+
   function handleLogOut() {
     Cookies.remove("token");
     navigate("/login", { replace: true });
   }
+
+  const handleProjectSelect = (projectId) => {
+    // Abrir el visualizador de proyectos con el ID seleccionado
+    navigate(`/project/${projectId}`);
+    setSearchTerm("");
+    setSearchResults([]);
+    setShowSearchResults(false);
+  };
 
   return (
     <header className="bg-primarioDark h-15 pt-1 flex items-center justify-between px-6 fixed top-0 left-0 right-0 z-50  border-b pb-2 border-gray-800">
@@ -52,15 +112,73 @@ function MainTopMenu({ user_info }) {
       </div>
 
       {/* Barra de búsqueda central */}
-      <div className="flex-1 max-w-lg mx-8 bg-darkBoxSub rounded-lg">
+      <div className="flex-1 max-w-lg mx-8 bg-darkBoxSub rounded-lg relative" ref={searchRef}>
         <div className="relative">
           <input
             type="text"
-            placeholder="Search..."
-            className="w-full pl-10 pr-4 py-2 rounded-lg focus:ring-0 focus:outline-none text-[#808191] montserrat-medium wider"
+            placeholder="Search projects..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-lg focus:ring-0 focus:outline-none text-white bg-transparent montserrat-medium wider placeholder-[#808191]"
           />
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[#808191] h-4 w-4" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#808191] h-4 w-4" />
+          {isSearching && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="w-4 h-4 border-2 border-gray-400 border-t-[#F2D543] rounded-full animate-spin"></div>
+            </div>
+          )}
         </div>
+
+        {/* Search Results Dropdown */}
+        {showSearchResults && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-darkBoxSub rounded-lg shadow-xl border border-gray-600 max-h-96 overflow-y-auto z-50">
+            {searchResults.length > 0 ? (
+              <div className="p-2">
+                {searchResults.map((project) => (
+                  <button
+                    key={project.id}
+                    onClick={() => handleProjectSelect(project.id)}
+                    className="w-full flex items-center gap-3 px-3 py-3 text-white hover:bg-darkBox transition-colors text-left rounded-lg"
+                  >
+                    {/* Video thumbnail */}
+                    <div className="w-16 h-12 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center flex-shrink-0">
+                      {project.video_url ? (
+                        <video
+                          src={project.video_url}
+                          className="w-full h-full object-cover"
+                          muted
+                          playsInline
+                        />
+                      ) : (
+                        <Play size={20} className="text-gray-400" />
+                      )}
+                    </div>
+                    
+                    {/* Project info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white montserrat-medium truncate">
+                        {project.name}
+                      </p>
+                      <p className="text-xs text-gray-400 montserrat-light">
+                        Project ID: {project.id.slice(0, 8)}...
+                      </p>
+                    </div>
+                    
+                    {/* Arrow indicator */}
+                    <ChevronDown className="rotate-[-90deg] text-gray-400 w-4 h-4 flex-shrink-0" />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="px-4 py-3 text-gray-400 text-sm montserrat-light">
+                {searchTerm.trim().length < 2 
+                  ? "Type at least 2 characters to search" 
+                  : "No projects found"
+                }
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Controles del usuario */}

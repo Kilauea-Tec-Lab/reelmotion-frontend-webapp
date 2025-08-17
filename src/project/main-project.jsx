@@ -118,7 +118,7 @@ function MainProject() {
   };
 
   const handleProjectDeleted = (deletedProject) => {
-    navigate("/");
+    navigate("/projects");
   };
 
   const handleCreateCharacter = () => {

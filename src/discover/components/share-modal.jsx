@@ -6,16 +6,41 @@ import {
   Facebook,
   Twitter,
   Instagram,
-  Link,
+  Download,
 } from "lucide-react";
 
-function ShareModal({ post, onClose, showShare, isSameUser }) {
+function ShareModal({ post, onClose, showShare, isSameUser, videoUrl }) {
   const [copied, setCopied] = useState(false);
   const postUrl = `${window.location.origin}/discover/post/${post.id}`;
 
   const handleBackdropClick = (e) => {
     if (e.target === e.currentTarget) {
       onClose();
+    }
+  };
+
+  const downloadVideo = async () => {
+    if (!videoUrl) {
+      alert("No video available to download.");
+      return;
+    }
+
+    try {
+      const response = await fetch(videoUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `video-${post.id || "download"}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error downloading video:", err);
+      alert("Failed to download video. Please try again.");
     }
   };
 
@@ -45,12 +70,18 @@ function ShareModal({ post, onClose, showShare, isSameUser }) {
       icon: Instagram,
       color:
         "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600",
-      url: "#",
       onClick: () => {
         alert(
           "Instagram sharing is not available via web. Please use the Instagram mobile app to share this content."
         );
       },
+    },
+    {
+      name: "Download Video",
+      icon: Download,
+      color:
+        "bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600",
+      onClick: downloadVideo,
     },
   ];
 
@@ -61,7 +92,6 @@ function ShareModal({ post, onClose, showShare, isSameUser }) {
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error("Failed to copy:", error);
-      // Fallback for older browsers
       const textArea = document.createElement("textarea");
       textArea.value = postUrl;
       document.body.appendChild(textArea);
@@ -143,9 +173,7 @@ function ShareModal({ post, onClose, showShare, isSameUser }) {
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white transition-colors ${option.color}`}
               >
                 <option.icon size={20} />
-                <span className="montserrat-medium">
-                  Share on {option.name}
-                </span>
+                <span className="montserrat-medium">{option.name}</span>
               </button>
             ))}
           </div>

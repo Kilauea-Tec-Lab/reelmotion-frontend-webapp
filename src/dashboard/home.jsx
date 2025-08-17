@@ -111,16 +111,18 @@ function Home() {
           {/* Dropdown Menu */}
           {showCreateMenu && (
             <div className="absolute top-12 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[140px]">
-              <button
-                onClick={() => {
-                  setShowCreateMenu(false);
-                  setShowProjectModal(true);
-                }}
-                className="w-full flex gap-2 text-left px-4 py-3 text-sm montserrat-light text-white hover:bg-darkBox transition-colors rounded-t-lg"
-              >
-                <VideoIcon size={17} />
-                Project
-              </button>
+              {foldersData.length > 0 && (
+                <button
+                  onClick={() => {
+                    setShowCreateMenu(false);
+                    setShowProjectModal(true);
+                  }}
+                  className="w-full flex gap-2 text-left px-4 py-3 text-sm montserrat-light text-white hover:bg-darkBox transition-colors rounded-t-lg"
+                >
+                  <VideoIcon size={17} />
+                  Project
+                </button>
+              )}
               <button
                 onClick={() => {
                   setShowCreateMenu(false);
@@ -150,7 +152,6 @@ function Home() {
           recentsProjects={projectsData}
           onEditProject={handleEditProject}
           onDeleteProject={handleDeleteProject}
-          onPreviewVideo={handlePreviewVideo}
         />
       )}
       {/*Carrousel Folders */}

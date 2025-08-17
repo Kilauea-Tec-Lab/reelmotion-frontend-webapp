@@ -10,7 +10,7 @@ function ModalDeleteProject({ isOpen, onClose, project, onConfirm }) {
 
     onConfirm(project);
 
-    navigate("/");
+    navigate("/projects");
 
     onClose();
   }
