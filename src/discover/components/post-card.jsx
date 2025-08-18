@@ -20,7 +20,7 @@ import ShareModal from "./share-modal";
 import { createPusherClient } from "../../pusher";
 
 function PostCard({ post, onUpdate, public_post }) {
-  const [likesCount, setLikesCount] = useState(post.likes_count || 0);
+  const [likesCount, setLikesCount] = useState(post?.likes_count || 0);
   const [showComments, setShowComments] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [commentText, setCommentText] = useState("");
@@ -71,10 +71,10 @@ function PostCard({ post, onUpdate, public_post }) {
     const newLikedState = !postInfo?.own_like;
 
     try {
-      const response = await likePost(postInfo.id);
+      const response = await likePost(postInfo?.id);
 
       if (response.success) {
-        onUpdate(postInfo.id, {
+        onUpdate(postInfo?.id, {
           is_liked: newLikedState,
         });
       } else {
@@ -88,7 +88,7 @@ function PostCard({ post, onUpdate, public_post }) {
 
     setIsSubmittingComment(true);
     try {
-      const response = await addComment(postInfo.id, commentText.trim());
+      const response = await addComment(postInfo?.id, commentText?.trim());
       setCommentText("");
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -192,7 +192,7 @@ function PostCard({ post, onUpdate, public_post }) {
             {postInfo?.user?.profile_image ? (
               <img
                 src={postInfo?.user?.profile_image}
-                alt={postInfo.user.name}
+                alt={postInfo?.user.name}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -201,20 +201,20 @@ function PostCard({ post, onUpdate, public_post }) {
           </div>
           <div>
             <h3 className="text-white montserrat-medium text-sm">
-              {postInfo.user?.name || "Anonymous"}
+              {postInfo?.user?.name || "Anonymous"}
             </h3>
             <p className="text-gray-400 montserrat-light text-xs">
-              {formatDate(postInfo.updated_at)}
+              {formatDate(postInfo?.updated_at)}
             </p>
           </div>
         </div>
       </div>
 
       {/* Post Content */}
-      {postInfo.description && (
+      {postInfo?.description && (
         <div className="px-4 pb-3">
           <p className="text-white montserrat-regular text-sm leading-relaxed">
-            {postInfo.description}
+            {postInfo?.description}
           </p>
         </div>
       )}
@@ -227,7 +227,7 @@ function PostCard({ post, onUpdate, public_post }) {
       >
         <video
           ref={videoRef}
-          src={postInfo.video_url}
+          src={postInfo?.video_url}
           className={`w-full object-cover cursor-pointer transition-all duration-300 ${
             isVideoFullWidth ? "object-contain bg-black" : "object-cover"
           }`}
@@ -440,7 +440,7 @@ function PostCard({ post, onUpdate, public_post }) {
             />
             <button
               type="submit"
-              disabled={!commentText.trim() || isSubmittingComment}
+              disabled={!commentText?.trim() || isSubmittingComment}
               className="text-[#F2D543] hover:text-[#f2f243] disabled:text-gray-500 disabled:cursor-not-allowed transition-colors p-2"
             >
               <Send size={18} />
@@ -455,7 +455,7 @@ function PostCard({ post, onUpdate, public_post }) {
           <div className="mt-4">
             <CommentsSection
               comments={postInfo?.comments || []}
-              postId={postInfo.id}
+              postId={postInfo?.id}
             />
           </div>
         ) : (
@@ -470,7 +470,7 @@ function PostCard({ post, onUpdate, public_post }) {
         onClose={() => setShowShareModal(false)}
         showShare={showShareModal}
         isSameUser={isSameUser}
-        videoUrl={postInfo.video_url}
+        videoUrl={postInfo?.video_url}
       />
     </div>
   );

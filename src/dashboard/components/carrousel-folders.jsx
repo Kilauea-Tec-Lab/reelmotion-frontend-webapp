@@ -110,7 +110,10 @@ function CarrouselFolders({ folder, folders }) {
         {hoveredFolder && (
           <div className="relative ml-2">
             <button
-              onClick={() => setShowFolderMenu(!showFolderMenu)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowFolderMenu(!showFolderMenu);
+              }}
               className="bg-[#36354080] px-0.5 py-0.5 bg-opacity-75 text-white hover:bg-opacity-90 rounded-full transition-all"
             >
               <MoreVertical className="w-3 h-3" />
@@ -118,16 +121,25 @@ function CarrouselFolders({ folder, folders }) {
 
             {/* Dropdown Menu for Folder */}
             {showFolderMenu && (
-              <div className="absolute top-6 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[120px]">
+              <div 
+                className="absolute top-6 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[120px]"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <button
-                  onClick={handleEditFolder}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditFolder();
+                  }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-darkBox transition-colors"
                 >
                   <Edit className="w-4 h-4" />
                   Edit
                 </button>
                 <button
-                  onClick={handleDeleteFolder}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteFolder();
+                  }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-primarioLogo hover:bg-darkBox transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -200,9 +212,10 @@ function CarrouselFolders({ folder, folders }) {
                 {hoveredProject === project.id && (
                   <div className="absolute top-1 right-1">
                     <button
-                      onClick={() =>
-                        setShowMenu(showMenu === project.id ? null : project.id)
-                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowMenu(showMenu === project.id ? null : project.id);
+                      }}
                       className="bg-[#36354080] px-0.5 py-0.5 bg-opacity-75 text-white hover:bg-opacity-90 rounded-full transition-all"
                     >
                       <MoreHorizontal className="w-3 h-3" />
@@ -210,23 +223,33 @@ function CarrouselFolders({ folder, folders }) {
 
                     {/* Dropdown Menu */}
                     {showMenu === project.id && (
-                      <div className="absolute top-6 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[70px]">
+                      <div 
+                        className="absolute top-6 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[70px]"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <Link
                           to={`/project/${project.id}`}
                           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-white hover:bg-darkBox transition-colors"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <Eye className="w-3 h-3" />
                           Show
                         </Link>
                         <button
-                          onClick={() => handleEditProject(project)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditProject(project);
+                          }}
                           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-white hover:bg-darkBox transition-colors"
                         >
                           <Edit className="w-3 h-3" />
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDeleteProject(project)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProject(project);
+                          }}
                           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-primarioLogo hover:bg-darkBox transition-colors"
                         >
                           <Trash2 className="w-3 h-3" />

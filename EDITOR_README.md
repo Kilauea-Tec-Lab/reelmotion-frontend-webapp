@@ -1,4 +1,4 @@
-# Editor de Video ReelMotion
+# Editor de Video Reelmotion
 
 Un editor de video moderno y completo construido con React, similar a Canva o TikTok.
 
@@ -178,4 +178,4 @@ src/editor/
 4. **Performance**: Mantén el canvas en una escala cómoda para mejor rendimiento
 5. **Backup**: Guarda frecuentemente tu proyecto
 
-¡Disfruta creando videos increíbles con ReelMotion! 🎬
+¡Disfruta creando videos increíbles con Reelmotion! 🎬

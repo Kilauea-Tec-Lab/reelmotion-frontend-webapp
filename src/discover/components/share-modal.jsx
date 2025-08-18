@@ -11,7 +11,7 @@ import {
 
 function ShareModal({ post, onClose, showShare, isSameUser, videoUrl }) {
   const [copied, setCopied] = useState(false);
-  const postUrl = `${window.location.origin}/discover/post/${post.id}`;
+  const postUrl = `${window.location.origin}/discover/post/${post?.id}`;
 
   const handleBackdropClick = (e) => {
     if (e.target === e.currentTarget) {
@@ -32,7 +32,7 @@ function ShareModal({ post, onClose, showShare, isSameUser, videoUrl }) {
 
       const a = document.createElement("a");
       a.href = url;
-      a.download = `video-${post.id || "download"}.mp4`;
+      a.download = `video-${post?.id || "download"}.mp4`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -61,7 +61,7 @@ function ShareModal({ post, onClose, showShare, isSameUser, videoUrl }) {
         postUrl
       )}&text=${encodeURIComponent(
         `Check out this amazing video by ${
-          post.user?.name || "ReelMotion user"
+          post?.user?.name || "Reelmotion user"
         }!`
       )}`,
     },
@@ -107,7 +107,7 @@ function ShareModal({ post, onClose, showShare, isSameUser, videoUrl }) {
     if (option.onClick) {
       option.onClick();
     } else {
-      window.open(option.url, "_blank", "width=600,height=400");
+      window.open(option?.url, "_blank", "width=600,height=400");
     }
   };
 
@@ -132,23 +132,23 @@ function ShareModal({ post, onClose, showShare, isSameUser, videoUrl }) {
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-darkBoxSub flex items-center justify-center">
-              {post.user?.profile_image ? (
+              {post?.user?.profile_image ? (
                 <img
-                  src={post.user.profile_image}
-                  alt={post.user.name}
+                  src={post?.user.profile_image}
+                  alt={post?.user.name}
                   className="w-full h-full object-cover"
                 />
               ) : (
                 <div className="w-full h-full bg-gray-600 flex items-center justify-center">
                   <span className="text-white text-sm montserrat-medium">
-                    {post.user?.name?.charAt(0) || "U"}
+                    {post?.user?.name?.charAt(0) || "U"}
                   </span>
                 </div>
               )}
             </div>
             <div>
               <h4 className="text-white montserrat-medium text-sm">
-                {post.user?.name || "Anonymous"}
+                {post?.user?.name || "Anonymous"}
               </h4>
               <p className="text-gray-400 montserrat-light text-xs">
                 Video Post
@@ -156,9 +156,9 @@ function ShareModal({ post, onClose, showShare, isSameUser, videoUrl }) {
             </div>
           </div>
 
-          {post.description && (
+          {post?.description && (
             <p className="text-gray-300 montserrat-regular text-sm line-clamp-2">
-              {post.description}
+              {post?.description}
             </p>
           )}
         </div>

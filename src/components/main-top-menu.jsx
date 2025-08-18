@@ -1,8 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Bell, User, Search, LogOut, ChevronDown, Cog, Play } from "lucide-react";
+import {
+  Bell,
+  User,
+  Search,
+  LogOut,
+  ChevronDown,
+  Cog,
+  Play,
+} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import { searchProjects } from "../create_elements/functions";
+import PostModal from "../discover/components/post-modal";
+import { getUserNotifications, deleteNotification } from "../auth/functions";
+import { getPostById } from "../discover/functions";
+import { createPusherClient } from "@/pusher";
 
 function MainTopMenu({ user_info }) {
   const navigate = useNavigate();
@@ -16,11 +28,18 @@ function MainTopMenu({ user_info }) {
   const notificationsRef = useRef(null);
   const searchRef = useRef(null);
   const searchTimeoutRef = useRef(null);
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [notificationsInfo, setNotificationsInfo] = useState([]);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [selectedNotificationPost, setSelectedNotificationPost] =
+    useState(null);
 
-  // Mock notifications data - en producción vendría del backend
-  const notifications = [];
+  //WEBSOCKET
+  const pusherClient = createPusherClient();
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  // Calcular notificaciones no leídas
+  const unreadCount = notificationsInfo.filter((n) => n.unread).length;
 
   // Cerrar los menús cuando se hace clic fuera
   useEffect(() => {
@@ -61,7 +80,7 @@ function MainTopMenu({ user_info }) {
       setIsSearching(true);
       try {
         const response = await searchProjects(searchTerm.trim());
-        
+
         if (response.success && response.data && Array.isArray(response.data)) {
           setSearchResults(response.data);
           setShowSearchResults(response.data.length > 0);
@@ -90,29 +109,127 @@ function MainTopMenu({ user_info }) {
     navigate("/login", { replace: true });
   }
 
-  const handleProjectSelect = (projectId) => {
+  const handleProjectSelect = (project) => {
     // Abrir el visualizador de proyectos con el ID seleccionado
-    navigate(`/project/${projectId}`);
+    setSelectedProjectId(project.id);
     setSearchTerm("");
     setSearchResults([]);
     setShowSearchResults(false);
+    setShowProjectModal(true);
+  };
+
+  const handleCloseProjectModal = () => {
+    setShowProjectModal(false);
+    setSelectedProjectId(null);
+  };
+
+  async function getNotifications() {
+    const response = await getUserNotifications();
+    setNotificationsInfo(response?.data || []);
+  }
+
+  // Socket para notificaciones
+  useEffect(() => {
+    if (!user_info?.id) return;
+
+    let channel = pusherClient.subscribe(
+      `private-get-notifications.${user_info.id}`
+    );
+
+    channel.bind("fill-notifications", ({ user_id }) => {
+      getNotifications();
+    });
+
+    return () => {
+      pusherClient.unsubscribe(`private-get-notifications.${user_info.id}`);
+    };
+  }, [user_info?.id]);
+
+  useEffect(() => {
+    getNotifications();
+  }, []);
+
+  // Helper function to format date as "hace 1 min", "hace 2 hrs", etc.
+  function timeAgo(dateString) {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diff = Math.floor((now - date) / 1000); // seconds
+
+    if (isNaN(diff) || diff < 0) return "";
+
+    if (diff < 60) return "hace unos segundos";
+    if (diff < 3600) {
+      const mins = Math.floor(diff / 60);
+      return `hace ${mins} min${mins > 1 ? "s" : ""}`;
+    }
+    if (diff < 86400) {
+      const hrs = Math.floor(diff / 3600);
+      return `hace ${hrs} hr${hrs > 1 ? "s" : ""}`;
+    }
+    const days = Math.floor(diff / 86400);
+    return `hace ${days} día${days > 1 ? "s" : ""}`;
+  }
+
+  // Función para manejar el click en notificaciones
+  const handleNotificationClick = async (notification) => {
+    try {
+      // 1. Eliminar la notificación
+      await deleteNotification(notification.id);
+
+      // 3. Si es una notificación de post, obtener la info y abrir el modal
+      if (notification.type == "post" && notification.referente_to_go) {
+        const postResponse = await getPostById(notification.referente_to_go);
+        if (postResponse.data) {
+          setSelectedNotificationPost(postResponse.data);
+          setShowNotificationModal(true);
+        }
+      }
+
+      // Cerrar el dropdown de notificaciones
+      setShowNotifications(false);
+    } catch (error) {
+      console.error("Error handling notification click:", error);
+    }
+  };
+
+  const handleCloseNotificationModal = () => {
+    setShowNotificationModal(false);
+    setSelectedNotificationPost(null);
   };
 
   return (
     <header className="bg-primarioDark h-15 pt-1 flex items-center justify-between px-6 fixed top-0 left-0 right-0 z-50  border-b pb-2 border-gray-800">
+      {/* Project Modal */}
+      <PostModal
+        isOpen={showProjectModal}
+        onClose={handleCloseProjectModal}
+        postId={selectedProjectId}
+      />
+
+      {/* Notification Post Modal */}
+      <PostModal
+        isOpen={showNotificationModal}
+        onClose={handleCloseNotificationModal}
+        postId={selectedNotificationPost?.id}
+      />
+
       {/* Logo y navegación principal */}
+
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-2">
           <img
             src="/logos/logo_reelmotion.webp"
-            alt="ReelMotion AI"
+            alt="Reelmotion AI"
             className="h-7 w-auto"
           />
         </div>
       </div>
 
       {/* Barra de búsqueda central */}
-      <div className="flex-1 max-w-lg mx-8 bg-darkBoxSub rounded-lg relative" ref={searchRef}>
+      <div
+        className="flex-1 max-w-lg mx-8 bg-darkBoxSub rounded-lg relative"
+        ref={searchRef}
+      >
         <div className="relative">
           <input
             type="text"
@@ -137,7 +254,7 @@ function MainTopMenu({ user_info }) {
                 {searchResults.map((project) => (
                   <button
                     key={project.id}
-                    onClick={() => handleProjectSelect(project.id)}
+                    onClick={() => handleProjectSelect(project)}
                     className="w-full flex items-center gap-3 px-3 py-3 text-white hover:bg-darkBox transition-colors text-left rounded-lg"
                   >
                     {/* Video thumbnail */}
@@ -153,17 +270,14 @@ function MainTopMenu({ user_info }) {
                         <Play size={20} className="text-gray-400" />
                       )}
                     </div>
-                    
+
                     {/* Project info */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white montserrat-medium truncate">
                         {project.name}
                       </p>
-                      <p className="text-xs text-gray-400 montserrat-light">
-                        Project ID: {project.id.slice(0, 8)}...
-                      </p>
                     </div>
-                    
+
                     {/* Arrow indicator */}
                     <ChevronDown className="rotate-[-90deg] text-gray-400 w-4 h-4 flex-shrink-0" />
                   </button>
@@ -171,10 +285,9 @@ function MainTopMenu({ user_info }) {
               </div>
             ) : (
               <div className="px-4 py-3 text-gray-400 text-sm montserrat-light">
-                {searchTerm.trim().length < 2 
-                  ? "Type at least 2 characters to search" 
-                  : "No projects found"
-                }
+                {searchTerm.trim().length < 2
+                  ? "Type at least 2 characters to search"
+                  : "No projects found"}
               </div>
             )}
           </div>
@@ -260,28 +373,27 @@ function MainTopMenu({ user_info }) {
               </div>
 
               <div className="max-h-80 overflow-y-auto">
-                {notifications.length > 0 ? (
-                  notifications.map((notification) => (
+                {notificationsInfo.length > 0 ? (
+                  notificationsInfo.map((notification) => (
                     <div
                       key={notification.id}
                       className={`p-4 border-b border-gray-700 hover:bg-darkBox transition-colors cursor-pointer ${
                         notification.unread ? "bg-darkBox bg-opacity-30" : ""
                       }`}
-                      onClick={() => {
-                        // Aquí puedes manejar el click en la notificación
-                        setShowNotifications(false);
-                      }}
+                      onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex items-start gap-3">
-                        <div
-                          className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                            notification.type === "success"
-                              ? "bg-green-500"
-                              : notification.type === "warning"
-                              ? "bg-yellow-500"
-                              : "bg-blue-500"
-                          }`}
-                        ></div>
+                        {notification?.other_user?.image ? (
+                          <img
+                            src={notification?.other_user?.image}
+                            alt=""
+                            className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
+                            <User className="text-gray-200" size={15} />
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <h4
                             className={`text-sm montserrat-medium ${
@@ -290,18 +402,17 @@ function MainTopMenu({ user_info }) {
                                 : "text-gray-300"
                             }`}
                           >
-                            {notification.title}
+                            {notification.type == "post"
+                              ? "Discovery"
+                              : "Notification"}
                           </h4>
                           <p className="text-xs text-gray-400 montserrat-light mt-1 line-clamp-2">
-                            {notification.message}
+                            {notification.notification}
                           </p>
                           <span className="text-xs text-gray-500 montserrat-light mt-2 block">
-                            {notification.time}
+                            {timeAgo(notification.created_at)}
                           </span>
                         </div>
-                        {notification.unread && (
-                          <div className="w-2 h-2 bg-[#F2D543] rounded-full flex-shrink-0 mt-2"></div>
-                        )}
                       </div>
                     </div>
                   ))
@@ -315,7 +426,7 @@ function MainTopMenu({ user_info }) {
                 )}
               </div>
 
-              {notifications.length > 0 && (
+              {notificationsInfo.length > 0 && (
                 <div className="p-3">
                   <button
                     onClick={() => setShowNotifications(false)}

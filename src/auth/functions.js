@@ -138,3 +138,40 @@ export async function userInfoLoader() {
     });
   }
 }
+
+export async function getUserNotifications() {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_APP_BACKEND_URL}users/notifications`,
+      {
+        headers: {
+          Authorization: "Bearer " + Cookies.get("token"),
+        },
+      }
+    );
+    return response.json();
+  } catch (error) {
+    return new Response("Ups", { status: 500 });
+  }
+}
+
+export async function deleteNotification(notification_id) {
+  try {
+    const formData = new FormData();
+    formData.append("notification_id", notification_id);
+
+    const response = await fetch(
+      `${import.meta.env.VITE_APP_BACKEND_URL}users/delete-notification`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + Cookies.get("token"),
+        },
+        body: formData,
+      }
+    );
+    return response.json();
+  } catch (error) {
+    return new Response("Ups", { status: 500 });
+  }
+}

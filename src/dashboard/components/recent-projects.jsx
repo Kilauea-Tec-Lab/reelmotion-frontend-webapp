@@ -81,9 +81,10 @@ function RecentProjects({
                 {hoveredProject === project.id && (
                   <div className="absolute top-2 right-2">
                     <button
-                      onClick={() =>
-                        setShowMenu(showMenu === project.id ? null : project.id)
-                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowMenu(showMenu === project.id ? null : project.id);
+                      }}
                       className="bg-[#36354080] px-1 py-1 bg-opacity-75 text-white hover:bg-opacity-90 rounded-full transition-all"
                     >
                       <MoreHorizontal className="w-4 h-4" />
@@ -91,7 +92,10 @@ function RecentProjects({
 
                     {/* Dropdown Menu */}
                     {showMenu === project.id && (
-                      <div className="absolute top-8 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[120px]">
+                      <div 
+                        className="absolute top-8 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[120px]"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <Link
                           to={`/project/${project.id}`}
                           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-darkBox transition-colors rounded-t-lg"
@@ -99,13 +103,19 @@ function RecentProjects({
                           <Eye className="w-4 h-4" /> Show
                         </Link>
                         <button
-                          onClick={() => handleEditClick(project)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClick(project);
+                          }}
                           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-darkBox transition-colors"
                         >
                           <Edit className="w-4 h-4" /> Edit
                         </button>
                         <button
-                          onClick={() => handleDeleteClick(project)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick(project);
+                          }}
                           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-primarioLogo hover:bg-darkBox transition-colors rounded-b-lg"
                         >
                           <Trash2 className="w-4 h-4" /> Delete

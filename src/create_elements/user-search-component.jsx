@@ -148,7 +148,7 @@ function UserSearchComponent({ selectedUsers, onUsersChange }) {
 
         {/* Error Message */}
         {error && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-red-900/20 border border-red-500 rounded-lg p-3 z-10">
+          <div className="left-0 right-0 mt-1 bg-red-900/20 border border-red-500 rounded-lg p-3 z-10">
             <div className="flex items-center gap-2">
               <AlertCircle size={16} className="text-red-400 flex-shrink-0" />
               <p className="text-red-400 text-sm montserrat-regular">{error}</p>

@@ -9,6 +9,12 @@ export const updateUserProfile = async (profileData) => {
     if (profileData.name) formData.append("name", profileData.name);
     if (profileData.email) formData.append("email", profileData.email);
     if (profileData.phone) formData.append("phone", profileData.phone);
+    if (profileData.solana_wallet_address) {
+      formData.append(
+        "solana_wallet_address",
+        profileData.solana_wallet_address
+      );
+    }
 
     // Agregar la imagen solo si hay una nueva imagen
     if (profileData.profile_image instanceof File) {
