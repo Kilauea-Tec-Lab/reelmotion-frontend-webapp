@@ -1,4 +1,4 @@
-# 🎬 Editor de Video ReelMotion - Guía Rápida
+# 🎬 Editor de Video Reelmotion - Guía Rápida
 
 ## 🚀 Cómo usar el editor
 
@@ -94,7 +94,7 @@
 
 #### **Imágenes:**
 
-- Logo de ReelMotion
+- Logo de Reelmotion
 - Fondos abstractos de Unsplash
 - Gradientes y texturas
 

@@ -27,6 +27,7 @@ function Profile() {
     name: user?.data?.name || "",
     email: user?.data?.email || "",
     phone: user?.data?.phone || "",
+    solana_wallet_address: user?.data?.solana_wallet_address || "",
   });
   const fileInputRef = useRef(null);
 
@@ -71,6 +72,7 @@ function Profile() {
         name: user?.data?.name || "",
         email: user?.data?.email || "",
         phone: user?.data?.phone || "",
+        solana_wallet_address: user?.data?.solana_wallet_address || "",
       });
     } else {
       // Activar edición
@@ -86,6 +88,7 @@ function Profile() {
         name: editForm.name,
         email: editForm.email,
         phone: editForm.phone,
+        solana_wallet_address: editForm.solana_wallet_address,
       };
 
       // Agregar imagen solo si hay una nueva seleccionada
@@ -331,16 +334,33 @@ function Profile() {
                   </div>
                 </div>
 
-                {/* Member Since */}
+                {/* Solana Wallet Address */}
                 <div className="flex items-center gap-3">
                   <div className="bg-darkBoxSub p-2 rounded-lg">
                     <Wallet size={18} className="text-[#F2D543]" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-gray-400 montserrat-light text-sm">
                       Solana Wallet Address
                     </p>
-                    <p className="text-white montserrat-regular"></p>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editForm.solana_wallet_address}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "solana_wallet_address",
+                            e.target.value
+                          )
+                        }
+                        className="bg-darkBoxSub rounded-lg px-3 py-2 text-white montserrat-regular w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
+                        placeholder="Enter your Solana wallet address"
+                      />
+                    ) : (
+                      <p className="text-white montserrat-regular">
+                        {user?.data?.solana_wallet_address || "Not provided"}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

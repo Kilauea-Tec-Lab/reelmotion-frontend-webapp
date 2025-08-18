@@ -101,7 +101,7 @@ function ReelBot({ onClose }) {
       input.includes("hi") ||
       input.includes("hey")
     ) {
-      return "Hello! I'm glad I can help you. What would you like to know about ReelMotion?";
+      return "Hello! I'm glad I can help you. What would you like to know about Reelmotion?";
     }
 
     return "Thank you for your question. If you need more specific help, our support team is available 24/7. You can also check our documentation or submit a support ticket for personalized assistance.";

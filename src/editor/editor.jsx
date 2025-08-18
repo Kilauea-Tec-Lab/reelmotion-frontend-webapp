@@ -65,6 +65,8 @@ function Editor() {
   const [currentTime, setCurrentTime] = useState(0);
   const intervalRef = useRef(null);
   const mainVideoRef = useRef(null);
+  const secondaryVideoRef = useRef(null); // Video auxiliar para transiciones suaves
+  const [activeVideoRef, setActiveVideoRef] = useState("main"); // 'main' o 'secondary'
   const audioRefs = useRef({});
   const [audioDurations, setAudioDurations] = useState({}); // url -> seconds
   const imageRefs = useRef({});
@@ -280,6 +282,9 @@ function Editor() {
       if (mainVideoRef.current) {
         mainVideoRef.current.pause();
       }
+      if (secondaryVideoRef.current) {
+        secondaryVideoRef.current.pause();
+      }
 
       Object.values(audioRefs.current).forEach((audio) => {
         if (audio) audio.pause();
@@ -317,129 +322,227 @@ function Editor() {
     }
   };
 
-  // Function to synchronize all media with current time
+  // Function to synchronize all media with current time using smooth crossfade
   const syncMediaWithTime = (time) => {
     const activeElements = getActiveElements(time);
     const activeVideo = activeElements.find((el) => el.channel === "video");
 
-    // Handle main video
-    if (mainVideoRef.current) {
+    // Handle main video with crossfade technique
+    if (mainVideoRef.current && secondaryVideoRef.current) {
+      const currentRef =
+        activeVideoRef === "main"
+          ? mainVideoRef.current
+          : secondaryVideoRef.current;
+      const nextRef =
+        activeVideoRef === "main"
+          ? secondaryVideoRef.current
+          : mainVideoRef.current;
+
       if (activeVideo) {
         const elementTime = time - activeVideo.startTime;
-        // Adjust for start trim
         const adjustedTime = elementTime + (activeVideo.trimStart || 0);
 
-        // Only change src if different to avoid flickering
-        if (!mainVideoRef.current.src.includes(activeVideo.url)) {
-          mainVideoRef.current.src = activeVideo.url;
-          mainVideoRef.current.currentTime = adjustedTime;
-          // Apply specific video volume and master volume
-          mainVideoRef.current.volume =
+        // Check if we need to switch to a new video
+        const needsNewVideo = !currentRef.src.includes(activeVideo.url);
+
+        if (needsNewVideo) {
+          // Preload the new video in the secondary ref
+          nextRef.src = activeVideo.url;
+          nextRef.currentTime = adjustedTime;
+          nextRef.volume =
             (activeVideo.volume !== undefined ? activeVideo.volume : 1) *
             masterVolume;
-          if (isPlaying) {
-            mainVideoRef.current.play().catch(() => {});
+
+          // Apply color correction to next video
+          const filters = [];
+          if (activeVideo.colorCorrection) {
+            const cc = activeVideo.colorCorrection;
+
+            if (cc.brightness !== 0) {
+              const cssValue = 1 + cc.brightness * 0.6;
+              filters.push(`brightness(${Math.max(0.1, cssValue)})`);
+            }
+
+            if (cc.contrast !== 1) {
+              let cssContrast;
+              if (cc.contrast < 1) {
+                cssContrast = 0.3 + cc.contrast * 0.7;
+              } else {
+                cssContrast = cc.contrast * 0.85 + 0.15;
+              }
+              filters.push(`contrast(${Math.max(0.1, cssContrast)})`);
+            }
+
+            if (cc.saturation !== 1) {
+              let cssSaturation;
+              if (cc.saturation < 1) {
+                cssSaturation = cc.saturation * 0.85 + 0.15;
+              } else {
+                cssSaturation = 1 + (cc.saturation - 1) * 0.75;
+              }
+              filters.push(`saturate(${Math.max(0, cssSaturation)})`);
+            }
+
+            if (cc.gamma !== 1) {
+              const gammaEffect = Math.pow(0.5, 1 / cc.gamma) * 2;
+              const adjustedGamma = 1 + (gammaEffect - 1) * 0.7;
+              filters.push(`brightness(${Math.max(0.1, adjustedGamma)})`);
+            }
+
+            if (cc.hue !== 0) {
+              filters.push(`hue-rotate(${cc.hue}deg)`);
+            }
+
+            if (cc.vibrance !== 0) {
+              const vibranceEffect = 1 + cc.vibrance * 0.2;
+              filters.push(`saturate(${Math.max(0, vibranceEffect)})`);
+            }
           }
+
+          nextRef.style.filter =
+            filters.length > 0 ? filters.join(" ") : "none";
+          nextRef.style.display = "block";
+          nextRef.style.opacity = "0";
+          nextRef.style.transition = "opacity 0.15s ease-in-out";
+
+          // Load the new video
+          nextRef.load();
+
+          // When the new video is ready, do crossfade
+          const handleCanPlay = () => {
+            // Fade out current video and fade in new video simultaneously
+            currentRef.style.transition = "opacity 0.15s ease-in-out";
+            currentRef.style.opacity = "0";
+
+            nextRef.style.opacity = "1";
+
+            if (isPlaying) {
+              nextRef.play().catch(() => {});
+            }
+
+            // Switch active video reference after transition
+            setTimeout(() => {
+              currentRef.style.display = "none";
+              currentRef.pause();
+              setActiveVideoRef(
+                activeVideoRef === "main" ? "secondary" : "main"
+              );
+            }, 150);
+
+            nextRef.removeEventListener("canplay", handleCanPlay);
+          };
+
+          nextRef.addEventListener("canplay", handleCanPlay);
+
+          // Fallback in case canplay doesn't fire
+          setTimeout(() => {
+            if (nextRef.style.opacity === "0") {
+              currentRef.style.transition = "opacity 0.15s ease-in-out";
+              currentRef.style.opacity = "0";
+              nextRef.style.opacity = "1";
+
+              if (isPlaying) {
+                nextRef.play().catch(() => {});
+              }
+
+              setTimeout(() => {
+                currentRef.style.display = "none";
+                currentRef.pause();
+                setActiveVideoRef(
+                  activeVideoRef === "main" ? "secondary" : "main"
+                );
+              }, 150);
+            }
+          }, 200);
         } else {
-          // Only adjust time if very out of sync
-          const timeDiff = Math.abs(
-            mainVideoRef.current.currentTime - adjustedTime
-          );
+          // Same video, just sync time and properties
+          const timeDiff = Math.abs(currentRef.currentTime - adjustedTime);
           if (timeDiff > 0.5) {
-            mainVideoRef.current.currentTime = adjustedTime;
+            currentRef.currentTime = adjustedTime;
           }
-          // Always update volume
-          mainVideoRef.current.volume =
+
+          currentRef.volume =
             (activeVideo.volume !== undefined ? activeVideo.volume : 1) *
             masterVolume;
-          if (mainVideoRef.current.paused && isPlaying) {
-            mainVideoRef.current.play().catch(() => {});
-          }
-        }
 
-        // Apply color correction (FFmpeg-accurate CSS mapping)
-        const filters = [];
-        if (activeVideo.colorCorrection) {
-          const cc = activeVideo.colorCorrection;
-
-          // Brightness: FFmpeg -1.0 to 1.0 -> CSS brightness()
-          // FFmpeg eq filter uses additive brightness, CSS uses multiplicative
-          if (cc.brightness !== 0) {
-            // Convert FFmpeg additive brightness to CSS multiplicative brightness
-            // FFmpeg: output = input + brightness
-            // CSS: output = input * brightness
-            // Approximation: CSS_value = 1 + (ffmpeg_value * intensity_factor)
-            const cssValue = 1 + cc.brightness * 0.6; // Reduced factor for better match
-            filters.push(`brightness(${Math.max(0.1, cssValue)})`);
+          if (currentRef.paused && isPlaying) {
+            currentRef.play().catch(() => {});
           }
 
-          // Contrast: FFmpeg 0.0 to 4.0 -> CSS contrast()
-          // FFmpeg eq filter: (input - 0.5) * contrast + 0.5
-          // CSS contrast: input * contrast
-          // They work differently, need conversion
-          if (cc.contrast !== 1) {
-            // Convert FFmpeg contrast to CSS contrast
-            // FFmpeg contrast of 0.91 should look like CSS contrast of ~0.55-0.65
-            let cssContrast;
-            if (cc.contrast < 1) {
-              // For reduced contrast, the difference is more pronounced
-              cssContrast = 0.3 + cc.contrast * 0.7; // Maps 0->0.3, 1->1.0
-            } else {
-              // For increased contrast, closer mapping
-              cssContrast = cc.contrast * 0.85 + 0.15; // Slightly reduce high contrast
+          // Apply color correction
+          const filters = [];
+          if (activeVideo.colorCorrection) {
+            const cc = activeVideo.colorCorrection;
+
+            if (cc.brightness !== 0) {
+              const cssValue = 1 + cc.brightness * 0.6;
+              filters.push(`brightness(${Math.max(0.1, cssValue)})`);
             }
-            filters.push(`contrast(${Math.max(0.1, cssContrast)})`);
-          }
 
-          // Saturation: FFmpeg 0.0 to 3.0 -> CSS saturate()
-          // These are closer but still need adjustment
-          if (cc.saturation !== 1) {
-            // FFmpeg saturation tends to be more intense than CSS
-            let cssSaturation;
-            if (cc.saturation < 1) {
-              cssSaturation = cc.saturation * 0.85 + 0.15; // Less desaturation
-            } else {
-              cssSaturation = 1 + (cc.saturation - 1) * 0.75; // Reduce oversaturation
+            if (cc.contrast !== 1) {
+              let cssContrast;
+              if (cc.contrast < 1) {
+                cssContrast = 0.3 + cc.contrast * 0.7;
+              } else {
+                cssContrast = cc.contrast * 0.85 + 0.15;
+              }
+              filters.push(`contrast(${Math.max(0.1, cssContrast)})`);
             }
-            filters.push(`saturate(${Math.max(0, cssSaturation)})`);
+
+            if (cc.saturation !== 1) {
+              let cssSaturation;
+              if (cc.saturation < 1) {
+                cssSaturation = cc.saturation * 0.85 + 0.15;
+              } else {
+                cssSaturation = 1 + (cc.saturation - 1) * 0.75;
+              }
+              filters.push(`saturate(${Math.max(0, cssSaturation)})`);
+            }
+
+            if (cc.gamma !== 1) {
+              const gammaEffect = Math.pow(0.5, 1 / cc.gamma) * 2;
+              const adjustedGamma = 1 + (gammaEffect - 1) * 0.7;
+              filters.push(`brightness(${Math.max(0.1, adjustedGamma)})`);
+            }
+
+            if (cc.hue !== 0) {
+              filters.push(`hue-rotate(${cc.hue}deg)`);
+            }
+
+            if (cc.vibrance !== 0) {
+              const vibranceEffect = 1 + cc.vibrance * 0.2;
+              filters.push(`saturate(${Math.max(0, vibranceEffect)})`);
+            }
           }
 
-          // Gamma: No direct CSS equivalent, approximate with brightness
-          if (cc.gamma !== 1) {
-            // Improved gamma approximation
-            const gammaEffect = Math.pow(0.5, 1 / cc.gamma) * 2;
-            const adjustedGamma = 1 + (gammaEffect - 1) * 0.7; // Reduce intensity
-            filters.push(`brightness(${Math.max(0.1, adjustedGamma)})`);
-          }
-
-          // Hue: FFmpeg -180 to 180 -> CSS hue-rotate()
-          // This one should be accurate
-          if (cc.hue !== 0) {
-            filters.push(`hue-rotate(${cc.hue}deg)`);
-          }
-
-          // Vibrance: No direct CSS equivalent, approximate with saturation
-          if (cc.vibrance !== 0) {
-            // Even more conservative vibrance to avoid over-saturation
-            const vibranceEffect = 1 + cc.vibrance * 0.2;
-            filters.push(`saturate(${Math.max(0, vibranceEffect)})`);
-          }
+          currentRef.style.filter =
+            filters.length > 0 ? filters.join(" ") : "none";
+          currentRef.style.display = "block";
+          currentRef.style.opacity = "1";
         }
-
-        // Apply filters always, even if empty
-        mainVideoRef.current.style.filter =
-          filters.length > 0 ? filters.join(" ") : "none";
-
-        // Show video
-        mainVideoRef.current.style.display = "block";
       } else {
-        // No active video, pause and hide
-        if (!mainVideoRef.current.paused) {
-          mainVideoRef.current.pause();
+        // No active video, fade out both
+        if (currentRef.style.display !== "none") {
+          currentRef.style.transition = "opacity 0.15s ease-in-out";
+          currentRef.style.opacity = "0";
+          setTimeout(() => {
+            if (currentRef) {
+              currentRef.style.display = "none";
+              currentRef.pause();
+            }
+          }, 150);
         }
-        // Clear effects when no video
-        mainVideoRef.current.style.filter = "none";
-        mainVideoRef.current.style.display = "none";
+
+        if (nextRef.style.display !== "none") {
+          nextRef.style.transition = "opacity 0.15s ease-in-out";
+          nextRef.style.opacity = "0";
+          setTimeout(() => {
+            if (nextRef) {
+              nextRef.style.display = "none";
+              nextRef.pause();
+            }
+          }, 150);
+        }
       }
     }
 
@@ -580,6 +683,10 @@ function Editor() {
       if (mainVideoRef.current) {
         mainVideoRef.current.style.display = "none";
         mainVideoRef.current.pause();
+      }
+      if (secondaryVideoRef.current) {
+        secondaryVideoRef.current.style.display = "none";
+        secondaryVideoRef.current.pause();
       }
     }
   }, [isPlaying, currentTime]);
@@ -2597,9 +2704,28 @@ function Editor() {
           {/* Video principal - siempre en el DOM */}
           <video
             ref={mainVideoRef}
-            className="rounded-4xl bg-gray-900 h-full max-w-full mx-auto block object-contain"
+            className="rounded-4xl bg-gray-900 h-full max-w-full mx-auto block object-contain absolute inset-0"
             muted={false}
+            style={{
+              transition: "opacity 0.15s ease-in-out",
+              opacity: 1,
+              zIndex: 2,
+            }}
           />
+
+          {/* Video secundario para transiciones suaves */}
+          <video
+            ref={secondaryVideoRef}
+            className="rounded-4xl bg-gray-900 h-full max-w-full mx-auto block object-contain absolute inset-0"
+            muted={false}
+            style={{
+              transition: "opacity 0.15s ease-in-out",
+              opacity: 0,
+              zIndex: 1,
+              display: "none",
+            }}
+          />
+
           {/* Placeholder cuando no hay videos o cuando no está reproduciendo */}
 
           <div
@@ -2612,6 +2738,7 @@ function Editor() {
                 )
                   ? "none"
                   : "flex",
+              zIndex: 0,
             }}
           >
             <div className="text-center">

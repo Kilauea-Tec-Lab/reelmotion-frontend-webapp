@@ -85,7 +85,7 @@ function SuggestionsForm({ onClose }) {
             Thank you for your feedback!
           </h3>
           <p className="text-gray-400 montserrat-regular text-sm">
-            Your suggestion has been sent and will help us improve ReelMotion.
+            Your suggestion has been sent and will help us improve Reelmotion.
           </p>
         </div>
       </div>
@@ -99,7 +99,7 @@ function SuggestionsForm({ onClose }) {
         <div>
           <h3 className="text-white montserrat-medium text-lg">Suggestions</h3>
           <p className="text-gray-400 montserrat-light text-sm">
-            Help us improve ReelMotion
+            Help us improve Reelmotion
           </p>
         </div>
         <button

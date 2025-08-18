@@ -1,9 +1,32 @@
 import { useEffect, useState } from "react";
-import { Heart, User } from "lucide-react";
+import { Heart, MessageCircle, User, Clock } from "lucide-react";
 
 function PinterestCard({ post, onClick }) {
   const [isHovered, setIsHovered] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const [videoDuration, setVideoDuration] = useState(null);
+
+  const formatDuration = (seconds) => {
+    if (!seconds) return "0:00";
+
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+
+    if (minutes >= 60) {
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      return `${hours}:${remainingMinutes
+        .toString()
+        .padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
+    }
+
+    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+  };
+
+  const handleLoadedMetadata = (e) => {
+    setVideoLoaded(true);
+    setVideoDuration(e.target.duration);
+  };
 
   const handleClick = () => {
     onClick(post.id);
@@ -25,7 +48,7 @@ function PinterestCard({ post, onClick }) {
               className={`w-full h-48 object-cover transition-opacity duration-300 ${
                 videoLoaded ? "opacity-100" : "opacity-0"
               }`}
-              onLoadedData={() => setVideoLoaded(true)}
+              onLoadedMetadata={handleLoadedMetadata}
               muted
               loop
               playsInline
@@ -68,25 +91,45 @@ function PinterestCard({ post, onClick }) {
               </div>
 
               {/* Likes */}
-              <div className="flex items-center gap-1 bg-black/30 rounded-full px-2 py-1">
-                <Heart
-                  size={14}
-                  className={`${
-                    post.own_like ? "text-red-500 fill-current" : "text-white"
-                  } drop-shadow-lg`}
-                />
-                <span className="text-white montserrat-medium text-xs font-semibold drop-shadow-lg">
-                  {post.likes || 0}
-                </span>
+              <div className="flex items-center gap-3 bg-black/30 rounded-full px-2 py-1">
+                <div className="flex items-center gap-1">
+                  <Heart
+                    size={14}
+                    className={`${
+                      post.own_like ? "text-red-500 fill-current" : "text-white"
+                    } drop-shadow-lg`}
+                  />
+                  <span className="text-white montserrat-medium text-xs font-semibold drop-shadow-lg">
+                    {post.likes || 0}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <MessageCircle
+                    size={14}
+                    className={"text-white drop-shadow-lg"}
+                  />
+                  <span className="text-white montserrat-medium text-xs font-semibold drop-shadow-lg">
+                    {post.likes || 0}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Title Overlay - Bottom */}
+          {/* Title and Duration Overlay - Bottom */}
           <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/60 to-transparent">
-            <h3 className="text-white montserrat-medium text-xs line-clamp-1 font-semibold drop-shadow-lg">
-              {post.name}
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-white montserrat-medium text-xs line-clamp-1 font-semibold drop-shadow-lg flex-1 mr-2">
+                {post.name}
+              </h3>
+
+              <div className="flex items-center gap-1 bg-black/50 rounded-full px-2 py-1 flex-shrink-0">
+                <Clock size={10} className="text-white drop-shadow-lg" />
+                <span className="text-white montserrat-medium text-xs font-semibold drop-shadow-lg">
+                  {formatDuration(videoDuration)}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
