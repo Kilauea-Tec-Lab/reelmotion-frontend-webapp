@@ -121,7 +121,7 @@ function CarrouselFolders({ folder, folders }) {
 
             {/* Dropdown Menu for Folder */}
             {showFolderMenu && (
-              <div 
+              <div
                 className="absolute top-6 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[120px]"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -214,7 +214,9 @@ function CarrouselFolders({ folder, folders }) {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setShowMenu(showMenu === project.id ? null : project.id);
+                        setShowMenu(
+                          showMenu === project.id ? null : project.id
+                        );
                       }}
                       className="bg-[#36354080] px-0.5 py-0.5 bg-opacity-75 text-white hover:bg-opacity-90 rounded-full transition-all"
                     >
@@ -223,7 +225,7 @@ function CarrouselFolders({ folder, folders }) {
 
                     {/* Dropdown Menu */}
                     {showMenu === project.id && (
-                      <div 
+                      <div
                         className="absolute top-6 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[70px]"
                         onClick={(e) => e.stopPropagation()}
                       >

@@ -1,10 +1,26 @@
-import { useState, useRef } from "react";
-import { X, Mic, Play, Pause, Volume2, Clock } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import {
+  X,
+  Mic,
+  Play,
+  Pause,
+  Volume2,
+  Clock,
+  Search,
+  Filter,
+  Square,
+} from "lucide-react";
+import {
+  getAudioStackVoices,
+  createAudioStackScript,
+  generateAudioStackSpeech,
+  createVoice,
+} from "./functions";
 
 function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
   const [voiceName, setVoiceName] = useState("");
   const [voiceDescription, setVoiceDescription] = useState("");
-  const [selectedVoice, setSelectedVoice] = useState("sarah");
+  const [selectedVoice, setSelectedVoice] = useState(null);
   const [textToSpeak, setTextToSpeak] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedAudioUrl, setGeneratedAudioUrl] = useState(null);
@@ -13,61 +29,130 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
   const [duration, setDuration] = useState(0);
   const [estimatedTime, setEstimatedTime] = useState(0);
 
+  // Voice library states
+  const [availableVoices, setAvailableVoices] = useState([]);
+  const [filteredVoices, setFilteredVoices] = useState([]);
+  const [displayedVoices, setDisplayedVoices] = useState([]);
+  const [isLoadingVoices, setIsLoadingVoices] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [languageFilter, setLanguageFilter] = useState("");
+  const [genderFilter, setGenderFilter] = useState("");
+  const [ageFilter, setAgeFilter] = useState("");
+
+  // Lazy loading states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const VOICES_PER_PAGE = 50;
+
+  // Audio preview states
+  const [previewAudio, setPreviewAudio] = useState(null);
+  const [playingVoiceId, setPlayingVoiceId] = useState(null);
+
   const audioRef = useRef(null);
 
-  // Voces disponibles con sus características
-  const availableVoices = [
-    {
-      id: "sarah",
-      name: "Sarah",
-      description: "Natural female voice, warm and friendly",
-      language: "English",
-      gender: "Female",
-      previewUrl: "/audio/previews/sarah.mp3",
-      speed: 1.2, // palabras por segundo
-    },
-    {
-      id: "john",
-      name: "John",
-      description: "Professional male voice, clear and authoritative",
-      language: "English",
-      gender: "Male",
-      previewUrl: "/audio/previews/john.mp3",
-      speed: 1.1,
-    },
-    {
-      id: "maria",
-      name: "María",
-      description: "Natural female voice, Spanish native",
-      language: "Spanish",
-      gender: "Female",
-      previewUrl: "/audio/previews/maria.mp3",
-      speed: 1.3,
-    },
-    {
-      id: "carlos",
-      name: "Carlos",
-      description: "Professional male voice, Spanish native",
-      language: "Spanish",
-      gender: "Male",
-      previewUrl: "/audio/previews/carlos.mp3",
-      speed: 1.0,
-    },
-    {
-      id: "emily",
-      name: "Emily",
-      description: "Young female voice, energetic and modern",
-      language: "English",
-      gender: "Female",
-      previewUrl: "/audio/previews/emily.mp3",
-      speed: 1.4,
-    },
-  ];
+  // Fetch available voices from AudioStack
+  const fetchVoices = async () => {
+    setIsLoadingVoices(true);
+    try {
+      const result = await getAudioStackVoices();
+
+      if (result.success) {
+        // Asegurar que siempre sea un array
+        const voices = Array.isArray(result.voices)
+          ? result.voices
+          : Array.isArray(result.voices?.voices)
+          ? result.voices.voices
+          : [];
+
+        console.log("Fetched voices:", voices); // Debug log
+        setAvailableVoices(voices);
+        setFilteredVoices(voices);
+      } else {
+        console.error("Error fetching voices:", result.error);
+        setAvailableVoices([]);
+        setFilteredVoices([]);
+      }
+    } catch (error) {
+      console.error("Error fetching voices:", error);
+      setAvailableVoices([]);
+      setFilteredVoices([]);
+    } finally {
+      setIsLoadingVoices(false);
+    }
+  };
+
+  // Load voices when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchVoices();
+    }
+  }, [isOpen]);
+
+  // Filter voices based on search and filters
+  useEffect(() => {
+    if (!Array.isArray(availableVoices)) {
+      setFilteredVoices([]);
+      return;
+    }
+
+    let filtered = availableVoices;
+
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (voice) =>
+          voice.alias?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          voice.tags?.some((tag) =>
+            tag.toLowerCase().includes(searchTerm.toLowerCase())
+          ) ||
+          voice.purpose?.some((purpose) =>
+            purpose.toLowerCase().includes(searchTerm.toLowerCase())
+          )
+      );
+    }
+
+    if (languageFilter) {
+      filtered = filtered.filter((voice) => voice.language === languageFilter);
+    }
+
+    if (genderFilter) {
+      filtered = filtered.filter((voice) => voice.gender === genderFilter);
+    }
+
+    if (ageFilter) {
+      filtered = filtered.filter((voice) => voice.ageBracket === ageFilter);
+    }
+
+    setFilteredVoices(filtered);
+    setCurrentPage(1); // Reset page when filters change
+  }, [availableVoices, searchTerm, languageFilter, genderFilter, ageFilter]);
+
+  // Lazy loading effect - update displayed voices when filtered voices or page changes
+  useEffect(() => {
+    const startIndex = 0;
+    const endIndex = currentPage * VOICES_PER_PAGE;
+    setDisplayedVoices(filteredVoices.slice(startIndex, endIndex));
+  }, [filteredVoices, currentPage]);
+
+  // Get unique filter values
+  const getUniqueValues = (key) => {
+    if (!Array.isArray(availableVoices)) return [];
+    const keyMap = {
+      age: "ageBracket",
+      language: "language",
+      gender: "gender",
+    };
+    const actualKey = keyMap[key] || key;
+    return [
+      ...new Set(
+        availableVoices.map((voice) => voice[actualKey]).filter(Boolean)
+      ),
+    ];
+  };
 
   const handleClose = () => {
     setVoiceName("");
     setVoiceDescription("");
-    setSelectedVoice("sarah");
+    setSelectedVoice(null);
     setTextToSpeak("");
     setGeneratedAudioUrl(null);
     setIsGenerating(false);
@@ -75,19 +160,28 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
     setCurrentTime(0);
     setDuration(0);
     setEstimatedTime(0);
+    setSearchTerm("");
+    setLanguageFilter("");
+    setGenderFilter("");
+    setAgeFilter("");
+    setCurrentPage(1);
+    setDisplayedVoices([]);
+
+    // Detener audio de preview
+    stopVoicePreview();
+
     if (audioRef.current) {
       audioRef.current.pause();
     }
     onClose();
   };
 
-  // Calcular tiempo estimado basado en el texto y la velocidad de la voz
-  const calculateEstimatedTime = (text, voice) => {
+  // Calcular tiempo estimado basado en el texto
+  const calculateEstimatedTime = (text) => {
     if (!text.trim()) return 0;
 
     const words = text.trim().split(/\s+/).length;
-    const selectedVoiceData = availableVoices.find((v) => v.id === voice);
-    const wordsPerSecond = selectedVoiceData?.speed || 1.2;
+    const wordsPerSecond = 1.2; // Velocidad promedio
 
     // Agregar tiempo extra para pausas y pronunciación natural
     const baseTime = words / wordsPerSecond;
@@ -97,42 +191,127 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
     return estimatedSeconds;
   };
 
-  // Actualizar estimación cuando cambia el texto o la voz
+  // Actualizar estimación cuando cambia el texto
   const handleTextChange = (text) => {
     setTextToSpeak(text);
-    calculateEstimatedTime(text, selectedVoice);
+    calculateEstimatedTime(text);
   };
 
-  const handleVoiceChange = (voiceId) => {
-    setSelectedVoice(voiceId);
-    calculateEstimatedTime(textToSpeak, voiceId);
+  const handleVoiceChange = (voice) => {
+    setSelectedVoice(voice);
   };
 
   // Reproducir preview de la voz seleccionada
-  const playVoicePreview = (voiceId) => {
-    const voice = availableVoices.find((v) => v.id === voiceId);
-    if (voice?.previewUrl) {
-      // Simular reproducción de preview
-      console.log(`Playing preview for voice: ${voice.name}`);
-      // Aquí iría la lógica real para reproducir el audio de preview
+  const playVoicePreview = (voice) => {
+    if (!voice?.audioSample) return;
+
+    // Si ya hay un audio reproduciéndose, detenerlo
+    if (previewAudio) {
+      previewAudio.pause();
+      previewAudio.currentTime = 0;
+      setPreviewAudio(null);
+      setPlayingVoiceId(null);
+    }
+
+    // Si es la misma voz que estaba reproduciéndose, solo detener
+    if (playingVoiceId === voice.voiceId) {
+      return;
+    }
+
+    console.log(`Playing preview for voice: ${voice.alias}`);
+
+    // Crear un nuevo elemento de audio y reproducir
+    const audio = new Audio(voice.audioSample);
+
+    audio.addEventListener("ended", () => {
+      setPreviewAudio(null);
+      setPlayingVoiceId(null);
+    });
+
+    audio.addEventListener("error", (error) => {
+      console.error("Error playing audio preview:", error);
+      setPreviewAudio(null);
+      setPlayingVoiceId(null);
+    });
+
+    audio
+      .play()
+      .then(() => {
+        setPreviewAudio(audio);
+        setPlayingVoiceId(voice.voiceId);
+      })
+      .catch((error) => {
+        console.error("Error playing audio preview:", error);
+        setPreviewAudio(null);
+        setPlayingVoiceId(null);
+      });
+  };
+
+  // Detener preview de audio
+  const stopVoicePreview = () => {
+    if (previewAudio) {
+      previewAudio.pause();
+      previewAudio.currentTime = 0;
+      setPreviewAudio(null);
+      setPlayingVoiceId(null);
     }
   };
 
+  // Load more voices
+  const loadMoreVoices = () => {
+    if (isLoadingMore) return;
+
+    const maxPage = Math.ceil(filteredVoices.length / VOICES_PER_PAGE);
+    if (currentPage >= maxPage) return;
+
+    setIsLoadingMore(true);
+    // Simulate loading time for better UX
+    setTimeout(() => {
+      setCurrentPage((prev) => prev + 1);
+      setIsLoadingMore(false);
+    }, 300);
+  };
+
   const handleGenerateVoice = async () => {
-    if (!textToSpeak.trim()) return;
+    if (!textToSpeak.trim() || !selectedVoice) {
+      alert("Por favor, selecciona una voz y escribe el texto a generar.");
+      return;
+    }
 
     setIsGenerating(true);
     try {
-      // Simular generación de voz
-      await new Promise((resolve) => setTimeout(resolve, estimatedTime * 1000));
+      // Paso 1: Crear script en AudioStack
+      console.log("Creando script...");
+      const scriptResult = await createAudioStackScript({
+        text: textToSpeak,
+        projectName: "reelmotion",
+        moduleName: "voice_generation",
+        scriptName: `voice_${Date.now()}`,
+      });
 
-      // Simular audio generado
-      setGeneratedAudioUrl(
-        "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"
-      );
-      setDuration(estimatedTime);
+      if (!scriptResult.success) {
+        throw new Error(`Error creando script: ${scriptResult.error}`);
+      }
+
+      // Paso 2: Generar speech con AudioStack
+      console.log("Generando speech...");
+      const speechResult = await generateAudioStackSpeech({
+        scriptId: scriptResult.data.scriptId,
+        voiceId: selectedVoice.voiceId,
+      });
+
+      if (!speechResult.success) {
+        throw new Error(`Error generando speech: ${speechResult.error}`);
+      }
+
+      // Configurar el audio generado
+      setGeneratedAudioUrl(speechResult.data.audioUrl);
+      setDuration(speechResult.data.duration || estimatedTime);
+
+      console.log("Voz generada exitosamente:", speechResult.data);
     } catch (error) {
       console.error("Error generating voice:", error);
+      alert(`Error generando la voz: ${error.message}`);
     } finally {
       setIsGenerating(false);
     }
@@ -180,35 +359,58 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
   };
 
   const handleSubmit = async () => {
-    if (!voiceName.trim() || !voiceDescription.trim() || !textToSpeak.trim())
+    if (
+      !voiceName.trim() ||
+      !voiceDescription.trim() ||
+      !textToSpeak.trim() ||
+      !generatedAudioUrl
+    ) {
+      alert(
+        "Por favor, completa todos los campos y genera la voz antes de guardar."
+      );
       return;
+    }
 
     try {
       const voiceData = {
         name: voiceName,
         description: voiceDescription,
         project_id: projectId,
-        voice_id: selectedVoice,
+        voice_id: selectedVoice?.voiceId,
+        voice_name: selectedVoice?.alias,
         text: textToSpeak,
         audio_url: generatedAudioUrl,
         duration: duration,
       };
 
-      console.log("Creating voice:", voiceData);
+      console.log("Creating voice in backend:", voiceData);
 
-      if (onVoiceCreated) {
-        onVoiceCreated(voiceData);
+      // Usar la función createVoice que va al backend
+      const result = await createVoice(voiceData);
+
+      if (result.success) {
+        console.log("Voice created successfully:", result.data);
+
+        if (onVoiceCreated) {
+          onVoiceCreated(result.data);
+        }
+
+        handleClose();
+        alert("Voz creada exitosamente!");
+      } else {
+        throw new Error(result.error);
       }
-
-      handleClose();
     } catch (error) {
       console.error("Error creating voice:", error);
+      alert(`Error creando la voz: ${error.message}`);
     }
   };
 
   if (!isOpen) return null;
 
-  const selectedVoiceData = availableVoices.find((v) => v.id === selectedVoice);
+  const selectedVoiceData = availableVoices.find(
+    (v) => v.voiceId === selectedVoice?.voiceId
+  );
 
   return (
     <div className="fixed inset-0 bg-[#00000091] bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -230,56 +432,174 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
           {/* Voice Selection */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-white mb-4 montserrat-regular">
-              Select Voice *
+              Select Voice *{" "}
+              {isLoadingVoices && (
+                <span className="text-[#F2D543]">(Cargando voces...)</span>
+              )}
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {availableVoices.map((voice) => (
-                <div
-                  key={voice.id}
-                  onClick={() => handleVoiceChange(voice.id)}
-                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    selectedVoice === voice.id
-                      ? "border-[#F2D543] bg-[#F2D54315]"
-                      : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
-                  }`}
+
+            {/* Search and Filter Controls */}
+            <div className="mb-4 space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search Voices..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-darkBoxSub border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#F2D543] focus:outline-none"
+                />
+              </div>
+
+              <div className="flex gap-4">
+                <select
+                  value={languageFilter}
+                  onChange={(e) => setLanguageFilter(e.target.value)}
+                  className="bg-darkBoxSub border border-gray-600 rounded-lg text-white px-3 py-2 focus:border-[#F2D543] focus:outline-none"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`p-2 rounded-lg ${
-                          selectedVoice === voice.id
-                            ? "bg-[#F2D543] text-primarioDark"
-                            : "bg-gray-700 text-gray-300"
-                        }`}
-                      >
-                        <Mic className="w-4 h-4" />
-                      </div>
-                      <h3 className="font-medium text-white montserrat-medium">
-                        {voice.name}
-                      </h3>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        playVoicePreview(voice.id);
-                      }}
-                      className="p-1 text-[#F2D543] hover:text-[#f2f243] transition-colors"
-                      title="Play preview"
+                  <option value="">All lenguages</option>
+                  {getUniqueValues("language").map((lang) => (
+                    <option key={lang} value={lang}>
+                      {lang}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={genderFilter}
+                  onChange={(e) => setGenderFilter(e.target.value)}
+                  className="bg-darkBoxSub border border-gray-600 rounded-lg text-white px-3 py-2 focus:border-[#F2D543] focus:outline-none"
+                >
+                  <option value="">All genders</option>
+                  {getUniqueValues("gender").map((gender) => (
+                    <option key={gender} value={gender}>
+                      {gender}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={ageFilter}
+                  onChange={(e) => setAgeFilter(e.target.value)}
+                  className="bg-darkBoxSub border border-gray-600 rounded-lg text-white px-3 py-2 focus:border-[#F2D543] focus:outline-none"
+                >
+                  <option value="">All ages</option>
+                  {getUniqueValues("age").map((age) => (
+                    <option key={age} value={age}>
+                      {age}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+                {displayedVoices.length === 0 && !isLoadingVoices ? (
+                  <div className="col-span-full text-center text-gray-400 py-8">
+                    {availableVoices.length === 0
+                      ? "No se pudieron cargar las voces. Verifica tu conexión."
+                      : "No se encontraron voces con los filtros aplicados."}
+                  </div>
+                ) : (
+                  displayedVoices.map((voice) => (
+                    <div
+                      key={voice.voiceId}
+                      onClick={() => handleVoiceChange(voice)}
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        selectedVoice?.voiceId === voice.voiceId
+                          ? "border-[#F2D543] bg-[#F2D54315]"
+                          : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
+                      }`}
                     >
-                      <Play className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-400 montserrat-regular mb-1">
-                    {voice.description}
-                  </p>
-                  <div className="flex gap-2 text-xs">
-                    <span className="text-[#F2D543]">{voice.language}</span>
-                    <span className="text-gray-500">•</span>
-                    <span className="text-gray-400">{voice.gender}</span>
-                  </div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`p-2 rounded-lg ${
+                              selectedVoice?.voiceId === voice.voiceId
+                                ? "bg-[#F2D543] text-primarioDark"
+                                : "bg-gray-700 text-gray-300"
+                            }`}
+                          >
+                            <Mic className="w-4 h-4" />
+                          </div>
+                          <h3 className="font-medium text-white montserrat-medium">
+                            {voice.alias}
+                          </h3>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (playingVoiceId === voice.voiceId) {
+                              stopVoicePreview();
+                            } else {
+                              playVoicePreview(voice);
+                            }
+                          }}
+                          className="p-1 text-[#F2D543] hover:text-[#f2f243] transition-colors"
+                          title={
+                            playingVoiceId === voice.voiceId
+                              ? "Stop preview"
+                              : "Play preview"
+                          }
+                        >
+                          {playingVoiceId === voice.voiceId ? (
+                            <Square className="w-4 h-4" />
+                          ) : (
+                            <Play className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-400 montserrat-regular mb-1">
+                        {voice.tags?.slice(0, 3).join(", ")}
+                      </p>
+                      <div className="flex gap-2 text-xs">
+                        <span className="text-[#F2D543]">{voice.language}</span>
+                        <span className="text-gray-500">•</span>
+                        <span className="text-gray-400">{voice.gender}</span>
+                        {voice.ageBracket && (
+                          <>
+                            <span className="text-gray-500">•</span>
+                            <span className="text-gray-400">
+                              {voice.ageBracket}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Load More Button */}
+              {displayedVoices.length < filteredVoices.length && (
+                <div className="flex justify-center pt-4">
+                  <button
+                    onClick={loadMoreVoices}
+                    disabled={isLoadingMore}
+                    className={`px-6 py-2 rounded-lg transition-all duration-300 font-medium montserrat-medium flex items-center justify-center gap-2 ${
+                      isLoadingMore
+                        ? "bg-gray-600 text-gray-300 cursor-not-allowed"
+                        : "bg-[#F2D543] text-primarioDark hover:bg-[#f2f243]"
+                    }`}
+                  >
+                    {isLoadingMore ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-primarioDark border-t-transparent rounded-full animate-spin"></div>
+                        <span>Loading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Load more voices</span>
+                        <span className="text-xs">
+                          ({displayedVoices.length} / {filteredVoices.length})
+                        </span>
+                      </>
+                    )}
+                  </button>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 

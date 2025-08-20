@@ -48,6 +48,9 @@ function ModalCreateScene({
   const [alephTaskType, setAlephTaskType] = useState("");
   const [alephDetails, setAlephDetails] = useState("");
 
+  // Estado para aspect ratio
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState("");
+
   // Opciones de tareas disponibles para Runway Aleph
   const alephTaskOptions = [
     {
@@ -128,6 +131,20 @@ function ModalCreateScene({
       description: "Replace background with new environment",
       placeholder:
         "e.g., Remove background and replace with space, beach, city...",
+    },
+  ];
+
+  // Opciones de aspect ratio
+  const aspectRatioOptions = [
+    {
+      id: "16:9",
+      name: "16:9 (Fullwidth/Desktop)",
+      description: "Ideal para pantallas anchas",
+    },
+    {
+      id: "9:16",
+      name: "9:16 (Mobile/Vertical)",
+      description: "Ideal para móviles y redes sociales",
     },
   ];
 
@@ -263,9 +280,9 @@ function ModalCreateScene({
     // Construir el prompt profesional
     const proPrompt = `A ${
       shotType || "medium shot"
-    }, featuring ${featuring}, in ${location}. The character performs ${
-      characterAction || "their main action"
-    }. The camera is ${cameraMovement || "static"}. Lighting is ${
+    }, featuring ${featuring}, in ${location}. ${characterAction}. The camera is ${
+      cameraMovement || "static"
+    }. Lighting is ${
       lighting || "natural daylight"
     }. Additional motion includes ${
       additionalMotion || "subtle environmental movement"
@@ -288,6 +305,7 @@ function ModalCreateScene({
     setIsGenerating(false);
     setEstimatedTime(0);
     setVideoGenerationError(null);
+    setSelectedAspectRatio("");
     // Limpiar estados del prompt profesional
     setIsProPromptMode(true); // Mantener Pro Prompt activado por defecto
     setShotType("");
@@ -321,7 +339,12 @@ function ModalCreateScene({
         : aiPrompt.trim(); // Modo simple requiere el textarea
     }
 
-    if (!selectedFrame || !hasValidPrompt) return;
+    if (!selectedFrame || !selectedAspectRatio || !hasValidPrompt) {
+      setVideoGenerationError(
+        "Por favor, selecciona un frame, aspect ratio y completa el prompt."
+      );
+      return;
+    }
 
     setIsGenerating(true);
     setVideoGenerationError(null); // Limpiar errores anteriores
@@ -363,6 +386,7 @@ function ModalCreateScene({
         prompt: finalVideoPrompt, // Video Motion/Animation Description (profesional o simple)
         ai_model: aiModel, // id del modelo seleccionado (deepseek, runway, etc)
         video_duration: videoDuration, // Duración del video
+        aspect_ratio: selectedAspectRatio, // Aspect ratio seleccionado
         media_url:
           selectedData?.media_url ||
           selectedData?.video_url ||
@@ -709,6 +733,45 @@ function ModalCreateScene({
                   </span>
                 </p>
               </div>
+            )}
+          </div>
+
+          {/* Aspect Ratio Selection - REQUIRED */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-white mb-4 montserrat-regular">
+              Select Aspect Ratio *
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {aspectRatioOptions.map((option) => (
+                <div
+                  key={option.id}
+                  onClick={() => setSelectedAspectRatio(option.id)}
+                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                    selectedAspectRatio === option.id
+                      ? "border-[#F2D543] bg-[#F2D54315]"
+                      : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
+                  }`}
+                >
+                  <div className="text-center">
+                    <h3 className="font-medium text-white montserrat-medium text-sm mb-1">
+                      {option.name}
+                    </h3>
+                    <p className="text-xs text-gray-400">
+                      {option.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {selectedAspectRatio && (
+              <p className="mt-2 text-sm text-[#F2D543] montserrat-regular">
+                Selected:{" "}
+                {
+                  aspectRatioOptions.find(
+                    (opt) => opt.id === selectedAspectRatio
+                  )?.name
+                }
+              </p>
             )}
           </div>
 
@@ -1120,6 +1183,7 @@ function ModalCreateScene({
                 onClick={handleGenerateScene}
                 disabled={
                   !selectedFrame ||
+                  !selectedAspectRatio ||
                   (aiModel === "runway-aleph"
                     ? !alephTaskType.trim() || !alephDetails.trim()
                     : isProPromptMode
