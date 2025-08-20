@@ -192,7 +192,7 @@ function ModalLoadEdit({ isOpen, onClose, onLoad }) {
                   {/* Delete Button - Only visible on hover */}
                   <button
                     onClick={(e) => handleDeleteClick(e, edit)}
-                    className="absolute top-2 right-2 p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    className="absolute top-2 right-2 p-2 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
                     title="Delete edit"
                   >
                     <Trash2 className="w-4 h-4" />

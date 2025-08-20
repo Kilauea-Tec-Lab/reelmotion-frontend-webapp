@@ -49,6 +49,11 @@ function ModalCreateFrame({
   const [existingImageGenerationError, setExistingImageGenerationError] =
     useState(null);
 
+  // Estados para aspect ratio y controles de tomas
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState("");
+  const [selectedCameraAngle, setSelectedCameraAngle] = useState("");
+  const [selectedCameraShot, setSelectedCameraShot] = useState("");
+
   // Estado para el botón de submit
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -57,42 +62,94 @@ function ModalCreateFrame({
     {
       id: "hyper-realism",
       name: "Hyper-realism",
-      prompt: `Hyper-realistic 8K image with ultra-realistic textures. The result must exactly match the provided reference images without alterations.`,
+      prompt: `Hyper-realistic 8K image with ultra-realistic textures. The result must exactly match the provided reference images.Adjust the white balance so the image doesn’t look so yellow.`,
     },
     {
       id: "cartoon",
       name: "Cartoon",
-      prompt: `Cartoon style, colorful and playful. The result must exactly match the provided reference images without alterations.`,
+      prompt: `Cartoon style, colorful and playful. The result must exactly match the provided reference images.`,
     },
     {
       id: "anime",
       name: "Anime",
-      prompt: `Anime style, manga-inspired. The result must exactly match the provided reference images without alterations while drawn in detailed anime art.`,
+      prompt: `Anime style, manga-inspired. The result must exactly match the provided reference images while drawn in detailed anime art.`,
     },
     {
       id: "oil-painting",
       name: "Oil Painting",
-      prompt: `Oil painting style with classic brushstrokes. The result must exactly match the provided reference images without alterations while painted as an oil portrait.`,
+      prompt: `Oil painting style with classic brushstrokes. The result must exactly match the provided reference images while painted as an oil portrait.`,
     },
     {
       id: "watercolor",
       name: "Watercolor",
-      prompt: `Watercolor painting style with soft colors. The result must exactly match the provided reference images without alterations while expressed in watercolor textures.`,
+      prompt: `Watercolor painting style with soft colors. The result must exactly match the provided reference images while expressed in watercolor textures.`,
     },
     {
       id: "comic-book",
       name: "Comic Book",
-      prompt: `Comic book style with bold lines and dynamic look. The result must exactly match the provided reference images without alterations while illustrated as a comic panel.`,
+      prompt: `Comic book style with bold lines and dynamic look. The result must exactly match the provided reference images while illustrated as a comic panel.`,
     },
     {
       id: "fantasy",
       name: "Fantasy Art",
-      prompt: `Fantasy art style, magical and ethereal. The result must exactly match the provided reference images without alterations while placed in a fantasy setting.`,
+      prompt: `Fantasy art style, magical and ethereal. The result must exactly match the provided reference images while placed in a fantasy setting.`,
     },
     {
       id: "cyberpunk",
       name: "Cyberpunk",
-      prompt: `Cyberpunk style with neon lights and futuristic details. The result must exactly match the provided reference images without alterations while set in a sci-fi cityscape.`,
+      prompt: `Cyberpunk style with neon lights and futuristic details. The result must exactly match the provided reference images while set in a sci-fi cityscape.`,
+    },
+  ];
+
+  // Opciones de aspect ratio
+  const aspectRatioOptions = [
+    {
+      id: "16:9",
+      name: "16:9 (Fullwidth/Desktop)",
+      description: "Ideal for widescreen displays",
+    },
+    {
+      id: "9:16",
+      name: "9:16 (Mobile/Vertical)",
+      description: "Ideal for mobile devices",
+    },
+  ];
+
+  // Opciones de ángulos de cámara
+  const cameraAngles = [
+    { id: "front", name: "Front", description: "Front View Camera " },
+    { id: "side", name: "Side", description: "Side View Camera" },
+    { id: "back", name: "Back", description: "Back View Camera" },
+    {
+      id: "three-quarter",
+      name: "Three Quarter",
+      description: "Diagonal View",
+    },
+    { id: "low-angle", name: "Low Angle", description: "Camera Low Angle" },
+    {
+      id: "high-angle",
+      name: "High Angle",
+      description: "Camera High Angle",
+    },
+    { id: "bird-eye", name: "Bird Eye", description: "Sky Show" },
+  ];
+
+  // Opciones de tipos de toma
+  const cameraShots = [
+    { id: "close-up", name: "Close-up", description: "Close Up Shot" },
+    { id: "medium-shot", name: "Medium shot", description: "Medium Shot" },
+    { id: "long-shot", name: "Long shot", description: "General Shot" },
+    {
+      id: "extreme-close-up",
+      name: "Extreme close-up",
+      description: "Primerísimo primer plano",
+    },
+    { id: "full-shot", name: "Full shot", description: "Full Shot" },
+    { id: "wide-shot", name: "Wide shot", description: "Great Full Shot" },
+    {
+      id: "over-shoulder",
+      name: "Over shoulder",
+      description: "Over the Shoulder",
     },
   ];
 
@@ -115,6 +172,9 @@ function ModalCreateFrame({
     setIsGeneratingFromExisting(false);
     setExistingGeneratedImageUrl(null);
     setExistingImageGenerationError(null);
+    setSelectedAspectRatio("");
+    setSelectedCameraAngle("");
+    setSelectedCameraShot("");
     setIsSubmitting(false);
     onClose();
   };
@@ -149,12 +209,36 @@ function ModalCreateFrame({
       ? imageStyles?.find((style) => style.id === selectedImageStyle)?.prompt ||
         ""
       : "";
-    return basePrompt + ". The style is: " + stylePrompt;
+
+    // Agregar controles de cámara al prompt
+    let cameraPrompt = "";
+    if (selectedCameraAngle) {
+      const angleData = cameraAngles.find(
+        (angle) => angle.id === selectedCameraAngle
+      );
+      cameraPrompt += `. Camera angle: ${angleData?.name} (${angleData?.description})`;
+    }
+    if (selectedCameraShot) {
+      const shotData = cameraShots.find(
+        (shot) => shot.id === selectedCameraShot
+      );
+      cameraPrompt += `. Camera shot: ${shotData?.name} (${shotData?.description})`;
+    }
+
+    return (
+      basePrompt +
+      (stylePrompt ? ". The style is: " + stylePrompt : "") +
+      cameraPrompt
+    );
   };
 
   const handleGenerateImage = async () => {
-    if ((!selectedCharacters.length && !selectedSpot) || !imagePrompt.trim())
+    if (!imagePrompt.trim() || !selectedAspectRatio) {
+      setImageGenerationError(
+        "Por favor, ingresa un prompt y selecciona el aspect ratio."
+      );
       return;
+    }
 
     setIsGeneratingImage(true);
     setImageGenerationError(null);
@@ -163,8 +247,11 @@ function ModalCreateFrame({
       const finalPrompt = createFinalPrompt();
       const payload = {
         prompt: finalPrompt,
-        characters: selectedCharacters,
-        spot: selectedSpot,
+        characters: selectedCharacters, // Opcional
+        spot: selectedSpot, // Opcional
+        aspect_ratio: selectedAspectRatio,
+        camera_angle: selectedCameraAngle,
+        camera_shot: selectedCameraShot,
         project_id: projectId,
       };
 
@@ -227,7 +314,16 @@ function ModalCreateFrame({
   };
 
   const handleGenerateFromExisting = async () => {
-    if (!selectedExistingFrame || !customPrompt.trim()) return;
+    if (
+      !selectedExistingFrame ||
+      !customPrompt.trim() ||
+      !selectedAspectRatio
+    ) {
+      setExistingImageGenerationError(
+        "Por favor, completa el prompt y selecciona el aspect ratio."
+      );
+      return;
+    }
 
     setIsGeneratingFromExisting(true);
     setExistingImageGenerationError(null);
@@ -242,13 +338,32 @@ function ModalCreateFrame({
             ?.prompt || ""
         : "";
 
+      // Agregar controles de cámara al prompt
+      let cameraPrompt = "";
+      if (selectedCameraAngle) {
+        const angleData = cameraAngles.find(
+          (angle) => angle.id === selectedCameraAngle
+        );
+        cameraPrompt += `. Camera angle: ${angleData?.name} (${angleData?.description})`;
+      }
+      if (selectedCameraShot) {
+        const shotData = cameraShots.find(
+          (shot) => shot.id === selectedCameraShot
+        );
+        cameraPrompt += `. Camera shot: ${shotData?.name} (${shotData?.description})`;
+      }
+
       const finalPrompt =
         customPrompt.trim() +
-        (stylePrompt ? ". The style is: " + stylePrompt : "");
+        (stylePrompt ? ". The style is: " + stylePrompt : "") +
+        cameraPrompt;
 
       const payload = {
         prompt: finalPrompt,
         image_url: selectedFrameData?.media_url,
+        aspect_ratio: selectedAspectRatio,
+        camera_angle: selectedCameraAngle,
+        camera_shot: selectedCameraShot,
       };
 
       const response = await fetch(
@@ -657,6 +772,55 @@ function ModalCreateFrame({
                     />
                   </div>
 
+                  {/* Camera Controls for Existing Frame */}
+                  {selectedExistingFrame && customPrompt.trim() && (
+                    <div className="mt-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Camera Angle */}
+                        <div>
+                          <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+                            Camera Angle (Optional)
+                          </label>
+                          <select
+                            value={selectedCameraAngle}
+                            onChange={(e) =>
+                              setSelectedCameraAngle(e.target.value)
+                            }
+                            className="w-full px-3 py-2 bg-darkBox border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent"
+                          >
+                            <option value="">Select angle...</option>
+                            {cameraAngles.map((angle) => (
+                              <option key={angle.id} value={angle.id}>
+                                {angle.name} - {angle.description}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Camera Shot */}
+                        <div>
+                          <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+                            Camera Shot (Optional)
+                          </label>
+                          <select
+                            value={selectedCameraShot}
+                            onChange={(e) =>
+                              setSelectedCameraShot(e.target.value)
+                            }
+                            className="w-full px-3 py-2 bg-darkBox border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent"
+                          >
+                            <option value="">Select shot type...</option>
+                            {cameraShots.map((shot) => (
+                              <option key={shot.id} value={shot.id}>
+                                {shot.name} - {shot.description}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* AI Enhancement Section - Only show if frame is selected and prompt is provided */}
                   {selectedExistingFrame && customPrompt.trim() && (
                     <div className="mt-6 p-4 bg-darkBox rounded-lg border border-gray-600">
@@ -865,6 +1029,45 @@ function ModalCreateFrame({
                 </div>
               </div>
 
+              {/* Aspect Ratio Selection - REQUIRED */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-white mb-4 montserrat-regular">
+                  Select Aspect Ratio *
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {aspectRatioOptions.map((option) => (
+                    <div
+                      key={option.id}
+                      onClick={() => setSelectedAspectRatio(option.id)}
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        selectedAspectRatio === option.id
+                          ? "border-[#F2D543] bg-[#F2D54315]"
+                          : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
+                      }`}
+                    >
+                      <div className="text-center">
+                        <h3 className="font-medium text-white montserrat-medium text-sm mb-1">
+                          {option.name}
+                        </h3>
+                        <p className="text-xs text-gray-400">
+                          {option.description}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {selectedAspectRatio && (
+                  <p className="mt-2 text-sm text-[#F2D543] montserrat-regular">
+                    Selected:{" "}
+                    {
+                      aspectRatioOptions.find(
+                        (opt) => opt.id === selectedAspectRatio
+                      )?.name
+                    }
+                  </p>
+                )}
+              </div>
+
               {/* Step 1: Image Generation Section */}
               <div className="mb-6 p-4 bg-darkBoxSub rounded-lg border border-gray-600">
                 <div className="flex items-center gap-2 mb-4">
@@ -934,14 +1137,59 @@ function ModalCreateFrame({
                       />
                     </div>
 
+                    {/* Camera Controls */}
+                    <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Camera Angle */}
+                      <div>
+                        <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+                          Camera Angle (Optional)
+                        </label>
+                        <select
+                          value={selectedCameraAngle}
+                          onChange={(e) =>
+                            setSelectedCameraAngle(e.target.value)
+                          }
+                          className="w-full px-3 py-2 bg-darkBox border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent"
+                        >
+                          <option value="">Select angle...</option>
+                          {cameraAngles.map((angle) => (
+                            <option key={angle.id} value={angle.id}>
+                              {angle.name} - {angle.description}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Camera Shot */}
+                      <div>
+                        <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+                          Camera Shot (Optional)
+                        </label>
+                        <select
+                          value={selectedCameraShot}
+                          onChange={(e) =>
+                            setSelectedCameraShot(e.target.value)
+                          }
+                          className="w-full px-3 py-2 bg-darkBox border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent"
+                        >
+                          <option value="">Select shot type...</option>
+                          {cameraShots.map((shot) => (
+                            <option key={shot.id} value={shot.id}>
+                              {shot.name} - {shot.description}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
                     {/* Generate Image Button */}
                     <div className="mb-4">
                       <button
                         type="button"
                         onClick={handleGenerateImage}
                         disabled={
-                          (!selectedCharacters.length && !selectedSpot) ||
                           !imagePrompt.trim() ||
+                          !selectedAspectRatio ||
                           isGeneratingImage
                         }
                         className={`w-full px-4 py-3 rounded-lg transition-all duration-300 font-medium montserrat-medium flex items-center justify-center gap-2 ${
