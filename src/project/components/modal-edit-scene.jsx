@@ -29,18 +29,19 @@ function ModalEditScene({ isOpen, onClose, scene, onSceneUpdated }) {
 
     setIsLoading(true);
     try {
+      const formData = new FormData();
+      formData.append("name", sceneName);
+      formData.append("description", sceneDescription);
+      formData.append("scene_id", scene.id);
+
       const response = await fetch(
-        `${import.meta.env.VITE_APP_BACKEND_URL}scenes/${scene.id}`,
+        `${import.meta.env.VITE_APP_BACKEND_URL}projects/edit-scene`,
         {
-          method: "PUT",
+          method: "POST",
           headers: {
-            "Content-Type": "application/json",
             Authorization: "Bearer " + Cookies.get("token"),
           },
-          body: JSON.stringify({
-            name: sceneName,
-            description: sceneDescription,
-          }),
+          body: formData,
         }
       );
 

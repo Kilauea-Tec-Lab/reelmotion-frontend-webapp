@@ -8,7 +8,7 @@ import Discover from "./discover/discover";
 import PostDetail from "./discover/post-detail";
 import MainLayout from "./components/main-layout";
 import ErrorBoundary from "./components/error-boundary";
-import { userInfoLoader } from "./auth/functions";
+import { getUserInfo, userInfoLoader } from "./auth/functions";
 import { multiloaderGet } from "./create_elements/functions";
 import MainProject from "./project/main-project";
 import { getProjects } from "./project/functions";
@@ -28,7 +28,7 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <MainLayout />,
-    loader: userInfoLoader,
+    loader: getUserInfo,
     errorElement: <ErrorBoundary />,
     children: [
       {

@@ -20,6 +20,7 @@ import {
   ZoomIn,
   ZoomOut,
   Scissors,
+  Undo,
 } from "lucide-react";
 import { useLoaderData } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -103,12 +104,24 @@ function Editor() {
   const [showCutButton, setShowCutButton] = useState(false); // Show cut button when element is selected and playhead is over it
   const [visibleDuration, setVisibleDuration] = useState(120); // Duration visible in timeline (affected by zoom)
 
+  // State for aspect ratio
+  const [aspectRatio, setAspectRatio] = useState("16:9"); // Default to 16:9
+
+  // States for undo functionality
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
   // States for modals
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [currentEditName, setCurrentEditName] = useState("");
   const [currentEditId, setCurrentEditId] = useState(null); // Track current edit ID
+
+  // States for library item hover (to hide add buttons when delete buttons are visible)
+  const [hoveredImageItem, setHoveredImageItem] = useState(null);
+  const [hoveredMusicItem, setHoveredMusicItem] = useState(null);
+  const [hoveredVoiceItem, setHoveredVoiceItem] = useState(null);
 
   // States for image dragging in preview area
   const [isDraggingImage, setIsDraggingImage] = useState(false);
@@ -962,7 +975,7 @@ function Editor() {
       },
     };
 
-    setArrayVideoMake((prev) => [...prev, newElement]);
+    updateTimelineWithHistory([...arrayVideoMake, newElement]);
     setDraggedItem(null);
   };
 
@@ -1083,7 +1096,7 @@ function Editor() {
       },
     };
 
-    setArrayVideoMake((prev) => [...prev, newElement]);
+    updateTimelineWithHistory([...arrayVideoMake, newElement]);
   };
 
   // Collapsible project toggler
@@ -1093,6 +1106,46 @@ function Editor() {
       [projectId]: !prev[projectId],
     }));
   };
+
+  // History management functions
+  const saveToHistory = (newState) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(JSON.parse(JSON.stringify(newState)));
+
+    // Keep only last 50 states to prevent memory issues
+    if (newHistory.length > 50) {
+      newHistory.shift();
+    } else {
+      setHistoryIndex((prev) => prev + 1);
+    }
+
+    setHistory(newHistory);
+  };
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const previousState = history[historyIndex - 1];
+      setArrayVideoMake(previousState);
+      setHistoryIndex((prev) => prev - 1);
+    }
+  };
+
+  const canUndo = historyIndex > 0;
+
+  // Function to update timeline and save to history
+  const updateTimelineWithHistory = (newArrayVideoMake) => {
+    // Save current state to history before making changes
+    saveToHistory(arrayVideoMake);
+    setArrayVideoMake(newArrayVideoMake);
+  };
+
+  // Initialize history with current state when component mounts
+  useEffect(() => {
+    if (history.length === 0) {
+      setHistory([JSON.parse(JSON.stringify(arrayVideoMake))]);
+      setHistoryIndex(0);
+    }
+  }, []); // Only run once on mount
 
   // Initialize library from loader data: music and voices
   useEffect(() => {
@@ -1236,7 +1289,18 @@ function Editor() {
         const rect = timelineRef.current.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const percentage = Math.max(0, Math.min(clickX / rect.width, 1));
-        const newTime = percentage * getTimelineDuration();
+
+        // Calculate time considering zoom and scroll offset (like in handleTimelineClick)
+        const visibleDuration = getVisualTimelineDuration();
+        const timeInVisibleArea = percentage * visibleDuration;
+        const newTime = Math.max(
+          0,
+          Math.min(
+            timeInVisibleArea + timelineScrollOffset,
+            getTimelineDuration()
+          )
+        );
+
         setCurrentTime(newTime);
       }
 
@@ -1409,6 +1473,9 @@ function Editor() {
 
       // Handle end of image drag
       if (isDraggingImage) {
+        // Save to history when drag ends
+        saveToHistory(arrayVideoMake);
+
         setIsDraggingImage(false);
         setDraggingImageElement(null);
         setImageDragStart({ x: 0, y: 0 });
@@ -1417,6 +1484,9 @@ function Editor() {
 
       // Handle end of image resize
       if (isResizingImage) {
+        // Save to history when resize ends
+        saveToHistory(arrayVideoMake);
+
         setIsResizingImage(false);
         setResizingImageElement(null);
         setResizeImageType(null);
@@ -1431,12 +1501,12 @@ function Editor() {
         const dragEndX = currentDragX || e.clientX;
         const newStartTime = calculateNewPosition(dragEndX, rect);
 
-        // Resolve collisions and update array
+        // Resolve collisions and update array with history
         const updatedElements = resolveCollisions(
           draggingElement,
           newStartTime
         );
-        setArrayVideoMake(updatedElements);
+        updateTimelineWithHistory(updatedElements);
 
         // Clean drag state
         setDraggingElement(null);
@@ -1448,7 +1518,20 @@ function Editor() {
       }
 
       // Handle end of resizing
-      if (isResizing) {
+      if (isResizing && resizingElement) {
+        // Get the updated element from the current array
+        const updatedElement = arrayVideoMake.find(
+          (item) => item.id === resizingElement.id
+        );
+        if (updatedElement) {
+          // Resolve collisions after resize is complete using the updated element
+          const updatedElements = resolveCollisions(
+            updatedElement,
+            updatedElement.startTime
+          );
+          updateTimelineWithHistory(updatedElements);
+        }
+
         setIsResizing(false);
         setResizingElement(null);
         setResizeType(null);
@@ -1494,6 +1577,42 @@ function Editor() {
     resizingElement,
     resizeType,
   ]);
+
+  // Keyboard event listeners
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Prevent action if user is typing in an input field
+      if (
+        e.target.tagName === "INPUT" ||
+        e.target.tagName === "TEXTAREA" ||
+        e.target.tagName === "SELECT"
+      ) {
+        return;
+      }
+
+      // Delete selected element with Backspace or Delete
+      if ((e.key === "Backspace" || e.key === "Delete") && selectedElement) {
+        e.preventDefault();
+        const updatedElements = arrayVideoMake.filter(
+          (item) => item.id !== selectedElement.id
+        );
+        updateTimelineWithHistory(updatedElements);
+        setSelectedElement(null);
+      }
+
+      // Undo with Ctrl+Z
+      if (e.ctrlKey && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedElement, arrayVideoMake, canUndo]);
 
   // Function to get unique color for each element
   const getElementColor = (elementId, index) => {
@@ -1560,10 +1679,9 @@ function Editor() {
     };
 
     // Replace the original element with the two new parts
-    setArrayVideoMake((prev) => {
-      const filtered = prev.filter((item) => item.id !== element.id);
-      return [...filtered, firstPart, secondPart];
-    });
+    const filtered = arrayVideoMake.filter((item) => item.id !== element.id);
+    const newElements = [...filtered, firstPart, secondPart];
+    updateTimelineWithHistory(newElements);
 
     // Clear selection
     setSelectedElement(null);
@@ -1665,10 +1783,8 @@ function Editor() {
 
   // Function to delete element from timeline
   const handleDeleteElement = (elementId) => {
-    setArrayVideoMake((prev) => {
-      // Simply filter element without rearranging others
-      return prev.filter((item) => item.id !== elementId);
-    });
+    const newElements = arrayVideoMake.filter((item) => item.id !== elementId);
+    updateTimelineWithHistory(newElements);
 
     // If deleted element was selected, deselect
     if (selectedElement && selectedElement.id === elementId) {
@@ -1730,11 +1846,13 @@ function Editor() {
 
         updatedElement.startTime = formatDuration(newStartTime);
         updatedElement.duration = formatDuration(newDuration);
+        updatedElement.endTime = formatDuration(newStartTime + newDuration);
         updatedElement.trimStart = formatDuration(newTrimStart);
       } else {
         // For images, allow free resizing
         updatedElement.startTime = formatDuration(newStartTime);
         updatedElement.duration = formatDuration(newDuration);
+        updatedElement.endTime = formatDuration(newStartTime + newDuration);
       }
     } else {
       // Resize from end
@@ -1905,8 +2023,8 @@ function Editor() {
   };
 
   const handleNewProject = () => {
-    // Clear current project state
-    setArrayVideoMake([]);
+    // Clear current project state with history
+    updateTimelineWithHistory([]);
     setCurrentTime(0);
     setSelectedElement(null);
     setCurrentEditName("");
@@ -1944,6 +2062,9 @@ function Editor() {
 
         if (timelineData.timeline) {
           setArrayVideoMake(timelineData.timeline);
+          // Reset history after loading
+          setHistory([JSON.parse(JSON.stringify(timelineData.timeline))]);
+          setHistoryIndex(0);
         }
 
         // Load settings if available
@@ -2276,10 +2397,58 @@ function Editor() {
     }
   };
 
+  // Helper function to get preview container styles based on aspect ratio
+  const getPreviewStyles = () => {
+    const containerWidth = 100; // Use percentage for responsive design
+    const containerHeight = 100;
+
+    if (aspectRatio === "9:16") {
+      // Portrait mode - video should be taller
+      const videoWidth = 50; // 9/16 = 0.5625, so width = height * 0.5625
+      const videoHeight = 100;
+
+      return {
+        container: {
+          width: `${containerWidth}%`,
+          height: `${containerHeight}%`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        video: {
+          width: `${videoWidth}%`,
+          height: `${videoHeight}%`,
+          aspectRatio: "9/16",
+        },
+      };
+    } else {
+      // Default 16:9 landscape mode
+      const videoWidth = 80;
+      const videoHeight = 100; // 9/16 = 0.5625, so height = width * 0.5625
+
+      return {
+        container: {
+          width: `${containerWidth}%`,
+          height: `${containerHeight}%`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        video: {
+          width: `${videoWidth}%`,
+          height: `${videoHeight}%`,
+          aspectRatio: "16/9",
+        },
+      };
+    }
+  };
+
+  const previewStyles = getPreviewStyles();
+
   return (
     <div className="bg-primarioDark w-full h-[100vh] scroll-auto px-6 py-4">
       {/* ACTION BAR */}
-      <div className="flex gap-6 mt-2 h-[45vh]">
+      <div className="flex gap-1 mt-2 h-[45vh]">
         <div className="bg-darkBox w-1/4 rounded-4xl flex">
           <div className="w-1/5">
             <div
@@ -2362,7 +2531,7 @@ function Editor() {
                         {expandedProjects[project.id] &&
                         project.scenes &&
                         project.scenes.length > 0 ? (
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 gap-4">
                             {project.scenes.map((scene) => (
                               <div
                                 key={scene.id}
@@ -2490,20 +2659,22 @@ function Editor() {
                 onDragOver={handleMusicContainerDragOver}
                 onDrop={handleMusicContainerDrop}
               >
-                {/* Add Music Button */}
-                <button
-                  onClick={() =>
-                    (musicList.length > 0
-                      ? document.getElementById("music-upload-hidden")
-                      : document.getElementById("music-upload")
-                    )?.click()
-                  }
-                  className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                  title="Add Music"
-                  disabled={isUploadingMusic}
-                >
-                  <Plus size={20} />
-                </button>
+                {/* Add Music Button - hide when any delete button is visible */}
+                {!hoveredMusicItem && (
+                  <button
+                    onClick={() =>
+                      (musicList.length > 0
+                        ? document.getElementById("music-upload-hidden")
+                        : document.getElementById("music-upload")
+                      )?.click()
+                    }
+                    className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                    title="Add Music"
+                    disabled={isUploadingMusic}
+                  >
+                    <Plus size={20} />
+                  </button>
+                )}
 
                 {/* Upload area when empty */}
                 {musicList.length === 0 && (
@@ -2552,6 +2723,10 @@ function Editor() {
                       draggable={!isUploadingMusic}
                       onDragStart={(e) => handleDragStart(e, music, "music")}
                       onClick={() => addItemToTimeline(music, "music")}
+                      onMouseEnter={() =>
+                        setHoveredMusicItem(music.id || index)
+                      }
+                      onMouseLeave={() => setHoveredMusicItem(null)}
                       className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
                     >
                       {/* Delete Button */}
@@ -2595,21 +2770,23 @@ function Editor() {
                 onDragOver={handleImageContainerDragOver}
                 onDrop={handleImageContainerDrop}
               >
-                {/* Add Image Button - always visible in top right corner */}
-                <button
-                  onClick={() => {
-                    const input =
-                      images.length > 0
-                        ? document.getElementById("image-upload-hidden")
-                        : document.getElementById("image-upload");
-                    input?.click();
-                  }}
-                  className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                  title="Add images"
-                  disabled={isUploadingImages}
-                >
-                  <Plus size={20} />
-                </button>
+                {/* Add Image Button - hide when any delete button is visible */}
+                {!hoveredImageItem && (
+                  <button
+                    onClick={() => {
+                      const input =
+                        images.length > 0
+                          ? document.getElementById("image-upload-hidden")
+                          : document.getElementById("image-upload");
+                      input?.click();
+                    }}
+                    className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                    title="Add images"
+                    disabled={isUploadingImages}
+                  >
+                    <Plus size={20} />
+                  </button>
+                )}
 
                 {/* Upload area - only show when no images */}
                 {images.length === 0 && (
@@ -2652,7 +2829,7 @@ function Editor() {
 
                 {/* Images grid */}
                 <div
-                  className={`grid grid-cols-2 gap-4 overflow-y-auto ${
+                  className={`grid grid-cols-1 gap-4 overflow-y-auto ${
                     images.length === 0 ? "max-h-[calc(100%-140px)]" : "h-full"
                   }`}
                 >
@@ -2662,6 +2839,10 @@ function Editor() {
                       draggable={!isUploadingImages}
                       onDragStart={(e) => handleDragStart(e, image, "image")}
                       onClick={() => addItemToTimeline(image, "image")}
+                      onMouseEnter={() =>
+                        setHoveredImageItem(image.id || index)
+                      }
+                      onMouseLeave={() => setHoveredImageItem(null)}
                       className="bg-darkBox cursor-pointer overflow-x-hidden h-32 hover:bg-opacity-80 rounded-2xl transition-all duration-200 hover:scale-105 relative group"
                     >
                       {/* Delete Button - Only visible on hover */}
@@ -2702,20 +2883,22 @@ function Editor() {
                 onDragOver={handleVoiceContainerDragOver}
                 onDrop={handleVoiceContainerDrop}
               >
-                {/* Add Voice Button */}
-                <button
-                  onClick={() =>
-                    (voiceList.length > 0
-                      ? document.getElementById("voice-upload-hidden")
-                      : document.getElementById("voice-upload")
-                    )?.click()
-                  }
-                  className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                  title="Add Voice"
-                  disabled={isUploadingVoice}
-                >
-                  <Plus size={20} />
-                </button>
+                {/* Add Voice Button - hide when any delete button is visible */}
+                {!hoveredVoiceItem && (
+                  <button
+                    onClick={() =>
+                      (voiceList.length > 0
+                        ? document.getElementById("voice-upload-hidden")
+                        : document.getElementById("voice-upload")
+                      )?.click()
+                    }
+                    className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                    title="Add Voice"
+                    disabled={isUploadingVoice}
+                  >
+                    <Plus size={20} />
+                  </button>
+                )}
 
                 {/* Upload area when empty */}
                 {voiceList.length === 0 && (
@@ -2764,6 +2947,10 @@ function Editor() {
                       draggable={!isUploadingVoice}
                       onDragStart={(e) => handleDragStart(e, voice, "voice")}
                       onClick={() => addItemToTimeline(voice, "voice")}
+                      onMouseEnter={() =>
+                        setHoveredVoiceItem(voice.id || index)
+                      }
+                      onMouseLeave={() => setHoveredVoiceItem(null)}
                       className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
                     >
                       {/* Delete Button */}
@@ -2809,267 +2996,275 @@ function Editor() {
             )}
           </div>
         </div>
-        <div className="w-2/4 rounded-4xl relative overflow-hidden">
-          {/* Video principal - siempre en el DOM */}
-          <video
-            ref={mainVideoRef}
-            className="rounded-4xl bg-gray-900 h-full max-w-full mx-auto block object-contain absolute inset-0"
-            muted={false}
-            style={{
-              transition: "opacity 0.15s ease-in-out",
-              opacity: 1,
-              zIndex: 2,
-            }}
-          />
-
-          {/* Video secundario para transiciones suaves */}
-          <video
-            ref={secondaryVideoRef}
-            className="rounded-4xl bg-gray-900 h-full max-w-full mx-auto block object-contain absolute inset-0"
-            muted={false}
-            style={{
-              transition: "opacity 0.15s ease-in-out",
-              opacity: 0,
-              zIndex: 1,
-              display: "none",
-            }}
-          />
-
-          {/* Placeholder cuando no hay videos o cuando no está reproduciendo */}
-
+        <div
+          className="w-2/4 rounded-4xl relative overflow-hidden"
+          style={previewStyles.container}
+        >
           <div
-            className="rounded-4xl w-full bg-darkBox flex items-center justify-center absolute inset-0"
-            style={{
-              display:
-                arrayVideoMake.some((item) => item.channel === "video") &&
-                getActiveElements(currentTime).some(
-                  (el) => el.channel === "video"
-                )
-                  ? "none"
-                  : "flex",
-              zIndex: 0,
-            }}
+            className="relative rounded-4xl bg-gray-900"
+            style={previewStyles.video}
           >
-            <div className="text-center">
-              <ClapperboardIcon
-                size={64}
-                className="text-gray-400 mx-auto mb-4"
-              />
-              <p className="text-gray-400 text-lg">
-                {arrayVideoMake.some((item) => item.channel === "video")
-                  ? "Press play to preview your video"
-                  : "Drag videos here to get started"}
-              </p>
-              <p className="text-gray-500 text-sm mt-2">
-                Your final video will appear in this area
-              </p>
+            {/* Video principal - siempre en el DOM */}
+            <video
+              ref={mainVideoRef}
+              className="rounded-4xl bg-gray-900 w-full h-full object-cover absolute inset-0"
+              muted={false}
+              style={{
+                transition: "opacity 0.15s ease-in-out",
+                opacity: 1,
+                zIndex: 2,
+              }}
+            />
+
+            {/* Video secundario para transiciones suaves */}
+            <video
+              ref={secondaryVideoRef}
+              className="rounded-4xl bg-gray-900 w-full h-full object-cover absolute inset-0"
+              muted={false}
+              style={{
+                transition: "opacity 0.15s ease-in-out",
+                opacity: 0,
+                zIndex: 1,
+                display: "none",
+              }}
+            />
+
+            {/* Placeholder cuando no hay videos o cuando no está reproduciendo */}
+
+            <div
+              className="rounded-4xl w-full h-full bg-darkBox flex items-center justify-center absolute inset-0"
+              style={{
+                display:
+                  arrayVideoMake.some((item) => item.channel === "video") &&
+                  getActiveElements(currentTime).some(
+                    (el) => el.channel === "video"
+                  )
+                    ? "none"
+                    : "flex",
+                zIndex: 0,
+              }}
+            >
+              <div className="text-center">
+                <ClapperboardIcon
+                  size={64}
+                  className="text-gray-400 mx-auto mb-4"
+                />
+                <p className="text-gray-400 text-lg">
+                  {arrayVideoMake.some((item) => item.channel === "video")
+                    ? "Press play to preview your video"
+                    : "Drag videos here to get started"}
+                </p>
+                <p className="text-gray-500 text-sm mt-2">
+                  Your final video will appear in this area
+                </p>
+              </div>
             </div>
-          </div>
-          {/* Overlay for images and text */}
-          {arrayVideoMake
-            .filter(
-              (item) =>
-                item.channel === "image" &&
-                currentTime >= item.startTime &&
-                currentTime < item.endTime
-            )
-            .sort((a, b) => (a.zIndex || 1) - (b.zIndex || 1))
-            .map((item) => {
-              const scale = item.scale || 1;
+            {/* Overlay for images and text */}
+            {arrayVideoMake
+              .filter(
+                (item) =>
+                  item.channel === "image" &&
+                  currentTime >= item.startTime &&
+                  currentTime < item.endTime
+              )
+              .sort((a, b) => (a.zIndex || 1) - (b.zIndex || 1))
+              .map((item) => {
+                const scale = item.scale || 1;
 
-              // Convert normalized position (0-1) to CSS positioning
-              // FFmpeg coordinates: (0,0) = top-left, (1,1) = bottom-right
-              const posX = item.position?.x || 0.5;
-              const posY = item.position?.y || 0.5;
+                // Convert normalized position (0-1) to CSS positioning
+                // FFmpeg coordinates: (0,0) = top-left, (1,1) = bottom-right
+                const posX = item.position?.x || 0.5;
+                const posY = item.position?.y || 0.5;
 
-              // Calculate actual position as percentage
-              const leftPercent = posX * 100;
-              const topPercent = posY * 100; // Direct mapping - no inversion needed for FFmpeg compatibility
+                // Calculate actual position as percentage
+                const leftPercent = posX * 100;
+                const topPercent = posY * 100; // Direct mapping - no inversion needed for FFmpeg compatibility
 
-              // Apply color correction using FFmpeg-accurate formulas
-              const filters = [];
-              if (item.colorCorrection) {
-                const cc = item.colorCorrection;
+                // Apply color correction using FFmpeg-accurate formulas
+                const filters = [];
+                if (item.colorCorrection) {
+                  const cc = item.colorCorrection;
 
-                // Brightness: FFmpeg -1.0 to 1.0 -> CSS brightness()
-                // FFmpeg eq filter uses additive brightness, CSS uses multiplicative
-                if (cc.brightness !== 0) {
-                  // Convert FFmpeg additive brightness to CSS multiplicative brightness
-                  const cssValue = 1 + cc.brightness * 0.6; // Reduced factor for better match
-                  filters.push(`brightness(${Math.max(0.1, cssValue)})`);
-                }
-
-                // Contrast: FFmpeg 0.0 to 4.0 -> CSS contrast()
-                // FFmpeg eq filter: (input - 0.5) * contrast + 0.5
-                // CSS contrast: input * contrast
-                if (cc.contrast !== 1) {
-                  // Convert FFmpeg contrast to CSS contrast
-                  let cssContrast;
-                  if (cc.contrast < 1) {
-                    // For reduced contrast, the difference is more pronounced
-                    cssContrast = 0.3 + cc.contrast * 0.7; // Maps 0->0.3, 1->1.0
-                  } else {
-                    // For increased contrast, closer mapping
-                    cssContrast = cc.contrast * 0.85 + 0.15; // Slightly reduce high contrast
+                  // Brightness: FFmpeg -1.0 to 1.0 -> CSS brightness()
+                  // FFmpeg eq filter uses additive brightness, CSS uses multiplicative
+                  if (cc.brightness !== 0) {
+                    // Convert FFmpeg additive brightness to CSS multiplicative brightness
+                    const cssValue = 1 + cc.brightness * 0.6; // Reduced factor for better match
+                    filters.push(`brightness(${Math.max(0.1, cssValue)})`);
                   }
-                  filters.push(`contrast(${Math.max(0.1, cssContrast)})`);
-                }
 
-                // Saturation: FFmpeg 0.0 to 3.0 -> CSS saturate()
-                if (cc.saturation !== 1) {
-                  // FFmpeg saturation tends to be more intense than CSS
-                  let cssSaturation;
-                  if (cc.saturation < 1) {
-                    cssSaturation = cc.saturation * 0.85 + 0.15; // Less desaturation
-                  } else {
-                    cssSaturation = 1 + (cc.saturation - 1) * 0.75; // Reduce oversaturation
+                  // Contrast: FFmpeg 0.0 to 4.0 -> CSS contrast()
+                  // FFmpeg eq filter: (input - 0.5) * contrast + 0.5
+                  // CSS contrast: input * contrast
+                  if (cc.contrast !== 1) {
+                    // Convert FFmpeg contrast to CSS contrast
+                    let cssContrast;
+                    if (cc.contrast < 1) {
+                      // For reduced contrast, the difference is more pronounced
+                      cssContrast = 0.3 + cc.contrast * 0.7; // Maps 0->0.3, 1->1.0
+                    } else {
+                      // For increased contrast, closer mapping
+                      cssContrast = cc.contrast * 0.85 + 0.15; // Slightly reduce high contrast
+                    }
+                    filters.push(`contrast(${Math.max(0.1, cssContrast)})`);
                   }
-                  filters.push(`saturate(${Math.max(0, cssSaturation)})`);
+
+                  // Saturation: FFmpeg 0.0 to 3.0 -> CSS saturate()
+                  if (cc.saturation !== 1) {
+                    // FFmpeg saturation tends to be more intense than CSS
+                    let cssSaturation;
+                    if (cc.saturation < 1) {
+                      cssSaturation = cc.saturation * 0.85 + 0.15; // Less desaturation
+                    } else {
+                      cssSaturation = 1 + (cc.saturation - 1) * 0.75; // Reduce oversaturation
+                    }
+                    filters.push(`saturate(${Math.max(0, cssSaturation)})`);
+                  }
+
+                  // Gamma: No direct CSS equivalent, approximate with brightness
+                  if (cc.gamma !== 1) {
+                    // Improved gamma approximation
+                    const gammaEffect = Math.pow(0.5, 1 / cc.gamma) * 2;
+                    const adjustedGamma = 1 + (gammaEffect - 1) * 0.7; // Reduce intensity
+                    filters.push(`brightness(${Math.max(0.1, adjustedGamma)})`);
+                  }
+
+                  // Hue: FFmpeg -180 to 180 -> CSS hue-rotate()
+                  if (cc.hue !== 0) {
+                    filters.push(`hue-rotate(${cc.hue}deg)`);
+                  }
+
+                  // Vibrance: More conservative approximation
+                  if (cc.vibrance !== 0) {
+                    // Even more conservative vibrance to avoid over-saturation
+                    const vibranceEffect = 1 + cc.vibrance * 0.2;
+                    filters.push(`saturate(${Math.max(0, vibranceEffect)})`);
+                  }
                 }
 
-                // Gamma: No direct CSS equivalent, approximate with brightness
-                if (cc.gamma !== 1) {
-                  // Improved gamma approximation
-                  const gammaEffect = Math.pow(0.5, 1 / cc.gamma) * 2;
-                  const adjustedGamma = 1 + (gammaEffect - 1) * 0.7; // Reduce intensity
-                  filters.push(`brightness(${Math.max(0.1, adjustedGamma)})`);
-                }
-
-                // Hue: FFmpeg -180 to 180 -> CSS hue-rotate()
-                if (cc.hue !== 0) {
-                  filters.push(`hue-rotate(${cc.hue}deg)`);
-                }
-
-                // Vibrance: More conservative approximation
-                if (cc.vibrance !== 0) {
-                  // Even more conservative vibrance to avoid over-saturation
-                  const vibranceEffect = 1 + cc.vibrance * 0.2;
-                  filters.push(`saturate(${Math.max(0, vibranceEffect)})`);
-                }
-              }
-
-              return (
-                <div
-                  key={item.id}
-                  className={`absolute rounded-0 overflow-visible pointer-events-none group ${
-                    selectedElement?.id === item.id && !isPlaying
-                      ? "ring-2 ring-primarioLogo ring-opacity-80"
-                      : ""
-                  }`}
-                  style={{
-                    zIndex: (item.zIndex || 1) + 10,
-                    left: `${leftPercent}%`,
-                    top: `${topPercent}%`,
-                    width: `${scale * 100}%`,
-                    height: `${scale * 100}%`,
-                    transform: `translate(-50%, -50%)`, // Center the image on the position
-                  }}
-                >
-                  <img
-                    src={item.url}
-                    alt={item.title}
-                    className="cursor-move rounded-0"
+                return (
+                  <div
+                    key={item.id}
+                    className={`absolute rounded-0 overflow-visible pointer-events-none group ${
+                      selectedElement?.id === item.id && !isPlaying
+                        ? "ring-2 ring-primarioLogo ring-opacity-80"
+                        : ""
+                    }`}
                     style={{
-                      opacity: item.opacity || 1,
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "contain",
-                      pointerEvents: "auto",
-                      filter: filters.length > 0 ? filters.join(" ") : "none",
-                      backgroundColor: "transparent", // Ensure transparent background for PNGs
+                      zIndex: (item.zIndex || 1) + 10,
+                      left: `${leftPercent}%`,
+                      top: `${topPercent}%`,
+                      width: `${scale * 100}%`,
+                      height: `${scale * 100}%`,
+                      transform: `translate(-50%, -50%)`, // Center the image on the position
                     }}
-                    onMouseDown={(e) => handleImageDragStart(e, item)}
-                    onClick={(e) => handleSelectElement(item, e)}
-                  />
+                  >
+                    <img
+                      src={item.url}
+                      alt={item.title}
+                      className="cursor-move rounded-0"
+                      style={{
+                        opacity: item.opacity || 1,
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "contain",
+                        pointerEvents: "auto",
+                        filter: filters.length > 0 ? filters.join(" ") : "none",
+                        backgroundColor: "transparent", // Ensure transparent background for PNGs
+                      }}
+                      onMouseDown={(e) => handleImageDragStart(e, item)}
+                      onClick={(e) => handleSelectElement(item, e)}
+                    />
 
-                  {/* Resize handles - only show when selected and not playing */}
-                  {selectedElement?.id === item.id && !isPlaying && (
-                    <>
-                      {/* Top-left corner */}
-                      <div
-                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-nw-resize pointer-events-auto"
-                        style={{ top: "-6px", left: "-6px" }}
-                        onMouseDown={(e) =>
-                          handleImageResizeStart(e, item, "top-left")
-                        }
-                      />
-                      {/* Top-right corner */}
-                      <div
-                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-ne-resize pointer-events-auto"
-                        style={{ top: "-6px", right: "-6px" }}
-                        onMouseDown={(e) =>
-                          handleImageResizeStart(e, item, "top-right")
-                        }
-                      />
-                      {/* Bottom-left corner */}
-                      <div
-                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-sw-resize pointer-events-auto"
-                        style={{ bottom: "-6px", left: "-6px" }}
-                        onMouseDown={(e) =>
-                          handleImageResizeStart(e, item, "bottom-left")
-                        }
-                      />
-                      {/* Bottom-right corner */}
-                      <div
-                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-se-resize pointer-events-auto"
-                        style={{ bottom: "-6px", right: "-6px" }}
-                        onMouseDown={(e) =>
-                          handleImageResizeStart(e, item, "bottom-right")
-                        }
-                      />
-                      {/* Top side */}
-                      <div
-                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-n-resize pointer-events-auto"
-                        style={{
-                          top: "-6px",
-                          left: "50%",
-                          transform: "translateX(-50%)",
-                        }}
-                        onMouseDown={(e) =>
-                          handleImageResizeStart(e, item, "top")
-                        }
-                      />
-                      {/* Bottom side */}
-                      <div
-                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-s-resize pointer-events-auto"
-                        style={{
-                          bottom: "-6px",
-                          left: "50%",
-                          transform: "translateX(-50%)",
-                        }}
-                        onMouseDown={(e) =>
-                          handleImageResizeStart(e, item, "bottom")
-                        }
-                      />
-                      {/* Left side */}
-                      <div
-                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-w-resize pointer-events-auto"
-                        style={{
-                          left: "-6px",
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                        }}
-                        onMouseDown={(e) =>
-                          handleImageResizeStart(e, item, "left")
-                        }
-                      />
-                      {/* Right side */}
-                      <div
-                        className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-e-resize pointer-events-auto"
-                        style={{
-                          right: "-6px",
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                        }}
-                        onMouseDown={(e) =>
-                          handleImageResizeStart(e, item, "right")
-                        }
-                      />
-                    </>
-                  )}
-                </div>
-              );
-            })}
+                    {/* Resize handles - only show when selected and not playing */}
+                    {selectedElement?.id === item.id && !isPlaying && (
+                      <>
+                        {/* Top-left corner */}
+                        <div
+                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-nw-resize pointer-events-auto"
+                          style={{ top: "-6px", left: "-6px" }}
+                          onMouseDown={(e) =>
+                            handleImageResizeStart(e, item, "top-left")
+                          }
+                        />
+                        {/* Top-right corner */}
+                        <div
+                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-ne-resize pointer-events-auto"
+                          style={{ top: "-6px", right: "-6px" }}
+                          onMouseDown={(e) =>
+                            handleImageResizeStart(e, item, "top-right")
+                          }
+                        />
+                        {/* Bottom-left corner */}
+                        <div
+                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-sw-resize pointer-events-auto"
+                          style={{ bottom: "-6px", left: "-6px" }}
+                          onMouseDown={(e) =>
+                            handleImageResizeStart(e, item, "bottom-left")
+                          }
+                        />
+                        {/* Bottom-right corner */}
+                        <div
+                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-se-resize pointer-events-auto"
+                          style={{ bottom: "-6px", right: "-6px" }}
+                          onMouseDown={(e) =>
+                            handleImageResizeStart(e, item, "bottom-right")
+                          }
+                        />
+                        {/* Top side */}
+                        <div
+                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-n-resize pointer-events-auto"
+                          style={{
+                            top: "-6px",
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                          }}
+                          onMouseDown={(e) =>
+                            handleImageResizeStart(e, item, "top")
+                          }
+                        />
+                        {/* Bottom side */}
+                        <div
+                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-s-resize pointer-events-auto"
+                          style={{
+                            bottom: "-6px",
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                          }}
+                          onMouseDown={(e) =>
+                            handleImageResizeStart(e, item, "bottom")
+                          }
+                        />
+                        {/* Left side */}
+                        <div
+                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-w-resize pointer-events-auto"
+                          style={{
+                            left: "-6px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                          }}
+                          onMouseDown={(e) =>
+                            handleImageResizeStart(e, item, "left")
+                          }
+                        />
+                        {/* Right side */}
+                        <div
+                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-e-resize pointer-events-auto"
+                          style={{
+                            right: "-6px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                          }}
+                          onMouseDown={(e) =>
+                            handleImageResizeStart(e, item, "right")
+                          }
+                        />
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
         </div>
         <div className="w-1/4 bg-darkBox rounded-4xl p-6 overflow-y-scroll">
           <div className="text-white mb-4">
@@ -3908,7 +4103,36 @@ function Editor() {
             </span>
           </div>
         </div>
-        <div className="gap-4 flex pb-4">
+        <div className="gap-4 flex pb-4 items-center">
+          {/* Undo Button */}
+          <button
+            type="button"
+            onClick={undo}
+            disabled={!canUndo}
+            className={`px-3 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${
+              canUndo
+                ? "bg-gray-600 text-white hover:bg-gray-500 cursor-pointer"
+                : "bg-gray-800 text-gray-500 cursor-not-allowed"
+            }`}
+            title="Undo (Ctrl+Z)"
+          >
+            <Undo size={16} />
+            Undo
+          </button>
+
+          {/* Aspect Ratio Selector */}
+          <div className="flex items-center gap-2">
+            <label className="text-white text-sm font-medium">Aspect:</label>
+            <select
+              value={aspectRatio}
+              onChange={(e) => setAspectRatio(e.target.value)}
+              className="bg-darkBox text-white border border-gray-600 rounded-lg px-3 py-1 text-sm focus:outline-none focus:border-primarioLogo"
+            >
+              <option value="16:9">16:9</option>
+              <option value="9:16">9:16</option>
+            </select>
+          </div>
+
           {currentEditName && (
             <button
               type="button"
@@ -4391,7 +4615,9 @@ function Editor() {
 
             {/* Voice Track */}
             <div className="flex items-center gap-3">
-              <div className="w-16 text-white text-sm font-medium">Voice</div>
+              <div className="w-16 text-white text-sm font-medium">
+                Voice / Sound
+              </div>
               <div
                 className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
                 onDragOver={handleDragOver}

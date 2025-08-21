@@ -15,6 +15,8 @@ import ModalEditSpot from "./components/modal-edit-spot";
 import ModalDeleteSpot from "../create_elements/modal-delete-spot";
 import ModalEditScene from "./components/modal-edit-scene";
 import ModalDeleteScene from "./components/modal-delete-scene";
+import ModalEditFrame from "./components/modal-edit-frame";
+import ModalDeleteFrame from "./components/modal-delete-frame";
 import ModalPreview from "../components/modal-preview";
 import { createPusherClient } from "../pusher";
 import { getProjects } from "./functions";
@@ -461,17 +463,8 @@ function MainProject() {
                             </button>
                             <button
                               onClick={() => handleDeleteCharacter(character)}
-                              disabled={isProjectComplete}
-                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg ${
-                                isProjectComplete
-                                  ? "text-gray-500 cursor-not-allowed hover:bg-transparent"
-                                  : "text-primarioLogo hover:bg-darkBoxSub"
-                              }`}
-                              title={
-                                isProjectComplete
-                                  ? "Cannot delete characters in completed projects"
-                                  : "Delete Character"
-                              }
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg text-primarioLogo hover:bg-darkBoxSub`}
+                              title={"Delete Character"}
                             >
                               <Trash2 className="w-4 h-4" />
                               Delete
@@ -564,17 +557,8 @@ function MainProject() {
                             </button>
                             <button
                               onClick={() => handleDeleteSpot(spot)}
-                              disabled={isProjectComplete}
-                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg ${
-                                isProjectComplete
-                                  ? "text-gray-500 cursor-not-allowed hover:bg-transparent"
-                                  : "text-primarioLogo hover:bg-darkBoxSub"
-                              }`}
-                              title={
-                                isProjectComplete
-                                  ? "Cannot delete spots in completed projects"
-                                  : "Delete Spot"
-                              }
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg text-primarioLogo hover:bg-darkBoxSub`}
+                              title={"Delete Spot"}
                             >
                               <Trash2 className="w-4 h-4" />
                               Delete
@@ -667,17 +651,8 @@ function MainProject() {
                             </button>
                             <button
                               onClick={() => handleDeleteVoice(voice)}
-                              disabled={isProjectComplete}
-                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg ${
-                                isProjectComplete
-                                  ? "text-gray-500 cursor-not-allowed hover:bg-transparent"
-                                  : "text-red-400 hover:bg-darkBoxSub"
-                              }`}
-                              title={
-                                isProjectComplete
-                                  ? "Cannot delete voices in completed projects"
-                                  : "Delete Voice"
-                              }
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg text-red-400 hover:bg-darkBoxSub`}
+                              title={"Delete Voice"}
                             >
                               <Trash2 className="w-4 h-4" />
                               Delete
@@ -788,17 +763,8 @@ function MainProject() {
                               </button>
                               <button
                                 onClick={() => handleDeleteFrame(frame)}
-                                disabled={isProjectComplete}
-                                className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg ${
-                                  isProjectComplete
-                                    ? "text-gray-500 cursor-not-allowed hover:bg-transparent"
-                                    : "text-primarioLogo hover:bg-darkBoxSub"
-                                }`}
-                                title={
-                                  isProjectComplete
-                                    ? "Cannot delete frames in completed projects"
-                                    : "Delete Frame"
-                                }
+                                className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg text-primarioLogo hover:bg-darkBoxSub`}
+                                title={"Delete Frame"}
                               >
                                 <Trash2 className="w-4 h-4" />
                                 Delete
@@ -904,17 +870,8 @@ function MainProject() {
                             </button>
                             <button
                               onClick={() => handleDeleteScene(scene)}
-                              disabled={isProjectComplete}
-                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg ${
-                                isProjectComplete
-                                  ? "text-gray-500 cursor-not-allowed hover:bg-transparent"
-                                  : "text-primarioLogo hover:bg-darkBoxSub"
-                              }`}
-                              title={
-                                isProjectComplete
-                                  ? "Cannot delete scenes in completed projects"
-                                  : "Delete Scene"
-                              }
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-b-lg text-primarioLogo hover:bg-darkBoxSub`}
+                              title={"Delete Scene"}
                             >
                               <Trash2 className="w-4 h-4" />
                               Delete
@@ -1042,6 +999,20 @@ function MainProject() {
         onClose={() => setIsPreviewModalOpen(false)}
         type={previewType}
         data={previewData}
+      />
+
+      <ModalEditFrame
+        isOpen={isEditFrameModalOpen}
+        onClose={() => setIsEditFrameModalOpen(false)}
+        frame={selectedFrame}
+        onFrameUpdated={handleFrameUpdated}
+      />
+
+      <ModalDeleteFrame
+        isOpen={isDeleteFrameModalOpen}
+        onClose={() => setIsDeleteFrameModalOpen(false)}
+        frame={selectedFrame}
+        onConfirm={handleFrameDeleted}
       />
     </div>
   );

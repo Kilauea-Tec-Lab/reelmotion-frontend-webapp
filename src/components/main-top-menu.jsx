@@ -129,6 +129,7 @@ function MainTopMenu({ user_info }) {
   }
 
   // Socket para notificaciones
+
   useEffect(() => {
     if (!user_info?.id) return;
 
