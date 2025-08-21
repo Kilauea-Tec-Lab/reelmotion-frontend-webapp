@@ -1,5 +1,6 @@
 import { div, span } from "framer-motion/client";
 import { useState, useEffect, useRef } from "react";
+import html2canvas from "html2canvas";
 import {
   Play,
   Pause,
@@ -148,6 +149,13 @@ function Editor() {
   const voiceFiles = [
     // Will be filled from API uploads; keep placeholder if empty
   ];
+
+  // States for pre-rendering with MediaRecorder
+  const [isPreRendering, setIsPreRendering] = useState(false);
+  const [preRenderProgress, setPreRenderProgress] = useState(0);
+  const [preRenderedVideo, setPreRenderedVideo] = useState(null);
+  const [mediaRecorder, setMediaRecorder] = useState(null);
+  const previewContainerRef = useRef(null);
 
   // State for music uploads and deletion
   const [isUploadingMusic, setIsUploadingMusic] = useState(false);
@@ -2022,6 +2030,175 @@ function Editor() {
     setShowExportModal(true);
   };
 
+  // Pre-rendering function with Screen Capture API (much simpler and faster)
+  const handlePreRender = async () => {
+    if (arrayVideoMake.length === 0) {
+      alert("No hay elementos en el timeline para pre-renderizar");
+      return;
+    }
+
+    try {
+      setIsPreRendering(true);
+      setPreRenderProgress(0);
+      setPreRenderedVideo(null);
+
+      // Reset timeline to start and start playing
+      const originalTime = currentTime;
+      const originalPlaying = isPlaying;
+      setCurrentTime(0);
+
+      // Wait a moment for UI to update
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Start playback
+      setIsPlaying(true);
+
+      // Wait another moment for playback to start
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Request screen capture
+      const displayMediaOptions = {
+        video: {
+          displaySurface: "browser",
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30 },
+        },
+        audio: false, // We'll handle audio separately if needed
+      };
+
+      const screenStream = await navigator.mediaDevices.getDisplayMedia(
+        displayMediaOptions
+      );
+
+      // Try different codec options
+      const codecOptions = [
+        { mimeType: "video/webm;codecs=vp8", videoBitsPerSecond: 5000000 },
+        { mimeType: "video/webm", videoBitsPerSecond: 5000000 },
+        { mimeType: "video/mp4", videoBitsPerSecond: 5000000 },
+        { videoBitsPerSecond: 5000000 },
+      ];
+
+      let recorder = null;
+      let selectedMimeType = "video/webm";
+
+      for (const options of codecOptions) {
+        try {
+          if (MediaRecorder.isTypeSupported(options.mimeType || "")) {
+            recorder = new MediaRecorder(screenStream, options);
+            selectedMimeType = options.mimeType || "video/webm";
+            console.log("Using codec for screen capture:", selectedMimeType);
+            break;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      if (!recorder) {
+        recorder = new MediaRecorder(screenStream);
+        selectedMimeType = "video/webm";
+      }
+
+      const chunks = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: selectedMimeType });
+        const url = URL.createObjectURL(blob);
+        setPreRenderedVideo({ url, blob, mimeType: selectedMimeType });
+        setIsPreRendering(false);
+
+        // Stop screen sharing
+        screenStream.getTracks().forEach((track) => track.stop());
+
+        // Restore original state
+        setCurrentTime(originalTime);
+        setIsPlaying(originalPlaying);
+      };
+
+      // Start recording
+      recorder.start();
+      setMediaRecorder(recorder);
+
+      // Calculate total duration and set up progress tracking
+      const totalDuration = getTimelineDuration();
+      const startTime = Date.now();
+
+      // Update progress based on playback time
+      const progressInterval = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        const progress = Math.min((elapsed / totalDuration) * 100, 100);
+        setPreRenderProgress(progress);
+
+        // Stop recording when timeline ends
+        if (elapsed >= totalDuration || !isPlaying) {
+          clearInterval(progressInterval);
+          if (recorder.state === "recording") {
+            recorder.stop();
+          }
+        }
+      }, 100);
+
+      // Also stop if user manually stops playback
+      const checkPlaybackStop = setInterval(() => {
+        if (!isPlaying) {
+          clearInterval(checkPlaybackStop);
+          clearInterval(progressInterval);
+          if (recorder.state === "recording") {
+            recorder.stop();
+          }
+        }
+      }, 200);
+    } catch (error) {
+      console.error("Error during screen capture:", error);
+      setIsPreRendering(false);
+
+      if (error.name === "NotAllowedError") {
+        alert(
+          "Debes permitir el acceso a la captura de pantalla para pre-renderizar"
+        );
+      } else {
+        alert("Error durante el pre-renderizado: " + error.message);
+      }
+    }
+  };
+
+  // Function to download pre-rendered video
+  const downloadPreRenderedVideo = () => {
+    if (preRenderedVideo) {
+      // Determine file extension based on MIME type
+      const mimeType = preRenderedVideo.mimeType || "video/webm";
+      let extension = "webm";
+      if (mimeType.includes("mp4")) {
+        extension = "mp4";
+      } else if (mimeType.includes("webm")) {
+        extension = "webm";
+      }
+
+      const link = document.createElement("a");
+      link.href = preRenderedVideo.url;
+      link.download = `${currentEditName || "video"}_prerender.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  // Function to stop pre-rendering
+  const stopPreRendering = () => {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
+    }
+    setIsPreRendering(false);
+    setPreRenderProgress(0);
+    setIsPlaying(false); // Stop playback
+  };
+
   const handleNewProject = () => {
     // Clear current project state with history
     updateTimelineWithHistory([]);
@@ -2404,7 +2581,7 @@ function Editor() {
 
     if (aspectRatio === "9:16") {
       // Portrait mode - video should be taller
-      const videoWidth = 50; // 9/16 = 0.5625, so width = height * 0.5625
+      const videoWidth = 28; // 9/16 = 0.5625, so width = height * 0.5625
       const videoHeight = 100;
 
       return {
@@ -2997,6 +3174,7 @@ function Editor() {
           </div>
         </div>
         <div
+          ref={previewContainerRef}
           className="w-2/4 rounded-4xl relative overflow-hidden"
           style={previewStyles.container}
         >
@@ -3007,6 +3185,11 @@ function Editor() {
             {/* Video principal - siempre en el DOM */}
             <video
               ref={mainVideoRef}
+              data-element-id={
+                getActiveElements(currentTime).find(
+                  (el) => el.channel === "video"
+                )?.id || "main-video"
+              }
               className="rounded-4xl bg-gray-900 w-full h-full object-cover absolute inset-0"
               muted={false}
               style={{
@@ -3160,6 +3343,7 @@ function Editor() {
                     }}
                   >
                     <img
+                      data-element-id={item.id}
                       src={item.url}
                       alt={item.title}
                       className="cursor-move rounded-0"
@@ -4830,6 +5014,13 @@ function Editor() {
           arrayVideoMake={arrayVideoMake}
           editName={currentEditName}
           editId={currentEditId}
+          // Pre-rendering props
+          isPreRendering={isPreRendering}
+          preRenderProgress={preRenderProgress}
+          preRenderedVideo={preRenderedVideo}
+          onPreRender={handlePreRender}
+          onStopPreRender={stopPreRendering}
+          onDownloadPreRender={downloadPreRenderedVideo}
         />
       )}
 
