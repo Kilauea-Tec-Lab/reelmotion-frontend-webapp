@@ -278,11 +278,103 @@ export async function getAudioStackVoices() {
       voicesArray = data.results;
     }
 
+    // Log the first voice to understand the structure
+    if (voicesArray.length > 0) {
+      console.log("First voice structure:", voicesArray[0]);
+      console.log("Voice fields:", Object.keys(voicesArray[0]));
+    }
+
     console.log("Fetched voices:", voicesArray);
     return { success: true, voices: voicesArray };
   } catch (error) {
     console.error("Error fetching AudioStack voices:", error);
     return { success: false, error: error.message, voices: [] };
+  }
+}
+
+// Get authenticated audio preview from AudioStack
+export async function getAudioStackPreview(audioUrl) {
+  try {
+    console.log("Fetching audio preview:", audioUrl);
+
+    const response = await fetch(audioUrl, {
+      method: "GET",
+      headers: {
+        "x-api-key": AUDIOSTACK_API_KEY,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `AudioStack preview error: ${response.status} ${response.statusText}`
+      );
+    }
+
+    const audioBlob = await response.blob();
+    const audioBlobUrl = URL.createObjectURL(audioBlob);
+
+    return { success: true, audioUrl: audioBlobUrl };
+  } catch (error) {
+    console.error("Error fetching AudioStack preview:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Get authenticated generated audio from AudioStack
+export async function getAudioStackGeneratedAudio(audioUrl) {
+  try {
+    console.log("Fetching generated audio:", audioUrl);
+
+    // For generated audio URLs, we need to use a different approach
+    const response = await fetch(audioUrl, {
+      method: "GET",
+      headers: {
+        "x-api-key": AUDIOSTACK_API_KEY,
+        "Content-Type": "audio/mpeg",
+      },
+      mode: "cors",
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `AudioStack generated audio error: ${response.status} ${response.statusText}`
+      );
+    }
+
+    const audioBlob = await response.blob();
+    const audioBlobUrl = URL.createObjectURL(audioBlob);
+
+    return { success: true, audioUrl: audioBlobUrl };
+  } catch (error) {
+    console.error("Error fetching AudioStack generated audio:", error);
+    // If direct fetch fails due to CORS, try alternative approach
+    try {
+      console.log("Trying alternative approach for generated audio...");
+
+      // Create a temporary audio element to test if the URL works directly
+      const audio = new Audio();
+      audio.crossOrigin = "anonymous";
+
+      return new Promise((resolve) => {
+        audio.oncanplaythrough = () => {
+          console.log("Generated audio URL works directly");
+          resolve({ success: true, audioUrl: audioUrl });
+        };
+
+        audio.onerror = () => {
+          console.log("Generated audio URL doesn't work directly");
+          resolve({
+            success: false,
+            error: "Cannot access generated audio due to CORS restrictions",
+          });
+        };
+
+        audio.src = audioUrl;
+      });
+    } catch (fallbackError) {
+      console.error("Fallback approach also failed:", fallbackError);
+      return { success: false, error: error.message };
+    }
   }
 }
 
@@ -317,7 +409,15 @@ export async function createAudioStackScript(textData) {
 
     const data = await response.json();
     console.log("Script created:", data);
-    return { success: true, data: data };
+
+    // AudioStack returns scriptId inside data object
+    const scriptId = data.data?.scriptId || data.scriptId || data.id;
+    if (!scriptId) {
+      console.error("No scriptId found in response:", data);
+      throw new Error("No scriptId returned from AudioStack API");
+    }
+
+    return { success: true, data: { ...data.data, scriptId } };
   } catch (error) {
     console.error("Error creating AudioStack script:", error);
     return { success: false, error: error.message };
@@ -328,11 +428,22 @@ export async function createAudioStackScript(textData) {
 export async function generateAudioStackSpeech(speechData) {
   try {
     console.log("Generating speech with AudioStack API...");
+    console.log("Speech data received:", speechData);
+
+    if (!speechData.scriptId) {
+      throw new Error("scriptId is required but not provided");
+    }
+
+    if (!speechData.voiceId) {
+      throw new Error("voiceId is required but not provided");
+    }
 
     const requestBody = {
       scriptId: speechData.scriptId,
       voice: speechData.voiceId,
     };
+
+    console.log("Request body for TTS:", requestBody);
 
     const response = await fetch(`${AUDIOSTACK_BASE_URL}/speech/tts`, {
       method: "POST",
@@ -354,7 +465,26 @@ export async function generateAudioStackSpeech(speechData) {
     const ttsData = await response.json();
     console.log("TTS created:", ttsData);
 
+    // Extract speechId from the correct location in the response
+    const speechId =
+      ttsData.data?.speechId ||
+      ttsData.speechId ||
+      ttsData.data?.id ||
+      ttsData.id;
+    if (!speechId) {
+      console.error("No speechId found in TTS response:", ttsData);
+      throw new Error("No speechId returned from TTS API");
+    }
+
+    console.log("Using speechId for mix:", speechId);
+
     // Crear mix con el speech generado
+    const mixRequestBody = {
+      speechId: speechId,
+    };
+
+    console.log("Mix request body:", mixRequestBody);
+
     const mixResponse = await fetch(`${AUDIOSTACK_BASE_URL}/production/mix`, {
       method: "POST",
       headers: {
@@ -362,9 +492,7 @@ export async function generateAudioStackSpeech(speechData) {
         "Content-Type": "application/json",
         "x-api-key": AUDIOSTACK_API_KEY,
       },
-      body: JSON.stringify({
-        speechId: ttsData.speechId,
-      }),
+      body: JSON.stringify(mixRequestBody),
     });
 
     if (!mixResponse.ok) {
@@ -377,6 +505,32 @@ export async function generateAudioStackSpeech(speechData) {
     const mixData = await mixResponse.json();
     console.log("Mix created:", mixData);
 
+    // Extract productionId from mix response, with fallback to speechId
+    const productionId =
+      mixData.data?.productionId ||
+      mixData.productionId ||
+      mixData.data?.id ||
+      mixData.id;
+
+    console.log("Using productionId for encoder:", productionId);
+    console.log("Available speechId as fallback:", speechId);
+
+    // Prepare encoder request body
+    const encoderRequestBody = {};
+
+    if (productionId) {
+      encoderRequestBody.productionId = productionId;
+    } else if (speechId) {
+      // Fallback to speechId if no productionId available
+      encoderRequestBody.speechId = speechId;
+    } else {
+      throw new Error("No productionId or speechId available for encoding");
+    }
+
+    encoderRequestBody.preset = "mp3_high";
+
+    console.log("Encoder request body:", encoderRequestBody);
+
     // Codificar a MP3 de alta calidad
     const encodeResponse = await fetch(
       `${AUDIOSTACK_BASE_URL}/delivery/encoder`,
@@ -387,10 +541,7 @@ export async function generateAudioStackSpeech(speechData) {
           "Content-Type": "application/json",
           "x-api-key": AUDIOSTACK_API_KEY,
         },
-        body: JSON.stringify({
-          productionId: mixData.productionId,
-          preset: "mp3_high",
-        }),
+        body: JSON.stringify(encoderRequestBody),
       }
     );
 
@@ -404,19 +555,27 @@ export async function generateAudioStackSpeech(speechData) {
     const encodeData = await encodeResponse.json();
     console.log("Encoding completed:", encodeData);
 
-    // Obtener la URL del archivo generado
+    // Obtener la URL del archivo generado - estructura: { data: { url: "...", format: "mp3" } }
     const audioUrl =
-      encodeData.url || encodeData.downloadUrl || encodeData.fileUrl;
+      encodeData.data?.url ||
+      encodeData.url ||
+      encodeData.downloadUrl ||
+      encodeData.fileUrl;
+
+    if (!audioUrl) {
+      console.error("No audio URL found in encode response:", encodeData);
+      throw new Error("No audio URL returned from encoder");
+    }
 
     return {
       success: true,
       data: {
         audioUrl: audioUrl,
         url: audioUrl,
-        speechId: ttsData.speechId,
-        mixId: mixData.productionId,
-        encodeId: encodeData.encodeId,
-        duration: ttsData.duration || null,
+        format: encodeData.data?.format || "mp3",
+        speechId: speechId,
+        productionId: productionId,
+        duration: ttsData.data?.duration || ttsData.duration || null,
       },
     };
   } catch (error) {
@@ -429,7 +588,7 @@ export async function generateAudioStackSpeech(speechData) {
 export async function createVoice(voiceData) {
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_APP_BACKEND_URL}voice/create`,
+      `${import.meta.env.VITE_APP_BACKEND_URL}projects/create-voice`,
       {
         method: "POST",
         headers: {

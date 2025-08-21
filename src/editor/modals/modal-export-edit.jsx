@@ -17,6 +17,7 @@ function ModalExportEdit({
   const [isExporting, setIsExporting] = useState(false);
   const [renderResult, setRenderResult] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -55,14 +56,24 @@ function ModalExportEdit({
     }
   };
 
-  const downloadVideo = (videoUrl, fileName) => {
-    const link = document.createElement("a");
-    link.href = videoUrl;
-    link.download = fileName || "exported-video.mp4";
-    link.target = "_blank";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadVideo = async (videoUrl, fileName) => {
+    setIsDownloading(true);
+    try {
+      // Add a small delay to show the animation
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const link = document.createElement("a");
+      link.href = videoUrl;
+      link.download = fileName || "exported-video.mp4";
+      link.target = "_blank";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Error downloading video:", error);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleExport = async () => {
@@ -107,11 +118,7 @@ function ModalExportEdit({
           message: responseData.message,
         });
 
-        // Automatically download the video
-        const fileName = `${editName || "exported-edit"}-${new Date()
-          .toISOString()
-          .slice(0, 10)}.mp4`;
-        downloadVideo(responseData.video_url, fileName);
+        // Don't auto-download anymore - let user choose
       } else {
         console.error("Error exporting edit:", responseData);
         alert("Error exporting edit. Please try again.");
@@ -122,6 +129,15 @@ function ModalExportEdit({
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleDownload = async () => {
+    if (!renderResult) return;
+
+    const fileName = `${editName || "exported-edit"}-${new Date()
+      .toISOString()
+      .slice(0, 10)}.mp4`;
+    await downloadVideo(renderResult.video_url, fileName);
   };
 
   const handleSaveExport = async () => {
@@ -235,14 +251,37 @@ function ModalExportEdit({
                   onClick={() => setRenderResult(null)}
                   className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 hover:text-white transition-colors montserrat-regular"
                 >
-                  Discard
+                  Render Again
                 </button>
                 <button
                   type="button"
-                  onClick={handleClose}
-                  className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 hover:text-white transition-colors montserrat-regular"
+                  onClick={handleDownload}
+                  disabled={isDownloading}
+                  className="px-6 py-2 border border-blue-600 text-blue-400 rounded-lg hover:bg-blue-600 hover:text-white transition-colors montserrat-regular disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  Close
+                  {isDownloading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                      Download
+                    </>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -258,7 +297,7 @@ function ModalExportEdit({
                   ) : (
                     <>
                       <Upload className="w-4 h-4" />
-                      Save Export
+                      Save to Project
                     </>
                   )}
                 </button>
@@ -405,7 +444,7 @@ function ModalExportEdit({
                   ) : (
                     <>
                       <Upload className="w-4 h-4" />
-                      Render and Download
+                      Render Video
                     </>
                   )}
                 </button>

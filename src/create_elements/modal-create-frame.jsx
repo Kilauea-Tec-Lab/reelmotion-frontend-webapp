@@ -754,27 +754,91 @@ function ModalCreateFrame({
                     ))}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
-                      Custom Prompt (Optional)
-                    </label>
-                    <textarea
-                      value={customPrompt}
-                      onChange={(e) => {
-                        setCustomPrompt(e.target.value);
-                        if (existingImageGenerationError) {
-                          setExistingImageGenerationError(null);
-                        }
-                      }}
-                      placeholder="Add modifications or new prompt for this frame..."
-                      rows={3}
-                      className="w-full px-4 py-3 bg-darkBox rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular resize-none"
-                    />
-                  </div>
+                  {/* Select Image Style */}
+                  {selectedExistingFrame && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-white mb-3 montserrat-regular">
+                        Select Image Style
+                      </label>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {imageStyles.map((style) => (
+                          <button
+                            key={style.id}
+                            type="button"
+                            onClick={() =>
+                              setSelectedExistingImageStyle(
+                                style.id === selectedExistingImageStyle
+                                  ? ""
+                                  : style.id
+                              )
+                            }
+                            className={`p-2 rounded-lg text-xs montserrat-regular transition-all ${
+                              selectedExistingImageStyle === style.id
+                                ? "bg-[#F2D543] text-black"
+                                : "bg-darkBox text-gray-300 hover:bg-gray-700 hover:text-white border border-gray-600"
+                            }`}
+                          >
+                            {style.name}
+                          </button>
+                        ))}
+                      </div>
+                      {selectedExistingImageStyle && (
+                        <p className="mt-2 text-sm text-[#F2D543] montserrat-regular">
+                          Selected style:{" "}
+                          {
+                            imageStyles.find(
+                              (s) => s.id === selectedExistingImageStyle
+                            )?.name
+                          }
+                        </p>
+                      )}
+                    </div>
+                  )}
 
-                  {/* Camera Controls for Existing Frame */}
-                  {selectedExistingFrame && customPrompt.trim() && (
-                    <div className="mt-4">
+                  {/* Select Aspect Ratio - REQUIRED */}
+                  {selectedExistingFrame && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-white mb-3 montserrat-regular">
+                        Select Aspect Ratio *
+                      </label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {aspectRatioOptions.map((option) => (
+                          <div
+                            key={option.id}
+                            onClick={() => setSelectedAspectRatio(option.id)}
+                            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                              selectedAspectRatio === option.id
+                                ? "border-[#F2D543] bg-[#F2D54315]"
+                                : "border-gray-600 hover:border-gray-500 hover:bg-darkBox"
+                            }`}
+                          >
+                            <div className="text-center">
+                              <h3 className="font-medium text-white montserrat-medium text-sm mb-1">
+                                {option.name}
+                              </h3>
+                              <p className="text-xs text-gray-400">
+                                {option.description}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {selectedAspectRatio && (
+                        <p className="mt-2 text-sm text-[#F2D543] montserrat-regular">
+                          Selected:{" "}
+                          {
+                            aspectRatioOptions.find(
+                              (opt) => opt.id === selectedAspectRatio
+                            )?.name
+                          }
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Camera Controls - Always show if frame is selected */}
+                  {selectedExistingFrame && (
+                    <div className="mb-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Camera Angle */}
                         <div>
@@ -818,11 +882,42 @@ function ModalCreateFrame({
                           </select>
                         </div>
                       </div>
+                      {(selectedCameraAngle || selectedCameraShot) && (
+                        <p className="mt-2 text-sm text-[#F2D543] montserrat-regular">
+                          Camera settings:{" "}
+                          {selectedCameraAngle &&
+                            cameraAngles.find(
+                              (a) => a.id === selectedCameraAngle
+                            )?.name}
+                          {selectedCameraAngle && selectedCameraShot && ", "}
+                          {selectedCameraShot &&
+                            cameraShots.find((s) => s.id === selectedCameraShot)
+                              ?.name}
+                        </p>
+                      )}
                     </div>
                   )}
 
-                  {/* AI Enhancement Section - Only show if frame is selected and prompt is provided */}
-                  {selectedExistingFrame && customPrompt.trim() && (
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+                      Custom Prompt (Optional)
+                    </label>
+                    <textarea
+                      value={customPrompt}
+                      onChange={(e) => {
+                        setCustomPrompt(e.target.value);
+                        if (existingImageGenerationError) {
+                          setExistingImageGenerationError(null);
+                        }
+                      }}
+                      placeholder="Add modifications or new prompt for this frame..."
+                      rows={3}
+                      className="w-full px-4 py-3 bg-darkBox rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular resize-none"
+                    />
+                  </div>
+
+                  {/* AI Enhancement Section - Only show if frame is selected */}
+                  {selectedExistingFrame && selectedAspectRatio && (
                     <div className="mt-6 p-4 bg-darkBox rounded-lg border border-gray-600">
                       <div className="flex items-center gap-2 mb-4">
                         <Sparkles className="w-4 h-4 text-[#F2D543]" />
@@ -866,10 +961,18 @@ function ModalCreateFrame({
                           <button
                             type="button"
                             onClick={handleGenerateFromExisting}
-                            disabled={isGeneratingFromExisting}
+                            disabled={
+                              isGeneratingFromExisting ||
+                              !selectedExistingFrame ||
+                              !selectedAspectRatio ||
+                              !customPrompt.trim()
+                            }
                             className={`w-full px-4 py-3 rounded-lg transition-all duration-300 font-medium montserrat-medium flex items-center justify-center gap-2 ${
-                              isGeneratingFromExisting
-                                ? "bg-purple-600 text-white animate-pulse cursor-not-allowed"
+                              isGeneratingFromExisting ||
+                              !selectedExistingFrame ||
+                              !selectedAspectRatio ||
+                              !customPrompt.trim()
+                                ? "bg-gray-600 text-gray-400 cursor-not-allowed"
                                 : "bg-purple-600 text-white hover:bg-purple-700"
                             }`}
                           >

@@ -401,13 +401,8 @@ function MainProject() {
           </h2>
           <button
             type="button"
-            className={`mt-2 px-2 py-2 rounded-lg transition-colors ${
-              isProjectComplete
-                ? "bg-gray-500 text-gray-300 cursor-not-allowed"
-                : "bg-[#f2f243] text-primarioDark hover:bg-[#f2f243]"
-            }`}
+            className={`mt-2 px-2 py-2 rounded-lg transition-colors bg-[#f2f243] text-primarioDark hover:bg-[#f2f243]`}
             onClick={handleCreateCharacter}
-            disabled={isProjectComplete}
             title={
               isProjectComplete
                 ? "Cannot create characters in completed projects"
@@ -511,13 +506,8 @@ function MainProject() {
           </h2>
           <button
             type="button"
-            className={`mt-2 px-2 py-2 rounded-lg transition-colors ${
-              isProjectComplete
-                ? "bg-gray-500 text-gray-300 cursor-not-allowed"
-                : "bg-[#f2f243] text-primarioDark hover:bg-[#f2f243]"
-            }`}
+            className={`mt-2 px-2 py-2 rounded-lg transition-colors bg-[#f2f243] text-primarioDark hover:bg-[#f2f243]`}
             onClick={handleCreateSpot}
-            disabled={isProjectComplete}
             title={
               isProjectComplete
                 ? "Cannot create spots in completed projects"
@@ -619,13 +609,8 @@ function MainProject() {
           </h2>
           <button
             type="button"
-            className={`mt-2 px-2 py-2 rounded-lg transition-colors ${
-              isProjectComplete
-                ? "bg-gray-500 text-gray-300 cursor-not-allowed"
-                : "bg-[#f2f243] text-primarioDark hover:bg-[#f2f243]"
-            }`}
+            className={`mt-2 px-2 py-2 rounded-lg transition-colors bg-[#f2f243] text-primarioDark hover:bg-[#f2f243]`}
             onClick={handleCreateVoice}
-            disabled={isProjectComplete}
             title={
               isProjectComplete
                 ? "Cannot create voices in completed projects"
@@ -727,13 +712,8 @@ function MainProject() {
           </h2>
           <button
             type="button"
-            className={`mt-2 px-2 py-2 rounded-lg transition-colors ${
-              isProjectComplete
-                ? "bg-gray-500 text-gray-300 cursor-not-allowed"
-                : "bg-[#f2f243] text-primarioDark hover:bg-[#f2f243]"
-            }`}
+            className={`mt-2 px-2 py-2 rounded-lg transition-colors bg-[#f2f243] text-primarioDark hover:bg-[#f2f243]`}
             onClick={() => setIsCreateFrameModalOpen(true)}
-            disabled={isProjectComplete}
             title={
               isProjectComplete
                 ? "Cannot create frames in completed projects"
@@ -853,13 +833,8 @@ function MainProject() {
           </h2>
           <button
             type="button"
-            className={`mt-2 px-2 py-2 rounded-lg transition-colors ${
-              isProjectComplete
-                ? "bg-gray-500 text-gray-300 cursor-not-allowed"
-                : "bg-[#f2f243] text-primarioDark hover:bg-[#f2f243]"
-            }`}
+            className={`mt-2 px-2 py-2 rounded-lg transition-colors bg-[#f2f243] text-primarioDark hover:bg-[#f2f243]`}
             onClick={handleCreateScene}
-            disabled={isProjectComplete}
             title={
               isProjectComplete
                 ? "Cannot create scenes in completed projects"
@@ -884,11 +859,24 @@ function MainProject() {
                   onDoubleClick={() => handlePreview(scene, "video")}
                 >
                   <div className="relative">
-                    <img
-                      src={scene.image_url || scene.prompt_image_url}
-                      alt=""
-                      className="w-32 h-32 object-cover rounded-2xl"
-                    />
+                    {scene.video_url ? (
+                      <video
+                        src={scene.video_url}
+                        className="w-32 h-32 object-cover rounded-2xl"
+                        muted
+                        loop
+                        playsInline
+                        onMouseEnter={(e) => e.target.play()}
+                        onMouseLeave={(e) => e.target.pause()}
+                        poster={scene.image_url || scene.prompt_image_url}
+                      />
+                    ) : (
+                      <img
+                        src={scene.image_url || scene.prompt_image_url}
+                        alt=""
+                        className="w-32 h-32 object-cover rounded-2xl"
+                      />
+                    )}
 
                     {/* Three Dots Menu */}
                     {hoveredScene === scene.id && (

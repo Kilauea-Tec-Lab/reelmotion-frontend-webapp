@@ -382,19 +382,20 @@ function Login() {
                         I accept the{" "}
                         <button
                           type="button"
+                          onClick={() => setShowTermsConditions(true)}
+                          className="text-[#F2D543] hover:text-[#f2f243] underline transition-colors"
+                        >
+                          {" "}
+                          Terms & Conditions{" "}
+                        </button>{" "}
+                        and{" "}
+                        <button
+                          type="button"
                           onClick={() => setShowPrivacyPolicy(true)}
                           className="text-[#F2D543] hover:text-[#f2f243] underline transition-colors"
                         >
                           Privacy Policy
                         </button>{" "}
-                        and{" "}
-                        <button
-                          type="button"
-                          onClick={() => setShowTermsConditions(true)}
-                          className="text-[#F2D543] hover:text-[#f2f243] underline transition-colors"
-                        >
-                          Terms & Conditions
-                        </button>
                       </label>
                     </div>
                     {acceptTermsError && (
@@ -434,177 +435,263 @@ function Login() {
       {/* Privacy Policy Modal */}
       {showPrivacyPolicy && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-4xl max-h-[80vh] overflow-y-auto">
+          <div className="bg-black text-white rounded-xl p-6 max-w-4xl max-h-[80vh] overflow-y-auto border border-gray-600">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-gray-800">
-                Privacy Policy
-              </h2>
+              <h2 className="text-2xl font-bold text-white">Privacy Policy</h2>
               <button
                 onClick={() => setShowPrivacyPolicy(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                className="text-gray-400 hover:text-white text-2xl"
               >
                 ×
               </button>
             </div>
-            <div className="text-gray-700 space-y-4 text-sm leading-relaxed">
-              <h3 className="font-bold text-lg">
-                Privacy Policy for ReelMotion
-              </h3>
+            <div className="text-white space-y-4 text-sm leading-relaxed">
+              <div className="space-y-2">
+                <p>
+                  <strong>Effective Date:</strong> 12/08/2025
+                </p>
+                <p>
+                  <strong>Last Updated:</strong> 12/08/2025
+                </p>
+              </div>
+
               <p>
-                <strong>Effective Date:</strong> [Insert Date]
+                Reel Me In Media Limited respects your privacy and is committed
+                to protecting your personal data. This Privacy Policy explains
+                how we collect, use, store, and share your information when you
+                use Reelmotion AI.
               </p>
 
-              <h4 className="font-semibold">1. Introduction</h4>
               <p>
-                Welcome to ReelMotion, an AI-powered video creation platform. We
-                are committed to protecting your privacy and personal
-                information. This Privacy Policy explains how we collect, use,
-                disclose, and safeguard your information when you use our
-                website and services.
+                By using the Platform, you agree to this Privacy Policy. If you
+                do not agree, you must stop using the Platform.
               </p>
 
-              <h4 className="font-semibold">2. Information We Collect</h4>
-              <h5 className="font-medium">Personal Information:</h5>
-              <ul className="list-disc ml-6">
+              <h4 className="font-semibold text-lg">
+                1. Information We Collect
+              </h4>
+              <p>We may collect the following types of information:</p>
+
+              <h5 className="font-medium">1.1 Information You Provide to Us</h5>
+              <ul className="list-disc ml-6 space-y-1">
                 <li>
-                  Name and contact information (email address, phone number)
+                  <strong>Account details:</strong> Name, email address,
+                  password, payment details.
                 </li>
-                <li>Account credentials (username, password)</li>
                 <li>
-                  Payment information (processed through secure third-party
-                  providers)
+                  <strong>Uploaded content:</strong> Media, text, or prompts you
+                  provide to generate AI content.
                 </li>
-                <li>Profile information and preferences</li>
+                <li>
+                  <strong>Communications:</strong> Emails, messages, or feedback
+                  you send to us.
+                </li>
               </ul>
 
-              <h5 className="font-medium">Usage Data:</h5>
-              <ul className="list-disc ml-6">
-                <li>Videos created, uploaded, and shared on our platform</li>
-                <li>Usage patterns and interactions with our services</li>
-                <li>Device information and technical data</li>
-                <li>Cookies and tracking technologies</li>
+              <h5 className="font-medium">
+                1.2 Information We Collect Automatically
+              </h5>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>
+                  <strong>Usage data:</strong> IP address, device type, browser,
+                  operating system, and interaction logs.
+                </li>
+                <li>
+                  <strong>Cookies & tracking:</strong> We use cookies, analytics
+                  tools, and similar technologies to improve services.
+                </li>
               </ul>
 
-              <h4 className="font-semibold">3. How We Use Your Information</h4>
-              <ul className="list-disc ml-6">
-                <li>To provide and maintain our video creation services</li>
-                <li>To process your transactions and manage your account</li>
-                <li>To improve our AI algorithms and platform functionality</li>
-                <li>
-                  To communicate with you about your account and our services
-                </li>
-                <li>
-                  To provide customer support and respond to your inquiries
-                </li>
-                <li>
-                  To send you marketing communications (with your consent)
-                </li>
-                <li>To comply with legal obligations and protect our rights</li>
+              <h5 className="font-medium">
+                1.3 AI-Generated and Processed Data
+              </h5>
+              <p>
+                Any content you create or upload may be stored temporarily or
+                permanently for:
+              </p>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>Service delivery</li>
+                <li>AI training and improvement</li>
+                <li>Security and moderation purposes</li>
               </ul>
 
-              <h4 className="font-semibold">
-                4. Information Sharing and Disclosure
+              <h4 className="font-semibold text-lg">
+                2. How We Use Your Information
+              </h4>
+              <p>We use your information to:</p>
+              <ol className="list-decimal ml-6 space-y-1">
+                <li>Provide and operate the Platform.</li>
+                <li>Process payments and manage billing.</li>
+                <li>Improve and personalise the Platform's features.</li>
+                <li>Monitor compliance with our Terms & Conditions.</li>
+                <li>Respond to legal requests and prevent fraud or misuse.</li>
+                <li>
+                  Develop AI technology, including training and refining our
+                  algorithms.
+                </li>
+                <li>
+                  Send service-related updates (we will not send marketing
+                  emails without your consent).
+                </li>
+              </ol>
+
+              <h4 className="font-semibold text-lg">
+                3. Legal Bases for Processing (GDPR)
               </h4>
               <p>
-                We do not sell, trade, or rent your personal information to
-                third parties. We may share your information in the following
-                circumstances:
+                If you are in the UK or EU, we process your personal data under
+                the following lawful bases:
               </p>
-              <ul className="list-disc ml-6">
+              <ul className="list-disc ml-6 space-y-1">
                 <li>
-                  <strong>Service Providers:</strong> With trusted third-party
-                  providers who assist us in operating our platform
+                  <strong>Contractual necessity:</strong> To deliver services
+                  you request.
                 </li>
                 <li>
-                  <strong>Legal Requirements:</strong> When required by law or
-                  to protect our rights and safety
+                  <strong>Legitimate interests:</strong> To improve security,
+                  detect misuse, and enhance features.
                 </li>
                 <li>
-                  <strong>Business Transfers:</strong> In connection with a
-                  merger, acquisition, or sale of assets
+                  <strong>Legal obligation:</strong> To comply with applicable
+                  laws and regulations.
                 </li>
                 <li>
-                  <strong>With Your Consent:</strong> When you explicitly agree
-                  to share your information
+                  <strong>Consent:</strong> Where required (e.g., for marketing
+                  or optional cookies).
                 </li>
               </ul>
 
-              <h4 className="font-semibold">5. Data Security</h4>
-              <p>
-                We implement appropriate technical and organizational security
-                measures to protect your personal information against
-                unauthorized access, alteration, disclosure, or destruction.
-                However, no method of transmission over the internet is 100%
-                secure.
-              </p>
-
-              <h4 className="font-semibold">6. Your Rights and Choices</h4>
-              <ul className="list-disc ml-6">
-                <li>
-                  <strong>Access:</strong> Request access to your personal
-                  information
-                </li>
-                <li>
-                  <strong>Correction:</strong> Request correction of inaccurate
-                  information
-                </li>
-                <li>
-                  <strong>Deletion:</strong> Request deletion of your personal
-                  information
-                </li>
-                <li>
-                  <strong>Portability:</strong> Request a copy of your data in a
-                  portable format
-                </li>
-                <li>
-                  <strong>Opt-out:</strong> Unsubscribe from marketing
-                  communications
-                </li>
-              </ul>
-
-              <h4 className="font-semibold">
-                7. Cookies and Tracking Technologies
+              <h4 className="font-semibold text-lg">
+                4. Sharing Your Information
               </h4>
               <p>
-                We use cookies and similar technologies to enhance your
-                experience, analyze usage patterns, and provide personalized
-                content. You can control cookie settings through your browser
-                preferences.
+                We do not sell your personal data. We may share your data with:
               </p>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>
+                  <strong>Service providers:</strong> Payment processors, cloud
+                  storage, analytics tools.
+                </li>
+                <li>
+                  <strong>Legal authorities:</strong> Where required by law or
+                  court order.
+                </li>
+                <li>
+                  <strong>Business transfers:</strong> In the event of a merger,
+                  acquisition, or sale of assets.
+                </li>
+              </ul>
 
-              <h4 className="font-semibold">8. Children's Privacy</h4>
-              <p>
-                Our services are not intended for children under 13 years of
-                age. We do not knowingly collect personal information from
-                children under 13. If we become aware that we have collected
-                such information, we will take steps to delete it.
-              </p>
-
-              <h4 className="font-semibold">9. International Data Transfers</h4>
-              <p>
-                Your information may be transferred to and processed in
-                countries other than your own. We ensure appropriate safeguards
-                are in place to protect your information during such transfers.
-              </p>
-
-              <h4 className="font-semibold">
-                10. Changes to This Privacy Policy
+              <h4 className="font-semibold text-lg">
+                5. International Transfers
               </h4>
               <p>
-                We may update this Privacy Policy from time to time. We will
-                notify you of any material changes by posting the new policy on
-                our website and updating the effective date.
+                Because we operate globally, your information may be transferred
+                and stored outside your country. Where required, we use Standard
+                Contractual Clauses or equivalent safeguards to protect data in
+                cross-border transfers.
               </p>
 
-              <h4 className="font-semibold">11. Contact Us</h4>
-              <p>
-                If you have any questions about this Privacy Policy or our
-                privacy practices, please contact us at:
-              </p>
-              <ul className="list-none">
-                <li>Email: privacy@reelmotion.com</li>
-                <li>Address: [Insert Company Address]</li>
+              <h4 className="font-semibold text-lg">6. Data Retention</h4>
+              <p>We retain personal data only for as long as necessary to:</p>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>Fulfil the purposes outlined in this policy.</li>
+                <li>Comply with legal obligations.</li>
+                <li>Resolve disputes and enforce agreements.</li>
               </ul>
+              <p>
+                You may request deletion of your account and data at any time
+                (see Section 8).
+              </p>
+
+              <h4 className="font-semibold text-lg">7. Security Measures</h4>
+              <p>
+                We use technical and organisational safeguards to protect your
+                data, including:
+              </p>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>Encryption of sensitive data in transit and at rest.</li>
+                <li>Access controls and authentication.</li>
+                <li>Regular system security audits.</li>
+              </ul>
+              <p>
+                However, no system is 100% secure, and we cannot guarantee
+                absolute security.
+              </p>
+
+              <h4 className="font-semibold text-lg">8. Your Rights</h4>
+              <p>Depending on where you live, you may have the right to:</p>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>Access the personal data we hold about you.</li>
+                <li>Request correction or deletion of your data.</li>
+                <li>Object to or restrict processing of your data.</li>
+                <li>Withdraw consent at any time.</li>
+                <li>Receive your data in a portable format.</li>
+              </ul>
+              <p>
+                To exercise these rights, email us at{" "}
+                <strong>support@reelmotion.ai</strong>. We will respond within
+                applicable legal timeframes.
+              </p>
+
+              <h4 className="font-semibold text-lg">
+                9. Cookies and Tracking Technologies
+              </h4>
+              <p>We use cookies to:</p>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>Enable Platform functionality.</li>
+                <li>Analyse site usage and performance.</li>
+                <li>Customise user experience.</li>
+              </ul>
+              <p>
+                You can control cookies via your browser settings, but disabling
+                them may affect functionality.
+              </p>
+
+              <h4 className="font-semibold text-lg">10. Children's Privacy</h4>
+              <p>
+                The Platform is not intended for children under 13. If we become
+                aware that we have collected personal data from a child under 13
+                without parental consent, we will delete it promptly.
+              </p>
+
+              <h4 className="font-semibold text-lg">
+                11. Changes to This Privacy Policy
+              </h4>
+              <p>
+                We may update this Privacy Policy from time to time. Changes
+                will be posted on the Platform, and the "Last Updated" date will
+                be revised.
+              </p>
+
+              <h4 className="font-semibold text-lg">12. Contact Information</h4>
+              <p>For privacy-related questions, contact us:</p>
+              <ul className="list-none space-y-1">
+                <li>
+                  📧 <strong>support@reelmotion.ai</strong>
+                </li>
+                <li>
+                  📍{" "}
+                  <strong>
+                    Reel Me In Media Limited, London, United Kingdom
+                  </strong>
+                </li>
+              </ul>
+
+              <div className="mt-6 p-4 bg-gray-900 rounded-lg border border-gray-700">
+                <p className="text-sm text-gray-300">
+                  This Privacy Policy is designed to cover your global
+                  operations while making sure you comply with:
+                </p>
+                <ul className="list-disc ml-6 mt-2 text-sm text-gray-300 space-y-1">
+                  <li>UK GDPR</li>
+                  <li>EU GDPR</li>
+                  <li>California Consumer Privacy Act (CCPA)</li>
+                  <li>
+                    Global best practices for AI-generated content handling
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
@@ -613,257 +700,298 @@ function Login() {
       {/* Terms and Conditions Modal */}
       {showTermsConditions && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-4xl max-h-[80vh] overflow-y-auto">
+          <div className="bg-black text-white rounded-xl p-6 max-w-4xl max-h-[80vh] overflow-y-auto border border-gray-600">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-gray-800">
+              <h2 className="text-2xl font-bold text-white">
                 Terms and Conditions
               </h2>
               <button
                 onClick={() => setShowTermsConditions(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                className="text-gray-400 hover:text-white text-2xl"
               >
                 ×
               </button>
             </div>
-            <div className="text-gray-700 space-y-4 text-sm leading-relaxed">
-              <h3 className="font-bold text-lg">
-                Terms and Conditions for ReelMotion
-              </h3>
+            <div className="text-white space-y-4 text-sm leading-relaxed">
+              <div className="space-y-2">
+                <p>
+                  <strong>Effective Date:</strong> 12/08/2025
+                </p>
+                <p>
+                  <strong>Last Updated:</strong> 12/08/2025
+                </p>
+              </div>
+
               <p>
-                <strong>Effective Date:</strong> [Insert Date]
+                These Terms and Conditions constitute a legally binding
+                agreement between you (the "User") and{" "}
+                <strong>Reel Me In Media Limited</strong>, registered in London,
+                United Kingdom, trading as
+                <strong> Reelmotion AI</strong>, governing your access to and
+                use of the Reelmotion AI platform, website, applications, and
+                related services ("Reelmotion AI").
               </p>
 
-              <h4 className="font-semibold">1. Acceptance of Terms</h4>
               <p>
-                By accessing and using ReelMotion ("we," "our," or "us"), you
-                accept and agree to be bound by the terms and provision of this
-                agreement. If you do not agree to abide by the above, please do
-                not use this service.
+                By using our Platform, you agree to these Terms. If you do not
+                agree, you must stop using the Platform immediately.
               </p>
 
-              <h4 className="font-semibold">2. Description of Service</h4>
-              <p>
-                ReelMotion is an AI-powered video creation platform that allows
-                users to create, edit, and share videos using artificial
-                intelligence technology. Our services include but are not
-                limited to video generation, editing tools, character creation,
-                and social sharing features.
-              </p>
-
-              <h4 className="font-semibold">3. User Accounts</h4>
-              <ul className="list-disc ml-6">
+              <h4 className="font-semibold text-lg">1. Definitions</h4>
+              <p>For the purposes of these Terms:</p>
+              <ul className="list-disc ml-6 space-y-1">
                 <li>
-                  You must create an account to access certain features of our
-                  service
+                  <strong>"Content"</strong> means any data, images, video,
+                  audio, text, graphics, code, or other materials uploaded,
+                  generated, or transmitted via the Platform.
                 </li>
                 <li>
-                  You are responsible for maintaining the confidentiality of
-                  your account credentials
+                  <strong>"AI Output"</strong> refers to any video, image, or
+                  media generated by the Platform's artificial intelligence
+                  tools based on your inputs or prompts.
                 </li>
                 <li>
-                  You agree to provide accurate and complete information when
-                  creating your account
+                  <strong>"User Content"</strong> means all Content provided by
+                  you, including media you upload for processing.
                 </li>
                 <li>
-                  You are responsible for all activities that occur under your
-                  account
-                </li>
-                <li>
-                  You must notify us immediately of any unauthorized use of your
-                  account
+                  <strong>"Prohibited Content"</strong> means material that
+                  violates these Terms or applicable laws, including but not
+                  limited to: nudity, sexual material, hate speech,
+                  discriminatory content, harassment, extreme violence,
+                  incitement, misinformation, and unlawful impersonation.
                 </li>
               </ul>
 
-              <h4 className="font-semibold">4. Acceptable Use Policy</h4>
-              <p>You agree not to use the service to:</p>
-              <ul className="list-disc ml-6">
+              <h4 className="font-semibold text-lg">2. Eligibility</h4>
+              <p>You must:</p>
+              <ul className="list-disc ml-6 space-y-1">
                 <li>
-                  Create content that is illegal, harmful, threatening, abusive,
-                  harassing, defamatory, vulgar, obscene, or invasive of privacy
+                  Be at least 13 years old. If under the age of majority in your
+                  jurisdiction, you must have parental/guardian consent.
                 </li>
                 <li>
-                  Infringe upon the intellectual property rights of others
+                  Have the legal capacity to enter into binding contracts.
                 </li>
                 <li>
-                  Upload, post, or transmit any content that contains viruses or
-                  malicious code
-                </li>
-                <li>
-                  Impersonate any person or entity or misrepresent your
-                  affiliation
-                </li>
-                <li>
-                  Engage in any activity that disrupts or interferes with our
-                  services
-                </li>
-                <li>
-                  Use our platform for commercial purposes without our written
-                  consent
-                </li>
-                <li>
-                  Create deepfakes or misleading content intended to deceive
+                  Not be located in a country or territory subject to UK, US, or
+                  EU sanctions.
                 </li>
               </ul>
 
-              <h4 className="font-semibold">5. Content Ownership and Rights</h4>
-              <ul className="list-disc ml-6">
-                <li>
-                  <strong>Your Content:</strong> You retain ownership of the
-                  original content you create using our platform
-                </li>
-                <li>
-                  <strong>License to Us:</strong> By using our service, you
-                  grant us a non-exclusive, worldwide, royalty-free license to
-                  use, display, and distribute your content as necessary to
-                  provide our services
-                </li>
-                <li>
-                  <strong>AI-Generated Content:</strong> Content generated by
-                  our AI algorithms may be subject to additional terms and
-                  limitations
-                </li>
-                <li>
-                  <strong>Third-Party Content:</strong> You must respect the
-                  intellectual property rights of third parties when creating
-                  content
-                </li>
-              </ul>
-
-              <h4 className="font-semibold">
-                6. Subscription and Payment Terms
+              <h4 className="font-semibold text-lg">
+                3. User Responsibilities
               </h4>
-              <ul className="list-disc ml-6">
-                <li>Certain features require a paid subscription</li>
+              <p>When using the Platform, you agree to:</p>
+              <ol className="list-decimal ml-6 space-y-1">
                 <li>
-                  Subscription fees are billed in advance and are non-refundable
+                  Provide accurate account information and keep it updated.
                 </li>
+                <li>Comply with all applicable laws in your jurisdiction.</li>
                 <li>
-                  You authorize us to charge your payment method for all
-                  applicable fees
+                  Not misuse the Platform, including:
+                  <ul className="list-disc ml-6 mt-2 space-y-1">
+                    <li>Uploading, creating, or sharing Prohibited Content.</li>
+                    <li>
+                      Using the Platform to create misleading or harmful AI
+                      deepfakes or to impersonate individuals without consent.
+                    </li>
+                    <li>
+                      Uploading content you do not own or have rights to use.
+                    </li>
+                    <li>
+                      Attempting to reverse-engineer, hack, or disrupt the
+                      Platform's functionality.
+                    </li>
+                  </ul>
                 </li>
-                <li>
-                  We reserve the right to change our pricing with 30 days'
-                  notice
-                </li>
-                <li>
-                  You may cancel your subscription at any time, but fees are
-                  non-refundable
-                </li>
-              </ul>
-
-              <h4 className="font-semibold">7. Privacy and Data Protection</h4>
+              </ol>
               <p>
-                Your privacy is important to us. Please review our Privacy
-                Policy, which also governs your use of the service, to
-                understand our practices.
+                We reserve the right to suspend or terminate your account if we
+                believe you have breached these Terms.
               </p>
 
-              <h4 className="font-semibold">8. Intellectual Property Rights</h4>
-              <ul className="list-disc ml-6">
+              <h4 className="font-semibold text-lg">4. Content Standards</h4>
+              <p>You must not submit, generate, or distribute content that:</p>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>Contains nudity, sexual acts, or pornographic material.</li>
+                <li>Depicts extreme violence or gore.</li>
                 <li>
-                  ReelMotion and its original content are protected by
-                  copyright, trademark, and other laws
+                  Promotes hate speech, racism, sexism, or other discriminatory
+                  ideologies.
+                </li>
+                <li>Harasses, bullies, or threatens others.</li>
+                <li>
+                  Violates intellectual property rights, including copyrighted
+                  or trademarked works, without permission.
                 </li>
                 <li>
-                  Our AI algorithms, software, and platform design are our
-                  proprietary technology
-                </li>
-                <li>
-                  You may not reverse engineer, decompile, or attempt to extract
-                  our source code
-                </li>
-                <li>
-                  All trademarks and service marks are the property of their
-                  respective owners
+                  Uses real individuals' faces, voices, or likenesses without
+                  consent, especially in a false, defamatory, or incriminating
+                  manner.
                 </li>
               </ul>
 
-              <h4 className="font-semibold">
-                9. Disclaimers and Limitation of Liability
+              <h4 className="font-semibold text-lg">
+                5. User Content & AI Output Licensing
               </h4>
-              <ul className="list-disc ml-6">
+              <p>By using the Platform, you:</p>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>Retain ownership of your User Content and AI Output.</li>
                 <li>
-                  <strong>Service Availability:</strong> We do not guarantee
-                  uninterrupted access to our services
+                  Grant us a non-exclusive, worldwide, royalty-free, perpetual
+                  license to:
+                  <ul className="list-disc ml-6 mt-2 space-y-1">
+                    <li>
+                      Store and process your content for service delivery.
+                    </li>
+                    <li>
+                      Use your content for internal research, AI model
+                      improvement, and quality assurance.
+                    </li>
+                    <li>
+                      Display your content as marketing examples for the
+                      Platform (unless you opt-out via written notice).
+                    </li>
+                  </ul>
                 </li>
                 <li>
-                  <strong>Content Accuracy:</strong> AI-generated content may
-                  contain errors or inaccuracies
-                </li>
-                <li>
-                  <strong>Limitation of Liability:</strong> Our liability is
-                  limited to the amount you paid for the service in the
-                  preceding 12 months
-                </li>
-                <li>
-                  <strong>No Warranties:</strong> Our service is provided "as
-                  is" without warranties of any kind
-                </li>
-              </ul>
-
-              <h4 className="font-semibold">10. Indemnification</h4>
-              <p>
-                You agree to indemnify and hold harmless ReelMotion, its
-                affiliates, officers, directors, employees, and agents from any
-                claims, damages, losses, or expenses arising from your use of
-                our service or violation of these terms.
-              </p>
-
-              <h4 className="font-semibold">11. Termination</h4>
-              <ul className="list-disc ml-6">
-                <li>Either party may terminate this agreement at any time</li>
-                <li>
-                  We may suspend or terminate your account for violation of
-                  these terms
-                </li>
-                <li>
-                  Upon termination, your right to use the service ceases
-                  immediately
-                </li>
-                <li>
-                  We may retain certain information as required by law or for
-                  legitimate business purposes
+                  Acknowledge that we may disclose content to law enforcement or
+                  government authorities if required by law.
                 </li>
               </ul>
 
-              <h4 className="font-semibold">
-                12. Governing Law and Dispute Resolution
+              <h4 className="font-semibold text-lg">6. Payments & Refunds</h4>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>The Platform is provided on a pay-per-use basis.</li>
+                <li>
+                  All payments are final and non-refundable, except where
+                  required by law.
+                </li>
+                <li>
+                  You are responsible for any applicable taxes, duties, and
+                  charges.
+                </li>
+                <li>
+                  We reserve the right to change pricing at any time, with
+                  changes applying to future transactions.
+                </li>
+              </ul>
+
+              <h4 className="font-semibold text-lg">
+                7. Intellectual Property Rights
               </h4>
-              <p>
-                These terms are governed by the laws of [Insert Jurisdiction].
-                Any disputes will be resolved through binding arbitration in
-                accordance with the rules of [Insert Arbitration Organization].
-              </p>
-
-              <h4 className="font-semibold">13. Changes to Terms</h4>
-              <p>
-                We reserve the right to modify these terms at any time. We will
-                notify you of material changes by posting the updated terms on
-                our website. Your continued use of the service constitutes
-                acceptance of the modified terms.
-              </p>
-
-              <h4 className="font-semibold">14. Severability</h4>
-              <p>
-                If any provision of these terms is found to be unenforceable,
-                the remaining provisions will continue to be valid and
-                enforceable.
-              </p>
-
-              <h4 className="font-semibold">15. Contact Information</h4>
-              <p>
-                If you have any questions about these Terms and Conditions,
-                please contact us at:
-              </p>
-              <ul className="list-none">
-                <li>Email: legal@reelmotion.com</li>
-                <li>Address: [Insert Company Address]</li>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>
+                  All software, algorithms, trademarks, branding, and platform
+                  designs are the exclusive property of Reel Me In Media
+                  Limited.
+                </li>
+                <li>
+                  You may not copy, distribute, modify, or create derivative
+                  works from our intellectual property without prior written
+                  permission.
+                </li>
               </ul>
 
-              <p className="mt-6 text-center font-medium">
-                By using ReelMotion, you acknowledge that you have read,
-                understood, and agree to be bound by these Terms and Conditions.
+              <h4 className="font-semibold text-lg">
+                8. Service Availability & Disclaimers
+              </h4>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>The Platform is provided "as is" and "as available".</li>
+                <li>
+                  We make no warranties about uninterrupted operation,
+                  error-free functionality, or that results will meet your
+                  expectations.
+                </li>
+                <li>
+                  AI-generated content is produced algorithmically and may
+                  contain inaccuracies or unintended results. You are solely
+                  responsible for reviewing and ensuring the legality of outputs
+                  before use.
+                </li>
+              </ul>
+
+              <h4 className="font-semibold text-lg">
+                9. Limitation of Liability
+              </h4>
+              <p>To the fullest extent permitted by law:</p>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>
+                  We are not liable for indirect, incidental, special, or
+                  consequential damages.
+                </li>
+                <li>
+                  Our total liability in any claim is limited to the total
+                  amount you paid for Platform access in the preceding three (3)
+                  months.
+                </li>
+              </ul>
+
+              <h4 className="font-semibold text-lg">10. Termination</h4>
+              <p>
+                We may suspend or terminate your account at any time if you:
               </p>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>Breach these Terms.</li>
+                <li>Use the Platform for unlawful purposes.</li>
+                <li>
+                  Engage in conduct that could harm us, our users, or third
+                  parties.
+                </li>
+              </ul>
+
+              <h4 className="font-semibold text-lg">11. Dispute Resolution</h4>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>
+                  Disputes shall be resolved exclusively through binding
+                  arbitration in London, United Kingdom.
+                </li>
+                <li>
+                  Arbitration will be conducted in English under the rules of
+                  the London Court of International Arbitration (LCIA).
+                </li>
+                <li>
+                  You waive the right to participate in class actions or
+                  consolidated proceedings.
+                </li>
+              </ul>
+
+              <h4 className="font-semibold text-lg">12. Governing Law</h4>
+              <p>
+                These Terms shall be governed by and construed in accordance
+                with the laws of England and Wales, without regard to
+                conflict-of-law principles.
+              </p>
+
+              <h4 className="font-semibold text-lg">13. Changes to Terms</h4>
+              <p>
+                We may amend these Terms at any time by posting an updated
+                version on our Platform. Continued use of the Platform after
+                changes take effect constitutes acceptance of the updated Terms.
+              </p>
+
+              <h4 className="font-semibold text-lg">14. Contact Information</h4>
+              <p>If you have questions about these Terms, contact us:</p>
+              <ul className="list-none space-y-1">
+                <li>
+                  📧 <strong>support@reelmotion.ai</strong>
+                </li>
+                <li>
+                  📍{" "}
+                  <strong>
+                    Reel Me In Media Limited, London, United Kingdom
+                  </strong>
+                </li>
+              </ul>
+
+              <div className="mt-6 p-4 bg-gray-900 rounded-lg border border-gray-700">
+                <p className="text-center font-medium text-gray-300">
+                  By using Reelmotion AI, you acknowledge that you have read,
+                  understood, and agree to be bound by these Terms and
+                  Conditions.
+                </p>
+              </div>
             </div>
           </div>
         </div>

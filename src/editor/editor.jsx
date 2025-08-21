@@ -17,6 +17,9 @@ import {
   Plus,
   ChevronRight,
   ChevronDown,
+  ZoomIn,
+  ZoomOut,
+  Scissors,
 } from "lucide-react";
 import { useLoaderData } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -94,6 +97,12 @@ function Editor() {
   // State for selected element
   const [selectedElement, setSelectedElement] = useState(null);
 
+  // Timeline zoom and cut functionality
+  const [timelineZoom, setTimelineZoom] = useState(1); // Zoom level (1 = normal, 2 = 2x zoom, etc.)
+  const [timelineScrollOffset, setTimelineScrollOffset] = useState(0); // Horizontal scroll offset
+  const [showCutButton, setShowCutButton] = useState(false); // Show cut button when element is selected and playhead is over it
+  const [visibleDuration, setVisibleDuration] = useState(120); // Duration visible in timeline (affected by zoom)
+
   // States for modals
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
@@ -139,6 +148,10 @@ function Editor() {
   const [voiceList, setVoiceList] = useState([]);
   const [showDeleteVoiceModal, setShowDeleteVoiceModal] = useState(false);
   const [voiceToDelete, setVoiceToDelete] = useState(null);
+
+  // State for scene video hover
+  const [hoveredScene, setHoveredScene] = useState(null);
+  const [sceneVideosLoaded, setSceneVideosLoaded] = useState({});
   const [isDeletingVoice, setIsDeletingVoice] = useState(false);
 
   // Functions to control volume
@@ -240,7 +253,7 @@ function Editor() {
     }));
   };
 
-  // Calculate total timeline duration
+  // Calculate total timeline duration (base duration, zoom affects the visual scale)
   const getTimelineDuration = () => {
     if (arrayVideoMake.length === 0) return 120; // default 2 minutes
 
@@ -249,11 +262,84 @@ function Editor() {
     return Math.max(maxEndTime, 120); // minimum 2 minutes
   };
 
+  // Get the visual timeline duration considering zoom
+  const getVisualTimelineDuration = () => {
+    return visibleDuration;
+  };
+
+  // Initialize visible duration based on content
+  useEffect(() => {
+    if (arrayVideoMake.length > 0) {
+      const totalDuration = getTimelineDuration();
+      setVisibleDuration(totalDuration);
+    }
+  }, [arrayVideoMake.length]);
+
   // Calculate the end of actual content (last element end time)
   const getContentEndTime = () => {
     if (arrayVideoMake.length === 0) return 0;
     const endTimes = arrayVideoMake.map((item) => item.endTime);
     return endTimes.length > 0 ? Math.max(...endTimes) : 0;
+  };
+
+  // Calculate playhead position considering zoom and scroll
+  const getPlayheadPosition = () => {
+    const totalDuration = getTimelineDuration();
+    const visibleDuration = getVisualTimelineDuration();
+
+    // Time relative to the visible portion of the timeline
+    const timeInVisibleArea = currentTime - timelineScrollOffset;
+
+    // If playhead is outside the visible area, hide it
+    if (timeInVisibleArea < 0 || timeInVisibleArea > visibleDuration) {
+      return -100; // Position it off-screen
+    }
+
+    // Calculate percentage within the visible area
+    const percentage = (timeInVisibleArea / visibleDuration) * 100;
+    return percentage;
+  };
+
+  // Generate time markers for the ruler based on visible duration and scroll
+  const getTimeMarkers = () => {
+    const visibleDuration = getVisualTimelineDuration();
+    const startTime = timelineScrollOffset;
+    const endTime = startTime + visibleDuration;
+
+    // Determine the interval based on visible duration
+    let interval;
+    if (visibleDuration <= 30) {
+      interval = 5; // 5 second intervals for very zoomed in
+    } else if (visibleDuration <= 60) {
+      interval = 10; // 10 second intervals
+    } else if (visibleDuration <= 180) {
+      interval = 30; // 30 second intervals
+    } else if (visibleDuration <= 600) {
+      interval = 60; // 1 minute intervals
+    } else {
+      interval = 120; // 2 minute intervals for zoomed out
+    }
+
+    const markers = [];
+
+    // Generate markers from start to end time
+    const firstMarker = Math.floor(startTime / interval) * interval;
+    for (let time = firstMarker; time <= endTime + interval; time += interval) {
+      if (time >= startTime && time <= endTime) {
+        const position = ((time - startTime) / visibleDuration) * 100;
+        const minutes = Math.floor(time / 60);
+        const seconds = Math.floor(time % 60);
+        const timeText = `${minutes}:${String(seconds).padStart(2, "0")}`;
+
+        markers.push({
+          position,
+          time,
+          text: timeText,
+        });
+      }
+    }
+
+    return markers;
   };
 
   // Function to get active element at a given time
@@ -691,6 +777,19 @@ function Editor() {
     }
   }, [isPlaying, currentTime]);
 
+  // Effect to show/hide cut button when element is selected and playhead is over it
+  useEffect(() => {
+    if (
+      selectedElement &&
+      currentTime > selectedElement.startTime &&
+      currentTime < selectedElement.endTime
+    ) {
+      setShowCutButton(true);
+    } else {
+      setShowCutButton(false);
+    }
+  }, [selectedElement, currentTime]);
+
   // Effect to apply real-time changes when editing selected element
   useEffect(() => {
     if (
@@ -1046,10 +1145,18 @@ function Editor() {
       const rect = timelineRef.current.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const percentage = clickX / rect.width;
+
+      // Calculate time considering zoom and scroll offset
+      const visibleDuration = getVisualTimelineDuration();
+      const timeInVisibleArea = percentage * visibleDuration;
       const newTime = Math.max(
         0,
-        Math.min(percentage * getTimelineDuration(), getTimelineDuration())
+        Math.min(
+          timeInVisibleArea + timelineScrollOffset,
+          getTimelineDuration()
+        )
       );
+
       setCurrentTime(newTime);
       // Immediately sync media positions on seek (won't auto-play when paused)
       syncMediaWithTime(newTime);
@@ -1415,6 +1522,91 @@ function Editor() {
     }, 0);
 
     return colors[Math.abs(hashCode) % colors.length];
+  };
+
+  // Zoom functions
+  const handleZoomIn = () => {
+    setVisibleDuration((prev) => Math.max(prev / 1.5, 30)); // Min 30 seconds visible
+    setTimelineZoom((prev) => Math.min(prev * 1.5, 8)); // Max zoom 8x
+  };
+
+  const handleZoomOut = () => {
+    const totalDuration = getTimelineDuration();
+    setVisibleDuration((prev) => Math.min(prev * 1.5, totalDuration)); // Max = total duration
+    setTimelineZoom((prev) => Math.max(prev / 1.5, 0.5)); // Min zoom 0.5x
+  };
+
+  // Cut function - splits an element at the current time
+  const handleCutElement = () => {
+    if (!selectedElement || !showCutButton) return;
+
+    const cutTime = currentTime;
+    const element = selectedElement;
+
+    // Create two new elements from the cut
+    const firstPart = {
+      ...element,
+      id: `${element.id}_cut1_${Date.now()}`,
+      endTime: cutTime,
+      duration: cutTime - element.startTime,
+    };
+
+    const secondPart = {
+      ...element,
+      id: `${element.id}_cut2_${Date.now()}`,
+      startTime: cutTime,
+      trimStart: (element.trimStart || 0) + (cutTime - element.startTime),
+      duration: element.endTime - cutTime,
+    };
+
+    // Replace the original element with the two new parts
+    setArrayVideoMake((prev) => {
+      const filtered = prev.filter((item) => item.id !== element.id);
+      return [...filtered, firstPart, secondPart];
+    });
+
+    // Clear selection
+    setSelectedElement(null);
+  };
+
+  // Function to get thumbnail/frame for video elements
+  const getElementThumbnail = (element) => {
+    if (element.channel === "video") {
+      return (
+        element.video_url ||
+        element.url ||
+        element.image_url ||
+        element.prompt_image_url
+      );
+    }
+    if (element.channel === "image") {
+      return element.image_url || element.url;
+    }
+    return null;
+  };
+
+  // Function to create multiple thumbnails for wide elements
+  const createThumbnailBackground = (element, elementWidth) => {
+    const thumbnailUrl = getElementThumbnail(element);
+    if (!thumbnailUrl) {
+      return getElementColor(element.id, 0);
+    }
+
+    // Calculate how many thumbnails we need based on element width
+    const thumbnailSize = 80; // Base thumbnail width in pixels
+    const numThumbnails = Math.max(1, Math.ceil(elementWidth / thumbnailSize));
+
+    if (numThumbnails === 1) {
+      return `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url(${thumbnailUrl})`;
+    }
+
+    // Create repeating pattern for multiple thumbnails
+    const gradientOverlay = "linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3))";
+    const thumbnailRepeats = Array(numThumbnails)
+      .fill(`url(${thumbnailUrl})`)
+      .join(", ");
+
+    return `${gradientOverlay}, ${thumbnailRepeats}`;
   };
 
   // Function to select/deselect an element
@@ -2086,141 +2278,6 @@ function Editor() {
 
   return (
     <div className="bg-primarioDark w-full h-[100vh] scroll-auto px-6 py-4">
-      {/* Header */}
-      <div className="flex justify-between">
-        <div className="flex flex-col ml-2">
-          <span className="text-white text-3xl font-leagueGothic font-medium">
-            Video Editor
-          </span>
-          {currentEditName && (
-            <span className="text-gray-400 text-sm font-montserrat">
-              {currentEditName}
-            </span>
-          )}
-        </div>
-        {/* Timeline Header */}
-        <div
-          className={
-            arrayVideoMake.length > 0
-              ? "flex justify-between items-center gap-8 my-2"
-              : "hidden"
-          }
-        >
-          <div className="flex items-center gap-6">
-            {isPlaying ? (
-              <button
-                className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80"
-                onClick={handlePlayPause}
-              >
-                <Pause size={20} />
-              </button>
-            ) : (
-              <button
-                className="bg-darkBoxSub p-2 rounded-lg text-primarioLogo hover:bg-opacity-80"
-                onClick={handlePlayPause}
-              >
-                <Play size={20} />
-              </button>
-            )}
-          </div>{" "}
-          <div className="flex items-center gap-2 line-clamp-1">
-            <Volume2 size={20} className="text-white" />
-            <div
-              ref={volumeRef}
-              className="w-20 h-1 bg-darkBoxSub rounded-full cursor-pointer relative group"
-              onMouseDown={handleVolumeMouseDown}
-              onClick={handleVolumeClick}
-            >
-              {/* Volume progress bar */}
-              <div
-                className="h-full bg-primarioLogo rounded-full transition-all duration-100"
-                style={{ width: `${masterVolume * 100}%` }}
-              ></div>
-
-              {/* Volume indicator */}
-              <div
-                className={`absolute top-2 transform -translate-y-1/2 w-3 h-3 bg-white rounded-full border-2 border-primarioLogo cursor-grab transition-all duration-100 shadow-lg ${
-                  isDraggingVolume
-                    ? "scale-125 cursor-grabbing"
-                    : "hover:scale-110"
-                }`}
-                style={{
-                  left: `${masterVolume * 100}%`,
-                  transform: "translate(-50%, -50%)",
-                }}
-              ></div>
-
-              {/* Visual indicator on hover */}
-              <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 opacity-0 group-hover:opacity-20 bg-primarioLogo rounded-full transition-opacity duration-200"></div>
-            </div>
-
-            {/* Show volume percentage */}
-            <span className="text-xs text-gray-400 w-8">
-              {Math.round(masterVolume * 100)}%
-            </span>
-
-            {/* Debug: Show number of elements in timeline */}
-            <span className="text-xs text-gray-400 ml-4">
-              Elements: {arrayVideoMake.length}
-              {arrayVideoMake.length > 0 && (
-                <span>
-                  {" "}
-                  | Duration:{" "}
-                  {Math.max(...arrayVideoMake.map((item) => item.endTime), 0)}s
-                </span>
-              )}
-              {isResizing && resizingElement && (
-                <span className="text-yellow-400">
-                  {" "}
-                  | Trimming: {resizingElement.title}
-                </span>
-              )}
-              {draggingElement && (
-                <span className="text-blue-400 line-clamp-1">
-                  {" "}
-                  | Moving: {draggingElement.title}
-                </span>
-              )}
-            </span>
-          </div>
-        </div>
-        <div className="gap-4 flex pb-4">
-          {currentEditName && (
-            <button
-              type="button"
-              onClick={handleNewProject}
-              className="bg-gray-600 text-white px-6 py-2 rounded-3xl font-medium hover:bg-gray-500 flex items-center gap-2"
-            >
-              <Plus size={18} />
-              New
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={handleSaveProject}
-            className="bg-[#F2D543] text-primarioDark px-6 py-2 rounded-3xl font-medium hover:bg-[#f2f243] flex items-center gap-2"
-          >
-            <Save size={18} />
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={handleLoadProject}
-            className="bg-[#F2D54310] text-[#F2D543] border-[#F2D543] border px-6 py-2 rounded-3xl font-medium hover:bg-[#F2D543] hover:text-black flex items-center gap-2"
-          >
-            <FolderOpen size={18} />
-            Load
-          </button>
-          <button
-            type="button"
-            onClick={handleExportVideo}
-            className="bg-[#F2D54310] text-[#F2D543] border-[#F2D543] border px-6 py-2 rounded-3xl font-medium hover:bg-[#F2D543] hover:text-black flex items-center gap-2"
-          >
-            <Download size={18} />
-            Export
-          </button>
-        </div>
-      </div>
       {/* ACTION BAR */}
       <div className="flex gap-6 mt-2 h-[45vh]">
         <div className="bg-darkBox w-1/4 rounded-4xl flex">
@@ -2292,7 +2349,7 @@ function Editor() {
                                 className="text-gray-300"
                               />
                             )}
-                            <h3 className="text-white font-medium text-base line-clamp-1">
+                            <h3 className="text-white font-medium text-base line-clamp-1 text-left">
                               {project.name}
                             </h3>
                           </div>
@@ -2334,14 +2391,66 @@ function Editor() {
                                   )
                                 }
                                 className="bg-darkBox cursor-pointer hover:bg-opacity-80 rounded-2xl transition-all duration-200 hover:scale-105"
+                                onMouseEnter={() => setHoveredScene(scene.id)}
+                                onMouseLeave={() => setHoveredScene(null)}
                               >
-                                <img
-                                  src={
-                                    scene.image_url || scene.prompt_image_url
-                                  }
-                                  alt={scene.name}
-                                  className="rounded-t-2xl w-full h-16 object-cover aspect-square"
-                                />
+                                <div className="relative">
+                                  {/* Video element for hover preview */}
+                                  {scene.video_url && (
+                                    <video
+                                      key={`scene-video-${scene.id}`}
+                                      src={scene.video_url}
+                                      className={`rounded-t-2xl w-full h-16 object-cover transition-opacity duration-300 ${
+                                        sceneVideosLoaded[scene.id]
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      }`}
+                                      onLoadedMetadata={() =>
+                                        setSceneVideosLoaded((prev) => ({
+                                          ...prev,
+                                          [scene.id]: true,
+                                        }))
+                                      }
+                                      muted
+                                      loop
+                                      playsInline
+                                      preload="metadata"
+                                      style={{
+                                        display: sceneVideosLoaded[scene.id]
+                                          ? "block"
+                                          : "none",
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.target.play().catch(() => {});
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.target.pause();
+                                        e.target.currentTime = 0;
+                                      }}
+                                    />
+                                  )}
+
+                                  {/* Fallback image while video loads or if no video */}
+                                  {(!sceneVideosLoaded[scene.id] ||
+                                    !scene.video_url) && (
+                                    <img
+                                      src={
+                                        scene.image_url ||
+                                        scene.prompt_image_url
+                                      }
+                                      alt={scene.name}
+                                      className="rounded-t-2xl w-full h-16 object-cover"
+                                    />
+                                  )}
+
+                                  {/* Loading indicator */}
+                                  {scene.video_url &&
+                                    !sceneVideosLoaded[scene.id] && (
+                                      <div className="absolute inset-0 bg-darkBoxSub animate-pulse flex items-center justify-center rounded-t-2xl">
+                                        <div className="w-4 h-4 border-2 border-gray-600 border-t-primarioLogo rounded-full animate-spin"></div>
+                                      </div>
+                                    )}
+                                </div>
                                 <div className="pb-4 pt-1 px-3 relative">
                                   <span
                                     className="text-[#E7E7E7] text-xs line-clamp-2 mt-2"
@@ -3679,511 +3788,787 @@ function Editor() {
           </div>
         </div>
       </div>
-      {/* TIMELINE */}
-      <div className="mt-3 p-6 relative pb-0">
-        {/* Timeline Tracks */}
-        <div className="space-y-3">
-          {/* Video Track */}
-          <div className="flex items-center gap-3">
-            <div className="w-16 text-white text-sm font-medium">Video</div>
-            <div
-              className="flex-1 bg-darkBoxSub rounded-lg h-12 relative transition-all duration-200 hover:bg-opacity-80"
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, "video")}
-            >
-              {/* Vertical playhead line */}
-              <div
-                className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
-                style={{
-                  left: `${(currentTime / getTimelineDuration()) * 100}%`,
-                  transform: "translateX(-50%)",
-                }}
-              />
-              {/* Render timeline elements for video channel */}
-              {arrayVideoMake
-                .filter((item) => item.channel === "video")
-                .map((item, index) => (
-                  <div
-                    key={item.id}
-                    className={`absolute rounded-md h-10 flex items-center justify-center cursor-move group hover:scale-105 hover:z-10 ${
-                      draggingElement?.id === item.id
-                        ? "opacity-50 scale-105 transition-none"
-                        : "transition-all duration-200"
-                    } ${
-                      selectedElement?.id === item.id
-                        ? "ring-2 ring-[#DC569D] ring-opacity-80"
-                        : ""
-                    }`}
-                    style={{
-                      left: `${
-                        (getElementRenderPosition(item) /
-                          getTimelineDuration()) *
-                        100
-                      }%`,
-                      width: `${
-                        ((item.endTime - item.startTime) /
-                          getTimelineDuration()) *
-                        100
-                      }%`,
-                      top: "4px",
-                      backgroundColor: getElementColor(item.id, index),
-                    }}
-                    onMouseEnter={() => setHoveredElement(item.id)}
-                    onMouseLeave={() => setHoveredElement(null)}
-                    onClick={(e) => handleSelectElement(item, e)}
-                    onMouseDown={(e) => {
-                      // Only start drag if not delete button or handles
-                      if (
-                        !e.target.closest("button") &&
-                        !e.target.classList.contains("resize-handle")
-                      ) {
-                        handleElementDragStart(e, item);
-                      }
-                    }}
-                  >
-                    {/* Left resize handle */}
-                    <div
-                      className="resize-handle absolute left-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
-                      onMouseDown={(e) => handleResizeStart(e, item, "start")}
-                      title="Trim start"
-                    ></div>
+      {/* OPTIONS BAR */}
+      <div className="flex justify-between mt-4">
+        {/* Timeline Header */}
+        <div
+          className={
+            arrayVideoMake.length > 0
+              ? "flex justify-between items-center gap-8 my-2"
+              : "hidden"
+          }
+        >
+          <div className="flex items-center gap-6">
+            {isPlaying ? (
+              <button
+                className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80"
+                onClick={handlePlayPause}
+              >
+                <Pause size={20} />
+              </button>
+            ) : (
+              <button
+                className="bg-darkBoxSub p-2 rounded-lg text-primarioLogo hover:bg-opacity-80"
+                onClick={handlePlayPause}
+              >
+                <Play size={20} />
+              </button>
+            )}
 
-                    {/* Right resize handle */}
-                    <div
-                      className="resize-handle absolute right-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
-                      onMouseDown={(e) => handleResizeStart(e, item, "end")}
-                      title="Trim end"
-                    ></div>
-
-                    <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
-                      {item.title} ({item.duration}s)
-                      {item.channel === "video" && (
-                        <span className="opacity-80">
-                          {" "}
-                          Vol:{" "}
-                          {Math.round(
-                            (item.volume !== undefined ? item.volume : 1) * 100
-                          )}
-                          %
-                        </span>
-                      )}
-                      {item.originalDuration &&
-                        item.originalDuration !== item.duration && (
-                          <span className="opacity-70">
-                            {" "}
-                            - Orig: {item.originalDuration}s
-                          </span>
-                        )}
-                    </span>
-
-                    {/* Opciones de hover */}
-                    {hoveredElement === item.id && !draggingElement && (
-                      <div className="absolute -top-2 right-0 flex gap-1 z-20">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteElement(item.id);
-                            setHoveredElement(null);
-                          }}
-                          className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
-                          title="Eliminar escena"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
+            {/* Zoom Controls */}
+            <div className="flex items-center gap-2">
+              <button
+                className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80 hover:text-primarioLogo"
+                onClick={handleZoomOut}
+                title="Zoom Out"
+              >
+                <ZoomOut size={16} />
+              </button>
+              <span className="text-white text-xs min-w-[40px] text-center">
+                {(timelineZoom * 100).toFixed(0)}%
+              </span>
+              <button
+                className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80 hover:text-primarioLogo"
+                onClick={handleZoomIn}
+                title="Zoom In"
+              >
+                <ZoomIn size={16} />
+              </button>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-16 text-white text-sm font-medium">Image</div>
+
+            {/* Cut Button - Only show when element is selected and playhead is over it */}
+            {showCutButton && (
+              <button
+                className="bg-primarioLogo p-2 rounded-lg text-primarioDark hover:bg-opacity-80 animate-pulse"
+                onClick={handleCutElement}
+                title="Cut selected element"
+              >
+                <Scissors size={16} />
+              </button>
+            )}
+          </div>{" "}
+          <div className="flex items-center gap-2 line-clamp-1">
+            <Volume2 size={20} className="text-white" />
             <div
-              className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, "image")}
+              ref={volumeRef}
+              className="w-20 h-1 bg-darkBoxSub rounded-full cursor-pointer relative group"
+              onMouseDown={handleVolumeMouseDown}
+              onClick={handleVolumeClick}
             >
-              {/* Vertical playhead line */}
+              {/* Volume progress bar */}
               <div
-                className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
-                style={{
-                  left: `${(currentTime / getTimelineDuration()) * 100}%`,
-                  transform: "translateX(-50%)",
-                }}
-              />
-              {/* Render timeline elements for image/text channel */}
-              {arrayVideoMake
-                .filter((item) => item.channel === "image")
-                .map((item, index) => (
-                  <div
-                    key={item.id}
-                    className={`absolute rounded-md h-6 flex items-center justify-center cursor-move group hover:scale-105 hover:z-10 ${
-                      draggingElement?.id === item.id
-                        ? "opacity-50 scale-105 transition-none"
-                        : "transition-all duration-200"
-                    } ${
-                      selectedElement?.id === item.id
-                        ? "ring-2 ring-[#DC569D] ring-opacity-80"
-                        : ""
-                    }`}
-                    style={{
-                      left: `${
-                        (getElementRenderPosition(item) /
-                          getTimelineDuration()) *
-                        100
-                      }%`,
-                      width: `${
-                        ((item.endTime - item.startTime) /
-                          getTimelineDuration()) *
-                        100
-                      }%`,
-                      top: "4px",
-                      backgroundColor: getElementColor(item.id, index),
-                    }}
-                    onMouseEnter={() => setHoveredElement(item.id)}
-                    onMouseLeave={() => setHoveredElement(null)}
-                    onClick={(e) => handleSelectElement(item, e)}
-                    onMouseDown={(e) => {
-                      if (
-                        !e.target.closest("button") &&
-                        !e.target.classList.contains("resize-handle")
-                      ) {
-                        handleElementDragStart(e, item);
-                      }
-                    }}
-                  >
-                    {/* Manija de redimensionamiento izquierda */}
-                    <div
-                      className="resize-handle absolute left-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
-                      onMouseDown={(e) => handleResizeStart(e, item, "start")}
-                      title="Cambiar inicio"
-                    ></div>
-
-                    {/* Manija de redimensionamiento derecha */}
-                    <div
-                      className="resize-handle absolute right-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
-                      onMouseDown={(e) => handleResizeStart(e, item, "end")}
-                      title="Cambiar duración"
-                    ></div>
-
-                    <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
-                      {item.title} ({item.duration}s)
-                    </span>
-
-                    {/* Opciones de hover */}
-                    {hoveredElement === item.id && !draggingElement && (
-                      <div className="absolute -top-2 right-0 flex gap-1 z-20">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteElement(item.id);
-                            setHoveredElement(null);
-                          }}
-                          className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
-                          title="Eliminar elemento"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-            </div>
-          </div>
-
-          {/* Music Track */}
-          <div className="flex items-center gap-3">
-            <div className="w-16 text-white text-sm font-medium">Music</div>
-            <div
-              className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, "music")}
-            >
-              {/* Vertical playhead line */}
-              <div
-                className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
-                style={{
-                  left: `${(currentTime / getTimelineDuration()) * 100}%`,
-                  transform: "translateX(-50%)",
-                }}
-              />
-              {/* Renderizar elementos del timeline para el canal de música */}
-              {arrayVideoMake
-                .filter((item) => item.channel === "music")
-                .map((item, index) => (
-                  <div
-                    key={item.id}
-                    className={`absolute rounded-md h-6 flex items-center justify-center cursor-move group hover:scale-105 hover:z-10 ${
-                      draggingElement?.id === item.id
-                        ? "opacity-50 scale-105 transition-none"
-                        : "transition-all duration-200"
-                    } ${
-                      selectedElement?.id === item.id
-                        ? "ring-2 ring-[#DC569D] ring-opacity-80"
-                        : ""
-                    }`}
-                    style={{
-                      left: `${
-                        (getElementRenderPosition(item) /
-                          getTimelineDuration()) *
-                        100
-                      }%`,
-                      width: `${
-                        ((item.endTime - item.startTime) /
-                          getTimelineDuration()) *
-                        100
-                      }%`,
-                      top: "4px",
-                      backgroundColor: getElementColor(item.id, index),
-                    }}
-                    onMouseEnter={() => setHoveredElement(item.id)}
-                    onMouseLeave={() => setHoveredElement(null)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelectElement(item, e);
-                    }}
-                    onMouseDown={(e) => {
-                      // Only start drag if not clicking on resize handles or buttons
-                      if (
-                        !e.target.closest("button") &&
-                        !e.target.classList.contains("resize-handle")
-                      ) {
-                        // Don't start drag immediately, wait for mouse move
-                        const startDrag = () => {
-                          handleElementDragStart(e, item);
-                        };
-                        // Add a small delay to allow click selection first
-                        setTimeout(startDrag, 50);
-                      }
-                    }}
-                  >
-                    {/* Manija de redimensionamiento izquierda */}
-                    <div
-                      className="resize-handle absolute left-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
-                      onMouseDown={(e) => handleResizeStart(e, item, "start")}
-                      title="Recortar inicio"
-                    ></div>
-
-                    {/* Manija de redimensionamiento derecha */}
-                    <div
-                      className="resize-handle absolute right-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
-                      onMouseDown={(e) => handleResizeStart(e, item, "end")}
-                      title="Recortar final"
-                    ></div>
-
-                    <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
-                      {item.title} ({item.duration}s)
-                    </span>
-
-                    {/* Opciones de hover */}
-                    {hoveredElement === item.id && !draggingElement && (
-                      <div className="absolute -top-2 right-0 flex gap-1 z-20">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteElement(item.id);
-                            setHoveredElement(null);
-                          }}
-                          className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
-                          title="Eliminar música"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-            </div>
-          </div>
-
-          {/* Voice Track */}
-          <div className="flex items-center gap-3">
-            <div className="w-16 text-white text-sm font-medium">Voice</div>
-            <div
-              className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, "voice")}
-            >
-              {/* Vertical playhead line */}
-              <div
-                className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
-                style={{
-                  left: `${(currentTime / getTimelineDuration()) * 100}%`,
-                  transform: "translateX(-50%)",
-                }}
-              />
-              {/* Renderizar elementos del timeline para el canal de voz */}
-              {arrayVideoMake
-                .filter((item) => item.channel === "voice")
-                .map((item, index) => (
-                  <div
-                    key={item.id}
-                    className={`absolute rounded-md h-6 flex items-center justify-center cursor-move group hover:scale-105 hover:z-10 ${
-                      draggingElement?.id === item.id
-                        ? "opacity-50 scale-105 transition-none"
-                        : "transition-all duration-200"
-                    } ${
-                      selectedElement?.id === item.id
-                        ? "ring-2 ring-[#DC569D] ring-opacity-80"
-                        : ""
-                    }`}
-                    style={{
-                      left: `${
-                        (getElementRenderPosition(item) /
-                          getTimelineDuration()) *
-                        100
-                      }%`,
-                      width: `${
-                        ((item.endTime - item.startTime) /
-                          getTimelineDuration()) *
-                        100
-                      }%`,
-                      top: "4px",
-                      backgroundColor: getElementColor(item.id, index),
-                    }}
-                    onMouseEnter={() => setHoveredElement(item.id)}
-                    onMouseLeave={() => setHoveredElement(null)}
-                    onClick={(e) => handleSelectElement(item, e)}
-                    onMouseDown={(e) => {
-                      if (
-                        !e.target.closest("button") &&
-                        !e.target.classList.contains("resize-handle")
-                      ) {
-                        handleElementDragStart(e, item);
-                      }
-                    }}
-                  >
-                    {/* Manija de redimensionamiento izquierda */}
-                    <div
-                      className="resize-handle absolute left-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
-                      onMouseDown={(e) => handleResizeStart(e, item, "start")}
-                      title="Recortar inicio"
-                    ></div>
-
-                    {/* Manija de redimensionamiento derecha */}
-                    <div
-                      className="resize-handle absolute right-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
-                      onMouseDown={(e) => handleResizeStart(e, item, "end")}
-                      title="Recortar final"
-                    ></div>
-
-                    <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
-                      {item.title} ({item.duration}s)
-                    </span>
-
-                    {/* Opciones de hover */}
-                    {hoveredElement === item.id && !draggingElement && (
-                      <div className="absolute -top-2 right-0 flex gap-1 z-20">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteElement(item.id);
-                            setHoveredElement(null);
-                          }}
-                          className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
-                          title="Eliminar voz"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Timeline Ruler */}
-        <div className="mt-4 flex items-center gap-3">
-          <div className="w-16">
-            {/* Indicador de tiempo currente */}
-            <div className="text-xs text-primarioLogo font-medium">
-              {Math.floor(currentTime / 60)}:
-              {String(Math.floor(currentTime) % 60).padStart(2, "0")}
-            </div>
-          </div>
-          <div className="flex-1 relative">
-            <div
-              ref={timelineRef}
-              className="w-full h-4 bg-darkBoxSub rounded-full cursor-pointer relative group"
-              onMouseDown={handleTimelineMouseDown}
-              onClick={handleTimelineClick}
-            >
-              {/* Barra de fondo más alta para mejor interacción */}
-              <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-1 bg-darkBoxSub rounded-full"></div>
-
-              {/* Barra de progreso */}
-              <div
-                className="absolute top-1/2 transform -translate-y-1/2 h-1 bg-primarioLogo rounded-full transition-all duration-100"
-                style={{
-                  width: `${(currentTime / getTimelineDuration()) * 100}%`,
-                }}
+                className="h-full bg-primarioLogo rounded-full transition-all duration-100"
+                style={{ width: `${masterVolume * 100}%` }}
               ></div>
 
-              {/* Indicador (bolita) - más grande y con mejor hover */}
+              {/* Volume indicator */}
               <div
-                className={`absolute top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-primarioLogo cursor-grab transition-all duration-100 shadow-lg ${
-                  isDraggingTimeline
+                className={`absolute top-2 transform -translate-y-1/2 w-3 h-3 bg-white rounded-full border-2 border-primarioLogo cursor-grab transition-all duration-100 shadow-lg ${
+                  isDraggingVolume
                     ? "scale-125 cursor-grabbing"
                     : "hover:scale-110"
                 }`}
                 style={{
-                  left: `${(currentTime / getTimelineDuration()) * 100}%`,
+                  left: `${masterVolume * 100}%`,
                   transform: "translate(-50%, -50%)",
                 }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  setIsDraggingTimeline(true);
-                }}
+              ></div>
+
+              {/* Visual indicator on hover */}
+              <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 opacity-0 group-hover:opacity-20 bg-primarioLogo rounded-full transition-opacity duration-200"></div>
+            </div>
+
+            {/* Show volume percentage */}
+            <span className="text-xs text-gray-400 w-8">
+              {Math.round(masterVolume * 100)}%
+            </span>
+
+            {/* Debug: Show number of elements in timeline */}
+            <span className="text-xs text-gray-400 ml-4">
+              Elements: {arrayVideoMake.length}
+              {arrayVideoMake.length > 0 && (
+                <span>
+                  {" "}
+                  | Duration:{" "}
+                  {Math.max(...arrayVideoMake.map((item) => item.endTime), 0)}s
+                </span>
+              )}
+              {isResizing && resizingElement && (
+                <span className="text-yellow-400">
+                  {" "}
+                  | Trimming: {resizingElement.title}
+                </span>
+              )}
+              {draggingElement && (
+                <span className="text-blue-400 line-clamp-1">
+                  {" "}
+                  | Moving: {draggingElement.title}
+                </span>
+              )}
+            </span>
+          </div>
+        </div>
+        <div className="gap-4 flex pb-4">
+          {currentEditName && (
+            <button
+              type="button"
+              onClick={handleNewProject}
+              className="bg-gray-600 text-white px-6 py-2 rounded-3xl font-medium hover:bg-gray-500 flex items-center gap-2"
+            >
+              <Plus size={18} />
+              New
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleSaveProject}
+            className="bg-[#F2D543] text-primarioDark px-6 py-2 rounded-3xl font-medium hover:bg-[#f2f243] flex items-center gap-2"
+          >
+            <Save size={18} />
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={handleLoadProject}
+            className="bg-[#F2D54310] text-[#F2D543] border-[#F2D543] border px-6 py-2 rounded-3xl font-medium hover:bg-[#F2D543] hover:text-black flex items-center gap-2"
+          >
+            <FolderOpen size={18} />
+            Load
+          </button>
+          <button
+            type="button"
+            onClick={handleExportVideo}
+            className="bg-[#F2D54310] text-[#F2D543] border-[#F2D543] border px-6 py-2 rounded-3xl font-medium hover:bg-[#F2D543] hover:text-black flex items-center gap-2"
+          >
+            <Download size={18} />
+            Export
+          </button>
+        </div>
+      </div>
+      {/* TIMELINE */}
+      <div className="mt-1 relative pb-0">
+        {/* Timeline Tracks Container with Scroll */}
+        <div
+          className="overflow-x-auto overflow-y-hidden pb-2"
+          style={{
+            scrollbarWidth: "thin",
+            scrollbarColor: "#DC569D #2a2a2a",
+          }}
+          onScroll={(e) => {
+            const scrollLeft = e.target.scrollLeft;
+            const scrollWidth = e.target.scrollWidth;
+            const clientWidth = e.target.clientWidth;
+            const maxScroll = scrollWidth - clientWidth;
+
+            if (maxScroll > 0) {
+              const scrollPercentage = scrollLeft / maxScroll;
+              const totalDuration = getTimelineDuration();
+              const visibleDuration = getVisualTimelineDuration();
+              const hiddenDuration = totalDuration - visibleDuration;
+              setTimelineScrollOffset(scrollPercentage * hiddenDuration);
+            } else {
+              setTimelineScrollOffset(0);
+            }
+          }}
+        >
+          <style jsx>{`
+            div::-webkit-scrollbar {
+              height: 8px;
+            }
+            div::-webkit-scrollbar-track {
+              background: #2a2a2a;
+              border-radius: 4px;
+            }
+            div::-webkit-scrollbar-thumb {
+              background: #dc569d;
+              border-radius: 4px;
+            }
+            div::-webkit-scrollbar-thumb:hover {
+              background: #b84a85;
+            }
+          `}</style>
+          <div
+            className="space-y-3"
+            style={{
+              minWidth:
+                visibleDuration < getTimelineDuration()
+                  ? `${(getTimelineDuration() / visibleDuration) * 100}%`
+                  : "100%",
+            }}
+          >
+            {/* Video Track */}
+            <div className="flex items-center gap-3">
+              <div className="w-16 text-white text-sm font-medium">Video</div>
+              <div
+                className="flex-1 bg-darkBoxSub rounded-lg h-12 relative transition-all duration-200 hover:bg-opacity-80"
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, "video")}
               >
-                {/* Línea vertical hacia arriba desde la bolita */}
+                {/* Vertical playhead line */}
                 <div
-                  className="absolute left-1/2 -translate-x-1/2 bottom-full w-0.5 bg-primarioLogo"
-                  style={{ height: "190px", zIndex: 60 }}
+                  className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
+                  style={{
+                    left: `${getPlayheadPosition()}%`,
+                    transform: "translateX(-50%)",
+                    display: getPlayheadPosition() < 0 ? "none" : "block",
+                  }}
+                />
+                {/* Render timeline elements for video channel */}
+                {arrayVideoMake
+                  .filter((item) => item.channel === "video")
+                  .map((item, index) => {
+                    return (
+                      <div
+                        key={item.id}
+                        className={`absolute rounded-md h-10 cursor-move group hover:scale-105 hover:z-10 overflow-hidden ${
+                          draggingElement?.id === item.id
+                            ? "opacity-50 scale-105 transition-none"
+                            : "transition-all duration-200"
+                        } ${
+                          selectedElement?.id === item.id
+                            ? "ring-2 ring-[#DC569D] ring-opacity-80"
+                            : ""
+                        }`}
+                        style={{
+                          left: `${
+                            (getElementRenderPosition(item) /
+                              getTimelineDuration()) *
+                            100
+                          }%`,
+                          width: `${
+                            ((item.endTime - item.startTime) /
+                              getTimelineDuration()) *
+                            100
+                          }%`,
+                          top: "4px",
+                        }}
+                        onMouseEnter={() => setHoveredElement(item.id)}
+                        onMouseLeave={() => setHoveredElement(null)}
+                        onClick={(e) => handleSelectElement(item, e)}
+                        onMouseDown={(e) => {
+                          // Only start drag if not delete button or handles
+                          if (
+                            !e.target.closest("button") &&
+                            !e.target.classList.contains("resize-handle")
+                          ) {
+                            handleElementDragStart(e, item);
+                          }
+                        }}
+                      >
+                        {/* Video thumbnail */}
+                        {getElementThumbnail(item) ? (
+                          <video
+                            src={getElementThumbnail(item)}
+                            className="w-full h-full object-cover rounded-md pointer-events-none"
+                            muted
+                            preload="metadata"
+                          />
+                        ) : (
+                          <div
+                            className="w-full h-full rounded-md flex items-center justify-center"
+                            style={{
+                              backgroundColor: getElementColor(item.id, index),
+                            }}
+                          >
+                            <span className="text-white text-xs">Video</span>
+                          </div>
+                        )}
+
+                        {/* Overlay with text */}
+                        <div className="absolute inset-0 bg-black bg-opacity-40 rounded-md flex items-center justify-center pointer-events-none">
+                          <span className="text-white text-xs truncate px-2 select-none">
+                            {item.title} ({item.duration}s)
+                            {item.channel === "video" && (
+                              <span className="opacity-80">
+                                {" "}
+                                Vol:{" "}
+                                {Math.round(
+                                  (item.volume !== undefined
+                                    ? item.volume
+                                    : 1) * 100
+                                )}
+                                %
+                              </span>
+                            )}
+                            {item.originalDuration &&
+                              item.originalDuration !== item.duration && (
+                                <span className="opacity-70">
+                                  {" "}
+                                  - Orig: {item.originalDuration}s
+                                </span>
+                              )}
+                          </span>
+                        </div>
+
+                        {/* Left resize handle */}
+                        <div
+                          className="resize-handle absolute left-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                          onMouseDown={(e) =>
+                            handleResizeStart(e, item, "start")
+                          }
+                          title="Trim start"
+                        ></div>
+
+                        {/* Right resize handle */}
+                        <div
+                          className="resize-handle absolute right-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                          onMouseDown={(e) => handleResizeStart(e, item, "end")}
+                          title="Trim end"
+                        ></div>
+
+                        <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
+                          {item.title} ({item.duration}s)
+                          {item.channel === "video" && (
+                            <span className="opacity-80">
+                              {" "}
+                              Vol:{" "}
+                              {Math.round(
+                                (item.volume !== undefined ? item.volume : 1) *
+                                  100
+                              )}
+                              %
+                            </span>
+                          )}
+                          {item.originalDuration &&
+                            item.originalDuration !== item.duration && (
+                              <span className="opacity-70">
+                                {" "}
+                                - Orig: {item.originalDuration}s
+                              </span>
+                            )}
+                        </span>
+
+                        {/* Opciones de hover */}
+                        {hoveredElement === item.id && !draggingElement && (
+                          <div className="absolute -top-2 right-0 flex gap-1 z-10">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteElement(item.id);
+                                setHoveredElement(null);
+                              }}
+                              className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
+                              title="Eliminar escena"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-16 text-white text-sm font-medium">Image</div>
+              <div
+                className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, "image")}
+              >
+                {/* Vertical playhead line */}
+                <div
+                  className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
+                  style={{
+                    left: `${getPlayheadPosition()}%`,
+                    transform: "translateX(-50%)",
+                    display: getPlayheadPosition() < 0 ? "none" : "block",
+                  }}
+                />
+                {/* Render timeline elements for image/text channel */}
+                {arrayVideoMake
+                  .filter((item) => item.channel === "image")
+                  .map((item, index) => {
+                    return (
+                      <div
+                        key={item.id}
+                        className={`absolute rounded-md h-6 cursor-move group hover:scale-105 hover:z-10 overflow-hidden ${
+                          draggingElement?.id === item.id
+                            ? "opacity-50 scale-105 transition-none"
+                            : "transition-all duration-200"
+                        } ${
+                          selectedElement?.id === item.id
+                            ? "ring-2 ring-[#DC569D] ring-opacity-80"
+                            : ""
+                        }`}
+                        style={{
+                          left: `${
+                            (getElementRenderPosition(item) /
+                              getTimelineDuration()) *
+                            100
+                          }%`,
+                          width: `${
+                            ((item.endTime - item.startTime) /
+                              getTimelineDuration()) *
+                            100
+                          }%`,
+                          top: "4px",
+                        }}
+                        onMouseEnter={() => setHoveredElement(item.id)}
+                        onMouseLeave={() => setHoveredElement(null)}
+                        onClick={(e) => handleSelectElement(item, e)}
+                        onMouseDown={(e) => {
+                          if (
+                            !e.target.closest("button") &&
+                            !e.target.classList.contains("resize-handle")
+                          ) {
+                            handleElementDragStart(e, item);
+                          }
+                        }}
+                      >
+                        {/* Image thumbnail */}
+                        {getElementThumbnail(item) ? (
+                          <img
+                            src={getElementThumbnail(item)}
+                            className="w-full h-full object-cover rounded-md pointer-events-none"
+                            alt={item.title}
+                          />
+                        ) : (
+                          <div
+                            className="w-full h-full rounded-md flex items-center justify-center"
+                            style={{
+                              backgroundColor: getElementColor(item.id, index),
+                            }}
+                          >
+                            <span className="text-white text-xs">Image</span>
+                          </div>
+                        )}
+
+                        {/* Overlay with text */}
+                        <div className="absolute inset-0 bg-black bg-opacity-40 rounded-md flex items-center justify-center pointer-events-none">
+                          <span className="text-white text-xs truncate px-2 select-none">
+                            {item.title} ({item.duration}s)
+                          </span>
+                        </div>
+
+                        {/* Manija de redimensionamiento izquierda */}
+                        <div
+                          className="resize-handle absolute left-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                          onMouseDown={(e) =>
+                            handleResizeStart(e, item, "start")
+                          }
+                          title="Cambiar inicio"
+                        ></div>
+
+                        {/* Manija de redimensionamiento derecha */}
+                        <div
+                          className="resize-handle absolute right-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                          onMouseDown={(e) => handleResizeStart(e, item, "end")}
+                          title="Cambiar duración"
+                        ></div>
+
+                        <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
+                          {item.title} ({item.duration}s)
+                        </span>
+
+                        {/* Opciones de hover */}
+                        {hoveredElement === item.id && !draggingElement && (
+                          <div className="absolute -top-2 right-0 flex gap-1 z-20">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteElement(item.id);
+                                setHoveredElement(null);
+                              }}
+                              className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
+                              title="Eliminar elemento"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* Music Track */}
+            <div className="flex items-center gap-3">
+              <div className="w-16 text-white text-sm font-medium">Music</div>
+              <div
+                className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, "music")}
+              >
+                {/* Vertical playhead line */}
+                <div
+                  className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
+                  style={{
+                    left: `${getPlayheadPosition()}%`,
+                    transform: "translateX(-50%)",
+                    display: getPlayheadPosition() < 0 ? "none" : "block",
+                  }}
+                />
+                {/* Renderizar elementos del timeline para el canal de música */}
+                {arrayVideoMake
+                  .filter((item) => item.channel === "music")
+                  .map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={`absolute rounded-md h-6 flex items-center justify-center cursor-move group hover:scale-105 hover:z-10 ${
+                        draggingElement?.id === item.id
+                          ? "opacity-50 scale-105 transition-none"
+                          : "transition-all duration-200"
+                      } ${
+                        selectedElement?.id === item.id
+                          ? "ring-2 ring-[#DC569D] ring-opacity-80"
+                          : ""
+                      }`}
+                      style={{
+                        left: `${
+                          (getElementRenderPosition(item) /
+                            getTimelineDuration()) *
+                          100
+                        }%`,
+                        width: `${
+                          ((item.endTime - item.startTime) /
+                            getTimelineDuration()) *
+                          100
+                        }%`,
+                        top: "4px",
+                        backgroundColor: getElementColor(item.id, index),
+                      }}
+                      onMouseEnter={() => setHoveredElement(item.id)}
+                      onMouseLeave={() => setHoveredElement(null)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectElement(item, e);
+                      }}
+                      onMouseDown={(e) => {
+                        // Only start drag if not clicking on resize handles or buttons
+                        if (
+                          !e.target.closest("button") &&
+                          !e.target.classList.contains("resize-handle")
+                        ) {
+                          // Don't start drag immediately, wait for mouse move
+                          const startDrag = () => {
+                            handleElementDragStart(e, item);
+                          };
+                          // Add a small delay to allow click selection first
+                          setTimeout(startDrag, 50);
+                        }
+                      }}
+                    >
+                      {/* Manija de redimensionamiento izquierda */}
+                      <div
+                        className="resize-handle absolute left-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                        onMouseDown={(e) => handleResizeStart(e, item, "start")}
+                        title="Recortar inicio"
+                      ></div>
+
+                      {/* Manija de redimensionamiento derecha */}
+                      <div
+                        className="resize-handle absolute right-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                        onMouseDown={(e) => handleResizeStart(e, item, "end")}
+                        title="Recortar final"
+                      ></div>
+
+                      <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
+                        {item.title} ({item.duration}s)
+                      </span>
+
+                      {/* Opciones de hover */}
+                      {hoveredElement === item.id && !draggingElement && (
+                        <div className="absolute -top-2 right-0 flex gap-1 z-20">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteElement(item.id);
+                              setHoveredElement(null);
+                            }}
+                            className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
+                            title="Eliminar música"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* Voice Track */}
+            <div className="flex items-center gap-3">
+              <div className="w-16 text-white text-sm font-medium">Voice</div>
+              <div
+                className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, "voice")}
+              >
+                {/* Vertical playhead line */}
+                <div
+                  className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
+                  style={{
+                    left: `${getPlayheadPosition()}%`,
+                    transform: "translateX(-50%)",
+                    display: getPlayheadPosition() < 0 ? "none" : "block",
+                  }}
+                />
+                {/* Renderizar elementos del timeline para el canal de voz */}
+                {arrayVideoMake
+                  .filter((item) => item.channel === "voice")
+                  .map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={`absolute rounded-md h-6 flex items-center justify-center cursor-move group hover:scale-105 hover:z-10 ${
+                        draggingElement?.id === item.id
+                          ? "opacity-50 scale-105 transition-none"
+                          : "transition-all duration-200"
+                      } ${
+                        selectedElement?.id === item.id
+                          ? "ring-2 ring-[#DC569D] ring-opacity-80"
+                          : ""
+                      }`}
+                      style={{
+                        left: `${
+                          (getElementRenderPosition(item) /
+                            getTimelineDuration()) *
+                          100
+                        }%`,
+                        width: `${
+                          ((item.endTime - item.startTime) /
+                            getTimelineDuration()) *
+                          100
+                        }%`,
+                        top: "4px",
+                        backgroundColor: getElementColor(item.id, index),
+                      }}
+                      onMouseEnter={() => setHoveredElement(item.id)}
+                      onMouseLeave={() => setHoveredElement(null)}
+                      onClick={(e) => handleSelectElement(item, e)}
+                      onMouseDown={(e) => {
+                        if (
+                          !e.target.closest("button") &&
+                          !e.target.classList.contains("resize-handle")
+                        ) {
+                          handleElementDragStart(e, item);
+                        }
+                      }}
+                    >
+                      {/* Manija de redimensionamiento izquierda */}
+                      <div
+                        className="resize-handle absolute left-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                        onMouseDown={(e) => handleResizeStart(e, item, "start")}
+                        title="Recortar inicio"
+                      ></div>
+
+                      {/* Manija de redimensionamiento derecha */}
+                      <div
+                        className="resize-handle absolute right-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                        onMouseDown={(e) => handleResizeStart(e, item, "end")}
+                        title="Recortar final"
+                      ></div>
+
+                      <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
+                        {item.title} ({item.duration}s)
+                      </span>
+
+                      {/* Opciones de hover */}
+                      {hoveredElement === item.id && !draggingElement && (
+                        <div className="absolute -top-2 right-0 flex gap-1 z-20">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteElement(item.id);
+                              setHoveredElement(null);
+                            }}
+                            className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
+                            title="Eliminar voz"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Timeline Ruler */}
+          <div className="mt-4 flex items-center gap-3">
+            <div className="w-16">
+              {/* Indicador de tiempo currente */}
+              <div className="text-xs text-primarioLogo font-medium">
+                {Math.floor(currentTime / 60)}:
+                {String(Math.floor(currentTime) % 60).padStart(2, "0")}
+              </div>
+            </div>
+            <div className="flex-1 relative">
+              <div
+                ref={timelineRef}
+                className="w-full h-4 bg-darkBoxSub rounded-full cursor-pointer relative group"
+                onMouseDown={handleTimelineMouseDown}
+                onClick={handleTimelineClick}
+              >
+                {/* Barra de fondo más alta para mejor interacción */}
+                <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-1 bg-darkBoxSub rounded-full"></div>
+
+                {/* Barra de progreso */}
+                <div
+                  className="absolute top-1/2 transform -translate-y-1/2 h-1 bg-primarioLogo rounded-full transition-all duration-100"
+                  style={{
+                    width: `${getPlayheadPosition()}%`,
+                    display: getPlayheadPosition() < 0 ? "none" : "block",
+                  }}
+                ></div>
+
+                {/* Indicador (bolita) - más grande y con mejor hover */}
+                <div
+                  className={`absolute top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-primarioLogo cursor-grab transition-all duration-100 shadow-lg ${
+                    isDraggingTimeline
+                      ? "scale-125 cursor-grabbing"
+                      : "hover:scale-110"
+                  }`}
+                  style={{
+                    left: `${getPlayheadPosition()}%`,
+                    transform: "translate(-50%, -50%)",
+                    display: getPlayheadPosition() < 0 ? "none" : "block",
+                  }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setIsDraggingTimeline(true);
+                  }}
+                >
+                  {/* Línea vertical hacia arriba desde la bolita */}
+                  <div
+                    className="absolute left-1/2 -translate-x-1/2 bottom-full w-0.5 bg-primarioLogo"
+                    style={{ height: "190px", zIndex: 60 }}
+                  />
+                </div>
+                {/* Indicador visual cuando se hace hover */}
+                <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-3 opacity-0 group-hover:opacity-20 bg-primarioLogo rounded-full transition-opacity duration-200"></div>
+              </div>
+              {/* Vertical playhead line under the ruler */}
+              <div className="relative h-3 mt-1">
+                <div
+                  className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60"
+                  style={{
+                    left: `${getPlayheadPosition()}%`,
+                    transform: "translateX(-50%)",
+                    display: getPlayheadPosition() < 0 ? "none" : "block",
+                  }}
                 />
               </div>
-              {/* Indicador visual cuando se hace hover */}
-              <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-3 opacity-0 group-hover:opacity-20 bg-primarioLogo rounded-full transition-opacity duration-200"></div>
-            </div>
-            {/* Vertical playhead line under the ruler */}
-            <div className="relative h-3 mt-1">
               <div
-                className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60"
-                style={{
-                  left: `${(currentTime / getTimelineDuration()) * 100}%`,
-                  transform: "translateX(-50%)",
-                }}
-              />
-            </div>
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>0:00</span>
-              <span>
-                {Math.floor(getTimelineDuration() / 4 / 60)}:
-                {String(Math.floor(getTimelineDuration() / 4) % 60).padStart(
-                  2,
-                  "0"
-                )}
-              </span>
-              <span>
-                {Math.floor(getTimelineDuration() / 2 / 60)}:
-                {String(Math.floor(getTimelineDuration() / 2) % 60).padStart(
-                  2,
-                  "0"
-                )}
-              </span>
-              <span>
-                {Math.floor((getTimelineDuration() * 3) / 4 / 60)}:
-                {String(
-                  Math.floor((getTimelineDuration() * 3) / 4) % 60
-                ).padStart(2, "0")}
-              </span>
-              <span>
-                {Math.floor(getTimelineDuration() / 60)}:
-                {String(Math.floor(getTimelineDuration()) % 60).padStart(
-                  2,
-                  "0"
-                )}
-              </span>
+                className="relative text-xs text-gray-400 mt-1"
+                style={{ height: "16px" }}
+              >
+                {getTimeMarkers().map((marker, index) => (
+                  <span
+                    key={index}
+                    className="absolute whitespace-nowrap"
+                    style={{
+                      left: `${marker.position}%`,
+                      transform: "translateX(-50%)",
+                    }}
+                  >
+                    {marker.text}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>

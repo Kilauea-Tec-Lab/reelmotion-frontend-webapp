@@ -51,6 +51,9 @@ function ModalCreateScene({
   // Estado para aspect ratio
   const [selectedAspectRatio, setSelectedAspectRatio] = useState("");
 
+  // Estado para audio (solo para Veo-3)
+  const [withAudio, setWithAudio] = useState(false);
+
   // Opciones de tareas disponibles para Runway Aleph
   const alephTaskOptions = [
     {
@@ -148,6 +151,21 @@ function ModalCreateScene({
     },
   ];
 
+  // Función para obtener opciones de aspect ratio según el modelo AI
+  const getAspectRatioOptions = () => {
+    if (aiModel === "veo-3") {
+      return [
+        {
+          id: "16:9",
+          name: "16:9 (Fullwidth/Desktop)",
+          description: "Ideal para pantallas anchas",
+        },
+      ];
+    }
+
+    return aspectRatioOptions; // Todas las opciones para otros modelos
+  };
+
   // Mock data - En producción esto vendría de props o API
 
   const allAiModels = [
@@ -171,11 +189,11 @@ function ModalCreateScene({
       name: "Runway Aleph",
       description: "Runway Aleph model for video processing",
     },
-    {
+    /*{
       id: "seedance",
       name: "Seedance 1.0",
       description: "Second generation Seedance model for video",
-    },
+    },*/
   ];
 
   // Función para obtener modelos disponibles según el tipo seleccionado
@@ -233,10 +251,61 @@ function ModalCreateScene({
     }
   }, [selectedType]);
 
+  // Efecto para ajustar la duración cuando cambia el modelo AI
+  useEffect(() => {
+    const availableDurations = getDurationOptions();
+    const currentDurationExists = availableDurations.some(
+      (option) => option.value === videoDuration
+    );
+
+    if (!currentDurationExists && availableDurations.length > 0) {
+      // Si la duración actual no está disponible, usar la primera opción disponible
+      const newDuration = availableDurations[0].value;
+      setVideoDuration(newDuration);
+      setEstimatedTime(availableDurations[0].estimatedTime);
+    }
+  }, [aiModel]);
+
+  // Efecto para ajustar el aspect ratio cuando cambia el modelo AI
+  useEffect(() => {
+    const availableAspectRatios = getAspectRatioOptions();
+    const currentAspectRatioExists = availableAspectRatios.some(
+      (option) => option.id === selectedAspectRatio
+    );
+
+    if (aiModel === "veo-3") {
+      // Para Veo-3, siempre establecer 16:9
+      setSelectedAspectRatio("16:9");
+    } else if (!currentAspectRatioExists && selectedAspectRatio) {
+      // Si el aspect ratio actual no está disponible para otros modelos, limpiar selección
+      setSelectedAspectRatio("");
+    }
+  }, [aiModel]);
+
   const durationOptions = [
     { value: 5, label: "5 seconds", estimatedTime: 30 },
     { value: 10, label: "10 seconds", estimatedTime: 45 },
   ];
+
+  // Función para obtener opciones de duración según el modelo AI
+  const getDurationOptions = () => {
+    switch (aiModel) {
+      case "runway":
+        return [
+          { value: 5, label: "5 seconds", estimatedTime: 30 },
+          { value: 10, label: "10 seconds", estimatedTime: 45 },
+        ];
+      case "runway-aleph":
+        return [{ value: 5, label: "5 seconds", estimatedTime: 30 }];
+      case "veo-3":
+        return [{ value: 8, label: "8 seconds", estimatedTime: 40 }];
+      default:
+        return [
+          { value: 5, label: "5 seconds", estimatedTime: 30 },
+          { value: 10, label: "10 seconds", estimatedTime: 45 },
+        ];
+    }
+  };
 
   // Función para crear el prompt profesional para video
   const createProVideoPrompt = () => {
@@ -277,16 +346,36 @@ function ModalCreateScene({
       location = selectedData.location || "the scene location";
     }
 
-    // Construir el prompt profesional
-    const proPrompt = `A ${
-      shotType || "medium shot"
-    }, featuring ${featuring}, in ${location}. ${characterAction}. The camera is ${
-      cameraMovement || "static"
-    }. Lighting is ${
-      lighting || "natural daylight"
-    }. Additional motion includes ${
-      additionalMotion || "subtle environmental movement"
-    }. Highly cinematic, photorealistic. No text or subtitles.`;
+    // Construir el prompt profesional solo con elementos seleccionados
+    let promptParts = [];
+
+    // Solo agregar shot type si está seleccionado
+    if (shotType.trim()) {
+      promptParts.push(`A ${shotType}`);
+    }
+
+    // Solo agregar character action si está presente (es requerido)
+    if (characterAction.trim()) {
+      promptParts.push(characterAction.trim());
+    }
+
+    // Solo agregar camera movement si está seleccionado
+    if (cameraMovement.trim()) {
+      promptParts.push(`The camera is ${cameraMovement}`);
+    }
+
+    // Solo agregar lighting si está seleccionado
+    if (lighting.trim()) {
+      promptParts.push(`Lighting is ${lighting}`);
+    }
+
+    // Solo agregar additional motion si está presente
+    if (additionalMotion.trim()) {
+      promptParts.push(`Additional motion includes ${additionalMotion}`);
+    }
+
+    // Unir todas las partes con ". "
+    const proPrompt = promptParts.join(". ") + ".";
 
     return proPrompt;
   };
@@ -306,6 +395,7 @@ function ModalCreateScene({
     setEstimatedTime(0);
     setVideoGenerationError(null);
     setSelectedAspectRatio("");
+    setWithAudio(false);
     // Limpiar estados del prompt profesional
     setIsProPromptMode(true); // Mantener Pro Prompt activado por defecto
     setShotType("");
@@ -321,7 +411,9 @@ function ModalCreateScene({
 
   const handleDurationChange = (duration) => {
     setVideoDuration(duration);
-    const durationData = durationOptions.find((opt) => opt.value === duration);
+    const durationData = getDurationOptions().find(
+      (opt) => opt.value === duration
+    );
     setEstimatedTime(durationData?.estimatedTime || 60);
   };
 
@@ -330,12 +422,13 @@ function ModalCreateScene({
     let hasValidPrompt = false;
 
     if (aiModel === "runway-aleph") {
-      // Para Aleph: requiere tipo de tarea y detalles
-      hasValidPrompt = alephTaskType.trim() && alephDetails.trim();
+      // Para Aleph: ahora task type es opcional, pero si se proporciona, se requiere detalles
+      hasValidPrompt =
+        !alephTaskType.trim() || (alephTaskType.trim() && alephDetails.trim());
     } else {
       // Para otros modelos: validación tradicional
       hasValidPrompt = isProPromptMode
-        ? shotType.trim() && characterAction.trim() // Mínimo requerido para modo pro
+        ? characterAction.trim() // Solo Character Action es requerido en modo pro
         : aiPrompt.trim(); // Modo simple requiere el textarea
     }
 
@@ -393,6 +486,11 @@ function ModalCreateScene({
           selectedData?.url, // URL de la imagen/video del frame/escena
         project_id: projectId, // ID del proyecto
       };
+
+      // Agregar opción de audio solo para Veo-3
+      if (aiModel === "veo-3") {
+        videoPayload.with_audio = withAudio;
+      }
 
       // Llamar a la API para generar el video
       const response = await fetch(
@@ -742,7 +840,7 @@ function ModalCreateScene({
               Select Aspect Ratio *
             </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {aspectRatioOptions.map((option) => (
+              {getAspectRatioOptions().map((option) => (
                 <div
                   key={option.id}
                   onClick={() => setSelectedAspectRatio(option.id)}
@@ -767,7 +865,7 @@ function ModalCreateScene({
               <p className="mt-2 text-sm text-[#F2D543] montserrat-regular">
                 Selected:{" "}
                 {
-                  aspectRatioOptions.find(
+                  getAspectRatioOptions().find(
                     (opt) => opt.id === selectedAspectRatio
                   )?.name
                 }
@@ -860,13 +958,12 @@ function ModalCreateScene({
                     {/* Selector de Tipo de Tarea */}
                     <div>
                       <label className="block text-xs font-medium text-gray-300 mb-2 montserrat-regular">
-                        Task Type *
+                        Task Type (Optional)
                       </label>
                       <select
                         value={alephTaskType}
                         onChange={(e) => setAlephTaskType(e.target.value)}
                         className="w-full px-3 py-2 bg-darkBox rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular text-sm"
-                        required
                       >
                         <option value="">Select transformation task...</option>
                         {alephTaskOptions.map((task) => (
@@ -962,13 +1059,12 @@ function ModalCreateScene({
                           {/* Tipo de Plano y Perspectiva */}
                           <div>
                             <label className="block text-xs font-medium text-gray-300 mb-2 montserrat-regular">
-                              Shot Type & Perspective *
+                              Shot Type & Perspective (Optional)
                             </label>
                             <select
                               value={shotType}
                               onChange={(e) => setShotType(e.target.value)}
                               className="w-full px-3 py-2 bg-darkBox rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular text-sm"
-                              required
                             >
                               <option value="">Select shot type...</option>
                               <option value="extreme wide shot">
@@ -1117,7 +1213,7 @@ function ModalCreateScene({
                   Video Duration *
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                  {durationOptions.map((option) => (
+                  {getDurationOptions().map((option) => (
                     <div
                       key={option.value}
                       onClick={() => handleDurationChange(option.value)}
@@ -1146,6 +1242,51 @@ function ModalCreateScene({
                   ))}
                 </div>
               </div>
+
+              {/* Audio Option - Only for Veo-3 */}
+              {aiModel === "veo-3" && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-white mb-4 montserrat-regular">
+                    Audio Options
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div
+                      onClick={() => setWithAudio(false)}
+                      className={`p-3 border-2 rounded-lg cursor-pointer transition-all text-center ${
+                        !withAudio
+                          ? "border-[#F2D543] bg-[#F2D54315]"
+                          : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-white text-sm montserrat-medium">
+                          Without Sound
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          Silent video
+                        </span>
+                      </div>
+                    </div>
+                    <div
+                      onClick={() => setWithAudio(true)}
+                      className={`p-3 border-2 rounded-lg cursor-pointer transition-all text-center ${
+                        withAudio
+                          ? "border-[#F2D543] bg-[#F2D54315]"
+                          : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-white text-sm montserrat-medium">
+                          With Sound
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          Audio included
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1185,9 +1326,9 @@ function ModalCreateScene({
                   !selectedFrame ||
                   !selectedAspectRatio ||
                   (aiModel === "runway-aleph"
-                    ? !alephTaskType.trim() || !alephDetails.trim()
+                    ? alephTaskType.trim() && !alephDetails.trim() // Si hay task type, requiere detalles
                     : isProPromptMode
-                    ? !shotType.trim() || !characterAction.trim()
+                    ? !characterAction.trim() // Solo Character Action es requerido
                     : !aiPrompt.trim()) ||
                   isGenerating
                 }
