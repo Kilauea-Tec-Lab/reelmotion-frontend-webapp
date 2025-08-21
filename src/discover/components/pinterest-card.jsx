@@ -5,6 +5,7 @@ function PinterestCard({ post, onClick }) {
   const [isHovered, setIsHovered] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [videoDuration, setVideoDuration] = useState(null);
+  const [videoRef, setVideoRef] = useState(null);
 
   const formatDuration = (seconds) => {
     if (!seconds) return "0:00";
@@ -26,7 +27,21 @@ function PinterestCard({ post, onClick }) {
   const handleLoadedMetadata = (e) => {
     setVideoLoaded(true);
     setVideoDuration(e.target.duration);
+    setVideoRef(e.target);
+    // Auto-play when video loads
+    e.target.play().catch((err) => console.log("Autoplay prevented:", err));
   };
+
+  // Handle hover effects - pause on hover, play when not hovering
+  useEffect(() => {
+    if (videoRef) {
+      if (isHovered) {
+        videoRef.pause();
+      } else {
+        videoRef.play().catch((err) => console.log("Play prevented:", err));
+      }
+    }
+  }, [isHovered, videoRef]);
 
   const handleClick = () => {
     onClick(post.id);
@@ -54,11 +69,6 @@ function PinterestCard({ post, onClick }) {
               playsInline
               preload="metadata"
               style={{ display: videoLoaded ? "block" : "none" }}
-              onMouseEnter={(e) => e.target.play()}
-              onMouseLeave={(e) => {
-                e.target.pause();
-                e.target.currentTime = 0;
-              }}
             />
           )}
           {!videoLoaded && (

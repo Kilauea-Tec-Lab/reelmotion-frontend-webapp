@@ -192,6 +192,48 @@ export async function destroySpot(data) {
   return response;
 }
 
+export async function editFrame(data) {
+  const info = {
+    id: data.id,
+    name: data.name,
+    description: data.description,
+  };
+
+  const response = await fetch(
+    `${import.meta.env.VITE_APP_BACKEND_URL}projects/edit-frame`,
+    {
+      method: "POST",
+      body: JSON.stringify(info),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + Cookies.get("token"),
+      },
+    }
+  );
+
+  return response;
+}
+
+export async function destroyFrame(data) {
+  const info = {
+    id: data.id,
+  };
+
+  const response = await fetch(
+    `${import.meta.env.VITE_APP_BACKEND_URL}projects/delete-frame`,
+    {
+      method: "POST",
+      body: JSON.stringify(info),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + Cookies.get("token"),
+      },
+    }
+  );
+
+  return response;
+}
+
 /* VIDEO GENERATRION */
 export async function createRunwayVideo(data) {
   const info = {

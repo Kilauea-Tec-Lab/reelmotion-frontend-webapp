@@ -59,7 +59,7 @@ function Login() {
 
         Cookies.set("token", token);
 
-        navigate("/", { replace: true });
+        window.location.replace("/");
       } else {
         const errorData = await loginCall.json();
 
@@ -119,7 +119,7 @@ function Login() {
 
       Cookies.set("token", token);
 
-      navigate("/", { replace: true });
+      window.location.replace("/");
     } else {
       const errorData = await register.json();
 

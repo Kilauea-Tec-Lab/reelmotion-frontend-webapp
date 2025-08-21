@@ -10,13 +10,17 @@ function ModalDeleteScene({ isOpen, onClose, scene, onConfirm }) {
 
     setIsDeleting(true);
     try {
+      const formData = new FormData();
+      formData.append("scene_id", scene.id);
+
       const response = await fetch(
-        `${import.meta.env.VITE_APP_BACKEND_URL}scenes/${scene.id}`,
+        `${import.meta.env.VITE_APP_BACKEND_URL}projects/delete-scene`,
         {
-          method: "DELETE",
+          method: "POST",
           headers: {
             Authorization: "Bearer " + Cookies.get("token"),
           },
+          body: formData,
         }
       );
 
@@ -62,11 +66,28 @@ function ModalDeleteScene({ isOpen, onClose, scene, onConfirm }) {
           {/* Scene Preview */}
           <div className="mb-6 p-4 bg-darkBoxSub rounded-lg">
             <div className="flex items-center gap-4">
-              <img
-                src={scene.image_url || scene.prompt_image_url}
-                alt={scene.name}
-                className="w-16 h-16 object-cover rounded-lg"
-              />
+              <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-800">
+                {scene.video_url ? (
+                  <video
+                    src={scene.video_url}
+                    className="w-full h-full object-cover"
+                    muted
+                    loop
+                    playsInline
+                    onMouseEnter={(e) => e.target.play()}
+                    onMouseLeave={(e) => {
+                      e.target.pause();
+                      e.target.currentTime = 0;
+                    }}
+                  />
+                ) : (
+                  <img
+                    src={scene.image_url || scene.prompt_image_url}
+                    alt={scene.name}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+              </div>
               <div>
                 <h3 className="text-white font-medium montserrat-medium">
                   {scene.name}
