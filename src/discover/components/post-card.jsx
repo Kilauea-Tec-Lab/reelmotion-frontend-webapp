@@ -27,7 +27,7 @@ function PostCard({ post, onUpdate, public_post }) {
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isVideoFullWidth, setIsVideoFullWidth] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(1);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -297,7 +297,14 @@ function PostCard({ post, onUpdate, public_post }) {
                 max={duration || 0}
                 value={currentTime}
                 onChange={handleSeek}
-                className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-0"
+                style={{
+                  background: `linear-gradient(to right, #DC569D 0%, #DC569D ${
+                    (currentTime / (duration || 1)) * 100
+                  }%, #4b5563 ${
+                    (currentTime / (duration || 1)) * 100
+                  }%, #4b5563 100%)`,
+                }}
+                className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-0 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#DC569D] [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#DC569D] [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:cursor-pointer"
               />
               <span className="text-white text-xs font-mono min-w-[35px]">
                 {formatTime(duration)}
@@ -329,7 +336,14 @@ function PostCard({ post, onUpdate, public_post }) {
                     step="0.1"
                     value={isMuted ? 0 : volume}
                     onChange={handleVolumeChange}
-                    className="w-20 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-0"
+                    style={{
+                      background: `linear-gradient(to right, #DC569D 0%, #DC569D ${
+                        (isMuted ? 0 : volume) * 100
+                      }%, #4b5563 ${
+                        (isMuted ? 0 : volume) * 100
+                      }%, #4b5563 100%)`,
+                    }}
+                    className="w-20 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-0 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#DC569D] [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#DC569D] [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:cursor-pointer"
                   />
                 </div>
               </div>

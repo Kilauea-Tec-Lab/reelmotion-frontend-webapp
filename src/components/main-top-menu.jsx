@@ -185,6 +185,11 @@ function MainTopMenu({ user_info }) {
         }
       }
 
+      if (notification.type == "folder_shared") {
+        // Redirigir al usuario a la carpeta compartida
+        navigate(`/projects`);
+      }
+
       // Cerrar el dropdown de notificaciones
       setShowNotifications(false);
     } catch (error) {
@@ -349,9 +354,9 @@ function MainTopMenu({ user_info }) {
             className="p-2 text-[#808191] rounded-lg transition-colors hover:bg-darkBoxSub relative"
           >
             <Bell className="h-5 w-5" />
-            {unreadCount > 0 && (
+            {notificationsInfo.length > 0 && (
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                {unreadCount}
+                {notificationsInfo.length}
               </span>
             )}
           </button>
