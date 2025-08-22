@@ -516,6 +516,25 @@ function Editor() {
     return ["png", "gif", "webp"].includes(extension);
   };
 
+  // Centralized function to pause all media
+  const pauseAllMedia = () => {
+    // Pause videos
+    if (mainVideoRef.current) {
+      mainVideoRef.current.pause();
+    }
+    if (secondaryVideoRef.current) {
+      secondaryVideoRef.current.pause();
+    }
+
+    // Pause ALL audio elements (music and voice)
+    Object.values(audioRefs.current).forEach((audio) => {
+      if (audio) {
+        audio.pause();
+        // Don't reset to beginning on pause, keep current position for resume
+      }
+    });
+  };
+
   // Function to play/pause
   const handlePlayPause = () => {
     if (isPlaying) {
@@ -526,32 +545,8 @@ function Editor() {
         intervalRef.current = null;
       }
 
-      // Pause all media
-      if (mainVideoRef.current) {
-        mainVideoRef.current.pause();
-      }
-      if (secondaryVideoRef.current) {
-        secondaryVideoRef.current.pause();
-      }
-
-      // Pause ALL audio elements (music and voice)
-      Object.values(audioRefs.current).forEach((audio) => {
-        if (audio) {
-          audio.pause();
-          audio.currentTime = 0; // Reset audio to beginning
-        }
-      });
-
-      // Also pause any audio elements that might be playing from timeline
-      arrayVideoMake.forEach((element) => {
-        if (element.channel === "music" || element.channel === "voice") {
-          const audio = audioRefs.current[element.id];
-          if (audio) {
-            audio.pause();
-            audio.currentTime = 0;
-          }
-        }
-      });
+      // Use centralized pause function
+      pauseAllMedia();
     } else {
       // Only play if there's content in the timeline
       if (arrayVideoMake.length === 0) {
@@ -575,6 +570,8 @@ function Editor() {
               setIsPlaying(false);
               clearInterval(intervalRef.current);
               intervalRef.current = null;
+              // Pause all media when reaching the end
+              pauseAllMedia();
               return contentEnd; // stop at end
             }
 
@@ -904,6 +901,13 @@ function Editor() {
     }
   }, [currentTime, isPlaying, isDraggingTimeline]);
 
+  // Effect to immediately pause all media when isPlaying becomes false
+  useEffect(() => {
+    if (!isPlaying) {
+      pauseAllMedia();
+    }
+  }, [isPlaying]);
+
   // Clean up intervals when component unmounts
   useEffect(() => {
     return () => {
@@ -924,6 +928,8 @@ function Editor() {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      // Pause all media when timeline becomes empty
+      pauseAllMedia();
       setCurrentTime(0);
     }
   }, [arrayVideoMake.length, isPlaying]);
@@ -936,6 +942,8 @@ function Editor() {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      // Pause all media when reaching the end
+      pauseAllMedia();
       setCurrentTime(contentEnd);
     }
   }, [currentTime, isPlaying]);
@@ -943,14 +951,13 @@ function Editor() {
   // Effect to handle timeline changes or when playback stops
   useEffect(() => {
     if (!isPlaying && currentTime === 0) {
-      // Reset - hide video and show placeholder
+      // Reset - hide video and show placeholder, and pause all media
+      pauseAllMedia();
       if (mainVideoRef.current) {
         mainVideoRef.current.style.display = "none";
-        mainVideoRef.current.pause();
       }
       if (secondaryVideoRef.current) {
         secondaryVideoRef.current.style.display = "none";
-        secondaryVideoRef.current.pause();
       }
     }
   }, [isPlaying, currentTime]);
@@ -1764,6 +1771,25 @@ function Editor() {
     setArrayVideoMake(elementsWithCalculatedProps);
   };
 
+  // Effect to clean up audio references when timeline changes
+  useEffect(() => {
+    // Get current element IDs from timeline
+    const currentElementIds = new Set(arrayVideoMake.map(element => element.id));
+    
+    // Clean up audio references for elements no longer in timeline
+    Object.keys(audioRefs.current).forEach(elementId => {
+      if (!currentElementIds.has(elementId)) {
+        const audio = audioRefs.current[elementId];
+        if (audio) {
+          audio.pause();
+          audio.currentTime = 0;
+          // Remove the reference to prevent memory leaks
+          delete audioRefs.current[elementId];
+        }
+      }
+    });
+  }, [arrayVideoMake]);
+
   // Initialize history with current state when component mounts
   useEffect(() => {
     if (history.length === 0) {
@@ -2218,11 +2244,8 @@ function Editor() {
       // Delete selected element with Backspace or Delete
       if ((e.key === "Backspace" || e.key === "Delete") && selectedElement) {
         e.preventDefault();
-        const updatedElements = arrayVideoMake.filter(
-          (item) => item.id !== selectedElement.id
-        );
-        updateTimelineWithHistory(updatedElements);
-        setSelectedElement(null);
+        // Use the proper delete function to ensure audio cleanup
+        handleDeleteElement(selectedElement.id);
       }
 
       // Undo with Ctrl+Z
@@ -2408,6 +2431,20 @@ function Editor() {
 
   // Function to delete element from timeline
   const handleDeleteElement = (elementId) => {
+    // Find the element to delete
+    const elementToDelete = arrayVideoMake.find((item) => item.id === elementId);
+    
+    // Clean up audio references for music and voice elements
+    if (elementToDelete && (elementToDelete.channel === "music" || elementToDelete.channel === "voice")) {
+      const audio = audioRefs.current[elementId];
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+        // Remove the reference to prevent memory leaks
+        delete audioRefs.current[elementId];
+      }
+    }
+    
     const newElements = arrayVideoMake.filter((item) => item.id !== elementId);
     updateTimelineWithHistory(newElements);
 
@@ -3104,9 +3141,27 @@ function Editor() {
     setIsPreRendering(false);
     setPreRenderProgress(0);
     setIsPlaying(false); // Stop playback
+    // Pause all media when stopping pre-render
+    pauseAllMedia();
   };
 
   const handleNewProject = () => {
+    // Stop playback first
+    setIsPlaying(false);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    // Clean up all audio references
+    Object.values(audioRefs.current).forEach((audio) => {
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    });
+    audioRefs.current = {};
+
     // Clear current project state with history
     updateTimelineWithHistory([]);
     setCurrentTime(0);
@@ -3114,13 +3169,6 @@ function Editor() {
     setCurrentEditName("");
     setCurrentEditId(null);
     setMasterVolume(1);
-
-    // Stop playback
-    setIsPlaying(false);
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
   };
 
   // Modal handlers
@@ -3773,22 +3821,20 @@ function Editor() {
                 onDragOver={handleMusicContainerDragOver}
                 onDrop={handleMusicContainerDrop}
               >
-                {/* Add Music Button - hide when any delete button is visible */}
-                {!hoveredMusicItem && (
-                  <button
-                    onClick={() =>
-                      (musicList.length > 0
-                        ? document.getElementById("music-upload-hidden")
-                        : document.getElementById("music-upload")
-                      )?.click()
-                    }
-                    className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                    title="Add Music"
-                    disabled={isUploadingMusic}
-                  >
-                    <Plus size={20} />
-                  </button>
-                )}
+                {/* Add Music Button - always visible */}
+                <button
+                  onClick={() =>
+                    (musicList.length > 0
+                      ? document.getElementById("music-upload-hidden")
+                      : document.getElementById("music-upload")
+                    )?.click()
+                  }
+                  className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                  title="Add Music"
+                  disabled={isUploadingMusic}
+                >
+                  <Plus size={20} />
+                </button>
 
                 {/* Upload area when empty */}
                 {musicList.length === 0 && (
@@ -3830,7 +3876,7 @@ function Editor() {
                 )}
 
                 {/* Music list */}
-                <div className="overflow-y-auto h-full space-y-3">
+                <div className="overflow-y-auto h-full space-y-3 mt-11">
                   {musicList.map((music, index) => (
                     <div
                       key={music.id || index}
@@ -3884,23 +3930,21 @@ function Editor() {
                 onDragOver={handleImageContainerDragOver}
                 onDrop={handleImageContainerDrop}
               >
-                {/* Add Image Button - hide when any delete button is visible */}
-                {!hoveredImageItem && (
-                  <button
-                    onClick={() => {
-                      const input =
-                        images.length > 0
-                          ? document.getElementById("image-upload-hidden")
-                          : document.getElementById("image-upload");
-                      input?.click();
-                    }}
-                    className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                    title="Add images"
-                    disabled={isUploadingImages}
-                  >
-                    <Plus size={20} />
-                  </button>
-                )}
+                {/* Add Image Button - always visible */}
+                <button
+                  onClick={() => {
+                    const input =
+                      images.length > 0
+                        ? document.getElementById("image-upload-hidden")
+                        : document.getElementById("image-upload");
+                    input?.click();
+                  }}
+                  className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                  title="Add images"
+                  disabled={isUploadingImages}
+                >
+                  <Plus size={20} />
+                </button>
 
                 {/* Upload area - only show when no images */}
                 {images.length === 0 && (
@@ -3943,7 +3987,7 @@ function Editor() {
 
                 {/* Images grid */}
                 <div
-                  className={`grid grid-cols-1 gap-4 overflow-y-auto ${
+                  className={`grid mt-11 grid-cols-1 gap-4 overflow-y-auto ${
                     images.length === 0 ? "max-h-[calc(100%-140px)]" : "h-full"
                   }`}
                 >
@@ -3997,22 +4041,20 @@ function Editor() {
                 onDragOver={handleVoiceContainerDragOver}
                 onDrop={handleVoiceContainerDrop}
               >
-                {/* Add Voice Button - hide when any delete button is visible */}
-                {!hoveredVoiceItem && (
-                  <button
-                    onClick={() =>
-                      (voiceList.length > 0
-                        ? document.getElementById("voice-upload-hidden")
-                        : document.getElementById("voice-upload")
-                      )?.click()
-                    }
-                    className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                    title="Add Voice"
-                    disabled={isUploadingVoice}
-                  >
-                    <Plus size={20} />
-                  </button>
-                )}
+                {/* Add Voice Button - always visible */}
+                <button
+                  onClick={() =>
+                    (voiceList.length > 0
+                      ? document.getElementById("voice-upload-hidden")
+                      : document.getElementById("voice-upload")
+                    )?.click()
+                  }
+                  className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                  title="Add Voice"
+                  disabled={isUploadingVoice}
+                >
+                  <Plus size={20} />
+                </button>
 
                 {/* Upload area when empty */}
                 {voiceList.length === 0 && (
@@ -4054,7 +4096,7 @@ function Editor() {
                 )}
 
                 {/* Voice list */}
-                <div className="space-y-3 overflow-y-auto h-full">
+                <div className="space-y-3 mt-11 overflow-y-auto h-full">
                   {voiceList.map((voice, index) => (
                     <div
                       key={voice.id || index}
@@ -5238,7 +5280,6 @@ function Editor() {
             title="Undo (Ctrl+Z)"
           >
             <Undo size={16} />
-            Undo
           </button>
 
           {/* Aspect Ratio Selector */}
