@@ -20,7 +20,8 @@ import { useLoaderData } from "react-router-dom";
 import { updateUserProfile } from "./functions";
 
 function Profile() {
-  const user = useLoaderData();
+  const initialUser = useLoaderData();
+  const [user, setUser] = useState(initialUser);
   const [profileImage, setProfileImage] = useState(user?.data?.image || null);
   const [previewImage, setPreviewImage] = useState(null); // Nueva imagen seleccionada (vista previa)
   const [selectedImageFile, setSelectedImageFile] = useState(null); // Archivo de imagen para envío
@@ -130,20 +131,31 @@ function Profile() {
       const result = await updateUserProfile(profileData);
 
       if (result.success) {
-        // Actualizar el estado con la nueva información
+        // Actualizar el estado del usuario con la nueva información del backend
+        setUser(result);
+        
+        // Actualizar la imagen de perfil si cambió
         if (result?.data?.image) {
           setProfileImage(result?.data?.image);
         }
 
-        // Limpiar vista previa
+        // Actualizar el formulario con los nuevos datos (sin contraseñas)
+        setEditForm({
+          name: result?.data?.name || "",
+          email: result?.data?.email || "",
+          phone: result?.data?.phone || "",
+          solana_wallet_address: result?.data?.solana_wallet_address || "",
+          password: "",
+          confirmPassword: "",
+        });
+
+        // Limpiar vista previa y estados de edición
         setPreviewImage(null);
         setSelectedImageFile(null);
         setIsEditing(false);
         setPasswordError("");
         setShowPassword(false);
         setShowConfirmPassword(false);
-
-        window.location.reload(); // Recargar la página para reflejar los cambios
       }
     } catch (error) {
       console.error("Error saving profile:", error);

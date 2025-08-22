@@ -3482,44 +3482,43 @@ function Editor() {
 
   // Helper function to get preview container styles based on aspect ratio
   const getPreviewStyles = () => {
-    const containerWidth = 100; // Use percentage for responsive design
-    const containerHeight = 100;
-
     if (aspectRatio === "9:16") {
-      // Portrait mode - video should be taller
-      const videoWidth = 28; // 9/16 = 0.5625, so width = height * 0.5625
-      const videoHeight = 100;
+      // Portrait mode - medidas fijas para 9:16
+      const videoWidth = 215; // píxeles fijos
+      const videoHeight = 325; // píxeles fijos (ratio 9:16)
 
       return {
         container: {
-          width: `${containerWidth}%`,
-          height: `${containerHeight}%`,
+          width: "100%",
+          height: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          minHeight: `${videoHeight}px`,
         },
         video: {
-          width: `${videoWidth}%`,
-          height: `${videoHeight}%`,
+          width: `${videoWidth}px`,
+          height: `${videoHeight}px`,
           aspectRatio: "9/16",
         },
       };
     } else {
-      // Default 16:9 landscape mode
-      const videoWidth = 80;
-      const videoHeight = 100; // 9/16 = 0.5625, so height = width * 0.5625
+      // Default 16:9 landscape mode - medidas fijas
+      const videoWidth = 680; // píxeles fijos
+      const videoHeight = 325; // píxeles fijos (ratio 16:9)
 
       return {
         container: {
-          width: `${containerWidth}%`,
-          height: `${containerHeight}%`,
+          width: "100%",
+          height: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          minHeight: `${videoHeight}px`,
         },
         video: {
-          width: `${videoWidth}%`,
-          height: `${videoHeight}%`,
+          width: `${videoWidth}px`,
+          height: `${videoHeight}px`,
           aspectRatio: "16/9",
         },
       };
@@ -3636,8 +3635,8 @@ function Editor() {
                               {project.name}
                             </h3>
                           </div>
-                          <p className="text-gray-400 text-sm">
-                            {project.scenes?.length || 0} scenes
+                          <p className="text-gray-400 text-xs">
+                            {project.scenes?.length || 0}
                           </p>
                         </button>
 
