@@ -20,7 +20,7 @@ function ModalEditProject({
       setProjectName(project.name || "");
       setProjectDescription(project.description || "");
       setFolderId(project.folder_id || "");
-      setProjectVisibility(project.visibility || "private");
+      setProjectVisibility(project.project_type || "private");
     }
   }, [project, isOpen]);
 
