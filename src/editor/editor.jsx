@@ -372,7 +372,9 @@ function Editor() {
 
   // Initialize visible duration based on content
   useEffect(() => {
-    if (arrayVideoMake.length > 0) {
+    // Solo resetear el zoom cuando pasamos de 0 elementos a tener elementos (primer elemento agregado)
+    // No resetear en cortes o modificaciones posteriores
+    if (arrayVideoMake.length === 1) {
       const totalDuration = getTimelineDuration();
       setVisibleDuration(totalDuration);
     }
@@ -3504,7 +3506,7 @@ function Editor() {
       };
     } else {
       // Default 16:9 landscape mode - medidas fijas
-      const videoWidth = 680; // píxeles fijos
+      const videoWidth = 635; // píxeles fijos
       const videoHeight = 325; // píxeles fijos (ratio 16:9)
 
       return {
