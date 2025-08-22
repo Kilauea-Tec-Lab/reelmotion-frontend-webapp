@@ -12,6 +12,9 @@ import {
   Save,
   X,
   Wallet,
+  Eye,
+  EyeOff,
+  Lock,
 } from "lucide-react";
 import { useLoaderData } from "react-router-dom";
 import { updateUserProfile } from "./functions";
@@ -28,7 +31,12 @@ function Profile() {
     email: user?.data?.email || "",
     phone: user?.data?.phone || "",
     solana_wallet_address: user?.data?.solana_wallet_address || "",
+    password: "",
+    confirmPassword: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
   const fileInputRef = useRef(null);
 
   // Limpiar URL del objeto cuando el componente se desmonte
@@ -68,11 +76,16 @@ function Profile() {
       setIsEditing(false);
       setPreviewImage(null);
       setSelectedImageFile(null);
+      setPasswordError("");
+      setShowPassword(false);
+      setShowConfirmPassword(false);
       setEditForm({
         name: user?.data?.name || "",
         email: user?.data?.email || "",
         phone: user?.data?.phone || "",
         solana_wallet_address: user?.data?.solana_wallet_address || "",
+        password: "",
+        confirmPassword: "",
       });
     } else {
       // Activar edición
@@ -81,6 +94,19 @@ function Profile() {
   };
 
   const handleSaveProfile = async () => {
+    // Validar contraseñas si se proporcionaron
+    if (editForm.password || editForm.confirmPassword) {
+      if (editForm.password !== editForm.confirmPassword) {
+        setPasswordError("Passwords do not match");
+        return;
+      }
+      if (editForm.password.length < 6) {
+        setPasswordError("Password must be at least 6 characters long");
+        return;
+      }
+    }
+
+    setPasswordError("");
     setIsUploading(true);
 
     try {
@@ -90,6 +116,11 @@ function Profile() {
         phone: editForm.phone,
         solana_wallet_address: editForm.solana_wallet_address,
       };
+
+      // Agregar contraseña solo si se proporcionó
+      if (editForm.password) {
+        profileData.password = editForm.password;
+      }
 
       // Agregar imagen solo si hay una nueva seleccionada
       if (selectedImageFile) {
@@ -108,6 +139,9 @@ function Profile() {
         setPreviewImage(null);
         setSelectedImageFile(null);
         setIsEditing(false);
+        setPasswordError("");
+        setShowPassword(false);
+        setShowConfirmPassword(false);
 
         window.location.reload(); // Recargar la página para reflejar los cambios
       }
@@ -124,6 +158,11 @@ function Profile() {
       ...prev,
       [field]: value,
     }));
+    
+    // Limpiar error de contraseña cuando el usuario escriba
+    if ((field === 'password' || field === 'confirmPassword') && passwordError) {
+      setPasswordError("");
+    }
   };
 
   const triggerFileInput = () => {
@@ -363,7 +402,88 @@ function Profile() {
                     )}
                   </div>
                 </div>
+
+                {/* Password Field - Only visible when editing */}
+                {isEditing && (
+                  <div className="flex items-center gap-3">
+                    <div className="bg-darkBoxSub p-2 rounded-lg">
+                      <Lock size={18} className="text-[#F2D543]" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-gray-400 montserrat-light text-sm">
+                        New Password
+                      </p>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={editForm.password}
+                          onChange={(e) =>
+                            handleInputChange("password", e.target.value)
+                          }
+                          className="bg-darkBoxSub rounded-lg px-3 py-2 pr-10 text-white montserrat-regular w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
+                          placeholder="Enter new password (optional)"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                        >
+                          {showPassword ? (
+                            <EyeOff size={16} />
+                          ) : (
+                            <Eye size={16} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Confirm Password Field - Only visible when editing */}
+                {isEditing && (
+                  <div className="flex items-center gap-3">
+                    <div className="bg-darkBoxSub p-2 rounded-lg">
+                      <Lock size={18} className="text-[#F2D543]" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-gray-400 montserrat-light text-sm">
+                        Confirm Password
+                      </p>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={editForm.confirmPassword}
+                          onChange={(e) =>
+                            handleInputChange("confirmPassword", e.target.value)
+                          }
+                          className="bg-darkBoxSub rounded-lg px-3 py-2 pr-10 text-white montserrat-regular w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
+                          placeholder="Confirm new password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff size={16} />
+                          ) : (
+                            <Eye size={16} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* Password Error Message */}
+              {passwordError && isEditing && (
+                <div className="mt-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg">
+                  <p className="text-red-400 montserrat-regular text-sm">
+                    {passwordError}
+                  </p>
+                </div>
+              )}
 
               {/* Stats Section */}
               <div className="mt-8 pt-6">

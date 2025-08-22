@@ -7,6 +7,7 @@ function ModalExportEdit({
   isOpen,
   onClose,
   arrayVideoMake,
+  timelineFFmpeg,
   editName,
   editId,
   onExported,
@@ -84,10 +85,18 @@ function ModalExportEdit({
       const exportData = {
         project_id: selectedProjectId,
         edit_name: editName || "Exported Edit",
+
+        // Nueva estructura FFmpeg completa para render perfecto
+        timelineFFmpeg: timelineFFmpeg || null,
+
+        // Estructura legacy para compatibilidad hacia atrás
         timeline: arrayVideoMake || [],
+
         metadata: {
           exportedAt: new Date().toISOString(),
           totalElements: arrayVideoMake?.length || 0,
+          hasFFmpegStructure: !!timelineFFmpeg,
+          version: timelineFFmpeg ? "2.0" : "1.0",
           duration:
             arrayVideoMake?.length > 0
               ? Math.max(...arrayVideoMake.map((item) => item.endTime || 0), 0)
