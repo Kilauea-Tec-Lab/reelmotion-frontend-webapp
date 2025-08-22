@@ -119,7 +119,7 @@ function PinterestCard({ post, onClick }) {
                     className={"text-white drop-shadow-lg"}
                   />
                   <span className="text-white montserrat-medium text-xs font-semibold drop-shadow-lg">
-                    {post.likes || 0}
+                    {post.comments || 0}
                   </span>
                 </div>
               </div>
