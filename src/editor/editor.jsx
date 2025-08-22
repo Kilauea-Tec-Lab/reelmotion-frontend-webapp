@@ -108,6 +108,88 @@ function Editor() {
   // State for aspect ratio
   const [aspectRatio, setAspectRatio] = useState("16:9"); // Default to 16:9
 
+  // ===== PROPIEDADES DEL PROYECTO PARA FFMPEG =====
+  const [projectSettings, setProjectSettings] = useState({
+    // Dimensiones de salida
+    outputWidth: 1920,
+    outputHeight: 1080,
+    aspectRatio: "16:9",
+
+    // Información temporal
+    framerate: 30,
+    sampleRate: 44100,
+    audioChannels: 2,
+
+    // Background del canvas
+    backgroundColor: "#000000",
+    backgroundImage: null,
+
+    // Configuración de render
+    renderSettings: {
+      quality: "high",
+      preset: "medium",
+      crf: 23,
+      bitrate: "5000k",
+      maxBitrate: "8000k",
+      bufsize: "10000k",
+      profile: "high",
+      level: "4.1",
+      gopSize: 30,
+      bFrames: 3,
+    },
+
+    // Efectos globales
+    globalFilters: {
+      fadeIn: 0.0,
+      fadeOut: 0.0,
+      stabilization: false,
+      denoise: 0.0,
+    },
+
+    // Información de encoding
+    encodingParams: {
+      pixFmt: "yuv420p",
+      colorSpace: "bt709",
+      colorPrimaries: "bt709",
+      transferFunction: "bt709",
+      colorMatrix: "bt709",
+    },
+  });
+
+  // Función para actualizar las dimensiones basadas en el aspect ratio
+  const updateProjectDimensions = (ratio) => {
+    let width, height;
+    if (ratio === "16:9") {
+      width = 1920;
+      height = 1080;
+    } else if (ratio === "9:16") {
+      width = 1080;
+      height = 1920;
+    } else if (ratio === "4:3") {
+      width = 1440;
+      height = 1080;
+    } else if (ratio === "1:1") {
+      width = 1080;
+      height = 1080;
+    } else {
+      // Custom ratio, keep current dimensions
+      width = projectSettings.outputWidth;
+      height = projectSettings.outputHeight;
+    }
+
+    setProjectSettings((prev) => ({
+      ...prev,
+      outputWidth: width,
+      outputHeight: height,
+      aspectRatio: ratio,
+    }));
+  };
+
+  // Actualizar project settings cuando cambia el aspect ratio
+  useEffect(() => {
+    updateProjectDimensions(aspectRatio);
+  }, [aspectRatio]);
+
   // States for undo functionality
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -375,6 +457,64 @@ function Editor() {
     return Math.round(duration * 100) / 100;
   };
 
+  // Helper function to format timestamp for FFmpeg (HH:MM:SS.mmm)
+  const formatTimestamp = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}:${secs.toFixed(3).padStart(6, "0")}`;
+  };
+
+  // Helper function to extract filename from URL
+  const extractFilename = (url) => {
+    if (!url) return "";
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      return pathname.split("/").pop() || "";
+    } catch (e) {
+      // If URL parsing fails, extract from string
+      return url.split("/").pop() || "";
+    }
+  };
+
+  // Helper function to detect file format from URL
+  const detectFormat = (url) => {
+    if (!url) return null;
+    const extension = url.split(".").pop()?.toLowerCase();
+
+    const videoFormats = ["mp4", "avi", "mov", "mkv", "webm", "flv", "m4v"];
+    const audioFormats = ["mp3", "wav", "aac", "ogg", "flac", "m4a"];
+    const imageFormats = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "tiff"];
+
+    if (videoFormats.includes(extension)) return extension;
+    if (audioFormats.includes(extension)) return extension;
+    if (imageFormats.includes(extension)) return extension;
+
+    return extension || null;
+  };
+
+  // Helper function to detect image format
+  const detectImageFormat = (url) => {
+    if (!url) return null;
+    const extension = url.split(".").pop()?.toLowerCase();
+    return ["jpg", "jpeg", "png", "gif", "webp", "bmp", "tiff"].includes(
+      extension
+    )
+      ? extension
+      : "jpeg";
+  };
+
+  // Helper function to detect if image has alpha channel
+  const detectAlpha = (url) => {
+    if (!url) return false;
+    const extension = url.split(".").pop()?.toLowerCase();
+    return ["png", "gif", "webp"].includes(extension);
+  };
+
   // Function to play/pause
   const handlePlayPause = () => {
     if (isPlaying) {
@@ -393,8 +533,23 @@ function Editor() {
         secondaryVideoRef.current.pause();
       }
 
+      // Pause ALL audio elements (music and voice)
       Object.values(audioRefs.current).forEach((audio) => {
-        if (audio) audio.pause();
+        if (audio) {
+          audio.pause();
+          audio.currentTime = 0; // Reset audio to beginning
+        }
+      });
+
+      // Also pause any audio elements that might be playing from timeline
+      arrayVideoMake.forEach((element) => {
+        if (element.channel === "music" || element.channel === "voice") {
+          const audio = audioRefs.current[element.id];
+          if (audio) {
+            audio.pause();
+            audio.currentTime = 0;
+          }
+        }
       });
     } else {
       // Only play if there's content in the timeline
@@ -742,10 +897,11 @@ function Editor() {
 
   // Effect to synchronize media when current time changes
   useEffect(() => {
-    if (isPlaying) {
+    // Synchronize when playing OR when dragging timeline for real-time preview
+    if (isPlaying || isDraggingTimeline) {
       syncMediaWithTime(currentTime);
     }
-  }, [currentTime, isPlaying]);
+  }, [currentTime, isPlaying, isDraggingTimeline]);
 
   // Clean up intervals when component unmounts
   useEffect(() => {
@@ -944,43 +1100,247 @@ function Editor() {
       startTime = lastEndTime; // Start after last element
     }
 
-    // Create new element for timeline
+    // Create new element for timeline with complete FFmpeg-compatible structure
     const newElement = {
+      // === IDENTIFICACIÓN ===
       id: `${targetChannel}_${Date.now()}`,
       channel: targetChannel,
-      startTime: formatDuration(startTime),
-      endTime: formatDuration(startTime + elementDuration), // use real duration
       type: draggedItem.type,
+
+      // === PROPIEDADES TEMPORALES (CRÍTICAS para sincronización) ===
+      startTime: formatDuration(startTime),
+      endTime: formatDuration(startTime + elementDuration),
+      duration: formatDuration(elementDuration), // current duration in timeline
+
+      // Timing absoluto en segundos (para FFmpeg)
+      startTimeSeconds: startTime,
+      endTimeSeconds: startTime + elementDuration,
+      durationSeconds: elementDuration,
+
+      // Trim del archivo original
+      trimStart: 0, // trimmed time from start
+      trimEnd: 0, // trimmed time from end
+      trimDuration: elementDuration, // Duration of used segment
+
+      // Offset específico para audio (CRÍTICO para sincronización)
+      audioOffset: 0.0,
+
+      // Información de frames
+      startFrame: Math.round(startTime * 30), // Asumiendo 30 FPS
+      endFrame: Math.round((startTime + elementDuration) * 30),
+
+      // Timestamps precisos para FFmpeg
+      startTimestamp: formatTimestamp(startTime),
+      endTimestamp: formatTimestamp(startTime + elementDuration),
+
+      // === ARCHIVO FUENTE Y METADATA ===
       url:
         draggedItem.url ||
         draggedItem.image_url ||
         draggedItem.audio_url ||
         draggedItem.music_url ||
-        draggedItem.voice_url, // normalize url
+        draggedItem.voice_url,
       title: draggedItem.title || draggedItem.name,
-      duration: formatDuration(elementDuration), // current duration in timeline
-      originalDuration: originalDuration, // original media duration (null for images)
-      trimStart: 0, // trimmed time from start
-      trimEnd: 0, // trimmed time from end
-      effects: [],
-      volume: targetChannel === "music" || targetChannel === "voice" ? 0.5 : 1,
-      opacity: 1,
-      // FFmpeg compatible position (normalized coordinates 0-1)
+      filename: extractFilename(
+        draggedItem.url ||
+          draggedItem.image_url ||
+          draggedItem.audio_url ||
+          draggedItem.music_url ||
+          draggedItem.voice_url
+      ),
+
+      // Metadata del archivo original
+      originalDuration: originalDuration,
+      originalFramerate: 30, // Default, should be detected from file
+      originalBitrate: null, // To be filled when file is analyzed
+      codec: null, // To be detected (h264, aac, etc.)
+      audioCodec: null, // To be detected
+
+      // Información técnica para FFmpeg
+      inputFormat: detectFormat(
+        draggedItem.url ||
+          draggedItem.image_url ||
+          draggedItem.audio_url ||
+          draggedItem.music_url ||
+          draggedItem.voice_url
+      ),
+      pixelFormat: "yuv420p",
+      colorSpace: "bt709",
+      colorRange: "tv",
+
+      // Dimensiones originales del archivo
+      originalWidth: draggedItem.width || 1920,
+      originalHeight: draggedItem.height || 1080,
+      aspectRatio:
+        draggedItem.width && draggedItem.height
+          ? draggedItem.width / draggedItem.height
+          : 16 / 9,
+
+      // === PROPIEDADES VISUALES Y DE POSICIÓN ===
+      // Posición en el canvas (normalizada 0-1)
       position: {
         x: 0.5, // center horizontally (0=left, 1=right)
         y: 0.5, // center vertically (0=top, 1=bottom)
       },
-      scale: 1,
-      zIndex: targetChannel === "image" ? 10 : 1, // Imágenes tienen z-index más alto por defecto
-      // FFmpeg compatible color correction
-      colorCorrection: {
-        brightness: 0, // -1.0 to 1.0 (FFmpeg: -1.0 to 1.0)
-        contrast: 1, // 0.0 to 4.0 (FFmpeg: 0.0 to 4.0, 1.0 = normal)
-        saturation: 1, // 0.0 to 3.0 (FFmpeg: 0.0 to 3.0, 1.0 = normal)
-        gamma: 1, // 0.1 to 10.0 (FFmpeg: 0.1 to 10.0, 1.0 = normal)
-        hue: 0, // -180 to 180 degrees (FFmpeg: -180 to 180)
-        vibrance: 0, // -2.0 to 2.0 (FFmpeg: -2.0 to 2.0)
+
+      // Posición en píxeles absolutos (calculada en tiempo de render)
+      absolutePosition: {
+        x: 0, // Will be calculated: position.x * outputWidth
+        y: 0, // Will be calculated: position.y * outputHeight
       },
+
+      // Escala y transformaciones
+      scale: 1, // Escala general
+      scaleX: 1, // Escala horizontal específica
+      scaleY: 1, // Escala vertical específica
+      keepAspectRatio: true,
+
+      // Dimensiones finales calculadas
+      finalWidth: 0, // Will be calculated: originalWidth * scale
+      finalHeight: 0, // Will be calculated: originalHeight * scale
+
+      // Transformaciones
+      rotation: 0, // Rotación en grados
+      anchorX: 0.5, // Punto de anclaje X (0.5 = centro)
+      anchorY: 0.5, // Punto de anclaje Y (0.5 = centro)
+
+      // === PROPIEDADES DE CAPAS Y COMPOSICIÓN ===
+      zIndex:
+        targetChannel === "image" ? 10 : targetChannel === "video" ? 5 : 1,
+      opacity: 1,
+      blendMode: "normal", // normal, multiply, screen, overlay, etc.
+
+      // Máscara y recorte
+      maskEnabled: false,
+      maskPath: null,
+      cropEnabled: false,
+      cropArea: {
+        x: 0,
+        y: 0,
+        width: draggedItem.width || 1920,
+        height: draggedItem.height || 1080,
+      },
+
+      // === PROPIEDADES DE AUDIO ===
+      volume: targetChannel === "music" || targetChannel === "voice" ? 0.5 : 1,
+      muted: false,
+      audioVolume:
+        targetChannel === "music" || targetChannel === "voice" ? 0.5 : 1,
+      audioFadeIn: 0, // Fade in en segundos
+      audioFadeOut: 0, // Fade out en segundos
+      audioPan: 0.0, // Paneo (-1=izquierda, 0=centro, 1=derecha)
+
+      // Procesamiento de audio
+      audioFilters: {
+        highpass: 0, // Filtro paso alto en Hz
+        lowpass: 0, // Filtro paso bajo en Hz
+        equalizer: {
+          low: 0, // Graves -12 a 12 dB
+          mid: 0, // Medios -12 a 12 dB
+          high: 0, // Agudos -12 a 12 dB
+        },
+        compression: {
+          enabled: false,
+          threshold: -20, // Umbral en dB
+          ratio: 4, // Ratio de compresión
+          attack: 10, // Ataque en ms
+          release: 100, // Release en ms
+        },
+      },
+
+      // Sample rate del archivo original
+      originalSampleRate: 44100,
+      originalChannels: 2,
+
+      // === PROPIEDADES DE COLOR Y FILTROS ===
+      colorCorrection: {
+        brightness: 0, // -1.0 to 1.0 (FFmpeg compatible)
+        contrast: 1, // 0.0 to 4.0 (FFmpeg: 1.0 = normal)
+        saturation: 1, // 0.0 to 3.0 (FFmpeg: 1.0 = normal)
+        gamma: 1, // 0.1 to 10.0 (FFmpeg: 1.0 = normal)
+        hue: 0, // -180 to 180 degrees
+        vibrance: 0, // -2.0 to 2.0
+        exposure: 0, // -2 to 2
+        highlights: 0, // -1 to 1
+        shadows: 0, // -1 to 1
+        temperature: 0, // -100 to 100 (kelvin)
+        tint: 0, // -100 to 100 (magenta/verde)
+      },
+
+      // Filtros adicionales
+      filters: {
+        blur: 0.0, // Desenfoque en píxeles
+        sharpen: 0.0, // Nitidez -1 a 1
+        noise: 0.0, // Ruido 0 a 1
+        vignette: 0.0, // Viñeteado 0 a 1
+      },
+
+      // === PROPIEDADES ESPECÍFICAS POR TIPO ===
+      // Para imágenes
+      imageFilters:
+        draggedItem.type === "image"
+          ? {
+              sepia: 0.0, // Efecto sepia 0-1
+              blackWhite: 0.0, // Blanco y negro 0-1
+              vintage: 0.0, // Efecto vintage 0-1
+              polaroid: 0.0, // Efecto polaroid 0-1
+            }
+          : null,
+
+      imageFormat:
+        draggedItem.type === "image"
+          ? detectImageFormat(draggedItem.image_url)
+          : null,
+      hasAlpha:
+        draggedItem.type === "image"
+          ? detectAlpha(draggedItem.image_url)
+          : false,
+      colorProfile: "sRGB",
+
+      // Para texto (si se implementa en el futuro)
+      textProperties:
+        draggedItem.type === "text"
+          ? {
+              text: draggedItem.text || "",
+              fontFamily: "Arial",
+              fontSize: 48,
+              fontWeight: "normal",
+              fontStyle: "normal",
+              textColor: "#FFFFFF",
+              strokeColor: "#000000",
+              strokeWidth: 0,
+              backgroundColor: "transparent",
+              backgroundOpacity: 0,
+              textAlign: "center",
+              verticalAlign: "middle",
+              shadow: {
+                enabled: false,
+                color: "#000000",
+                offsetX: 0,
+                offsetY: 0,
+                blur: 0,
+              },
+              animation: {
+                type: "none",
+                duration: 0,
+                delay: 0,
+              },
+            }
+          : null,
+
+      // === ESTADOS DE PROCESAMIENTO ===
+      loaded: false,
+      decoded: false,
+      thumbnail: null,
+      checksum: null,
+
+      // === INFORMACIÓN DE SINCRONIZACIÓN ===
+      syncPoints: [],
+      gaps: [],
+      overlaps: [],
+
+      // === LEGACY PROPERTIES (mantener compatibilidad) ===
+      effects: [], // Para compatibilidad con código existente
     };
 
     updateTimelineWithHistory([...arrayVideoMake, newElement]);
@@ -1076,24 +1436,134 @@ function Editor() {
       startTime = Math.max(...elementsInChannel.map((it) => it.endTime));
     }
 
+    // Create new element for timeline with complete FFmpeg-compatible structure
     const newElement = {
+      // === IDENTIFICACIÓN ===
       id: `${targetChannel}_${Date.now()}`,
       channel: targetChannel,
+      type: item.type,
+
+      // === PROPIEDADES TEMPORALES (CRÍTICAS para sincronización) ===
       startTime: formatDuration(startTime),
       endTime: formatDuration(startTime + elementDuration),
-      type: item.type,
-      url: item.url || item.image_url,
-      title: item.title || item.name,
       duration: formatDuration(elementDuration),
-      originalDuration,
+
+      // Timing absoluto en segundos (para FFmpeg)
+      startTimeSeconds: startTime,
+      endTimeSeconds: startTime + elementDuration,
+      durationSeconds: elementDuration,
+
+      // Trim del archivo original
       trimStart: 0,
       trimEnd: 0,
-      effects: [],
-      volume: targetChannel === "music" || targetChannel === "voice" ? 0.5 : 1,
-      opacity: 1,
+      trimDuration: elementDuration,
+
+      // Offset específico para audio (CRÍTICO para sincronización)
+      audioOffset: 0.0,
+
+      // Información de frames
+      startFrame: Math.round(startTime * 30), // Asumiendo 30 FPS
+      endFrame: Math.round((startTime + elementDuration) * 30),
+
+      // Timestamps precisos para FFmpeg
+      startTimestamp: formatTimestamp(startTime),
+      endTimestamp: formatTimestamp(startTime + elementDuration),
+
+      // === ARCHIVO FUENTE Y METADATA ===
+      url: item.url || item.image_url,
+      title: item.title || item.name,
+      filename: extractFilename(item.url || item.image_url),
+
+      // Metadata del archivo original
+      originalDuration,
+      originalFramerate: 30, // Default, should be detected from file
+      originalBitrate: null,
+      codec: null,
+      audioCodec: null,
+
+      // Información técnica para FFmpeg
+      inputFormat: detectFormat(item.url || item.image_url),
+      pixelFormat: "yuv420p",
+      colorSpace: "bt709",
+      colorRange: "tv",
+
+      // Dimensiones originales del archivo
+      originalWidth: item.width || 1920,
+      originalHeight: item.height || 1080,
+      aspectRatio:
+        item.width && item.height ? item.width / item.height : 16 / 9,
+
+      // === PROPIEDADES VISUALES Y DE POSICIÓN ===
+      // Posición en el canvas (normalizada 0-1)
       position: { x: 0.5, y: 0.5 },
+
+      // Posición en píxeles absolutos (calculada en tiempo de render)
+      absolutePosition: { x: 0, y: 0 },
+
+      // Escala y transformaciones
       scale: 1,
-      zIndex: targetChannel === "image" ? 10 : 1,
+      scaleX: 1,
+      scaleY: 1,
+      keepAspectRatio: true,
+
+      // Dimensiones finales calculadas
+      finalWidth: 0,
+      finalHeight: 0,
+
+      // Transformaciones
+      rotation: 0,
+      anchorX: 0.5,
+      anchorY: 0.5,
+
+      // === PROPIEDADES DE CAPAS Y COMPOSICIÓN ===
+      zIndex:
+        targetChannel === "image" ? 10 : targetChannel === "video" ? 5 : 1,
+      opacity: 1,
+      blendMode: "normal",
+
+      // Máscara y recorte
+      maskEnabled: false,
+      maskPath: null,
+      cropEnabled: false,
+      cropArea: {
+        x: 0,
+        y: 0,
+        width: item.width || 1920,
+        height: item.height || 1080,
+      },
+
+      // === PROPIEDADES DE AUDIO ===
+      volume: targetChannel === "music" || targetChannel === "voice" ? 0.5 : 1,
+      muted: false,
+      audioVolume:
+        targetChannel === "music" || targetChannel === "voice" ? 0.5 : 1,
+      audioFadeIn: 0,
+      audioFadeOut: 0,
+      audioPan: 0.0,
+
+      // Procesamiento de audio
+      audioFilters: {
+        highpass: 0,
+        lowpass: 0,
+        equalizer: {
+          low: 0,
+          mid: 0,
+          high: 0,
+        },
+        compression: {
+          enabled: false,
+          threshold: -20,
+          ratio: 4,
+          attack: 10,
+          release: 100,
+        },
+      },
+
+      // Sample rate del archivo original
+      originalSampleRate: 44100,
+      originalChannels: 2,
+
+      // === PROPIEDADES DE COLOR Y FILTROS ===
       colorCorrection: {
         brightness: 0,
         contrast: 1,
@@ -1101,7 +1571,82 @@ function Editor() {
         gamma: 1,
         hue: 0,
         vibrance: 0,
+        exposure: 0,
+        highlights: 0,
+        shadows: 0,
+        temperature: 0,
+        tint: 0,
       },
+
+      // Filtros adicionales
+      filters: {
+        blur: 0.0,
+        sharpen: 0.0,
+        noise: 0.0,
+        vignette: 0.0,
+      },
+
+      // === PROPIEDADES ESPECÍFICAS POR TIPO ===
+      // Para imágenes
+      imageFilters:
+        item.type === "image"
+          ? {
+              sepia: 0.0,
+              blackWhite: 0.0,
+              vintage: 0.0,
+              polaroid: 0.0,
+            }
+          : null,
+
+      imageFormat:
+        item.type === "image" ? detectImageFormat(item.image_url) : null,
+      hasAlpha: item.type === "image" ? detectAlpha(item.image_url) : false,
+      colorProfile: "sRGB",
+
+      // Para texto (si se implementa en el futuro)
+      textProperties:
+        item.type === "text"
+          ? {
+              text: item.text || "",
+              fontFamily: "Arial",
+              fontSize: 48,
+              fontWeight: "normal",
+              fontStyle: "normal",
+              textColor: "#FFFFFF",
+              strokeColor: "#000000",
+              strokeWidth: 0,
+              backgroundColor: "transparent",
+              backgroundOpacity: 0,
+              textAlign: "center",
+              verticalAlign: "middle",
+              shadow: {
+                enabled: false,
+                color: "#000000",
+                offsetX: 0,
+                offsetY: 0,
+                blur: 0,
+              },
+              animation: {
+                type: "none",
+                duration: 0,
+                delay: 0,
+              },
+            }
+          : null,
+
+      // === ESTADOS DE PROCESAMIENTO ===
+      loaded: false,
+      decoded: false,
+      thumbnail: null,
+      checksum: null,
+
+      // === INFORMACIÓN DE SINCRONIZACIÓN ===
+      syncPoints: [],
+      gaps: [],
+      overlaps: [],
+
+      // === LEGACY PROPERTIES (mantener compatibilidad) ===
+      effects: [], // Para compatibilidad con código existente
     };
 
     updateTimelineWithHistory([...arrayVideoMake, newElement]);
@@ -1140,11 +1685,82 @@ function Editor() {
 
   const canUndo = historyIndex > 0;
 
+  // Function to calculate absolute and final properties for FFmpeg
+  const calculateElementProperties = (element) => {
+    const outputWidth = projectSettings.outputWidth;
+    const outputHeight = projectSettings.outputHeight;
+
+    // Ensure element has position (could be element.x/y or element.position.x/y)
+    const positionX = element.position?.x ?? element.x ?? 0;
+    const positionY = element.position?.y ?? element.y ?? 0;
+
+    // Calculate absolute position
+    const absoluteX = Math.round(positionX * outputWidth);
+    const absoluteY = Math.round(positionY * outputHeight);
+
+    // Ensure element has dimensions
+    const originalWidth = element.originalWidth ?? element.width ?? 1920;
+    const originalHeight = element.originalHeight ?? element.height ?? 1080;
+    const scale = element.scale ?? 1;
+    const scaleX = element.scaleX ?? 1;
+    const scaleY = element.scaleY ?? 1;
+
+    // Calculate final dimensions
+    const finalWidth = Math.round(originalWidth * scale * scaleX);
+    const finalHeight = Math.round(originalHeight * scale * scaleY);
+
+    // Calculate frame numbers
+    const framerate = projectSettings.framerate;
+    const startTimeSeconds = element.startTimeSeconds ?? element.startTime ?? 0;
+    const endTimeSeconds =
+      element.endTimeSeconds ?? element.endTime ?? startTimeSeconds + 1;
+    const startFrame = Math.round(startTimeSeconds * framerate);
+    const endFrame = Math.round(endTimeSeconds * framerate);
+
+    return {
+      ...element,
+      // Normalize position format
+      position: {
+        x: positionX,
+        y: positionY,
+      },
+      // Add normalized properties
+      x: positionX,
+      y: positionY,
+      startTimeSeconds,
+      endTimeSeconds,
+      durationSeconds: endTimeSeconds - startTimeSeconds,
+      originalWidth,
+      originalHeight,
+      scale,
+      scaleX,
+      scaleY,
+      // Add calculated properties
+      absolutePosition: {
+        x: absoluteX,
+        y: absoluteY,
+      },
+      finalWidth,
+      finalHeight,
+      startFrame,
+      endFrame,
+      // Update timestamps
+      startTimestamp: formatTimestamp(startTimeSeconds),
+      endTimestamp: formatTimestamp(endTimeSeconds),
+    };
+  };
+
   // Function to update timeline and save to history
   const updateTimelineWithHistory = (newArrayVideoMake) => {
     // Save current state to history before making changes
     saveToHistory(arrayVideoMake);
-    setArrayVideoMake(newArrayVideoMake);
+
+    // Calculate absolute properties for all elements
+    const elementsWithCalculatedProps = newArrayVideoMake.map(
+      calculateElementProperties
+    );
+
+    setArrayVideoMake(elementsWithCalculatedProps);
   };
 
   // Initialize history with current state when component mounts
@@ -2030,6 +2646,296 @@ function Editor() {
     setShowExportModal(true);
   };
 
+  // ===== FUNCIÓN PARA GENERAR ESTRUCTURA COMPLETA PARA FFMPEG =====
+  const generateFFmpegTimeline = () => {
+    // Calcular duración total del contenido
+    const contentEndTime = getContentEndTime();
+    const totalDuration = Math.max(contentEndTime, 1); // Mínimo 1 segundo
+
+    // Calcular total de frames
+    const totalFrames = Math.ceil(totalDuration * projectSettings.framerate);
+
+    // Detectar gaps y overlaps
+    const gaps = detectTimelineGaps();
+    const overlaps = detectTimelineOverlaps();
+
+    // Información de sincronización global
+    const syncPoints = generateSyncPoints();
+
+    // Estructura completa del timeline para FFmpeg
+    const ffmpegTimeline = {
+      // === INFORMACIÓN DEL PROYECTO ===
+      projectInfo: {
+        name: currentEditName || "Untitled Project",
+        id: currentEditId,
+        created: new Date().toISOString(),
+        version: "1.0.0",
+      },
+
+      // === CONFIGURACIÓN DEL CANVAS ===
+      canvas: {
+        outputWidth: projectSettings.outputWidth,
+        outputHeight: projectSettings.outputHeight,
+        aspectRatio: projectSettings.aspectRatio,
+        backgroundColor: projectSettings.backgroundColor,
+        backgroundImage: projectSettings.backgroundImage,
+      },
+
+      // === CONFIGURACIÓN TEMPORAL ===
+      timing: {
+        duration: totalDuration,
+        framerate: projectSettings.framerate,
+        totalFrames: totalFrames,
+        timebase: `1/${projectSettings.framerate}`,
+        sampleRate: projectSettings.sampleRate,
+        audioChannels: projectSettings.audioChannels,
+      },
+
+      // === CONFIGURACIÓN DE RENDER ===
+      renderSettings: projectSettings.renderSettings,
+
+      // === CONFIGURACIÓN DE ENCODING ===
+      encoding: projectSettings.encodingParams,
+
+      // === EFECTOS GLOBALES ===
+      globalFilters: projectSettings.globalFilters,
+
+      // === ELEMENTOS DEL TIMELINE ===
+      elements: arrayVideoMake.map((element) => {
+        // Primero calculamos las propiedades absolutas del elemento
+        const calculatedElement = calculateElementProperties(element);
+
+        return {
+          // Información básica
+          id: calculatedElement.id,
+          type: calculatedElement.type,
+          channel: calculatedElement.channel,
+
+          // Timing crítico para FFmpeg
+          timing: {
+            startTime: calculatedElement.startTimeSeconds,
+            endTime: calculatedElement.endTimeSeconds,
+            duration: calculatedElement.durationSeconds,
+            startFrame: calculatedElement.startFrame,
+            endFrame: calculatedElement.endFrame,
+            startTimestamp: calculatedElement.startTimestamp,
+            endTimestamp: calculatedElement.endTimestamp,
+
+            // Trim específico
+            trimStart: calculatedElement.trimStart || 0,
+            trimEnd: calculatedElement.trimEnd || 0,
+            trimDuration:
+              calculatedElement.trimDuration ||
+              calculatedElement.durationSeconds,
+
+            // Offset de audio crítico
+            audioOffset: calculatedElement.audioOffset || 0,
+          },
+
+          // Archivo fuente
+          source: {
+            url: calculatedElement.url,
+            filename: calculatedElement.filename,
+            originalDuration: calculatedElement.originalDuration,
+            originalFramerate:
+              calculatedElement.originalFramerate || projectSettings.framerate,
+            originalWidth: calculatedElement.originalWidth,
+            originalHeight: calculatedElement.originalHeight,
+            aspectRatio: calculatedElement.aspectRatio,
+            inputFormat: calculatedElement.inputFormat,
+            codec: calculatedElement.codec,
+            audioCodec: calculatedElement.audioCodec,
+            pixelFormat: calculatedElement.pixelFormat || "yuv420p",
+            colorSpace: calculatedElement.colorSpace || "bt709",
+            colorRange: calculatedElement.colorRange || "tv",
+            originalSampleRate:
+              calculatedElement.originalSampleRate ||
+              projectSettings.sampleRate,
+            originalChannels: calculatedElement.originalChannels || 2,
+          },
+
+          // Transformaciones visuales
+          transform: {
+            position: {
+              x: calculatedElement.position.x,
+              y: calculatedElement.position.y,
+              absoluteX: calculatedElement.absolutePosition.x,
+              absoluteY: calculatedElement.absolutePosition.y,
+            },
+            scale: {
+              uniform: calculatedElement.scale,
+              x: calculatedElement.scaleX || calculatedElement.scale,
+              y: calculatedElement.scaleY || calculatedElement.scale,
+              keepAspectRatio: calculatedElement.keepAspectRatio,
+            },
+            dimensions: {
+              finalWidth: calculatedElement.finalWidth,
+              finalHeight: calculatedElement.finalHeight,
+            },
+            rotation: calculatedElement.rotation || 0,
+            anchor: {
+              x: calculatedElement.anchorX || 0.5,
+              y: calculatedElement.anchorY || 0.5,
+            },
+          },
+
+          // Composición
+          composition: {
+            zIndex: calculatedElement.zIndex,
+            opacity: calculatedElement.opacity,
+            blendMode: calculatedElement.blendMode || "normal",
+          },
+
+          // Máscara y recorte
+          mask: {
+            enabled: calculatedElement.maskEnabled || false,
+            path: calculatedElement.maskPath,
+            crop: {
+              enabled: calculatedElement.cropEnabled || false,
+              area: calculatedElement.cropArea,
+            },
+          },
+
+          // Audio
+          audio: {
+            volume: calculatedElement.audioVolume || calculatedElement.volume,
+            muted: calculatedElement.muted || false,
+            fadeIn: calculatedElement.audioFadeIn || 0,
+            fadeOut: calculatedElement.audioFadeOut || 0,
+            pan: calculatedElement.audioPan || 0,
+            filters: calculatedElement.audioFilters,
+          },
+
+          // Corrección de color
+          colorCorrection: calculatedElement.colorCorrection,
+
+          // Filtros adicionales
+          filters: calculatedElement.filters,
+
+          // Propiedades específicas por tipo
+          typeSpecific: {
+            // Para imágenes
+            ...(calculatedElement.type === "image" && {
+              imageFilters: calculatedElement.imageFilters,
+              imageFormat: calculatedElement.imageFormat,
+              hasAlpha: calculatedElement.hasAlpha,
+              colorProfile: calculatedElement.colorProfile,
+            }),
+
+            // Para texto
+            ...(calculatedElement.type === "text" && {
+              textProperties: calculatedElement.textProperties,
+            }),
+          },
+        };
+      }),
+
+      // === INFORMACIÓN DE SINCRONIZACIÓN ===
+      synchronization: {
+        gaps: gaps,
+        overlaps: overlaps,
+        syncPoints: syncPoints,
+        timelineIntegrity: { isValid: true, issues: [] },
+      },
+
+      // === METADATA ADICIONAL ===
+      metadata: {
+        totalElements: arrayVideoMake.length,
+        elementsByType: {
+          video: arrayVideoMake.filter((e) => e.type === "video").length,
+          image: arrayVideoMake.filter((e) => e.type === "image").length,
+          music: arrayVideoMake.filter((e) => e.type === "music").length,
+          voice: arrayVideoMake.filter((e) => e.type === "voice").length,
+        },
+        exportTimestamp: new Date().toISOString(),
+        checksum: "checksum-placeholder",
+      },
+    };
+
+    return ffmpegTimeline;
+  };
+
+  // === FUNCIONES AUXILIARES PARA ANÁLISIS DEL TIMELINE ===
+
+  // Detectar gaps en el timeline
+  const detectTimelineGaps = () => {
+    const gaps = [];
+    // Implementar lógica para detectar gaps entre elementos
+    // Por ahora retorna array vacío
+    return gaps;
+  };
+
+  // Detectar overlaps en el timeline
+  const detectTimelineOverlaps = () => {
+    const overlaps = [];
+    // Implementar lógica para detectar overlaps entre elementos
+    // Por ahora retorna array vacío
+    return overlaps;
+  };
+
+  // Generar puntos de sincronización críticos
+  const generateSyncPoints = () => {
+    const syncPoints = [];
+    // Agregar puntos críticos como inicios de elementos, cortes, etc.
+    arrayVideoMake.forEach((element) => {
+      syncPoints.push({
+        timestamp: element.startTimeSeconds,
+        frame: element.startFrame,
+        type: "element_start",
+        elementId: element.id,
+      });
+      syncPoints.push({
+        timestamp: element.endTimeSeconds,
+        frame: element.endFrame,
+        type: "element_end",
+        elementId: element.id,
+      });
+    });
+    return syncPoints.sort((a, b) => a.timestamp - b.timestamp);
+  };
+
+  // Validar integridad del timeline
+  const validateTimelineIntegrity = () => {
+    const issues = [];
+
+    // Verificar elementos sin duración
+    arrayVideoMake.forEach((element) => {
+      if (element.durationSeconds <= 0) {
+        issues.push({
+          type: "zero_duration",
+          elementId: element.id,
+          message: "Element has zero or negative duration",
+        });
+      }
+
+      if (element.startTimeSeconds >= element.endTimeSeconds) {
+        issues.push({
+          type: "invalid_timing",
+          elementId: element.id,
+          message: "Start time is greater than or equal to end time",
+        });
+      }
+    });
+
+    return {
+      isValid: issues.length === 0,
+      issues: issues,
+    };
+  };
+
+  // Generar checksum del timeline
+  const generateTimelineChecksum = (timeline) => {
+    // Crear un hash simple basado en el contenido del timeline
+    const timelineString = JSON.stringify(timeline);
+    let hash = 0;
+    for (let i = 0; i < timelineString.length; i++) {
+      const char = timelineString.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash.toString(16);
+  };
+
   // Pre-rendering function with Screen Capture API (much simpler and faster)
   const handlePreRender = async () => {
     if (arrayVideoMake.length === 0) {
@@ -2621,6 +3527,37 @@ function Editor() {
   };
 
   const previewStyles = getPreviewStyles();
+
+  // ===== FUNCIÓN PARA EXPORTAR TIMELINE COMPLETO PARA BACKEND =====
+  const exportTimelineForFFmpeg = () => {
+    const ffmpegData = generateFFmpegTimeline();
+
+    // Agregar información adicional que el backend necesita
+    const exportData = {
+      ...ffmpegData,
+      // Información para compatibilidad con modal de exportación existente
+      arrayVideoMake: arrayVideoMake, // Timeline original para compatibilidad
+      aspectRatio: aspectRatio,
+      duration: getContentEndTime(),
+      totalElements: arrayVideoMake.length,
+      editName: currentEditName,
+      project_id: currentEditId,
+
+      // Timestamp de exportación
+      exportedAt: new Date().toISOString(),
+    };
+
+    console.log("Complete Timeline for FFmpeg:", exportData);
+    return exportData;
+  };
+
+  // Hacer la función disponible globalmente para el modal de exportación
+  useEffect(() => {
+    window.exportTimelineForFFmpeg = exportTimelineForFFmpeg;
+    return () => {
+      delete window.exportTimelineForFFmpeg;
+    };
+  }, [arrayVideoMake, projectSettings, currentEditName, currentEditId]);
 
   return (
     <div className="bg-primarioDark w-full h-[100vh] scroll-auto px-6 py-4">
@@ -5012,6 +5949,7 @@ function Editor() {
           onClose={() => setShowExportModal(false)}
           onExport={handleExportEdit}
           arrayVideoMake={arrayVideoMake}
+          timelineFFmpeg={exportTimelineForFFmpeg()}
           editName={currentEditName}
           editId={currentEditId}
           // Pre-rendering props
