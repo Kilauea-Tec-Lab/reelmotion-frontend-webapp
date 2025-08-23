@@ -174,11 +174,11 @@ function ModalCreateScene({
       name: "Runway ML",
       description: "Professional video AI model",
     },
-    /*{
-      id: "kling",
-      name: "KLING",
-      description: "Advanced AI video generation model",
-    },*/
+    {
+      id: "lumalabs",
+      name: "LumaLabs",
+      description: "Ray-2 model",
+    },
     {
       id: "veo-3",
       name: "Veo-3",
@@ -189,11 +189,11 @@ function ModalCreateScene({
       name: "Runway Aleph",
       description: "Runway Aleph model for video processing",
     },
-    /*{
-      id: "seedance",
-      name: "Seedance 1.0",
+    {
+      id: "vidu",
+      name: "Vidu",
       description: "Second generation Seedance model for video",
-    },*/
+    },
   ];
 
   // Función para obtener modelos disponibles según el tipo seleccionado

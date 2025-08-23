@@ -237,6 +237,174 @@ export async function searchProjects(projectName) {
   }
 }
 
+// ELEVENLABS API FUNCTIONS
+const ELEVENLABS_API_KEY = "sk_2255a4e8aaeaf2c8211f2ffc968686b602250cd260314f16";
+const ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1";
+
+// Obtener voces disponibles de ElevenLabs
+export async function getElevenLabsVoices() {
+  try {
+    console.log("Fetching voices from ElevenLabs API...");
+
+    const response = await fetch(`${ELEVENLABS_BASE_URL}/voices`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "xi-api-key": ELEVENLABS_API_KEY,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `ElevenLabs API error: ${response.status} ${response.statusText}`
+      );
+    }
+
+    const data = await response.json();
+    console.log("ElevenLabs voices response:", data);
+
+    // ElevenLabs devuelve las voces en un array de voices
+    const voicesArray = data.voices || [];
+
+    // Log the first voice to understand the structure
+    if (voicesArray.length > 0) {
+      console.log("First voice structure:", voicesArray[0]);
+      console.log("Voice fields:", Object.keys(voicesArray[0]));
+    }
+
+    console.log("Fetched voices:", voicesArray);
+    return { success: true, voices: voicesArray };
+  } catch (error) {
+    console.error("Error fetching ElevenLabs voices:", error);
+    return { success: false, error: error.message, voices: [] };
+  }
+}
+
+// Generar speech con ElevenLabs
+export async function generateElevenLabsSpeech(speechData) {
+  try {
+    console.log("Generating speech with ElevenLabs API...");
+    console.log("Speech data received:", speechData);
+
+    if (!speechData.voiceId) {
+      throw new Error("voiceId is required but not provided");
+    }
+
+    if (!speechData.text) {
+      throw new Error("text is required but not provided");
+    }
+
+    const requestBody = {
+      text: speechData.text,
+      model_id: speechData.model_id || "eleven_multilingual_v2", // Default to multilingual v2
+      voice_settings: {
+        stability: speechData.stability || 0.5,
+        similarity_boost: speechData.similarity_boost || 0.5,
+        style: speechData.style || 0.0,
+        use_speaker_boost: speechData.use_speaker_boost || true,
+      },
+    };
+
+    console.log("Request body for ElevenLabs TTS:", requestBody);
+
+    const response = await fetch(
+      `${ELEVENLABS_BASE_URL}/text-to-speech/${speechData.voiceId}`,
+      {
+        method: "POST",
+        headers: {
+          Accept: "audio/mpeg",
+          "Content-Type": "application/json",
+          "xi-api-key": ELEVENLABS_API_KEY,
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `ElevenLabs API error: ${response.status} ${response.statusText} - ${errorText}`
+      );
+    }
+
+    // Get audio blob from response
+    const audioBlob = await response.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+
+    // Calculate estimated duration (rough estimate based on text length)
+    const words = speechData.text.trim().split(/\s+/).length;
+    const estimatedDuration = (words / 150) * 60; // 150 words per minute
+
+    return {
+      success: true,
+      data: {
+        audioUrl: audioUrl,
+        audioBlob: audioBlob,
+        format: "mp3",
+        duration: estimatedDuration,
+        textUsed: speechData.text,
+        voiceId: speechData.voiceId,
+        model_id: requestBody.model_id,
+        voice_settings: requestBody.voice_settings,
+      },
+    };
+  } catch (error) {
+    console.error("Error generating ElevenLabs speech:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Crear voz en el backend usando ElevenLabs
+export async function createElevenLabsVoice(voiceData) {
+  try {
+    // Crear FormData para enviar el archivo de audio
+    const formData = new FormData();
+    
+    // Agregar el blob de audio
+    if (voiceData.audio_blob) {
+      formData.append('audio_file', voiceData.audio_blob, 'voice.mp3');
+    }
+    
+    // Agregar el resto de los datos como JSON
+    const jsonData = {
+      name: voiceData.name,
+      description: voiceData.description,
+      duration: voiceData.duration,
+      format: voiceData.format,
+      text_used: voiceData.text_used,
+      voice_id: voiceData.voice_id,
+      voice_name: voiceData.voice_name,
+      model_id: voiceData.model_id,
+      voice_settings: voiceData.voice_settings,
+      project_id: voiceData.project_id,
+    };
+    
+    formData.append('voice_data', JSON.stringify(jsonData));
+
+    const response = await fetch(
+      `${import.meta.env.VITE_APP_BACKEND_URL}projects/create-elevenlabs-voice`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + Cookies.get("token"),
+          // No incluir Content-Type para que el navegador lo establezca automáticamente con boundary
+        },
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Backend API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error creating ElevenLabs voice:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 // AUDIOSTACK API FUNCTIONS (Direct REST API calls)
 const AUDIOSTACK_API_KEY = "d4218845-b810-421e-a62a-e48a1ba4569a";
 const AUDIOSTACK_BASE_URL = "https://v2.api.audio";
