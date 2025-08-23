@@ -17,6 +17,9 @@ import {
   createVoice,
   getAudioStackPreview,
   getAudioStackGeneratedAudio,
+  getElevenLabsVoices,
+  generateElevenLabsSpeech,
+  createElevenLabsVoice,
 } from "./functions";
 
 function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
@@ -55,28 +58,95 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
   const [previewAudio, setPreviewAudio] = useState(null);
   const [playingVoiceId, setPlayingVoiceId] = useState(null);
 
+  // ElevenLabs specific states
+  const [voiceProvider, setVoiceProvider] = useState("elevenlabs"); // "elevenlabs" or "audiostack"
+  const [elevenLabsModel, setElevenLabsModel] = useState("eleven_multilingual_v2");
+  const [voiceSettings, setVoiceSettings] = useState({
+    stability: 0.5,
+    similarity_boost: 0.5,
+    style: 0.0,
+    use_speaker_boost: true,
+  });
+
   const audioRef = useRef(null);
 
   // Helper function to get voice ID
   const getVoiceId = (voice) => {
     if (!voice) return null;
-    return voice.voiceId || voice.id || voice.voice_id || voice.identifier;
+    if (voiceProvider === "elevenlabs") {
+      return voice.voice_id;
+    } else {
+      return voice.voiceId || voice.id || voice.voice_id || voice.identifier;
+    }
   };
 
   // Helper function to get voice audio sample URL
   const getVoiceAudioSample = (voice) => {
     if (!voice) return null;
-    return (
-      voice.audioSample || voice.previewUrl || voice.sample_url || voice.preview
-    );
+    if (voiceProvider === "elevenlabs") {
+      return voice.preview_url;
+    } else {
+      return (
+        voice.audioSample || voice.previewUrl || voice.sample_url || voice.preview
+      );
+    }
   };
 
-  // Load voices when modal opens
+  // Helper function to get voice name
+  const getVoiceName = (voice) => {
+    if (!voice) return "Unknown Voice";
+    if (voiceProvider === "elevenlabs") {
+      return voice.name;
+    } else {
+      return voice.name || voice.voiceName || voice.displayName || voice.id || "Unknown Voice";
+    }
+  };
+
+  // Helper function to get voice language
+  const getVoiceLanguage = (voice) => {
+    if (!voice) return "Unknown";
+    if (voiceProvider === "elevenlabs") {
+      return voice.labels?.language || "Multi";
+    } else {
+      return voice.language || voice.lang || "Unknown";
+    }
+  };
+
+  // Helper function to get voice gender
+  const getVoiceGender = (voice) => {
+    if (!voice) return "Unknown";
+    if (voiceProvider === "elevenlabs") {
+      return voice.labels?.gender || "Unknown";
+    } else {
+      return voice.gender || voice.sex || "Unknown";
+    }
+  };
+
+  // Helper function to get voice age
+  const getVoiceAge = (voice) => {
+    if (!voice) return "Unknown";
+    if (voiceProvider === "elevenlabs") {
+      return voice.labels?.age || "Unknown";
+    } else {
+      return voice.age || voice.ageGroup || "Unknown";
+    }
+  };
+
+  // Load voices when modal opens or provider changes
   useEffect(() => {
     if (isOpen) {
       loadVoices();
     }
-  }, [isOpen]);
+  }, [isOpen, voiceProvider]);
+
+  // Reset selection when provider changes
+  useEffect(() => {
+    setSelectedVoice(null);
+    setSearchTerm("");
+    setLanguageFilter("");
+    setGenderFilter("");
+    setAgeFilter("");
+  }, [voiceProvider]);
 
   // Filter and search logic
   useEffect(() => {
@@ -85,7 +155,7 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter((voice) =>
-        (voice.name || voice.voiceName || voice.displayName || voice.id || "")
+        getVoiceName(voice)
           .toLowerCase()
           .includes(searchTerm.toLowerCase())
       );
@@ -94,33 +164,39 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
     // Apply language filter
     if (languageFilter) {
       filtered = filtered.filter(
-        (voice) => (voice.language || voice.lang) === languageFilter
+        (voice) => getVoiceLanguage(voice) === languageFilter
       );
     }
 
     // Apply gender filter
     if (genderFilter) {
       filtered = filtered.filter(
-        (voice) => (voice.gender || voice.sex) === genderFilter
+        (voice) => getVoiceGender(voice) === genderFilter
       );
     }
 
     // Apply age filter
     if (ageFilter) {
       filtered = filtered.filter(
-        (voice) => (voice.age || voice.ageGroup) === ageFilter
+        (voice) => getVoiceAge(voice) === ageFilter
       );
     }
 
     setFilteredVoices(filtered);
     setCurrentPage(1);
     setDisplayedVoices(filtered.slice(0, VOICES_PER_PAGE));
-  }, [availableVoices, searchTerm, languageFilter, genderFilter, ageFilter]);
+  }, [availableVoices, searchTerm, languageFilter, genderFilter, ageFilter, voiceProvider]);
 
   const loadVoices = async () => {
     setIsLoadingVoices(true);
     try {
-      const result = await getAudioStackVoices();
+      let result;
+      if (voiceProvider === "elevenlabs") {
+        result = await getElevenLabsVoices();
+      } else {
+        result = await getAudioStackVoices();
+      }
+      
       if (result.success && Array.isArray(result.voices)) {
         setAvailableVoices(result.voices);
       } else {
@@ -157,18 +233,18 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
       let value = null;
       switch (key) {
         case "language":
-          value = voice.language || voice.lang;
+          value = getVoiceLanguage(voice);
           break;
         case "gender":
-          value = voice.gender || voice.sex;
+          value = getVoiceGender(voice);
           break;
         case "age":
-          value = voice.age || voice.ageGroup;
+          value = getVoiceAge(voice);
           break;
         default:
           value = voice[key];
       }
-      if (value && !values.includes(value)) {
+      if (value && value !== "Unknown" && !values.includes(value)) {
         values.push(value);
       }
     });
@@ -253,15 +329,23 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
     }
 
     try {
-      // Use authenticated preview function for AudioStack URLs
-      const previewResult = await getAudioStackPreview(audioSampleUrl);
+      let audioUrl;
+      
+      if (voiceProvider === "elevenlabs") {
+        // ElevenLabs preview URLs can be played directly
+        audioUrl = audioSampleUrl;
+      } else {
+        // Use authenticated preview function for AudioStack URLs
+        const previewResult = await getAudioStackPreview(audioSampleUrl);
 
-      if (!previewResult.success) {
-        console.error("Error getting audio preview:", previewResult.error);
-        return;
+        if (!previewResult.success) {
+          console.error("Error getting audio preview:", previewResult.error);
+          return;
+        }
+        audioUrl = previewResult.audioUrl;
       }
 
-      const audio = new Audio(previewResult.audioUrl);
+      const audio = new Audio(audioUrl);
       audio.volume = 0.7;
 
       audio.onplay = () => {
@@ -271,16 +355,20 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
       audio.onended = () => {
         setPlayingVoiceId(null);
         setPreviewAudio(null);
-        // Clean up blob URL
-        URL.revokeObjectURL(previewResult.audioUrl);
+        // Clean up blob URL if it was created
+        if (voiceProvider === "audiostack" && audioUrl.startsWith("blob:")) {
+          URL.revokeObjectURL(audioUrl);
+        }
       };
 
       audio.onerror = () => {
         console.error("Error playing voice preview");
         setPlayingVoiceId(null);
         setPreviewAudio(null);
-        // Clean up blob URL
-        URL.revokeObjectURL(previewResult.audioUrl);
+        // Clean up blob URL if it was created
+        if (voiceProvider === "audiostack" && audioUrl.startsWith("blob:")) {
+          URL.revokeObjectURL(audioUrl);
+        }
       };
 
       setPreviewAudio(audio);
@@ -313,39 +401,49 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
       text: textToSpeak,
       selectedVoice: selectedVoice,
       voiceId: voiceId,
+      provider: voiceProvider,
     });
 
     setIsGenerating(true);
     try {
-      // Paso 1: Crear script en AudioStack
-      console.log("Creating script...");
-      const scriptResult = await createAudioStackScript({
-        text: textToSpeak,
-        projectName: "reelmotion",
-        moduleName: "voice_generation",
-        scriptName: `voice_${Date.now()}`,
-      });
+      let speechResult;
 
-      console.log("Script result:", scriptResult);
+      if (voiceProvider === "elevenlabs") {
+        // Use ElevenLabs API
+        speechResult = await generateElevenLabsSpeech({
+          text: textToSpeak,
+          voiceId: voiceId,
+          model_id: elevenLabsModel,
+          ...voiceSettings,
+        });
+      } else {
+        // Use AudioStack API (existing flow)
+        console.log("Creating script...");
+        const scriptResult = await createAudioStackScript({
+          text: textToSpeak,
+          projectName: "reelmotion",
+          moduleName: "voice_generation",
+          scriptName: `voice_${Date.now()}`,
+        });
 
-      if (!scriptResult.success) {
-        throw new Error(`Error creando script: ${scriptResult.error}`);
+        if (!scriptResult.success) {
+          throw new Error(`Error creando script: ${scriptResult.error}`);
+        }
+
+        if (!scriptResult.data || !scriptResult.data.scriptId) {
+          throw new Error(
+            `Script creado pero sin scriptId: ${JSON.stringify(
+              scriptResult.data
+            )}`
+          );
+        }
+
+        console.log("Generating speech...");
+        speechResult = await generateAudioStackSpeech({
+          scriptId: scriptResult.data.scriptId,
+          voiceId: voiceId,
+        });
       }
-
-      if (!scriptResult.data || !scriptResult.data.scriptId) {
-        throw new Error(
-          `Script creado pero sin scriptId: ${JSON.stringify(
-            scriptResult.data
-          )}`
-        );
-      }
-
-      // Paso 2: Generar speech con AudioStack
-      console.log("Generating speech...");
-      const speechResult = await generateAudioStackSpeech({
-        scriptId: scriptResult.data.scriptId,
-        voiceId: getVoiceId(selectedVoice),
-      });
 
       console.log("Speech result:", speechResult);
 
@@ -353,32 +451,31 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
         throw new Error(`Error generating speech: ${speechResult.error}`);
       }
 
-      // Get authenticated audio URL for playback
-      console.log("Getting authenticated audio URL...");
+      let playableAudioUrl = speechResult.data.audioUrl;
+      let isGeneratedAudio = false;
 
-      // Check if this is a generated audio URL (which has CORS restrictions)
-      const isGeneratedAudio =
-        speechResult.data.audioUrl.includes("v2.api.audio/file/");
+      if (voiceProvider === "audiostack") {
+        // Check if this is a generated audio URL (which has CORS restrictions)
+        isGeneratedAudio = speechResult.data.audioUrl.includes("v2.api.audio/file/");
 
-      let playableAudioUrl = null;
-
-      if (isGeneratedAudio) {
-        console.log("Generated audio detected - CORS restrictions apply");
-        // For generated audio, we can't play it directly due to CORS
-        // We'll show a download option instead
-      } else {
-        // For preview audio, try to get authenticated version
-        const authenticatedAudioResult = await getAudioStackGeneratedAudio(
-          speechResult.data.audioUrl
-        );
-
-        if (authenticatedAudioResult.success) {
-          playableAudioUrl = authenticatedAudioResult.audioUrl;
+        if (isGeneratedAudio) {
+          console.log("Generated audio detected - CORS restrictions apply");
+          playableAudioUrl = null;
         } else {
-          console.error(
-            "Error getting authenticated audio:",
-            authenticatedAudioResult.error
+          // For preview audio, try to get authenticated version
+          const authenticatedAudioResult = await getAudioStackGeneratedAudio(
+            speechResult.data.audioUrl
           );
+
+          if (authenticatedAudioResult.success) {
+            playableAudioUrl = authenticatedAudioResult.audioUrl;
+          } else {
+            console.error(
+              "Error getting authenticated audio:",
+              authenticatedAudioResult.error
+            );
+            playableAudioUrl = null;
+          }
         }
       }
 
@@ -387,12 +484,16 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
       setDuration(speechResult.data.duration || estimatedTime);
       setGeneratedVoiceData({
         audioUrl: speechResult.data.audioUrl, // Keep original for backend
+        audioBlob: speechResult.data.audioBlob, // For ElevenLabs
         playableAudioUrl: playableAudioUrl, // Use authenticated for playback (null if CORS restricted)
         isGeneratedAudio: isGeneratedAudio, // Flag to show different UI
         duration: speechResult.data.duration || estimatedTime,
         format: speechResult.data.format || "mp3",
         textUsed: textToSpeak,
         voiceUsed: selectedVoice,
+        provider: voiceProvider,
+        model_id: speechResult.data.model_id,
+        voice_settings: speechResult.data.voice_settings,
       });
 
       // Ocultar el creador y mostrar el reproductor
@@ -430,35 +531,57 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
       return;
     }
 
-    if (!generatedVoiceData?.audioUrl) {
+    if (!generatedVoiceData) {
       alert("No hay audio generado para guardar.");
       return;
     }
 
     setIsSavingVoice(true);
     try {
-      const voiceData = {
-        name: voiceName.trim(),
-        description: voiceDescription.trim(),
-        audio_url: generatedVoiceData.audioUrl,
-        duration: generatedVoiceData.duration,
-        format: generatedVoiceData.format,
-        text_used: generatedVoiceData.textUsed,
-        audiostack_voice_id: getVoiceId(generatedVoiceData.voiceUsed),
-        audiostack_voice_name: generatedVoiceData.voiceUsed?.name,
-        project_id: projectId,
-      };
+      let result;
 
-      console.log("Saving voice with data:", voiceData);
+      if (generatedVoiceData.provider === "elevenlabs") {
+        // Para ElevenLabs, enviaremos el blob y los parámetros
+        const voiceData = {
+          name: voiceName.trim(),
+          description: voiceDescription.trim(),
+          audio_blob: generatedVoiceData.audioBlob,
+          duration: generatedVoiceData.duration,
+          format: generatedVoiceData.format,
+          text_used: generatedVoiceData.textUsed,
+          voice_id: getVoiceId(generatedVoiceData.voiceUsed),
+          voice_name: getVoiceName(generatedVoiceData.voiceUsed),
+          model_id: generatedVoiceData.model_id,
+          voice_settings: generatedVoiceData.voice_settings,
+          project_id: projectId,
+        };
 
-      const result = await createVoice(voiceData);
+        console.log("Saving ElevenLabs voice with data:", voiceData);
+        result = await createElevenLabsVoice(voiceData);
+      } else {
+        // Para AudioStack, usamos la función original
+        const voiceData = {
+          name: voiceName.trim(),
+          description: voiceDescription.trim(),
+          audio_url: generatedVoiceData.audioUrl,
+          duration: generatedVoiceData.duration,
+          format: generatedVoiceData.format,
+          text_used: generatedVoiceData.textUsed,
+          audiostack_voice_id: getVoiceId(generatedVoiceData.voiceUsed),
+          audiostack_voice_name: getVoiceName(generatedVoiceData.voiceUsed),
+          project_id: projectId,
+        };
+
+        console.log("Saving AudioStack voice with data:", voiceData);
+        result = await createVoice(voiceData);
+      }
 
       if (result.success) {
         alert("Voice saved successfully!");
         if (onVoiceCreated) {
           onVoiceCreated(result.data);
         }
-        onClose();
+        handleClose();
       } else {
         throw new Error(result.error || "Error desconocido al guardar la voz");
       }
@@ -539,6 +662,131 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
           {showVoiceCreator ? (
             /* Voice Creator View */
             <>
+              {/* Voice Provider Selection */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-white mb-3 montserrat-regular">
+                  Voice Provider
+                </label>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setVoiceProvider("elevenlabs")}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      voiceProvider === "elevenlabs"
+                        ? "bg-[#F2D543] text-primarioDark"
+                        : "bg-darkBoxSub text-white border border-gray-600 hover:border-gray-500"
+                    }`}
+                  >
+                    ElevenLabs
+                  </button>
+                  <button
+                    onClick={() => setVoiceProvider("audiostack")}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      voiceProvider === "audiostack"
+                        ? "bg-[#F2D543] text-primarioDark"
+                        : "bg-darkBoxSub text-white border border-gray-600 hover:border-gray-500"
+                    }`}
+                  >
+                    AudioStack
+                  </button>
+                </div>
+              </div>
+
+              {/* ElevenLabs Configuration */}
+              {voiceProvider === "elevenlabs" && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-white mb-3 montserrat-regular">
+                    ElevenLabs Configuration
+                  </label>
+                  <div className="bg-darkBoxSub rounded-lg p-4 space-y-4">
+                    {/* Model Selection */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-300 mb-2">
+                        Model
+                      </label>
+                      <select
+                        value={elevenLabsModel}
+                        onChange={(e) => setElevenLabsModel(e.target.value)}
+                        className="w-full px-3 py-2 bg-darkBox border border-gray-600 rounded text-white focus:border-[#F2D543] focus:outline-none text-sm"
+                      >
+                        <option value="eleven_multilingual_v2">Multilingual v2 (High Quality)</option>
+                        <option value="eleven_flash_v2_5">Flash v2.5 (Fast, Low Latency)</option>
+                        <option value="eleven_turbo_v2_5">Turbo v2.5 (Balanced)</option>
+                        <option value="eleven_v3_alpha">v3 Alpha (Most Expressive)</option>
+                      </select>
+                    </div>
+
+                    {/* Voice Settings */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-2">
+                          Stability: {voiceSettings.stability}
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.1"
+                          value={voiceSettings.stability}
+                          onChange={(e) => setVoiceSettings(prev => ({
+                            ...prev,
+                            stability: parseFloat(e.target.value)
+                          }))}
+                          className="w-full"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-2">
+                          Similarity Boost: {voiceSettings.similarity_boost}
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.1"
+                          value={voiceSettings.similarity_boost}
+                          onChange={(e) => setVoiceSettings(prev => ({
+                            ...prev,
+                            similarity_boost: parseFloat(e.target.value)
+                          }))}
+                          className="w-full"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-2">
+                          Style: {voiceSettings.style}
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.1"
+                          value={voiceSettings.style}
+                          onChange={(e) => setVoiceSettings(prev => ({
+                            ...prev,
+                            style: parseFloat(e.target.value)
+                          }))}
+                          className="w-full"
+                        />
+                      </div>
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={voiceSettings.use_speaker_boost}
+                          onChange={(e) => setVoiceSettings(prev => ({
+                            ...prev,
+                            use_speaker_boost: e.target.checked
+                          }))}
+                          className="mr-2"
+                        />
+                        <label className="text-xs font-medium text-gray-300">
+                          Use Speaker Boost
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Voice Selection */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-white mb-4 montserrat-regular">
@@ -621,17 +869,18 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <h4 className="text-white font-medium text-sm">
-                                {voice.name ||
-                                  voice.voiceName ||
-                                  voice.displayName ||
-                                  voice.id ||
-                                  "Unknown Voice"}
+                                {getVoiceName(voice)}
                               </h4>
                               <p className="text-gray-400 text-xs mt-1">
-                                {voice.language || voice.lang || "Unknown"} •{" "}
-                                {voice.gender || voice.sex || "Unknown"} •{" "}
-                                {voice.age || voice.ageGroup || "Unknown"}
+                                {getVoiceLanguage(voice)} •{" "}
+                                {getVoiceGender(voice)} •{" "}
+                                {getVoiceAge(voice)}
                               </p>
+                              {voiceProvider === "elevenlabs" && voice.labels?.description && (
+                                <p className="text-gray-500 text-xs mt-1">
+                                  {voice.labels.description}
+                                </p>
+                              )}
                             </div>
                             <button
                               onClick={(e) => {
