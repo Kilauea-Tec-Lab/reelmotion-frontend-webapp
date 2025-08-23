@@ -11,12 +11,6 @@ import {
   Square,
 } from "lucide-react";
 import {
-  getAudioStackVoices,
-  createAudioStackScript,
-  generateAudioStackSpeech,
-  createVoice,
-  getAudioStackPreview,
-  getAudioStackGeneratedAudio,
   getElevenLabsVoices,
   generateElevenLabsSpeech,
   createElevenLabsVoice,
@@ -59,7 +53,6 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
   const [playingVoiceId, setPlayingVoiceId] = useState(null);
 
   // ElevenLabs specific states
-  const [voiceProvider, setVoiceProvider] = useState("elevenlabs"); // "elevenlabs" or "audiostack"
   const [elevenLabsModel, setElevenLabsModel] = useState("eleven_multilingual_v2");
   const [voiceSettings, setVoiceSettings] = useState({
     stability: 0.5,
@@ -73,80 +66,45 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
   // Helper function to get voice ID
   const getVoiceId = (voice) => {
     if (!voice) return null;
-    if (voiceProvider === "elevenlabs") {
-      return voice.voice_id;
-    } else {
-      return voice.voiceId || voice.id || voice.voice_id || voice.identifier;
-    }
+    return voice.voice_id;
   };
 
   // Helper function to get voice audio sample URL
   const getVoiceAudioSample = (voice) => {
     if (!voice) return null;
-    if (voiceProvider === "elevenlabs") {
-      return voice.preview_url;
-    } else {
-      return (
-        voice.audioSample || voice.previewUrl || voice.sample_url || voice.preview
-      );
-    }
+    return voice.preview_url;
   };
 
   // Helper function to get voice name
   const getVoiceName = (voice) => {
     if (!voice) return "Unknown Voice";
-    if (voiceProvider === "elevenlabs") {
-      return voice.name;
-    } else {
-      return voice.name || voice.voiceName || voice.displayName || voice.id || "Unknown Voice";
-    }
+    return voice.name;
   };
 
   // Helper function to get voice language
   const getVoiceLanguage = (voice) => {
     if (!voice) return "Unknown";
-    if (voiceProvider === "elevenlabs") {
-      return voice.labels?.language || "Multi";
-    } else {
-      return voice.language || voice.lang || "Unknown";
-    }
+    return voice.labels?.language || "Multi";
   };
 
   // Helper function to get voice gender
   const getVoiceGender = (voice) => {
     if (!voice) return "Unknown";
-    if (voiceProvider === "elevenlabs") {
-      return voice.labels?.gender || "Unknown";
-    } else {
-      return voice.gender || voice.sex || "Unknown";
-    }
+    return voice.labels?.gender || "Unknown";
   };
 
   // Helper function to get voice age
   const getVoiceAge = (voice) => {
     if (!voice) return "Unknown";
-    if (voiceProvider === "elevenlabs") {
-      return voice.labels?.age || "Unknown";
-    } else {
-      return voice.age || voice.ageGroup || "Unknown";
-    }
+    return voice.labels?.age || "Unknown";
   };
 
-  // Load voices when modal opens or provider changes
+  // Load voices when modal opens
   useEffect(() => {
     if (isOpen) {
       loadVoices();
     }
-  }, [isOpen, voiceProvider]);
-
-  // Reset selection when provider changes
-  useEffect(() => {
-    setSelectedVoice(null);
-    setSearchTerm("");
-    setLanguageFilter("");
-    setGenderFilter("");
-    setAgeFilter("");
-  }, [voiceProvider]);
+  }, [isOpen]);
 
   // Filter and search logic
   useEffect(() => {
@@ -185,17 +143,12 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
     setFilteredVoices(filtered);
     setCurrentPage(1);
     setDisplayedVoices(filtered.slice(0, VOICES_PER_PAGE));
-  }, [availableVoices, searchTerm, languageFilter, genderFilter, ageFilter, voiceProvider]);
+  }, [availableVoices, searchTerm, languageFilter, genderFilter, ageFilter]);
 
   const loadVoices = async () => {
     setIsLoadingVoices(true);
     try {
-      let result;
-      if (voiceProvider === "elevenlabs") {
-        result = await getElevenLabsVoices();
-      } else {
-        result = await getAudioStackVoices();
-      }
+      const result = await getElevenLabsVoices();
       
       if (result.success && Array.isArray(result.voices)) {
         setAvailableVoices(result.voices);
@@ -329,21 +282,8 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
     }
 
     try {
-      let audioUrl;
-      
-      if (voiceProvider === "elevenlabs") {
-        // ElevenLabs preview URLs can be played directly
-        audioUrl = audioSampleUrl;
-      } else {
-        // Use authenticated preview function for AudioStack URLs
-        const previewResult = await getAudioStackPreview(audioSampleUrl);
-
-        if (!previewResult.success) {
-          console.error("Error getting audio preview:", previewResult.error);
-          return;
-        }
-        audioUrl = previewResult.audioUrl;
-      }
+      // ElevenLabs preview URLs can be played directly
+      const audioUrl = audioSampleUrl;
 
       const audio = new Audio(audioUrl);
       audio.volume = 0.7;
@@ -355,20 +295,12 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
       audio.onended = () => {
         setPlayingVoiceId(null);
         setPreviewAudio(null);
-        // Clean up blob URL if it was created
-        if (voiceProvider === "audiostack" && audioUrl.startsWith("blob:")) {
-          URL.revokeObjectURL(audioUrl);
-        }
       };
 
       audio.onerror = () => {
         console.error("Error playing voice preview");
         setPlayingVoiceId(null);
         setPreviewAudio(null);
-        // Clean up blob URL if it was created
-        if (voiceProvider === "audiostack" && audioUrl.startsWith("blob:")) {
-          URL.revokeObjectURL(audioUrl);
-        }
       };
 
       setPreviewAudio(audio);
@@ -401,49 +333,17 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
       text: textToSpeak,
       selectedVoice: selectedVoice,
       voiceId: voiceId,
-      provider: voiceProvider,
     });
 
     setIsGenerating(true);
     try {
-      let speechResult;
-
-      if (voiceProvider === "elevenlabs") {
-        // Use ElevenLabs API
-        speechResult = await generateElevenLabsSpeech({
-          text: textToSpeak,
-          voiceId: voiceId,
-          model_id: elevenLabsModel,
-          ...voiceSettings,
-        });
-      } else {
-        // Use AudioStack API (existing flow)
-        console.log("Creating script...");
-        const scriptResult = await createAudioStackScript({
-          text: textToSpeak,
-          projectName: "reelmotion",
-          moduleName: "voice_generation",
-          scriptName: `voice_${Date.now()}`,
-        });
-
-        if (!scriptResult.success) {
-          throw new Error(`Error creando script: ${scriptResult.error}`);
-        }
-
-        if (!scriptResult.data || !scriptResult.data.scriptId) {
-          throw new Error(
-            `Script creado pero sin scriptId: ${JSON.stringify(
-              scriptResult.data
-            )}`
-          );
-        }
-
-        console.log("Generating speech...");
-        speechResult = await generateAudioStackSpeech({
-          scriptId: scriptResult.data.scriptId,
-          voiceId: voiceId,
-        });
-      }
+      // Use ElevenLabs API
+      const speechResult = await generateElevenLabsSpeech({
+        text: textToSpeak,
+        voiceId: voiceId,
+        model_id: elevenLabsModel,
+        ...voiceSettings,
+      });
 
       console.log("Speech result:", speechResult);
 
@@ -451,47 +351,17 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
         throw new Error(`Error generating speech: ${speechResult.error}`);
       }
 
-      let playableAudioUrl = speechResult.data.audioUrl;
-      let isGeneratedAudio = false;
-
-      if (voiceProvider === "audiostack") {
-        // Check if this is a generated audio URL (which has CORS restrictions)
-        isGeneratedAudio = speechResult.data.audioUrl.includes("v2.api.audio/file/");
-
-        if (isGeneratedAudio) {
-          console.log("Generated audio detected - CORS restrictions apply");
-          playableAudioUrl = null;
-        } else {
-          // For preview audio, try to get authenticated version
-          const authenticatedAudioResult = await getAudioStackGeneratedAudio(
-            speechResult.data.audioUrl
-          );
-
-          if (authenticatedAudioResult.success) {
-            playableAudioUrl = authenticatedAudioResult.audioUrl;
-          } else {
-            console.error(
-              "Error getting authenticated audio:",
-              authenticatedAudioResult.error
-            );
-            playableAudioUrl = null;
-          }
-        }
-      }
-
       // Configurar el audio generado y cambiar al modo de reproductor
-      setGeneratedAudioUrl(playableAudioUrl);
+      setGeneratedAudioUrl(speechResult.data.audioUrl);
       setDuration(speechResult.data.duration || estimatedTime);
       setGeneratedVoiceData({
-        audioUrl: speechResult.data.audioUrl, // Keep original for backend
-        audioBlob: speechResult.data.audioBlob, // For ElevenLabs
-        playableAudioUrl: playableAudioUrl, // Use authenticated for playback (null if CORS restricted)
-        isGeneratedAudio: isGeneratedAudio, // Flag to show different UI
+        audioUrl: speechResult.data.audioUrl,
+        audioBlob: speechResult.data.audioBlob,
+        playableAudioUrl: speechResult.data.audioUrl,
         duration: speechResult.data.duration || estimatedTime,
         format: speechResult.data.format || "mp3",
         textUsed: textToSpeak,
         voiceUsed: selectedVoice,
-        provider: voiceProvider,
         model_id: speechResult.data.model_id,
         voice_settings: speechResult.data.voice_settings,
       });
@@ -538,46 +408,24 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
 
     setIsSavingVoice(true);
     try {
-      let result;
+      // Para ElevenLabs, enviaremos el blob y los parámetros
+      const voiceData = {
+        name: voiceName.trim(),
+        description: voiceDescription.trim(),
+        audio_blob: generatedVoiceData.audioBlob,
+        duration: generatedVoiceData.duration,
+        format: generatedVoiceData.format,
+        text_used: generatedVoiceData.textUsed,
+        voice_id: getVoiceId(generatedVoiceData.voiceUsed),
+        voice_name: getVoiceName(generatedVoiceData.voiceUsed),
+        model_id: generatedVoiceData.model_id,
+        voice_settings: generatedVoiceData.voice_settings,
+      };
 
-      if (generatedVoiceData.provider === "elevenlabs") {
-        // Para ElevenLabs, enviaremos el blob y los parámetros
-        const voiceData = {
-          name: voiceName.trim(),
-          description: voiceDescription.trim(),
-          audio_blob: generatedVoiceData.audioBlob,
-          duration: generatedVoiceData.duration,
-          format: generatedVoiceData.format,
-          text_used: generatedVoiceData.textUsed,
-          voice_id: getVoiceId(generatedVoiceData.voiceUsed),
-          voice_name: getVoiceName(generatedVoiceData.voiceUsed),
-          model_id: generatedVoiceData.model_id,
-          voice_settings: generatedVoiceData.voice_settings,
-          project_id: projectId,
-        };
-
-        console.log("Saving ElevenLabs voice with data:", voiceData);
-        result = await createElevenLabsVoice(voiceData);
-      } else {
-        // Para AudioStack, usamos la función original
-        const voiceData = {
-          name: voiceName.trim(),
-          description: voiceDescription.trim(),
-          audio_url: generatedVoiceData.audioUrl,
-          duration: generatedVoiceData.duration,
-          format: generatedVoiceData.format,
-          text_used: generatedVoiceData.textUsed,
-          audiostack_voice_id: getVoiceId(generatedVoiceData.voiceUsed),
-          audiostack_voice_name: getVoiceName(generatedVoiceData.voiceUsed),
-          project_id: projectId,
-        };
-
-        console.log("Saving AudioStack voice with data:", voiceData);
-        result = await createVoice(voiceData);
-      }
+      console.log("Saving ElevenLabs voice with data:", voiceData);
+      const result = await createElevenLabsVoice(voiceData);
 
       if (result.success) {
-        alert("Voice saved successfully!");
         if (onVoiceCreated) {
           onVoiceCreated(result.data);
         }
@@ -597,8 +445,7 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
   const togglePlayPause = () => {
     if (
       !audioRef.current ||
-      !generatedAudioUrl ||
-      generatedVoiceData?.isGeneratedAudio
+      !generatedAudioUrl
     )
       return;
 
@@ -623,7 +470,7 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
   };
 
   const handleSeek = (e) => {
-    if (!audioRef.current || generatedVoiceData?.isGeneratedAudio) return;
+    if (!audioRef.current) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const pos = (e.clientX - rect.left) / rect.width;
@@ -662,41 +509,13 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
           {showVoiceCreator ? (
             /* Voice Creator View */
             <>
-              {/* Voice Provider Selection */}
+
+
+              {/* Voice Configuration */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-white mb-3 montserrat-regular">
-                  Voice Provider
+                  Voice Configuration
                 </label>
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => setVoiceProvider("elevenlabs")}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      voiceProvider === "elevenlabs"
-                        ? "bg-[#F2D543] text-primarioDark"
-                        : "bg-darkBoxSub text-white border border-gray-600 hover:border-gray-500"
-                    }`}
-                  >
-                    ElevenLabs
-                  </button>
-                  <button
-                    onClick={() => setVoiceProvider("audiostack")}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      voiceProvider === "audiostack"
-                        ? "bg-[#F2D543] text-primarioDark"
-                        : "bg-darkBoxSub text-white border border-gray-600 hover:border-gray-500"
-                    }`}
-                  >
-                    AudioStack
-                  </button>
-                </div>
-              </div>
-
-              {/* ElevenLabs Configuration */}
-              {voiceProvider === "elevenlabs" && (
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-white mb-3 montserrat-regular">
-                    ElevenLabs Configuration
-                  </label>
                   <div className="bg-darkBoxSub rounded-lg p-4 space-y-4">
                     {/* Model Selection */}
                     <div>
@@ -785,7 +604,6 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
                     </div>
                   </div>
                 </div>
-              )}
 
               {/* Voice Selection */}
               <div className="mb-6">
@@ -876,7 +694,7 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
                                 {getVoiceGender(voice)} •{" "}
                                 {getVoiceAge(voice)}
                               </p>
-                              {voiceProvider === "elevenlabs" && voice.labels?.description && (
+                              {voice.labels?.description && (
                                 <p className="text-gray-500 text-xs mt-1">
                                   {voice.labels.description}
                                 </p>
@@ -988,104 +806,61 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
 
                 {/* Audio Player */}
                 <div className="bg-darkBoxSub rounded-lg p-6">
-                  {generatedVoiceData?.isGeneratedAudio ? (
-                    /* Generated audio with CORS restrictions - show info only */
-                    <div className="text-center py-8">
-                      <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-4">
-                        <div className="flex items-center justify-center mb-2">
-                          <Mic className="w-6 h-6 mr-2" />
-                          <p className="font-medium">
-                            Voice Generated Successfully!
-                          </p>
-                        </div>
-                        <p className="text-sm">
-                          Your voice has been generated and is ready to save.
-                        </p>
-                      </div>
-
-                      <div className="text-white space-y-2">
-                        <p className="font-medium">Generated Voice Details:</p>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-4">
+                      <button
+                        onClick={togglePlayPause}
+                        disabled={!generatedAudioUrl}
+                        className={`p-3 rounded-full transition-colors ${
+                          generatedAudioUrl
+                            ? "bg-[#F2D543] text-primarioDark hover:bg-[#f2f243]"
+                            : "bg-gray-600 text-gray-400 cursor-not-allowed"
+                        }`}
+                      >
+                        {isPlaying ? (
+                          <Pause className="w-6 h-6" />
+                        ) : (
+                          <Play className="w-6 h-6" />
+                        )}
+                      </button>
+                      <div className="text-white">
+                        <p className="font-medium">Generated Voice</p>
                         <p className="text-sm text-gray-400">
-                          Duration: ~{formatTime(duration)}
-                        </p>
-                        <p className="text-sm text-gray-400">
-                          Format: {generatedVoiceData?.format || "MP3"}
-                        </p>
-                        <p className="text-sm text-gray-400">
-                          Voice:{" "}
-                          {generatedVoiceData?.voiceUsed?.name ||
-                            "Selected Voice"}
-                        </p>
-                      </div>
-
-                      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-blue-800 text-sm">
-                          <strong>Note:</strong> Generated audio cannot be
-                          previewed due to security restrictions, but it will be
-                          properly saved and accessible in your project.
+                          {formatTime(currentTime)} / {formatTime(duration)}
                         </p>
                       </div>
                     </div>
-                  ) : (
-                    /* Regular audio player for preview audio */
-                    <>
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-4">
-                          <button
-                            onClick={togglePlayPause}
-                            disabled={!generatedAudioUrl}
-                            className={`p-3 rounded-full transition-colors ${
-                              generatedAudioUrl
-                                ? "bg-[#F2D543] text-primarioDark hover:bg-[#f2f243]"
-                                : "bg-gray-600 text-gray-400 cursor-not-allowed"
-                            }`}
-                          >
-                            {isPlaying ? (
-                              <Pause className="w-6 h-6" />
-                            ) : (
-                              <Play className="w-6 h-6" />
-                            )}
-                          </button>
-                          <div className="text-white">
-                            <p className="font-medium">Generated Voice</p>
-                            <p className="text-sm text-gray-400">
-                              {formatTime(currentTime)} / {formatTime(duration)}
-                            </p>
-                          </div>
-                        </div>
-                        <Volume2 className="w-5 h-5 text-gray-400" />
-                      </div>
+                    <Volume2 className="w-5 h-5 text-gray-400" />
+                  </div>
 
-                      {/* Progress Bar */}
-                      <div className="relative">
-                        <div
-                          className="w-full h-2 bg-gray-600 rounded-full cursor-pointer"
-                          onClick={handleSeek}
-                        >
-                          <div
-                            className="h-full bg-[#F2D543] rounded-full transition-all duration-150"
-                            style={{
-                              width:
-                                duration > 0
-                                  ? `${(currentTime / duration) * 100}%`
-                                  : "0%",
-                            }}
-                          />
-                        </div>
-                      </div>
+                  {/* Progress Bar */}
+                  <div className="relative">
+                    <div
+                      className="w-full h-2 bg-gray-600 rounded-full cursor-pointer"
+                      onClick={handleSeek}
+                    >
+                      <div
+                        className="h-full bg-[#F2D543] rounded-full transition-all duration-150"
+                        style={{
+                          width:
+                            duration > 0
+                              ? `${(currentTime / duration) * 100}%`
+                              : "0%",
+                        }}
+                      />
+                    </div>
+                  </div>
 
-                      {/* Audio Element */}
-                      {generatedAudioUrl && (
-                        <audio
-                          ref={audioRef}
-                          src={generatedAudioUrl}
-                          onTimeUpdate={handleTimeUpdate}
-                          onLoadedMetadata={handleLoadedMetadata}
-                          onEnded={() => setIsPlaying(false)}
-                          className="hidden"
-                        />
-                      )}
-                    </>
+                  {/* Audio Element */}
+                  {generatedAudioUrl && (
+                    <audio
+                      ref={audioRef}
+                      src={generatedAudioUrl}
+                      onTimeUpdate={handleTimeUpdate}
+                      onLoadedMetadata={handleLoadedMetadata}
+                      onEnded={() => setIsPlaying(false)}
+                      className="hidden"
+                    />
                   )}
                 </div>
               </div>
