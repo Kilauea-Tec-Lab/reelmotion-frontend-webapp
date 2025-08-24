@@ -7,6 +7,9 @@ import {
   ChevronDown,
   Cog,
   Play,
+  RefreshCw,
+  CreditCard,
+  DollarSign,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -15,6 +18,78 @@ import PostModal from "../discover/components/post-modal";
 import { getUserNotifications, deleteNotification } from "../auth/functions";
 import { getPostById } from "../discover/functions";
 import { createPusherClient } from "@/pusher";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  CardElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+
+// Initialize Stripe
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+
+// Card input component with Stripe Elements
+function CardInput({ onPaymentProcess, isProcessing, purchaseAmount }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [cardComplete, setCardComplete] = useState(false);
+  const [cardError, setCardError] = useState(null);
+
+  const handleCardChange = (event) => {
+    setCardComplete(event.complete);
+    setCardError(event.error?.message || null);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!stripe || !elements || !cardComplete) return;
+    await onPaymentProcess(stripe, elements);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="p-4 border border-gray-600 rounded-lg bg-darkBoxSub">
+        <CardElement
+          onChange={handleCardChange}
+          options={{
+            style: {
+              base: {
+                fontSize: "16px",
+                color: "#ffffff",
+                "::placeholder": {
+                  color: "#9ca3af",
+                },
+              },
+              invalid: {
+                color: "#ef4444",
+              },
+            },
+          }}
+        />
+      </div>
+
+      {cardError && (
+        <div className="text-red-400 text-sm mt-2">{cardError}</div>
+      )}
+
+      <button
+        type="submit"
+        disabled={!stripe || isProcessing || !cardComplete}
+        className="w-full px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        {isProcessing && (
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        )}
+        {isProcessing
+          ? "Processing..."
+          : !cardComplete
+          ? "Enter card details"
+          : `Pay $${purchaseAmount}`}
+      </button>
+    </form>
+  );
+}
 
 function MainTopMenu({ user_info }) {
   const navigate = useNavigate();
@@ -34,6 +109,17 @@ function MainTopMenu({ user_info }) {
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [selectedNotificationPost, setSelectedNotificationPost] =
     useState(null);
+
+  // Token system states
+  const [tokens, setTokens] = useState(0);
+  const [isLoadingTokens, setIsLoadingTokens] = useState(false);
+  const [showTokenModal, setShowTokenModal] = useState(false);
+  const [tokenPurchaseStep, setTokenPurchaseStep] = useState("select-amount"); // 'select-amount', 'payment-method', 'confirm', 'success'
+  const [purchaseAmount, setPurchaseAmount] = useState(6); // Amount in dollars
+  const [savedCards, setSavedCards] = useState([]);
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [useNewCard, setUseNewCard] = useState(true);
 
   //WEBSOCKET
   const pusherClient = createPusherClient();
@@ -203,6 +289,149 @@ function MainTopMenu({ user_info }) {
     setSelectedNotificationPost(null);
   };
 
+  // Token management functions
+  const fetchUserTokens = async () => {
+    setIsLoadingTokens(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}user/tokens`,
+        {
+          headers: {
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        setTokens(data.tokens || 0);
+      }
+    } catch (error) {
+      console.error("Error fetching tokens:", error);
+    } finally {
+      setIsLoadingTokens(false);
+    }
+  };
+
+  const handleOpenTokenModal = () => {
+    setShowTokenModal(true);
+    setTokenPurchaseStep("select-amount");
+    setPurchaseAmount(6);
+    setSelectedCard(null);
+    setUseNewCard(true);
+  };
+
+  const handleCloseTokenModal = () => {
+    setShowTokenModal(false);
+    setTokenPurchaseStep("select-amount");
+    setPurchaseAmount(6);
+    setSelectedCard(null);
+    setUseNewCard(true);
+    setIsProcessingPayment(false);
+  };
+
+  // Calculate tokens from dollar amount (1 dollar = 100 tokens)
+  const calculateTokens = (dollars) => dollars * 100;
+
+  const handleAmountChange = (e) => {
+    const value = Math.max(6, parseInt(e.target.value) || 6);
+    setPurchaseAmount(value);
+  };
+
+  const handleContinueToPayment = () => {
+    if (purchaseAmount >= 6) {
+      setTokenPurchaseStep("payment-method");
+    }
+  };
+
+  const handleProcessPayment = async (stripe, elements) => {
+    setIsProcessingPayment(true);
+    try {
+      if (useNewCard && elements) {
+        const cardElement = elements.getElement(CardElement);
+
+        // Create payment method
+        const { error, paymentMethod } = await stripe.createPaymentMethod({
+          type: "card",
+          card: cardElement,
+        });
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        // Create payment intent on backend
+        const response = await fetch(
+          `${
+            import.meta.env.VITE_APP_BACKEND_URL
+          }payments/create-payment-intent`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + Cookies.get("token"),
+            },
+            body: JSON.stringify({
+              amount: purchaseAmount * 100, // Convert to cents
+              currency: "usd",
+              payment_method_id: paymentMethod.id,
+            }),
+          }
+        );
+
+        const { client_secret } = await response.json();
+
+        // Confirm payment
+        const { error: confirmError } = await stripe.confirmCardPayment(
+          client_secret
+        );
+
+        if (confirmError) {
+          throw new Error(confirmError.message);
+        }
+      } else {
+        // Use saved card
+        const response = await fetch(
+          `${import.meta.env.VITE_APP_BACKEND_URL}payments/charge-saved-card`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + Cookies.get("token"),
+            },
+            body: JSON.stringify({
+              amount: purchaseAmount * 100,
+              currency: "usd",
+              payment_method_id: selectedCard,
+            }),
+          }
+        );
+
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.message || "Payment failed");
+        }
+      }
+
+      // Update tokens after successful payment
+      const newTokens = calculateTokens(purchaseAmount);
+      setTokens((prev) => prev + newTokens);
+      setTokenPurchaseStep("success");
+
+      // Refresh user tokens from server
+      await fetchUserTokens();
+    } catch (error) {
+      console.error("Error processing payment:", error);
+      alert(`Payment failed: ${error.message}`);
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  // Load tokens on component mount
+  useEffect(() => {
+    fetchUserTokens();
+  }, []);
+
   return (
     <header className="bg-primarioDark h-15 pt-1 flex items-center justify-between px-6 fixed top-0 left-0 right-0 z-50  border-b pb-2 border-gray-800">
       {/* Project Modal */}
@@ -220,7 +449,6 @@ function MainTopMenu({ user_info }) {
       />
 
       {/* Logo y navegación principal */}
-
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-2">
           <img
@@ -302,6 +530,23 @@ function MainTopMenu({ user_info }) {
 
       {/* Controles del usuario */}
       <div className="flex items-center space-x-6">
+        {/* Token indicator */}
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 bg-darkBoxSub px-3 py-1.5 rounded-lg">
+            <CreditCard className="h-4 w-4 text-primarioLogo" />
+            <span className="text-white text-sm font-medium montserrat-medium">
+              Tokens: {isLoadingTokens ? "..." : tokens}
+            </span>
+          </div>
+
+          <button
+            onClick={handleOpenTokenModal}
+            className="px-3 py-1.5 bg-primarioLogo hover:bg-primarioLogo/80 text-white text-xs font-medium rounded-lg transition-colors montserrat-medium"
+          >
+            <DollarSign className="h-3 w-3 inline-block mr-1 mt-[-2px]" />
+            Buy Tokens
+          </button>
+        </div>
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
@@ -446,6 +691,267 @@ function MainTopMenu({ user_info }) {
           )}
         </div>
       </div>
+
+      {/* Token Purchase Modal */}
+      {showTokenModal && (
+        <Elements stripe={stripePromise}>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-darkBox rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-600">
+                <h2 className="text-xl font-semibold text-white montserrat-medium">
+                  {tokenPurchaseStep === "select-amount" && "Buy Tokens"}
+                  {tokenPurchaseStep === "payment-method" && "Payment Method"}
+                  {tokenPurchaseStep === "confirm" && "Confirm Purchase"}
+                  {tokenPurchaseStep === "success" && "Purchase Successful"}
+                </h2>
+                <button
+                  onClick={handleCloseTokenModal}
+                  className="text-gray-400 hover:text-white transition-colors text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6">
+                {/* Step 1: Select Amount */}
+                {tokenPurchaseStep === "select-amount" && (
+                  <div className="space-y-6">
+                    <p className="text-gray-300 text-sm montserrat-regular">
+                      Enter the amount you want to spend. Each dollar gives you
+                      100 tokens. Minimum purchase is $6.
+                    </p>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-white text-sm font-medium mb-2">
+                          Amount (USD)
+                        </label>
+                        <input
+                          type="number"
+                          min="6"
+                          step="1"
+                          value={purchaseAmount}
+                          onChange={handleAmountChange}
+                          className="w-full px-4 py-3 bg-darkBoxSub border border-gray-600 rounded-lg text-white text-lg font-medium focus:outline-none focus:border-primarioLogo transition-colors"
+                          placeholder="6"
+                        />
+                      </div>
+
+                      <div className="bg-darkBoxSub p-4 rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">Amount:</span>
+                          <span className="text-white font-medium">
+                            ${purchaseAmount}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-gray-400">
+                            Tokens you'll receive:
+                          </span>
+                          <span className="text-primarioLogo font-semibold">
+                            {calculateTokens(purchaseAmount)} tokens
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center mt-2 text-sm">
+                          <span className="text-gray-500">Rate:</span>
+                          <span className="text-gray-500">$1 = 100 tokens</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleContinueToPayment}
+                      disabled={purchaseAmount < 6}
+                      className="w-full px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Continue to Payment
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 2: Payment Method */}
+                {tokenPurchaseStep === "payment-method" && (
+                  <div className="space-y-6">
+                    <div className="bg-darkBoxSub p-4 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Amount:</span>
+                        <span className="text-white font-medium">
+                          ${purchaseAmount}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-gray-400">Tokens:</span>
+                        <span className="text-primarioLogo font-semibold">
+                          {calculateTokens(purchaseAmount)} tokens
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h3 className="text-white font-medium montserrat-medium">
+                        Payment Method
+                      </h3>
+
+                      {/* New Card Option */}
+                      <div
+                        onClick={() => setUseNewCard(true)}
+                        className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                          useNewCard
+                            ? "border-primarioLogo bg-primarioLogo bg-opacity-10"
+                            : "border-gray-600 hover:border-gray-500"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <CreditCard className="h-5 w-5 text-primarioLogo" />
+                          <div>
+                            <div className="text-white font-medium">
+                              New Card
+                            </div>
+                            <div className="text-gray-400 text-sm">
+                              Add a new payment method
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Saved Cards */}
+                      {savedCards.map((card) => (
+                        <div
+                          key={card.id}
+                          onClick={() => {
+                            setUseNewCard(false);
+                            setSelectedCard(card.id);
+                          }}
+                          className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                            !useNewCard && selectedCard === card.id
+                              ? "border-primarioLogo bg-primarioLogo bg-opacity-10"
+                              : "border-gray-600 hover:border-gray-500"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <CreditCard className="h-5 w-5 text-primarioLogo" />
+                            <div>
+                              <div className="text-white font-medium">
+                                •••• •••• •••• {card.last4}
+                              </div>
+                              <div className="text-gray-400 text-sm">
+                                {card.brand} • Expires {card.exp_month}/
+                                {card.exp_year}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {useNewCard && (
+                      <div className="mt-6">
+                        <h4 className="text-white font-medium mb-3">
+                          Card Details
+                        </h4>
+                        <CardInput
+                          onPaymentProcess={handleProcessPayment}
+                          isProcessing={isProcessingPayment}
+                          purchaseAmount={purchaseAmount}
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setTokenPurchaseStep("select-amount")}
+                        disabled={isProcessingPayment}
+                        className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                      >
+                        Back
+                      </button>
+                      {!useNewCard && (
+                        <button
+                          onClick={() => handleProcessPayment(null, null)}
+                          disabled={isProcessingPayment || !selectedCard}
+                          className="flex-1 px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {isProcessingPayment && (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          )}
+                          {isProcessingPayment
+                            ? "Processing..."
+                            : `Pay $${purchaseAmount}`}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Success */}
+                {tokenPurchaseStep === "success" && (
+                  <div className="text-center space-y-6">
+                    <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto">
+                      <svg
+                        className="w-8 h-8 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    </div>
+
+                    <div>
+                      <h3 className="text-white text-xl font-semibold montserrat-medium mb-2">
+                        Purchase Successful!
+                      </h3>
+                      <p className="text-gray-300 montserrat-regular">
+                        {calculateTokens(purchaseAmount)} tokens have been added
+                        to your account.
+                      </p>
+                    </div>
+
+                    <div className="bg-darkBoxSub p-4 rounded-lg space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Amount Paid:</span>
+                        <span className="text-white font-medium">
+                          ${purchaseAmount}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Tokens Received:</span>
+                        <span className="text-primarioLogo font-semibold">
+                          {calculateTokens(purchaseAmount)} tokens
+                        </span>
+                      </div>
+                      <div className="border-t border-gray-600 pt-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">
+                            New Token Balance:
+                          </span>
+                          <span className="text-primarioLogo font-semibold text-lg">
+                            {tokens} tokens
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleCloseTokenModal}
+                      className="w-full px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors"
+                    >
+                      Continue
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </Elements>
+      )}
     </header>
   );
 }

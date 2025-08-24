@@ -243,9 +243,9 @@ function ModalPreview({ isOpen, onClose, type, data }) {
         return (
           <div className="w-full h-full flex flex-col items-center justify-center space-y-6">
             {/* Audio Visualization */}
-            <div className="w-48 h-48 bg-gradient-to-br from-[#f2f243] to-yellow-500 rounded-full flex items-center justify-center shadow-xl">
-              <div className="w-32 h-32 bg-primarioDark rounded-full flex items-center justify-center">
-                <Volume2 className="w-16 h-16 text-[#f2f243]" />
+            <div className="w-48 h-48 rounded-full flex items-center justify-center">
+              <div className="w-32 h-32 bg-darkBoxSub rounded-full flex items-center justify-center">
+                <Volume2 className="w-16 h-16 text-primarioLogo" />
               </div>
             </div>
 

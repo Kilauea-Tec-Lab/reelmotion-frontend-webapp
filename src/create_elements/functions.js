@@ -238,7 +238,8 @@ export async function searchProjects(projectName) {
 }
 
 // ELEVENLABS API FUNCTIONS
-const ELEVENLABS_API_KEY = "sk_2255a4e8aaeaf2c8211f2ffc968686b602250cd260314f16";
+const ELEVENLABS_API_KEY =
+  "sk_2255a4e8aaeaf2c8211f2ffc968686b602250cd260314f16";
 const ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1";
 
 // Obtener voces disponibles de ElevenLabs
@@ -359,7 +360,7 @@ export async function createElevenLabsVoice(voiceData) {
   try {
     // Convertir el blob de audio a base64
     const base64Audio = await blobToBase64(voiceData.audio_blob);
-    
+
     const requestBody = {
       name: voiceData.name,
       description: voiceData.description,
@@ -371,6 +372,7 @@ export async function createElevenLabsVoice(voiceData) {
       voice_name: voiceData.voice_name,
       model_id: voiceData.model_id,
       voice_settings: voiceData.voice_settings,
+      project_id: voiceData?.project_id,
     };
 
     const response = await fetch(
