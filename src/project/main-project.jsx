@@ -17,6 +17,8 @@ import ModalEditScene from "./components/modal-edit-scene";
 import ModalDeleteScene from "./components/modal-delete-scene";
 import ModalEditFrame from "./components/modal-edit-frame";
 import ModalDeleteFrame from "./components/modal-delete-frame";
+import ModalEditVoice from "./components/modal-edit-voice";
+import ModalDeleteVoice from "./components/modal-delete-voice";
 import ModalPreview from "../components/modal-preview";
 import { createPusherClient } from "../pusher";
 import { getProjects } from "./functions";
@@ -619,9 +621,9 @@ function MainProject() {
                   onDoubleClick={() => handlePreview(voice, "audio")}
                 >
                   <div className="relative">
-                    <div className="w-32 h-32 bg-gradient-to-br from-[#f2f243] to-yellow-500 rounded-2xl flex items-center justify-center">
-                      <div className="w-20 h-20 bg-primarioDark rounded-full flex items-center justify-center">
-                        <Volume2 className="w-10 h-10 text-[#f2f243]" />
+                    <div className="w-32 h-32 rounded-2xl flex items-center justify-center">
+                      <div className="w-20 h-20 bg-darkBox rounded-full flex items-center justify-center">
+                        <Volume2 className="w-10 h-10 text-primarioLogo" />
                       </div>
                     </div>
 
@@ -1013,6 +1015,20 @@ function MainProject() {
         onClose={() => setIsDeleteFrameModalOpen(false)}
         frame={selectedFrame}
         onConfirm={handleFrameDeleted}
+      />
+
+      <ModalEditVoice
+        isOpen={isEditVoiceModalOpen}
+        onClose={() => setIsEditVoiceModalOpen(false)}
+        voice={selectedVoice}
+        onVoiceUpdated={handleVoiceUpdated}
+      />
+
+      <ModalDeleteVoice
+        isOpen={isDeleteVoiceModalOpen}
+        onClose={() => setIsDeleteVoiceModalOpen(false)}
+        voice={selectedVoice}
+        onConfirm={handleVoiceDeleted}
       />
     </div>
   );

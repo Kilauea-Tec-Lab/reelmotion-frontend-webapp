@@ -53,6 +53,8 @@ function Editor() {
   const [videoDurations, setVideoDurations] = useState({});
   // Collapsible projects state (collapsed by default)
   const [expandedProjects, setExpandedProjects] = useState({});
+  // Collapsible voice groups state (collapsed by default)
+  const [expandedVoiceGroups, setExpandedVoiceGroups] = useState({});
 
   // Extract projects and scenes from loader data
   const projects = data?.projects || [];
@@ -282,6 +284,11 @@ function Editor() {
 
     // For main video, it will be updated in syncMediaWithTime
     // considering both master volume and specific video volume
+  };
+
+  // Helper function to check if there are any voices available
+  const hasVoices = () => {
+    return voiceList.some((group) => group.voices && group.voices.length > 0);
   };
 
   // Functions for drag and drop
@@ -1774,10 +1781,12 @@ function Editor() {
   // Effect to clean up audio references when timeline changes
   useEffect(() => {
     // Get current element IDs from timeline
-    const currentElementIds = new Set(arrayVideoMake.map(element => element.id));
-    
+    const currentElementIds = new Set(
+      arrayVideoMake.map((element) => element.id)
+    );
+
     // Clean up audio references for elements no longer in timeline
-    Object.keys(audioRefs.current).forEach(elementId => {
+    Object.keys(audioRefs.current).forEach((elementId) => {
       if (!currentElementIds.has(elementId)) {
         const audio = audioRefs.current[elementId];
         if (audio) {
@@ -1808,13 +1817,50 @@ function Editor() {
     const mus = Array.isArray(data?.music)
       ? data.music.map((m) => normalizeAudio(m, "music"))
       : [];
-    const voi = Array.isArray(data?.voices)
+
+    // Restructure voices by project and general voices
+    let structuredVoices = [];
+
+    // Add voices from projects
+    if (Array.isArray(data?.projects)) {
+      data.projects.forEach((project) => {
+        if (Array.isArray(project.voices) && project.voices.length > 0) {
+          structuredVoices.push({
+            id: `project_${project.id}`,
+            name: project.name,
+            type: "project",
+            voices: project.voices.map((v) => normalizeAudio(v, "voice")),
+          });
+        }
+      });
+    }
+
+    // Add general voices (voices that come directly in data.voices without project)
+    const generalVoices = Array.isArray(data?.voices)
       ? data.voices.map((v) => normalizeAudio(v, "voice"))
       : [];
-    if (mus.length) setMusicList(mus);
-    if (voi.length) setVoiceList(voi);
 
-    // Preload and cache durations
+    if (generalVoices.length > 0) {
+      structuredVoices.push({
+        id: "general_voices",
+        name: "General",
+        type: "general",
+        voices: generalVoices,
+      });
+    }
+
+    if (mus.length) setMusicList(mus);
+    if (structuredVoices.length) {
+      setVoiceList(structuredVoices);
+      // Initialize expanded state for voice groups (collapsed by default)
+      const initialExpandedState = {};
+      structuredVoices.forEach((group) => {
+        initialExpandedState[group.id] = false;
+      });
+      setExpandedVoiceGroups(initialExpandedState);
+    }
+
+    // Preload and cache durations for all voices
     const preload = async (items) => {
       for (const it of items) {
         const u = it.url;
@@ -1828,17 +1874,26 @@ function Editor() {
           if (it.type === "voice") {
             setVoiceList((prev) =>
               Array.isArray(prev)
-                ? prev.map((v) => (v.url === u ? { ...v, duration: d } : v))
+                ? prev.map((group) => ({
+                    ...group,
+                    voices: group.voices.map((v) =>
+                      v.url === u ? { ...v, duration: d } : v
+                    ),
+                  }))
                 : prev
             );
           }
         }
       }
     };
+
     preload(mus);
-    preload(voi);
+    // Preload voices from all groups
+    structuredVoices.forEach((group) => {
+      preload(group.voices);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data?.music, data?.voices]);
+  }, [data?.music, data?.voices, data?.projects]);
 
   // Function to handle timeline click
   const handleTimelineClick = (e) => {
@@ -2432,10 +2487,16 @@ function Editor() {
   // Function to delete element from timeline
   const handleDeleteElement = (elementId) => {
     // Find the element to delete
-    const elementToDelete = arrayVideoMake.find((item) => item.id === elementId);
-    
+    const elementToDelete = arrayVideoMake.find(
+      (item) => item.id === elementId
+    );
+
     // Clean up audio references for music and voice elements
-    if (elementToDelete && (elementToDelete.channel === "music" || elementToDelete.channel === "voice")) {
+    if (
+      elementToDelete &&
+      (elementToDelete.channel === "music" ||
+        elementToDelete.channel === "voice")
+    ) {
       const audio = audioRefs.current[elementId];
       if (audio) {
         audio.pause();
@@ -2444,7 +2505,7 @@ function Editor() {
         delete audioRefs.current[elementId];
       }
     }
-    
+
     const newElements = arrayVideoMake.filter((item) => item.id !== elementId);
     updateTimelineWithHistory(newElements);
 
@@ -3388,7 +3449,34 @@ function Editor() {
     setIsUploadingVoice(true);
     try {
       const newVoice = await handleAudioDrop(audioFiles, "voice");
-      setVoiceList((prev) => [...prev, ...newVoice]);
+      setVoiceList((prev) => {
+        // Find or create General group
+        const existingGroups = Array.isArray(prev) ? prev : [];
+        const generalGroupIndex = existingGroups.findIndex(
+          (group) => group.type === "general"
+        );
+
+        if (generalGroupIndex !== -1) {
+          // Update existing General group
+          const updatedGroups = [...existingGroups];
+          updatedGroups[generalGroupIndex] = {
+            ...updatedGroups[generalGroupIndex],
+            voices: [...updatedGroups[generalGroupIndex].voices, ...newVoice],
+          };
+          return updatedGroups;
+        } else {
+          // Create new General group
+          return [
+            ...existingGroups,
+            {
+              id: "general_voices",
+              name: "General",
+              type: "general",
+              voices: newVoice,
+            },
+          ];
+        }
+      });
     } catch (error) {
       alert("Error al subir voz. Intenta nuevamente.");
     } finally {
@@ -3403,7 +3491,34 @@ function Editor() {
     setIsUploadingVoice(true);
     try {
       const newVoice = await handleAudioDrop(files, "voice");
-      setVoiceList((prev) => [...prev, ...newVoice]);
+      setVoiceList((prev) => {
+        // Find or create General group
+        const existingGroups = Array.isArray(prev) ? prev : [];
+        const generalGroupIndex = existingGroups.findIndex(
+          (group) => group.type === "general"
+        );
+
+        if (generalGroupIndex !== -1) {
+          // Update existing General group
+          const updatedGroups = [...existingGroups];
+          updatedGroups[generalGroupIndex] = {
+            ...updatedGroups[generalGroupIndex],
+            voices: [...updatedGroups[generalGroupIndex].voices, ...newVoice],
+          };
+          return updatedGroups;
+        } else {
+          // Create new General group
+          return [
+            ...existingGroups,
+            {
+              id: "general_voices",
+              name: "General",
+              type: "general",
+              voices: newVoice,
+            },
+          ];
+        }
+      });
     } catch (error) {
       alert("Error al subir voz. Intenta nuevamente.");
     } finally {
@@ -3437,7 +3552,16 @@ function Editor() {
       );
       const data = await response.json();
       if (response.ok && data.code === 200) {
-        setVoiceList((prev) => prev.filter((m) => m.id !== voiceToDelete.id));
+        setVoiceList((prev) => {
+          return prev
+            .map((group) => ({
+              ...group,
+              voices: group.voices.filter(
+                (voice) => voice.id !== voiceToDelete.id
+              ),
+            }))
+            .filter((group) => group.voices.length > 0); // Remove empty groups
+        });
         setShowDeleteVoiceModal(false);
         setVoiceToDelete(null);
       } else {
@@ -4044,7 +4168,7 @@ function Editor() {
                 {/* Add Voice Button - always visible */}
                 <button
                   onClick={() =>
-                    (voiceList.length > 0
+                    (hasVoices()
                       ? document.getElementById("voice-upload-hidden")
                       : document.getElementById("voice-upload")
                     )?.click()
@@ -4057,7 +4181,7 @@ function Editor() {
                 </button>
 
                 {/* Upload area when empty */}
-                {voiceList.length === 0 && (
+                {!hasVoices() && (
                   <div className="mb-4 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-primarioLogo transition-colors duration-200">
                     <input
                       type="file"
@@ -4083,7 +4207,7 @@ function Editor() {
                 )}
 
                 {/* Hidden input when list exists */}
-                {voiceList.length > 0 && (
+                {hasVoices() && (
                   <input
                     type="file"
                     multiple
@@ -4095,49 +4219,85 @@ function Editor() {
                   />
                 )}
 
-                {/* Voice list */}
+                {/* Voice list organized by groups */}
                 <div className="space-y-3 mt-11 overflow-y-auto h-full">
-                  {voiceList.map((voice, index) => (
-                    <div
-                      key={voice.id || index}
-                      draggable={!isUploadingVoice}
-                      onDragStart={(e) => handleDragStart(e, voice, "voice")}
-                      onClick={() => addItemToTimeline(voice, "voice")}
-                      onMouseEnter={() =>
-                        setHoveredVoiceItem(voice.id || index)
-                      }
-                      onMouseLeave={() => setHoveredVoiceItem(null)}
-                      className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
-                    >
-                      {/* Delete Button */}
-                      <button
-                        onClick={(e) => handleDeleteVoiceClick(e, voice)}
-                        className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                        title="Eliminar voz"
+                  {voiceList.map((group, groupIndex) => (
+                    <div key={group.id || groupIndex} className="space-y-2">
+                      {/* Group header */}
+                      <div
+                        className="flex items-center gap-2 cursor-pointer py-2"
+                        onClick={() =>
+                          setExpandedVoiceGroups((prev) => ({
+                            ...prev,
+                            [group.id]: !prev[group.id],
+                          }))
+                        }
                       >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-
-                      <div className="flex items-center gap-3">
-                        <Mic size={24} className="text-primarioLogo" />
-                        <div className="w-3/4">
-                          <div className="w-full line-clamp-1">
-                            <span className="text-[#E7E7E7] text-sm font-medium block">
-                              {voice.name}
-                            </span>
-                          </div>
-                          <span className="text-gray-400 text-xs">
-                            {voice.duration ||
-                              (audioDurations[voice.url] ?? null) ||
-                              15}
-                            s
-                          </span>
-                        </div>
+                        {expandedVoiceGroups[group.id] ? (
+                          <ChevronDown size={16} className="text-gray-400" />
+                        ) : (
+                          <ChevronRight size={16} className="text-gray-400" />
+                        )}
+                        <span className="text-sm font-medium text-white">
+                          {group.name}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          ({group.voices.length})
+                        </span>
                       </div>
+
+                      {/* Group voices */}
+                      {expandedVoiceGroups[group.id] && (
+                        <div className="ml-6 space-y-2">
+                          {group.voices.map((voice, voiceIndex) => (
+                            <div
+                              key={voice.id || voiceIndex}
+                              draggable={!isUploadingVoice}
+                              onDragStart={(e) =>
+                                handleDragStart(e, voice, "voice")
+                              }
+                              onClick={() => addItemToTimeline(voice, "voice")}
+                              onMouseEnter={() =>
+                                setHoveredVoiceItem(voice.id || voiceIndex)
+                              }
+                              onMouseLeave={() => setHoveredVoiceItem(null)}
+                              className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
+                            >
+                              {/* Delete Button */}
+                              <button
+                                onClick={(e) =>
+                                  handleDeleteVoiceClick(e, voice)
+                                }
+                                className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                title="Eliminar voz"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+
+                              <div className="flex items-center gap-3">
+                                <Mic size={24} className="text-primarioLogo" />
+                                <div className="w-3/4">
+                                  <div className="w-full line-clamp-1">
+                                    <span className="text-[#E7E7E7] text-sm font-medium block">
+                                      {voice.name}
+                                    </span>
+                                  </div>
+                                  <span className="text-gray-400 text-xs">
+                                    {voice.duration ||
+                                      (audioDurations[voice.url] ?? null) ||
+                                      15}
+                                    s
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
 
-                  {voiceList.length === 0 && !isUploadingVoice && (
+                  {!hasVoices() && !isUploadingVoice && (
                     <div className="text-center py-8">
                       <Mic size={48} className="text-gray-400 mx-auto mb-2" />
                       <span className="text-gray-400">

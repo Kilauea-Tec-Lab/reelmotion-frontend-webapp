@@ -53,7 +53,9 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
   const [playingVoiceId, setPlayingVoiceId] = useState(null);
 
   // ElevenLabs specific states
-  const [elevenLabsModel, setElevenLabsModel] = useState("eleven_multilingual_v2");
+  const [elevenLabsModel, setElevenLabsModel] = useState(
+    "eleven_multilingual_v2"
+  );
   const [voiceSettings, setVoiceSettings] = useState({
     stability: 0.5,
     similarity_boost: 0.5,
@@ -113,9 +115,7 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter((voice) =>
-        getVoiceName(voice)
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())
+        getVoiceName(voice).toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -135,9 +135,7 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
 
     // Apply age filter
     if (ageFilter) {
-      filtered = filtered.filter(
-        (voice) => getVoiceAge(voice) === ageFilter
-      );
+      filtered = filtered.filter((voice) => getVoiceAge(voice) === ageFilter);
     }
 
     setFilteredVoices(filtered);
@@ -149,7 +147,7 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
     setIsLoadingVoices(true);
     try {
       const result = await getElevenLabsVoices();
-      
+
       if (result.success && Array.isArray(result.voices)) {
         setAvailableVoices(result.voices);
       } else {
@@ -420,6 +418,7 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
         voice_name: getVoiceName(generatedVoiceData.voiceUsed),
         model_id: generatedVoiceData.model_id,
         voice_settings: generatedVoiceData.voice_settings,
+        project_id: projectId,
       };
 
       console.log("Saving ElevenLabs voice with data:", voiceData);
@@ -443,11 +442,7 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
 
   // Controles del reproductor de audio
   const togglePlayPause = () => {
-    if (
-      !audioRef.current ||
-      !generatedAudioUrl
-    )
-      return;
+    if (!audioRef.current || !generatedAudioUrl) return;
 
     if (isPlaying) {
       audioRef.current.pause();
@@ -509,101 +504,115 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
           {showVoiceCreator ? (
             /* Voice Creator View */
             <>
-
-
               {/* Voice Configuration */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-white mb-3 montserrat-regular">
                   Voice Configuration
                 </label>
-                  <div className="bg-darkBoxSub rounded-lg p-4 space-y-4">
-                    {/* Model Selection */}
+                <div className="bg-darkBoxSub rounded-lg p-4 space-y-4">
+                  {/* Model Selection */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-300 mb-2">
+                      Model
+                    </label>
+                    <select
+                      value={elevenLabsModel}
+                      onChange={(e) => setElevenLabsModel(e.target.value)}
+                      className="w-full px-3 py-2 bg-darkBox border border-gray-600 rounded text-white focus:border-[#F2D543] focus:outline-none text-sm"
+                    >
+                      <option value="eleven_multilingual_v2">
+                        Multilingual v2 (High Quality)
+                      </option>
+                      <option value="eleven_flash_v2_5">
+                        Flash v2.5 (Fast, Low Latency)
+                      </option>
+                      <option value="eleven_turbo_v2_5">
+                        Turbo v2.5 (Balanced)
+                      </option>
+                      <option value="eleven_v3_alpha">
+                        v3 Alpha (Most Expressive)
+                      </option>
+                    </select>
+                  </div>
+
+                  {/* Voice Settings */}
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-gray-300 mb-2">
-                        Model
+                        Stability: {voiceSettings.stability}
                       </label>
-                      <select
-                        value={elevenLabsModel}
-                        onChange={(e) => setElevenLabsModel(e.target.value)}
-                        className="w-full px-3 py-2 bg-darkBox border border-gray-600 rounded text-white focus:border-[#F2D543] focus:outline-none text-sm"
-                      >
-                        <option value="eleven_multilingual_v2">Multilingual v2 (High Quality)</option>
-                        <option value="eleven_flash_v2_5">Flash v2.5 (Fast, Low Latency)</option>
-                        <option value="eleven_turbo_v2_5">Turbo v2.5 (Balanced)</option>
-                        <option value="eleven_v3_alpha">v3 Alpha (Most Expressive)</option>
-                      </select>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={voiceSettings.stability}
+                        onChange={(e) =>
+                          setVoiceSettings((prev) => ({
+                            ...prev,
+                            stability: parseFloat(e.target.value),
+                          }))
+                        }
+                        className="w-full"
+                      />
                     </div>
-
-                    {/* Voice Settings */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-300 mb-2">
-                          Stability: {voiceSettings.stability}
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.1"
-                          value={voiceSettings.stability}
-                          onChange={(e) => setVoiceSettings(prev => ({
+                    <div>
+                      <label className="block text-xs font-medium text-gray-300 mb-2">
+                        Similarity Boost: {voiceSettings.similarity_boost}
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={voiceSettings.similarity_boost}
+                        onChange={(e) =>
+                          setVoiceSettings((prev) => ({
                             ...prev,
-                            stability: parseFloat(e.target.value)
-                          }))}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-300 mb-2">
-                          Similarity Boost: {voiceSettings.similarity_boost}
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.1"
-                          value={voiceSettings.similarity_boost}
-                          onChange={(e) => setVoiceSettings(prev => ({
+                            similarity_boost: parseFloat(e.target.value),
+                          }))
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-300 mb-2">
+                        Style: {voiceSettings.style}
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={voiceSettings.style}
+                        onChange={(e) =>
+                          setVoiceSettings((prev) => ({
                             ...prev,
-                            similarity_boost: parseFloat(e.target.value)
-                          }))}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-300 mb-2">
-                          Style: {voiceSettings.style}
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.1"
-                          value={voiceSettings.style}
-                          onChange={(e) => setVoiceSettings(prev => ({
+                            style: parseFloat(e.target.value),
+                          }))
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={voiceSettings.use_speaker_boost}
+                        onChange={(e) =>
+                          setVoiceSettings((prev) => ({
                             ...prev,
-                            style: parseFloat(e.target.value)
-                          }))}
-                          className="w-full"
-                        />
-                      </div>
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={voiceSettings.use_speaker_boost}
-                          onChange={(e) => setVoiceSettings(prev => ({
-                            ...prev,
-                            use_speaker_boost: e.target.checked
-                          }))}
-                          className="mr-2"
-                        />
-                        <label className="text-xs font-medium text-gray-300">
-                          Use Speaker Boost
-                        </label>
-                      </div>
+                            use_speaker_boost: e.target.checked,
+                          }))
+                        }
+                        className="mr-2"
+                      />
+                      <label className="text-xs font-medium text-gray-300">
+                        Use Speaker Boost
+                      </label>
                     </div>
                   </div>
                 </div>
+              </div>
 
               {/* Voice Selection */}
               <div className="mb-6">
@@ -691,8 +700,7 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
                               </h4>
                               <p className="text-gray-400 text-xs mt-1">
                                 {getVoiceLanguage(voice)} •{" "}
-                                {getVoiceGender(voice)} •{" "}
-                                {getVoiceAge(voice)}
+                                {getVoiceGender(voice)} • {getVoiceAge(voice)}
                               </p>
                               {voice.labels?.description && (
                                 <p className="text-gray-500 text-xs mt-1">
