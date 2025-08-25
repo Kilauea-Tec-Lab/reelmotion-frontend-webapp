@@ -7,7 +7,11 @@ import {
   Twitter,
   Instagram,
   Download,
+  MessageCircle,
+  Share,
+  Phone,
 } from "lucide-react";
+import Cookies from "js-cookie";
 
 function ShareModal({ post, onClose, showShare, isSameUser, videoUrl }) {
   const [copied, setCopied] = useState(false);
@@ -26,21 +30,78 @@ function ShareModal({ post, onClose, showShare, isSameUser, videoUrl }) {
     }
 
     try {
-      const response = await fetch(videoUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      // Show loading message
+      console.log("Downloading video... Please wait.");
 
+      // Call your backend endpoint
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}editor/download-video`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            // Add authorization header if needed
+            Authorization: `Bearer ${Cookies.get("token")}`,
+          },
+          body: JSON.stringify({
+            video_url: videoUrl,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.code !== 200 || !result.video_data) {
+        throw new Error(result.message || "Failed to download video");
+      }
+
+      // Convert base64 to blob
+      const base64Data = result.video_data;
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: "video/mp4" });
+
+      // Create download link
+      const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
+      a.href = blobUrl;
       a.download = `video-${post?.id || "download"}.mp4`;
+      a.style.display = "none";
+
       document.body.appendChild(a);
       a.click();
-      a.remove();
+      document.body.removeChild(a);
 
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Error downloading video:", err);
-      alert("Failed to download video. Please try again.");
+      // Clean up blob URL
+      window.URL.revokeObjectURL(blobUrl);
+
+      console.log("Video downloaded successfully via backend");
+    } catch (error) {
+      console.error("Error downloading video:", error);
+
+      // Show user-friendly error message
+      let errorMessage = "Failed to download video. ";
+
+      if (error.message.includes("Server error: 500")) {
+        errorMessage += "Server error occurred. Please try again later.";
+      } else if (error.message.includes("Network")) {
+        errorMessage += "Network error. Please check your connection.";
+      } else {
+        errorMessage += "Please try again or contact support.";
+      }
+
+      alert(errorMessage);
     }
   };
 
@@ -50,7 +111,7 @@ function ShareModal({ post, onClose, showShare, isSameUser, videoUrl }) {
       icon: Facebook,
       color: "bg-blue-600 hover:bg-blue-700",
       url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
-        postUrl
+        videoUrl
       )}`,
     },
     {
@@ -58,23 +119,46 @@ function ShareModal({ post, onClose, showShare, isSameUser, videoUrl }) {
       icon: Twitter,
       color: "bg-sky-500 hover:bg-sky-600",
       url: `https://twitter.com/intent/tweet?url=${encodeURIComponent(
-        postUrl
+        videoUrl
       )}&text=${encodeURIComponent(
         `Check out this amazing video by ${
           post?.user?.name || "Reelmotion user"
-        }!`
+        }! in Reelmotion`
       )}`,
     },
     {
-      name: "Instagram",
-      icon: Instagram,
-      color:
-        "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600",
-      onClick: () => {
-        alert(
-          "Instagram sharing is not available via web. Please use the Instagram mobile app to share this content."
-        );
-      },
+      name: "WhatsApp",
+      icon: Phone,
+      color: "bg-green-500 hover:bg-green-600",
+      url: `https://wa.me/?text=${encodeURIComponent(
+        `Check out this amazing video by ${
+          post?.user?.name || "Reelmotion user"
+        }! ${postUrl}`
+      )}`,
+    },
+    {
+      name: "Telegram",
+      icon: MessageCircle,
+      color: "bg-blue-500 hover:bg-blue-600",
+      url: `https://t.me/share/url?url=${encodeURIComponent(
+        videoUrl
+      )}&text=${encodeURIComponent(
+        `Check out this amazing video by ${
+          post?.user?.name || "Reelmotion user"
+        }! in Reelmotion`
+      )}`,
+    },
+    {
+      name: "Pinterest",
+      icon: Share,
+      color: "bg-red-600 hover:bg-red-700",
+      url: `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(
+        videoUrl
+      )}&description=${encodeURIComponent(
+        `Amazing video by ${post?.user?.name || "Reelmotion user"}! ${
+          post?.description || ""
+        }`
+      )}`,
     },
     {
       name: "Download Video",
@@ -107,7 +191,7 @@ function ShareModal({ post, onClose, showShare, isSameUser, videoUrl }) {
     if (option.onClick) {
       option.onClick();
     } else {
-      window.open(option?.url, "_blank", "width=600,height=400");
+      window.open(option?.url, "_blank");
     }
   };
 

@@ -401,7 +401,7 @@ function MainProject() {
       <div className="mt-16">
         <div className="flex gap-4 items-center align-middle">
           <h2 className="text-white montserrat-medium text-xl tracking-wider">
-            Chatacters
+            Characters
           </h2>
           <button
             type="button"

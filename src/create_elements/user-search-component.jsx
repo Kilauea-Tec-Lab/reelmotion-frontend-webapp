@@ -8,8 +8,6 @@ function UserSearchComponent({ selectedUsers, onUsersChange }) {
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [error, setError] = useState("");
-  const [pendingUser, setPendingUser] = useState(null);
-  const [showConfirmation, setShowConfirmation] = useState(false);
   const searchTimeoutRef = useRef(null);
   const searchRef = useRef(null);
 
@@ -34,26 +32,28 @@ function UserSearchComponent({ selectedUsers, onUsersChange }) {
       try {
         const response = await searchUsers(searchTerm.trim());
 
-        if (response.success && response.data && response.data.id) {
-          // Check if user is already selected
-          const isAlreadySelected = selectedUsers.some(
-            (selected) => selected.id === response.data.id
+        if (
+          response.success &&
+          response.data &&
+          Array.isArray(response.data) &&
+          response.data.length > 0
+        ) {
+          // Filter out users that are already selected
+          const availableUsers = response.data.filter(
+            (user) => !selectedUsers.some((selected) => selected.id === user.id)
           );
 
-          if (isAlreadySelected) {
-            setError("This user is already added to the shared list");
+          if (availableUsers.length === 0) {
+            setError("All found users are already added to the shared list");
             setSearchResults([]);
             setShowResults(false);
           } else {
-            // Show confirmation for found user
-            setPendingUser(response.data);
-            setShowConfirmation(true);
-            setSearchResults([]);
-            setShowResults(false);
+            setSearchResults(availableUsers);
+            setShowResults(true);
           }
         } else {
-          // No user found or error
-          setError(`No user found with username "${searchTerm.trim()}"`);
+          // No users found or error
+          setError(`No users found with search term "${searchTerm.trim()}"`);
           setSearchResults([]);
           setShowResults(false);
         }
@@ -79,7 +79,6 @@ function UserSearchComponent({ selectedUsers, onUsersChange }) {
     const handleClickOutside = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
         setShowResults(false);
-        setShowConfirmation(false);
         setError("");
       }
     };
@@ -89,28 +88,6 @@ function UserSearchComponent({ selectedUsers, onUsersChange }) {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  const handleConfirmAddUser = () => {
-    if (pendingUser) {
-      // Add username to the user object if it doesn't exist
-      const userToAdd = {
-        ...pendingUser,
-        username: pendingUser.username || searchTerm.trim(),
-      };
-      onUsersChange([...selectedUsers, userToAdd]);
-    }
-    setSearchTerm("");
-    setPendingUser(null);
-    setShowConfirmation(false);
-    setError("");
-  };
-
-  const handleCancelAddUser = () => {
-    setPendingUser(null);
-    setShowConfirmation(false);
-    setSearchTerm("");
-    setError("");
-  };
 
   const handleAddUser = (user) => {
     onUsersChange([...selectedUsers, user]);
@@ -156,54 +133,6 @@ function UserSearchComponent({ selectedUsers, onUsersChange }) {
           </div>
         )}
 
-        {/* User Confirmation */}
-        {showConfirmation && pendingUser && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-darkBoxSub rounded-lg shadow-xl border border-[#F2D543] p-4 z-10">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-600 flex items-center justify-center flex-shrink-0">
-                {pendingUser.profile_image ? (
-                  <img
-                    src={pendingUser.profile_image}
-                    alt={pendingUser.username || searchTerm}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <User size={20} className="text-gray-300" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white montserrat-medium">
-                  @{pendingUser.username || searchTerm.trim()}
-                </p>
-                {(pendingUser.name || pendingUser.last_name) && (
-                  <p className="text-xs text-gray-400 montserrat-light">
-                    {[pendingUser.name, pendingUser.last_name]
-                      .filter(Boolean)
-                      .join(" ")}
-                  </p>
-                )}
-              </div>
-            </div>
-            <p className="text-sm text-gray-300 mb-3 montserrat-regular">
-              Do you want to add this user to the shared folder?
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={handleConfirmAddUser}
-                className="flex-1 px-3 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors text-sm font-medium montserrat-medium"
-              >
-                Yes, Add User
-              </button>
-              <button
-                onClick={handleCancelAddUser}
-                className="flex-1 px-3 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 hover:text-white transition-colors text-sm montserrat-regular"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Search Results Dropdown */}
         {showResults && (
           <div className="absolute top-full left-0 right-0 mt-1 bg-darkBoxSub rounded-lg shadow-xl border border-gray-600 max-h-48 overflow-y-auto z-10">
@@ -229,9 +158,9 @@ function UserSearchComponent({ selectedUsers, onUsersChange }) {
                     <p className="text-sm font-medium text-white montserrat-medium truncate">
                       @{user.username}
                     </p>
-                    {user.name && (
+                    {(user.name || user.last_name) && (
                       <p className="text-xs text-gray-400 montserrat-light truncate">
-                        {user.name}
+                        {[user.name, user.last_name].filter(Boolean).join(" ")}
                       </p>
                     )}
                   </div>
