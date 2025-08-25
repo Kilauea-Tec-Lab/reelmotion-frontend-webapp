@@ -286,6 +286,54 @@ function Editor() {
     // considering both master volume and specific video volume
   };
 
+  // Custom Slider Component
+  const CustomSlider = ({
+    value,
+    min,
+    max,
+    step,
+    onChange,
+    className = "",
+  }) => {
+    const percentage = ((value - min) / (max - min)) * 100;
+
+    return (
+      <div className={`custom-slider-container ${className}`}>
+        <div className="custom-slider-track"></div>
+        <div
+          className="custom-slider-progress"
+          style={{ width: `${percentage}%` }}
+        ></div>
+        <div
+          className="custom-slider-thumb"
+          style={{ left: `${percentage}%` }}
+        ></div>
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={onChange}
+          className="custom-slider-input"
+        />
+      </div>
+    );
+  };
+
+  // Render range input as CustomSlider for better styling
+  const renderSlider = (props) => {
+    return (
+      <CustomSlider
+        value={props.value}
+        min={props.min}
+        max={props.max}
+        step={props.step}
+        onChange={props.onChange}
+      />
+    );
+  };
+
   // Helper function to check if there are any voices available
   const hasVoices = () => {
     return voiceList.some((group) => group.voices && group.voices.length > 0);
@@ -815,7 +863,11 @@ function Editor() {
 
     // Handle audio (music and voice)
     activeElements.forEach((element) => {
-      if (element.channel === "music" || element.channel === "voice") {
+      if (
+        element.channel === "music" ||
+        element.channel === "voice" ||
+        element.channel === "sound"
+      ) {
         if (!audioRefs.current[element.id]) {
           const audio = new Audio(element.url);
           audio.preload = "auto";
@@ -1014,11 +1066,20 @@ function Editor() {
     } else if (draggedItem.type === "image" && channel !== "image") {
       console.warn("Image elements can only be dropped in image channel");
       return;
-    } else if (draggedItem.type === "music" && channel !== "music") {
-      console.warn("Music elements can only be dropped in music channel");
+    } else if (
+      draggedItem.type === "music" &&
+      channel !== "music" &&
+      channel !== "sound"
+    ) {
+      console.warn(
+        "Music elements can only be dropped in music or sound channel"
+      );
       return;
     } else if (draggedItem.type === "voice" && channel !== "voice") {
       console.warn("Voice elements can only be dropped in voice channel");
+      return;
+    } else if (draggedItem.type === "sound" && channel !== "sound") {
+      console.warn("Sound elements can only be dropped in sound channel");
       return;
     }
 
@@ -1026,10 +1087,14 @@ function Editor() {
       targetChannel = "video";
     } else if (draggedItem.type === "image") {
       targetChannel = "image";
+    } else if (draggedItem.type === "music" && channel === "sound") {
+      targetChannel = "sound";
     } else if (draggedItem.type === "music") {
       targetChannel = "music";
     } else if (draggedItem.type === "voice") {
       targetChannel = "voice";
+    } else if (draggedItem.type === "sound") {
+      targetChannel = "sound";
     }
 
     // Get real element duration
@@ -1053,7 +1118,11 @@ function Editor() {
     } else if (draggedItem.type === "image") {
       elementDuration = draggedItem.duration || 5; // 5 seconds for images
       originalDuration = null; // Images don't have fixed duration
-    } else if (draggedItem.type === "music" || draggedItem.type === "voice") {
+    } else if (
+      draggedItem.type === "music" ||
+      draggedItem.type === "voice" ||
+      draggedItem.type === "sound"
+    ) {
       // For audio, get real duration from loader data or probe it
       const aUrl =
         draggedItem.url ||
@@ -1088,14 +1157,17 @@ function Editor() {
         elementDuration =
           dur && Number.isFinite(dur) && dur > 0
             ? dur
-            : draggedItem.type === "music"
+            : draggedItem.type === "music" || draggedItem.type === "sound"
             ? 30
             : 15;
         setAudioDurations((prev) => ({ ...prev, [aUrl]: elementDuration }));
       }
       // Final fallback
       else {
-        elementDuration = draggedItem.type === "music" ? 30 : 15;
+        elementDuration =
+          draggedItem.type === "music" || draggedItem.type === "sound"
+            ? 30
+            : 15;
       }
 
       originalDuration = elementDuration;
@@ -1237,10 +1309,19 @@ function Editor() {
       },
 
       // === PROPIEDADES DE AUDIO ===
-      volume: targetChannel === "music" || targetChannel === "voice" ? 0.5 : 1,
+      volume:
+        targetChannel === "music" ||
+        targetChannel === "voice" ||
+        targetChannel === "sound"
+          ? 0.5
+          : 1,
       muted: false,
       audioVolume:
-        targetChannel === "music" || targetChannel === "voice" ? 0.5 : 1,
+        targetChannel === "music" ||
+        targetChannel === "voice" ||
+        targetChannel === "sound"
+          ? 0.5
+          : 1,
       audioFadeIn: 0, // Fade in en segundos
       audioFadeOut: 0, // Fade out en segundos
       audioPan: 0.0, // Paneo (-1=izquierda, 0=centro, 1=derecha)
@@ -1382,6 +1463,7 @@ function Editor() {
     else if (item.type === "image") targetChannel = "image";
     else if (item.type === "music") targetChannel = "music";
     else if (item.type === "voice") targetChannel = "voice";
+    else if (item.type === "sound") targetChannel = "sound";
 
     // Duration
     let elementDuration = 10;
@@ -1398,7 +1480,11 @@ function Editor() {
     } else if (item.type === "image") {
       elementDuration = item.duration || 5;
       originalDuration = null;
-    } else if (item.type === "music" || item.type === "voice") {
+    } else if (
+      item.type === "music" ||
+      item.type === "voice" ||
+      item.type === "sound"
+    ) {
       // For audio, prioritize real duration from loader data or cache
       const aUrl = item.url;
 
@@ -1429,14 +1515,15 @@ function Editor() {
         elementDuration =
           dur && Number.isFinite(dur) && dur > 0
             ? dur
-            : item.type === "music"
+            : item.type === "music" || item.type === "sound"
             ? 30
             : 15;
         setAudioDurations((prev) => ({ ...prev, [aUrl]: elementDuration }));
       }
       // Final fallback
       else {
-        elementDuration = item.type === "music" ? 30 : 15;
+        elementDuration =
+          item.type === "music" || item.type === "sound" ? 30 : 15;
       }
 
       originalDuration = elementDuration;
@@ -1548,10 +1635,19 @@ function Editor() {
       },
 
       // === PROPIEDADES DE AUDIO ===
-      volume: targetChannel === "music" || targetChannel === "voice" ? 0.5 : 1,
+      volume:
+        targetChannel === "music" ||
+        targetChannel === "voice" ||
+        targetChannel === "sound"
+          ? 0.5
+          : 1,
       muted: false,
       audioVolume:
-        targetChannel === "music" || targetChannel === "voice" ? 0.5 : 1,
+        targetChannel === "music" ||
+        targetChannel === "voice" ||
+        targetChannel === "sound"
+          ? 0.5
+          : 1,
       audioFadeIn: 0,
       audioFadeOut: 0,
       audioPan: 0.0,
@@ -2495,7 +2591,8 @@ function Editor() {
     if (
       elementToDelete &&
       (elementToDelete.channel === "music" ||
-        elementToDelete.channel === "voice")
+        elementToDelete.channel === "voice" ||
+        elementToDelete.channel === "sound")
     ) {
       const audio = audioRefs.current[elementId];
       if (audio) {
@@ -2544,7 +2641,8 @@ function Editor() {
       element.type === "voice" ||
       element.channel === "video" ||
       element.channel === "music" ||
-      element.channel === "voice";
+      element.channel === "voice" ||
+      element.channel === "sound";
 
     if (type === "start") {
       // Resize from start
@@ -3765,7 +3863,7 @@ function Editor() {
                   : "text-white text-center flex items-center justify-center h-16 cursor-pointer"
               }
             >
-              <Image />
+              <Mic />
             </div>
             <div
               onClick={() => setMenuActive(4)}
@@ -3775,7 +3873,17 @@ function Editor() {
                   : "text-white text-center flex items-center justify-center h-16 cursor-pointer"
               }
             >
-              <Mic />
+              <Volume2 />
+            </div>
+            <div
+              onClick={() => setMenuActive(5)}
+              className={
+                menuActive == 5
+                  ? "bg-darkBoxSub text-primarioLogo text-center flex items-center justify-center h-16 cursor-pointer"
+                  : "text-white text-center flex items-center justify-center h-16 cursor-pointer"
+              }
+            >
+              <Image />
             </div>
           </div>
           <div className="w-4/5 overflow-scroll bg-darkBoxSub rounded-tr-4xl rounded-br-4xl">
@@ -4051,6 +4159,208 @@ function Editor() {
             ) : menuActive == 3 ? (
               <div
                 className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative"
+                onDragOver={handleVoiceContainerDragOver}
+                onDrop={handleVoiceContainerDrop}
+              >
+                {/* Voice list organized by groups */}
+                <div className="space-y-3 overflow-y-auto h-full">
+                  {voiceList.map((group, groupIndex) => (
+                    <div key={group.id || groupIndex} className="space-y-2">
+                      {/* Group header */}
+                      <div
+                        className="flex items-center gap-2 cursor-pointer py-2"
+                        onClick={() =>
+                          setExpandedVoiceGroups((prev) => ({
+                            ...prev,
+                            [group.id]: !prev[group.id],
+                          }))
+                        }
+                      >
+                        {expandedVoiceGroups[group.id] ? (
+                          <ChevronDown size={16} className="text-gray-400" />
+                        ) : (
+                          <ChevronRight size={16} className="text-gray-400" />
+                        )}
+                        <span className="text-sm font-medium text-white">
+                          {group.name}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          ({group.voices.length})
+                        </span>
+                      </div>
+
+                      {/* Group voices */}
+                      {expandedVoiceGroups[group.id] && (
+                        <div className="ml-6 space-y-2">
+                          {group.voices.map((voice, voiceIndex) => (
+                            <div
+                              key={voice.id || voiceIndex}
+                              draggable={!isUploadingVoice}
+                              onDragStart={(e) =>
+                                handleDragStart(e, voice, "voice")
+                              }
+                              onClick={() => addItemToTimeline(voice, "voice")}
+                              onMouseEnter={() =>
+                                setHoveredVoiceItem(voice.id || voiceIndex)
+                              }
+                              onMouseLeave={() => setHoveredVoiceItem(null)}
+                              className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
+                            >
+                              <div className="flex items-center gap-3">
+                                <Mic size={24} className="text-primarioLogo" />
+                                <div className="w-3/4">
+                                  <div className="w-full line-clamp-1">
+                                    <span className="text-[#E7E7E7] text-sm font-medium block">
+                                      {voice.name}
+                                    </span>
+                                  </div>
+                                  <span className="text-gray-400 text-xs">
+                                    {voice.duration ||
+                                      (audioDurations[voice.url] ?? null) ||
+                                      15}
+                                    s
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {!hasVoices() && !isUploadingVoice && (
+                    <div className="text-center py-8">
+                      <Mic size={48} className="text-gray-400 mx-auto mb-2" />
+                      <span className="text-gray-400">
+                        No voice files available
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : menuActive == 4 ? (
+              <div
+                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative"
+                onDragOver={handleMusicContainerDragOver}
+                onDrop={handleMusicContainerDrop}
+              >
+                {/* Add Music Button - always visible */}
+                <button
+                  onClick={() => {
+                    const input =
+                      musicList.length > 0
+                        ? document.getElementById("music-upload-hidden")
+                        : document.getElementById("music-upload");
+                    input?.click();
+                  }}
+                  className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                  title="Add sound/music"
+                  disabled={isUploadingMusic}
+                >
+                  <Plus size={20} />
+                </button>
+
+                {/* Upload area - only show when no music */}
+                {musicList.length === 0 && (
+                  <div className="mb-4 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-primarioLogo transition-colors duration-200">
+                    <input
+                      type="file"
+                      multiple
+                      accept="audio/*"
+                      onChange={handleMusicInputChange}
+                      className="hidden"
+                      id="music-upload"
+                      disabled={isUploadingMusic}
+                    />
+                    <label
+                      htmlFor="music-upload"
+                      className="cursor-pointer flex flex-col items-center gap-2"
+                    >
+                      <Upload size={32} className="text-gray-400" />
+                      <span className="text-gray-400 text-sm">
+                        {isUploadingMusic
+                          ? "Uploading sounds..."
+                          : "Drag sound files here or click to select"}
+                      </span>
+                    </label>
+                  </div>
+                )}
+
+                {/* Hidden input for drag & drop when music exists */}
+                {musicList.length > 0 && (
+                  <input
+                    type="file"
+                    multiple
+                    accept="audio/*"
+                    onChange={handleMusicInputChange}
+                    className="hidden"
+                    id="music-upload-hidden"
+                    disabled={isUploadingMusic}
+                  />
+                )}
+
+                {/* Music list */}
+                <div
+                  className={`grid mt-11 grid-cols-1 gap-4 overflow-y-auto ${
+                    musicList.length === 0
+                      ? "max-h-[calc(100%-140px)]"
+                      : "h-full"
+                  }`}
+                >
+                  {musicList.map((music, index) => (
+                    <div
+                      key={index}
+                      draggable={!isUploadingMusic}
+                      onDragStart={(e) => handleDragStart(e, music, "sound")}
+                      onClick={() => addItemToTimeline(music, "sound")}
+                      onMouseEnter={() =>
+                        setHoveredMusicItem(music.id || index)
+                      }
+                      onMouseLeave={() => setHoveredMusicItem(null)}
+                      className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
+                    >
+                      {/* Delete Button - Only visible on hover */}
+                      <button
+                        onClick={(e) => handleDeleteMusicClick(e, music)}
+                        className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        title="Delete sound"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+
+                      <div className="flex items-center gap-3">
+                        <Volume2 size={24} className="text-primarioLogo" />
+                        <div className="w-3/4">
+                          <div className="w-full line-clamp-1">
+                            <span className="text-[#E7E7E7] text-sm font-medium block">
+                              {music.name}
+                            </span>
+                          </div>
+                          <span className="text-gray-400 text-xs">
+                            {music.duration || 30}s
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {musicList.length === 0 && !isUploadingMusic && (
+                    <div className="text-center py-8">
+                      <Volume2
+                        size={48}
+                        className="text-gray-400 mx-auto mb-2"
+                      />
+                      <span className="text-gray-400">
+                        No sound files available
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : menuActive == 5 ? (
+              <div
+                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative"
                 onDragOver={handleImageContainerDragOver}
                 onDrop={handleImageContainerDrop}
               >
@@ -4155,154 +4465,6 @@ function Editor() {
                   {images.length === 0 && !isUploadingImages && (
                     <div className="col-span-2 text-center py-8">
                       <span className="text-gray-400">No images available</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : menuActive == 4 ? (
-              <div
-                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative"
-                onDragOver={handleVoiceContainerDragOver}
-                onDrop={handleVoiceContainerDrop}
-              >
-                {/* Add Voice Button - always visible */}
-                <button
-                  onClick={() =>
-                    (hasVoices()
-                      ? document.getElementById("voice-upload-hidden")
-                      : document.getElementById("voice-upload")
-                    )?.click()
-                  }
-                  className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                  title="Add Voice"
-                  disabled={isUploadingVoice}
-                >
-                  <Plus size={20} />
-                </button>
-
-                {/* Upload area when empty */}
-                {!hasVoices() && (
-                  <div className="mb-4 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-primarioLogo transition-colors duration-200">
-                    <input
-                      type="file"
-                      multiple
-                      accept="audio/*"
-                      onChange={handleVoiceInputChange}
-                      className="hidden"
-                      id="voice-upload"
-                      disabled={isUploadingVoice}
-                    />
-                    <label
-                      htmlFor="voice-upload"
-                      className="cursor-pointer flex flex-col items-center gap-2"
-                    >
-                      <Upload size={32} className="text-gray-400" />
-                      <span className="text-gray-400 text-sm">
-                        {isUploadingVoice
-                          ? "Uploading voice..."
-                          : "Drag audio files here or click to select"}
-                      </span>
-                    </label>
-                  </div>
-                )}
-
-                {/* Hidden input when list exists */}
-                {hasVoices() && (
-                  <input
-                    type="file"
-                    multiple
-                    accept="audio/*"
-                    onChange={handleVoiceInputChange}
-                    className="hidden"
-                    id="voice-upload-hidden"
-                    disabled={isUploadingVoice}
-                  />
-                )}
-
-                {/* Voice list organized by groups */}
-                <div className="space-y-3 mt-11 overflow-y-auto h-full">
-                  {voiceList.map((group, groupIndex) => (
-                    <div key={group.id || groupIndex} className="space-y-2">
-                      {/* Group header */}
-                      <div
-                        className="flex items-center gap-2 cursor-pointer py-2"
-                        onClick={() =>
-                          setExpandedVoiceGroups((prev) => ({
-                            ...prev,
-                            [group.id]: !prev[group.id],
-                          }))
-                        }
-                      >
-                        {expandedVoiceGroups[group.id] ? (
-                          <ChevronDown size={16} className="text-gray-400" />
-                        ) : (
-                          <ChevronRight size={16} className="text-gray-400" />
-                        )}
-                        <span className="text-sm font-medium text-white">
-                          {group.name}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          ({group.voices.length})
-                        </span>
-                      </div>
-
-                      {/* Group voices */}
-                      {expandedVoiceGroups[group.id] && (
-                        <div className="ml-6 space-y-2">
-                          {group.voices.map((voice, voiceIndex) => (
-                            <div
-                              key={voice.id || voiceIndex}
-                              draggable={!isUploadingVoice}
-                              onDragStart={(e) =>
-                                handleDragStart(e, voice, "voice")
-                              }
-                              onClick={() => addItemToTimeline(voice, "voice")}
-                              onMouseEnter={() =>
-                                setHoveredVoiceItem(voice.id || voiceIndex)
-                              }
-                              onMouseLeave={() => setHoveredVoiceItem(null)}
-                              className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
-                            >
-                              {/* Delete Button */}
-                              <button
-                                onClick={(e) =>
-                                  handleDeleteVoiceClick(e, voice)
-                                }
-                                className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                title="Eliminar voz"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-
-                              <div className="flex items-center gap-3">
-                                <Mic size={24} className="text-primarioLogo" />
-                                <div className="w-3/4">
-                                  <div className="w-full line-clamp-1">
-                                    <span className="text-[#E7E7E7] text-sm font-medium block">
-                                      {voice.name}
-                                    </span>
-                                  </div>
-                                  <span className="text-gray-400 text-xs">
-                                    {voice.duration ||
-                                      (audioDurations[voice.url] ?? null) ||
-                                      15}
-                                    s
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                  {!hasVoices() && !isUploadingVoice && (
-                    <div className="text-center py-8">
-                      <Mic size={48} className="text-gray-400 mx-auto mb-2" />
-                      <span className="text-gray-400">
-                        No voice files available
-                      </span>
                     </div>
                   )}
                 </div>
@@ -4634,23 +4796,21 @@ function Editor() {
                     )}
                     %
                   </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="1"
+                  <CustomSlider
                     value={Math.round(
                       (selectedElement.volume !== undefined
                         ? selectedElement.volume
                         : 1) * 100
                     )}
+                    min={0}
+                    max={100}
+                    step={1}
                     onChange={(e) =>
                       updateSelectedElement(
                         "volume",
                         parseInt(e.target.value) / 100
                       )
                     }
-                    className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                   />
                 </div>
 
@@ -4659,16 +4819,14 @@ function Editor() {
                   <label className="text-sm font-medium text-gray-300 block mb-2">
                     Layer (Z-Index): {selectedElement.zIndex || 1}
                   </label>
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    step="1"
+                  <CustomSlider
                     value={selectedElement.zIndex || 1}
+                    min={1}
+                    max={10}
+                    step={1}
                     onChange={(e) =>
                       updateSelectedElement("zIndex", parseInt(e.target.value))
                     }
-                    className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                   />
                 </div>
 
@@ -4685,19 +4843,17 @@ function Editor() {
                         selectedElement.colorCorrection?.brightness || 0
                       ).toFixed(2)}
                     </label>
-                    <input
-                      type="range"
-                      min="-1"
-                      max="1"
-                      step="0.01"
+                    <CustomSlider
                       value={selectedElement.colorCorrection?.brightness || 0}
+                      min={-1}
+                      max={1}
+                      step={0.01}
                       onChange={(e) =>
                         updateSelectedElement(
                           "colorCorrection.brightness",
                           parseFloat(e.target.value)
                         )
                       }
-                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                     />
                   </div>
 
@@ -4708,19 +4864,17 @@ function Editor() {
                         2
                       )}
                     </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="4"
-                      step="0.01"
+                    <CustomSlider
                       value={selectedElement.colorCorrection?.contrast || 1}
+                      min={0}
+                      max={4}
+                      step={0.01}
                       onChange={(e) =>
                         updateSelectedElement(
                           "colorCorrection.contrast",
                           parseFloat(e.target.value)
                         )
                       }
-                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                     />
                   </div>
 
@@ -4731,19 +4885,17 @@ function Editor() {
                         selectedElement.colorCorrection?.saturation || 1
                       ).toFixed(2)}
                     </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="3"
-                      step="0.01"
+                    <CustomSlider
                       value={selectedElement.colorCorrection?.saturation || 1}
+                      min={0}
+                      max={3}
+                      step={0.01}
                       onChange={(e) =>
                         updateSelectedElement(
                           "colorCorrection.saturation",
                           parseFloat(e.target.value)
                         )
                       }
-                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                     />
                   </div>
 
@@ -4752,19 +4904,17 @@ function Editor() {
                       Gamma:{" "}
                       {(selectedElement.colorCorrection?.gamma || 1).toFixed(2)}
                     </label>
-                    <input
-                      type="range"
-                      min="0.1"
-                      max="10"
-                      step="0.01"
+                    <CustomSlider
                       value={selectedElement.colorCorrection?.gamma || 1}
+                      min={0.1}
+                      max={10}
+                      step={0.01}
                       onChange={(e) =>
                         updateSelectedElement(
                           "colorCorrection.gamma",
                           parseFloat(e.target.value)
                         )
                       }
-                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                     />
                   </div>
 
@@ -4772,19 +4922,17 @@ function Editor() {
                     <label className="text-sm font-medium text-gray-300 block mb-2">
                       Hue: {selectedElement.colorCorrection?.hue || 0}°
                     </label>
-                    <input
-                      type="range"
-                      min="-180"
-                      max="180"
-                      step="1"
+                    <CustomSlider
                       value={selectedElement.colorCorrection?.hue || 0}
+                      min={-180}
+                      max={180}
+                      step={1}
                       onChange={(e) =>
                         updateSelectedElement(
                           "colorCorrection.hue",
                           parseInt(e.target.value)
                         )
                       }
-                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                     />
                   </div>
 
@@ -4795,19 +4943,17 @@ function Editor() {
                         2
                       )}
                     </label>
-                    <input
-                      type="range"
-                      min="-2"
-                      max="2"
-                      step="0.01"
+                    <CustomSlider
                       value={selectedElement.colorCorrection?.vibrance || 0}
+                      min={-2}
+                      max={2}
+                      step={0.01}
                       onChange={(e) =>
                         updateSelectedElement(
                           "colorCorrection.vibrance",
                           parseFloat(e.target.value)
                         )
                       }
-                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                     />
                   </div>
                 </div>
@@ -4857,19 +5003,17 @@ function Editor() {
                       X Position:{" "}
                       {((selectedElement.position?.x || 0.5) * 100).toFixed(1)}%
                     </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
+                    <CustomSlider
                       value={selectedElement.position?.x || 0.5}
+                      min={0}
+                      max={1}
+                      step={0.01}
                       onChange={(e) =>
                         updateSelectedElement("position", {
                           ...selectedElement.position,
                           x: parseFloat(e.target.value),
                         })
                       }
-                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                     />
                   </div>
 
@@ -4878,19 +5022,17 @@ function Editor() {
                       Y Position:{" "}
                       {((selectedElement.position?.y || 0.5) * 100).toFixed(1)}%
                     </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
+                    <CustomSlider
                       value={selectedElement.position?.y || 0.5}
+                      min={0}
+                      max={1}
+                      step={0.01}
                       onChange={(e) =>
                         updateSelectedElement("position", {
                           ...selectedElement.position,
                           y: parseFloat(e.target.value),
                         })
                       }
-                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                     />
                   </div>
                 </div>
@@ -4900,19 +5042,17 @@ function Editor() {
                   <label className="text-sm font-medium text-gray-300 block mb-2">
                     Opacity: {Math.round((selectedElement.opacity || 1) * 100)}%
                   </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
+                  <CustomSlider
                     value={selectedElement.opacity || 1}
+                    min={0}
+                    max={1}
+                    step={0.01}
                     onChange={(e) =>
                       updateSelectedElement(
                         "opacity",
                         parseFloat(e.target.value)
                       )
                     }
-                    className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                   />
                 </div>
 
@@ -4921,16 +5061,14 @@ function Editor() {
                   <label className="text-sm font-medium text-gray-300 block mb-2">
                     Scale: {((selectedElement.scale || 1) * 100).toFixed(0)}%
                   </label>
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="3.0"
-                    step="0.1"
+                  <CustomSlider
                     value={selectedElement.scale || 1}
+                    min={0.1}
+                    max={3.0}
+                    step={0.1}
                     onChange={(e) =>
                       updateSelectedElement("scale", parseFloat(e.target.value))
                     }
-                    className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                   />
                 </div>
 
@@ -4938,16 +5076,14 @@ function Editor() {
                   <label className="text-sm font-medium text-gray-300 block mb-2">
                     Layer (Z-Index): {selectedElement.zIndex || 1}
                   </label>
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    step="1"
+                  <CustomSlider
                     value={selectedElement.zIndex || 1}
+                    min={1}
+                    max={10}
+                    step={1}
                     onChange={(e) =>
                       updateSelectedElement("zIndex", parseInt(e.target.value))
                     }
-                    className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                   />
                 </div>
 
@@ -4964,19 +5100,17 @@ function Editor() {
                         selectedElement.colorCorrection?.brightness || 0
                       ).toFixed(2)}
                     </label>
-                    <input
-                      type="range"
-                      min="-1"
-                      max="1"
-                      step="0.01"
+                    <CustomSlider
                       value={selectedElement.colorCorrection?.brightness || 0}
+                      min={-1}
+                      max={1}
+                      step={0.01}
                       onChange={(e) =>
                         updateSelectedElement(
                           "colorCorrection.brightness",
                           parseFloat(e.target.value)
                         )
                       }
-                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                     />
                   </div>
 
@@ -4987,19 +5121,17 @@ function Editor() {
                         2
                       )}
                     </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="4"
-                      step="0.01"
+                    <CustomSlider
                       value={selectedElement.colorCorrection?.contrast || 1}
+                      min={0}
+                      max={4}
+                      step={0.01}
                       onChange={(e) =>
                         updateSelectedElement(
                           "colorCorrection.contrast",
                           parseFloat(e.target.value)
                         )
                       }
-                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                     />
                   </div>
 
@@ -5010,19 +5142,17 @@ function Editor() {
                         selectedElement.colorCorrection?.saturation || 1
                       ).toFixed(2)}
                     </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="3"
-                      step="0.01"
+                    <CustomSlider
                       value={selectedElement.colorCorrection?.saturation || 1}
+                      min={0}
+                      max={3}
+                      step={0.01}
                       onChange={(e) =>
                         updateSelectedElement(
                           "colorCorrection.saturation",
                           parseFloat(e.target.value)
                         )
                       }
-                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                     />
                   </div>
 
@@ -5031,19 +5161,17 @@ function Editor() {
                       Gamma:{" "}
                       {(selectedElement.colorCorrection?.gamma || 1).toFixed(2)}
                     </label>
-                    <input
-                      type="range"
-                      min="0.1"
-                      max="10"
-                      step="0.01"
+                    <CustomSlider
                       value={selectedElement.colorCorrection?.gamma || 1}
+                      min={0.1}
+                      max={10}
+                      step={0.01}
                       onChange={(e) =>
                         updateSelectedElement(
                           "colorCorrection.gamma",
                           parseFloat(e.target.value)
                         )
                       }
-                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                     />
                   </div>
 
@@ -5051,19 +5179,17 @@ function Editor() {
                     <label className="text-sm font-medium text-gray-300 block mb-2">
                       Hue: {selectedElement.colorCorrection?.hue || 0}°
                     </label>
-                    <input
-                      type="range"
-                      min="-180"
-                      max="180"
-                      step="1"
+                    <CustomSlider
                       value={selectedElement.colorCorrection?.hue || 0}
+                      min={-180}
+                      max={180}
+                      step={1}
                       onChange={(e) =>
                         updateSelectedElement(
                           "colorCorrection.hue",
                           parseInt(e.target.value)
                         )
                       }
-                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                     />
                   </div>
 
@@ -5074,19 +5200,17 @@ function Editor() {
                         2
                       )}
                     </label>
-                    <input
-                      type="range"
-                      min="-2"
-                      max="2"
-                      step="0.01"
+                    <CustomSlider
                       value={selectedElement.colorCorrection?.vibrance || 0}
+                      min={-2}
+                      max={2}
+                      step={0.01}
                       onChange={(e) =>
                         updateSelectedElement(
                           "colorCorrection.vibrance",
                           parseFloat(e.target.value)
                         )
                       }
-                      className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                     />
                   </div>
                 </div>
@@ -5139,23 +5263,21 @@ function Editor() {
                     )}
                     %
                   </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="1"
+                  <CustomSlider
                     value={Math.round(
                       (selectedElement.volume !== undefined
                         ? selectedElement.volume
                         : 0.5) * 100
                     )}
+                    min={0}
+                    max={100}
+                    step={1}
                     onChange={(e) =>
                       updateSelectedElement(
                         "volume",
                         parseInt(e.target.value) / 100
                       )
                     }
-                    className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                   />
                 </div>
 
@@ -5214,27 +5336,98 @@ function Editor() {
                     )}
                     %
                   </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="1"
+                  <CustomSlider
                     value={Math.round(
                       (selectedElement.volume !== undefined
                         ? selectedElement.volume
                         : 0.5) * 100
                     )}
+                    min={0}
+                    max={100}
+                    step={1}
                     onChange={(e) =>
                       updateSelectedElement(
                         "volume",
                         parseInt(e.target.value) / 100
                       )
                     }
-                    className="w-full h-2 bg-darkBoxSub rounded-lg appearance-none cursor-pointer accent-primarioLogo"
                   />
                 </div>
 
                 {/* Trim Controls for Voice */}
+                <div className="border-t border-gray-600 pt-4">
+                  <h4 className="text-sm font-medium text-gray-300 mb-3">
+                    Trim Controls
+                  </h4>
+                  <div className="text-xs text-gray-400 mb-2">
+                    Trim Start: {(selectedElement.trimStart || 0).toFixed(2)}s
+                  </div>
+                  <div className="text-xs text-gray-400 mb-2">
+                    Trim End: {(selectedElement.trimEnd || 0).toFixed(2)}s
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    Use the handles on the timeline element to trim
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-2 mt-6">
+                  <button
+                    onClick={() => {
+                      updateSelectedElement("volume", 0.5);
+                    }}
+                    className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    onClick={() => setSelectedElement(null)}
+                    className="flex-1 bg-primarioLogo text-black px-3 py-2 rounded-lg text-sm hover:bg-opacity-80 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : selectedElement && selectedElement.type === "sound" ? (
+              <div className="space-y-4">
+                <div className="text-sm text-gray-300 mb-4">
+                  <p>Duration: {selectedElement.duration}s</p>
+                  {selectedElement.originalDuration && (
+                    <p>Original: {selectedElement.originalDuration}s</p>
+                  )}
+                  <p className="text-xs mt-1">Click again to deselect</p>
+                </div>
+
+                {/* Volume Control for Sound */}
+                <div>
+                  <label className="text-sm font-medium text-gray-300 block mb-2">
+                    Volume:{" "}
+                    {Math.round(
+                      (selectedElement.volume !== undefined
+                        ? selectedElement.volume
+                        : 0.5) * 100
+                    )}
+                    %
+                  </label>
+                  <CustomSlider
+                    value={Math.round(
+                      (selectedElement.volume !== undefined
+                        ? selectedElement.volume
+                        : 0.5) * 100
+                    )}
+                    min={0}
+                    max={100}
+                    step={1}
+                    onChange={(e) =>
+                      updateSelectedElement(
+                        "volume",
+                        parseInt(e.target.value) / 100
+                      )
+                    }
+                  />
+                </div>
+
+                {/* Trim Controls for Sound */}
                 <div className="border-t border-gray-600 pt-4">
                   <h4 className="text-sm font-medium text-gray-300 mb-3">
                     Trim Controls
@@ -5299,6 +5492,30 @@ function Editor() {
                       )}%)`}
                     {selectedElement.type === "image" &&
                       `🎨 Image selected: ${selectedElement.title}`}
+                    {selectedElement.type === "music" &&
+                      `🎵 Music selected: ${
+                        selectedElement.title
+                      } (Vol: ${Math.round(
+                        (selectedElement.volume !== undefined
+                          ? selectedElement.volume
+                          : 0.5) * 100
+                      )}%)`}
+                    {selectedElement.type === "voice" &&
+                      `🎤 Voice selected: ${
+                        selectedElement.title
+                      } (Vol: ${Math.round(
+                        (selectedElement.volume !== undefined
+                          ? selectedElement.volume
+                          : 0.5) * 100
+                      )}%)`}
+                    {selectedElement.type === "sound" &&
+                      `🔊 Sound selected: ${
+                        selectedElement.title
+                      } (Vol: ${Math.round(
+                        (selectedElement.volume !== undefined
+                          ? selectedElement.volume
+                          : 0.5) * 100
+                      )}%)`}
                   </div>
                 )}
               </div>
@@ -5937,9 +6154,7 @@ function Editor() {
 
             {/* Voice Track */}
             <div className="flex items-center gap-3">
-              <div className="w-16 text-white text-sm font-medium">
-                Voice / Sound
-              </div>
+              <div className="w-16 text-white text-sm font-medium">Voice</div>
               <div
                 className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
                 onDragOver={handleDragOver}
@@ -5985,13 +6200,22 @@ function Editor() {
                       }}
                       onMouseEnter={() => setHoveredElement(item.id)}
                       onMouseLeave={() => setHoveredElement(null)}
-                      onClick={(e) => handleSelectElement(item, e)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectElement(item, e);
+                      }}
                       onMouseDown={(e) => {
+                        // Only start drag if not clicking on resize handles or buttons
                         if (
                           !e.target.closest("button") &&
                           !e.target.classList.contains("resize-handle")
                         ) {
-                          handleElementDragStart(e, item);
+                          // Don't start drag immediately, wait for mouse move
+                          const startDrag = () => {
+                            handleElementDragStart(e, item);
+                          };
+                          // Add a small delay to allow click selection first
+                          setTimeout(startDrag, 50);
                         }
                       }}
                     >
@@ -6024,6 +6248,112 @@ function Editor() {
                             }}
                             className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
                             title="Eliminar voz"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* Sound Track */}
+            <div className="flex items-center gap-3">
+              <div className="w-16 text-white text-sm font-medium">Sound</div>
+              <div
+                className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, "sound")}
+              >
+                {/* Vertical playhead line */}
+                <div
+                  className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
+                  style={{
+                    left: `${getPlayheadPosition()}%`,
+                    transform: "translateX(-50%)",
+                    display: getPlayheadPosition() < 0 ? "none" : "block",
+                  }}
+                />
+                {/* Renderizar elementos del timeline para el canal de sonido */}
+                {arrayVideoMake
+                  .filter((item) => item.channel === "sound")
+                  .map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={`absolute rounded-md h-6 flex items-center justify-center cursor-move group hover:scale-105 hover:z-10 ${
+                        draggingElement?.id === item.id
+                          ? "opacity-50 scale-105 transition-none"
+                          : "transition-all duration-200"
+                      } ${
+                        selectedElement?.id === item.id
+                          ? "ring-2 ring-[#DC569D] ring-opacity-80"
+                          : ""
+                      }`}
+                      style={{
+                        left: `${
+                          (getElementRenderPosition(item) /
+                            getTimelineDuration()) *
+                          100
+                        }%`,
+                        width: `${
+                          ((item.endTime - item.startTime) /
+                            getTimelineDuration()) *
+                          100
+                        }%`,
+                        top: "4px",
+                        backgroundColor: getElementColor(item.id, index),
+                      }}
+                      onMouseEnter={() => setHoveredElement(item.id)}
+                      onMouseLeave={() => setHoveredElement(null)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectElement(item, e);
+                      }}
+                      onMouseDown={(e) => {
+                        // Only start drag if not clicking on resize handles or buttons
+                        if (
+                          !e.target.closest("button") &&
+                          !e.target.classList.contains("resize-handle")
+                        ) {
+                          // Don't start drag immediately, wait for mouse move
+                          const startDrag = () => {
+                            handleElementDragStart(e, item);
+                          };
+                          // Add a small delay to allow click selection first
+                          setTimeout(startDrag, 50);
+                        }
+                      }}
+                    >
+                      {/* Manija de redimensionamiento izquierda */}
+                      <div
+                        className="resize-handle absolute left-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                        onMouseDown={(e) => handleResizeStart(e, item, "start")}
+                        title="Recortar inicio"
+                      ></div>
+
+                      {/* Manija de redimensionamiento derecha */}
+                      <div
+                        className="resize-handle absolute right-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                        onMouseDown={(e) => handleResizeStart(e, item, "end")}
+                        title="Recortar final"
+                      ></div>
+
+                      <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
+                        {item.title} ({item.duration}s)
+                      </span>
+
+                      {/* Opciones de hover */}
+                      {hoveredElement === item.id && !draggingElement && (
+                        <div className="absolute -top-2 right-0 flex gap-1 z-20">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteElement(item.id);
+                              setHoveredElement(null);
+                            }}
+                            className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
+                            title="Eliminar sonido"
                           >
                             <Trash2 size={12} />
                           </button>

@@ -65,6 +65,41 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
 
   const audioRef = useRef(null);
 
+  // Custom Slider Component
+  const CustomSlider = ({
+    value,
+    min,
+    max,
+    step,
+    onChange,
+    className = "",
+  }) => {
+    const percentage = ((value - min) / (max - min)) * 100;
+
+    return (
+      <div className={`custom-slider-container ${className}`}>
+        <div className="custom-slider-track"></div>
+        <div
+          className="custom-slider-progress"
+          style={{ width: `${percentage}%` }}
+        ></div>
+        <div
+          className="custom-slider-thumb"
+          style={{ left: `${percentage}%` }}
+        ></div>
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={onChange}
+          className="custom-slider-input"
+        />
+      </div>
+    );
+  };
+
   // Helper function to get voice ID
   const getVoiceId = (voice) => {
     if (!voice) return null;
@@ -541,11 +576,10 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
                       <label className="block text-xs font-medium text-gray-300 mb-2">
                         Stability: {voiceSettings.stability}
                       </label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.1"
+                      <CustomSlider
+                        min={0}
+                        max={1}
+                        step={0.1}
                         value={voiceSettings.stability}
                         onChange={(e) =>
                           setVoiceSettings((prev) => ({
@@ -560,11 +594,10 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
                       <label className="block text-xs font-medium text-gray-300 mb-2">
                         Similarity Boost: {voiceSettings.similarity_boost}
                       </label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.1"
+                      <CustomSlider
+                        min={0}
+                        max={1}
+                        step={0.1}
                         value={voiceSettings.similarity_boost}
                         onChange={(e) =>
                           setVoiceSettings((prev) => ({
@@ -579,11 +612,10 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
                       <label className="block text-xs font-medium text-gray-300 mb-2">
                         Style: {voiceSettings.style}
                       </label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.1"
+                      <CustomSlider
+                        min={0}
+                        max={1}
+                        step={0.1}
                         value={voiceSettings.style}
                         onChange={(e) =>
                           setVoiceSettings((prev) => ({
@@ -805,7 +837,7 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
                   </h3>
                   <button
                     onClick={handleDiscardVoice}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium montserrat-medium flex items-center"
+                    className="px-4 py-2 bg-primarioLogo text-white rounded-lg transition-colors font-medium montserrat-medium flex items-center"
                   >
                     <X className="w-4 h-4 mr-2" />
                     Discard
