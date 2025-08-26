@@ -114,12 +114,15 @@ function MainTopMenu({ user_info }) {
   const [tokens, setTokens] = useState(0);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
-  const [tokenPurchaseStep, setTokenPurchaseStep] = useState("select-amount"); // 'select-amount', 'payment-method', 'confirm', 'success'
+  const [tokenPurchaseStep, setTokenPurchaseStep] = useState("select-amount"); // 'select-amount', 'payment-method', 'confirm', 'success', 'error'
   const [purchaseAmount, setPurchaseAmount] = useState(6); // Amount in dollars
   const [savedCards, setSavedCards] = useState([]);
   const [selectedCard, setSelectedCard] = useState(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [useNewCard, setUseNewCard] = useState(true);
+  const [paymentMessage, setPaymentMessage] = useState("");
+  const [paymentMessageType, setPaymentMessageType] = useState(""); // 'success', 'error', 'warning'
+  const [paymentDetails, setPaymentDetails] = useState(null); // Para detalles adicionales como tokens agregados
 
   //WEBSOCKET
   const pusherClient = createPusherClient();
@@ -344,6 +347,9 @@ function MainTopMenu({ user_info }) {
     setSelectedCard(null);
     setUseNewCard(true);
     setIsProcessingPayment(false);
+    setPaymentMessage("");
+    setPaymentMessageType("");
+    setPaymentDetails(null);
   };
 
   // Calculate tokens from dollar amount (1 dollar = 100 tokens)
@@ -362,7 +368,13 @@ function MainTopMenu({ user_info }) {
 
   const handleProcessPayment = async (stripe, elements) => {
     setIsProcessingPayment(true);
+    setPaymentMessage("");
+    setPaymentMessageType("");
+    setPaymentDetails(null);
+
     try {
+      let response;
+
       if (useNewCard && elements) {
         const cardElement = elements.getElement(CardElement);
 
@@ -377,7 +389,7 @@ function MainTopMenu({ user_info }) {
         }
 
         // Create payment intent on backend
-        const response = await fetch(
+        response = await fetch(
           `${
             import.meta.env.VITE_APP_BACKEND_URL
           }payments/create-payment-intent`,
@@ -388,26 +400,15 @@ function MainTopMenu({ user_info }) {
               Authorization: "Bearer " + Cookies.get("token"),
             },
             body: JSON.stringify({
-              amount: purchaseAmount * 100, // Convert to cents
+              amount: purchaseAmount * 100, // Convert to tokens (100 tokens per dollar)
               currency: "usd",
               payment_method_id: paymentMethod.id,
             }),
           }
         );
-
-        const { client_secret } = await response.json();
-
-        // Confirm payment
-        const { error: confirmError } = await stripe.confirmCardPayment(
-          client_secret
-        );
-
-        if (confirmError) {
-          throw new Error(confirmError.message);
-        }
       } else {
         // Use saved card
-        const response = await fetch(
+        response = await fetch(
           `${import.meta.env.VITE_APP_BACKEND_URL}payments/charge-saved-card`,
           {
             method: "POST",
@@ -416,29 +417,72 @@ function MainTopMenu({ user_info }) {
               Authorization: "Bearer " + Cookies.get("token"),
             },
             body: JSON.stringify({
-              amount: purchaseAmount * 100,
+              amount: purchaseAmount * 100, // Convert to tokens
               currency: "usd",
               payment_method_id: selectedCard,
             }),
           }
         );
-
-        const result = await response.json();
-        if (!response.ok) {
-          throw new Error(result.message || "Payment failed");
-        }
       }
 
-      // Update tokens after successful payment
-      const newTokens = calculateTokens(purchaseAmount);
-      setTokens((prev) => prev + newTokens);
-      setTokenPurchaseStep("success");
+      const result = await response.json();
 
-      // Refresh user tokens from server
-      await fetchUserTokens();
+      if (result.success) {
+        // Pago exitoso
+        setTokenPurchaseStep("success");
+        setPaymentMessage(result.message || "Payment successful");
+        setPaymentMessageType("success");
+        setPaymentDetails({
+          tokens_added: result.tokens_added,
+          total_paid: result.total_paid,
+          currency: result.currency,
+          payment_intent_id: result.payment_intent_id,
+        });
+
+        // Refresh user tokens from server
+        await fetchUserTokens();
+      } else {
+        // Error en el pago
+        setTokenPurchaseStep("error");
+        setPaymentMessage(result.message || "Payment failed");
+        setPaymentMessageType("error");
+
+        // Manejar casos específicos según el tipo de error
+        switch (result.error_type) {
+          case "card_error":
+            setPaymentMessage(`Card Error: ${result.message}`);
+            break;
+          case "rate_limit":
+            setPaymentMessage("Too many requests. Please try again later.");
+            break;
+          case "invalid_request":
+            setPaymentMessage(`Request Error: ${result.message}`);
+            break;
+          case "authentication_error":
+            setPaymentMessage(
+              "Authentication error with payment system. Please try again."
+            );
+            break;
+          case "connection_error":
+            setPaymentMessage(
+              "Connection error. Please check your internet and try again."
+            );
+            break;
+          case "api_error":
+            setPaymentMessage(`Payment system error: ${result.message}`);
+            break;
+          case "server_error":
+            setPaymentMessage("Server error. Please try again later.");
+            break;
+          default:
+            setPaymentMessage(result.message || "An unexpected error occurred");
+        }
+      }
     } catch (error) {
       console.error("Error processing payment:", error);
-      alert(`Payment failed: ${error.message}`);
+      setTokenPurchaseStep("error");
+      setPaymentMessage(`Payment failed: ${error.message}`);
+      setPaymentMessageType("error");
     } finally {
       setIsProcessingPayment(false);
     }
@@ -724,6 +768,7 @@ function MainTopMenu({ user_info }) {
                   {tokenPurchaseStep === "payment-method" && "Payment Method"}
                   {tokenPurchaseStep === "confirm" && "Confirm Purchase"}
                   {tokenPurchaseStep === "success" && "Purchase Successful"}
+                  {tokenPurchaseStep === "error" && "Payment Error"}
                 </h2>
                 <button
                   onClick={handleCloseTokenModal}
@@ -938,13 +983,15 @@ function MainTopMenu({ user_info }) {
                       <div className="flex justify-between items-center">
                         <span className="text-gray-400">Amount Paid:</span>
                         <span className="text-white font-medium">
-                          ${purchaseAmount}
+                          ${paymentDetails?.total_paid || purchaseAmount}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-400">Tokens Received:</span>
                         <span className="text-primarioLogo font-semibold">
-                          {calculateTokens(purchaseAmount)} tokens
+                          {paymentDetails?.tokens_added ||
+                            calculateTokens(purchaseAmount)}{" "}
+                          tokens
                         </span>
                       </div>
                       <div className="border-t border-gray-600 pt-2">
@@ -957,6 +1004,15 @@ function MainTopMenu({ user_info }) {
                           </span>
                         </div>
                       </div>
+                      {paymentDetails?.payment_intent_id && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">Transaction ID:</span>
+                          <span className="text-gray-300 text-sm font-mono">
+                            {paymentDetails.payment_intent_id.substring(0, 20)}
+                            ...
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <button
@@ -965,6 +1021,76 @@ function MainTopMenu({ user_info }) {
                     >
                       Continue
                     </button>
+                  </div>
+                )}
+
+                {/* Step 4: Error */}
+                {tokenPurchaseStep === "error" && (
+                  <div className="text-center space-y-6">
+                    <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto">
+                      <svg
+                        className="w-8 h-8 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </div>
+
+                    <div>
+                      <h3 className="text-white text-xl font-semibold montserrat-medium mb-2">
+                        Payment Failed
+                      </h3>
+                      <p className="text-gray-300 montserrat-regular mb-4">
+                        {paymentMessage}
+                      </p>
+                    </div>
+
+                    <div className="bg-darkBoxSub p-4 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Attempted Amount:</span>
+                        <span className="text-white font-medium">
+                          ${purchaseAmount}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Attempted Tokens:</span>
+                        <span className="text-gray-300">
+                          {calculateTokens(purchaseAmount)} tokens
+                        </span>
+                      </div>
+                      <div className="border-t border-gray-600 pt-2 mt-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">
+                            Current Balance:
+                          </span>
+                          <span className="text-primarioLogo font-semibold">
+                            {tokens} tokens
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setTokenPurchaseStep("select-amount")}
+                        className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500 transition-colors"
+                      >
+                        Try Again
+                      </button>
+                      <button
+                        onClick={handleCloseTokenModal}
+                        className="flex-1 px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
