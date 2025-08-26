@@ -115,7 +115,7 @@ function ShareModal({ post, onClose, showShare, isSameUser, videoUrl }) {
       )}`,
     },
     {
-      name: "Twitter",
+      name: "X (Twitter)",
       icon: Twitter,
       color: "bg-sky-500 hover:bg-sky-600",
       url: `https://twitter.com/intent/tweet?url=${encodeURIComponent(
