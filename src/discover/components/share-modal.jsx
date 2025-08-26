@@ -119,7 +119,7 @@ function ShareModal({ post, onClose, showShare, isSameUser, videoUrl }) {
       icon: Twitter,
       color: "bg-sky-500 hover:bg-sky-600",
       url: `https://twitter.com/intent/tweet?url=${encodeURIComponent(
-        videoUrl
+        postUrl
       )}&text=${encodeURIComponent(
         `Check out this amazing video by ${
           post?.user?.name || "Reelmotion user"
@@ -141,7 +141,7 @@ function ShareModal({ post, onClose, showShare, isSameUser, videoUrl }) {
       icon: MessageCircle,
       color: "bg-blue-500 hover:bg-blue-600",
       url: `https://t.me/share/url?url=${encodeURIComponent(
-        videoUrl
+        postUrl
       )}&text=${encodeURIComponent(
         `Check out this amazing video by ${
           post?.user?.name || "Reelmotion user"

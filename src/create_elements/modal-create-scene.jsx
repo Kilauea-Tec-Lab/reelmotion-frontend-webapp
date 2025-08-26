@@ -9,8 +9,10 @@ import {
   Video,
   Image as ImageIcon,
   Sparkles,
+  CreditCard,
 } from "lucide-react";
 import Cookies from "js-cookie";
+import { createPusherClient } from "../pusher";
 
 function ModalCreateScene({
   isOpen,
@@ -53,6 +55,39 @@ function ModalCreateScene({
 
   // Estado para audio (solo para Veo-3)
   const [withAudio, setWithAudio] = useState(false);
+
+  // Token system states
+  const [tokens, setTokens] = useState(0);
+  const [isLoadingTokens, setIsLoadingTokens] = useState(false);
+  const [userInfo, setUserInfo] = useState(null);
+
+  // WebSocket
+  const pusherClient = createPusherClient();
+
+  // Costos por modelo y configuración (tokens por segundo)
+  const MODEL_COSTS_PER_SECOND = {
+    runway: 8, // Runway ML
+    "runway-aleph": 19, // Runway Aleph
+    "veo-3-audio": 85, // Veo-3 con sonido
+    "veo-3-no-audio": 60, // Veo-3 sin sonido
+    lumalabs: 13, // LumaLabs
+    vidu: 8, // Vidu
+  };
+
+  // Función para calcular el costo total basado en modelo y duración
+  const calculateTokenCost = () => {
+    let costPerSecond;
+
+    if (aiModel === "veo-3") {
+      costPerSecond = withAudio
+        ? MODEL_COSTS_PER_SECOND["veo-3-audio"]
+        : MODEL_COSTS_PER_SECOND["veo-3-no-audio"];
+    } else {
+      costPerSecond = MODEL_COSTS_PER_SECOND[aiModel] || 8;
+    }
+
+    return costPerSecond * videoDuration;
+  };
 
   // Opciones de tareas disponibles para Runway Aleph
   const alephTaskOptions = [
@@ -165,6 +200,75 @@ function ModalCreateScene({
 
     return aspectRatioOptions; // Todas las opciones para otros modelos
   };
+
+  // Token management functions
+  const fetchUserTokens = async () => {
+    setIsLoadingTokens(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}users/tokens`,
+        {
+          headers: {
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        const newTokens = data.data || 0;
+        console.log(`Fetched tokens from server: ${newTokens}`);
+        setTokens(newTokens);
+      }
+    } catch (error) {
+      console.error("Error fetching tokens:", error);
+    } finally {
+      setIsLoadingTokens(false);
+    }
+  };
+
+  const fetchUserInfo = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}users/get-user-info`,
+        {
+          headers: {
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        setUserInfo(data.data || null);
+      }
+    } catch (error) {
+      console.error("Error fetching user info:", error);
+    }
+  };
+
+  // useEffect para cargar tokens y user info cuando se abre el modal
+  useEffect(() => {
+    if (isOpen) {
+      fetchUserTokens();
+      fetchUserInfo();
+    }
+  }, [isOpen]);
+
+  // Socket para tokens
+  useEffect(() => {
+    if (!userInfo?.id || !isOpen) return;
+
+    let channel = pusherClient.subscribe(
+      `private-get-user-tokens.${userInfo.id}`
+    );
+
+    channel.bind("fill-user-tokens", ({ user_id }) => {
+      fetchUserTokens();
+    });
+
+    return () => {
+      pusherClient.unsubscribe(`private-get-user-tokens.${userInfo.id}`);
+    };
+  }, [userInfo?.id, isOpen]);
 
   // Mock data - En producción esto vendría de props o API
 
@@ -418,6 +522,17 @@ function ModalCreateScene({
   };
 
   const handleGenerateScene = async () => {
+    // Validar tokens suficientes
+    const requiredTokens = calculateTokenCost();
+    if (tokens < requiredTokens) {
+      setVideoGenerationError(
+        `Insufficient tokens. You need ${requiredTokens} tokens but only have ${Math.floor(
+          tokens
+        ).toLocaleString("en-US")}.`
+      );
+      return;
+    }
+
     // Validación específica según el modelo
     let hasValidPrompt = false;
 
@@ -525,6 +640,12 @@ function ModalCreateScene({
           );
         }
         setVideoGenerationError(null); // Limpiar errores si la generación fue exitosa
+
+        // Refrescar tokens desde el servidor después de generación exitosa
+        console.log(
+          "Video generation successful, refreshing tokens from server..."
+        );
+        fetchUserTokens();
       } else {
         // Manejar errores específicos del backend
         let errorMessage = "Error generating video. Please try again.";
@@ -1316,6 +1437,67 @@ function ModalCreateScene({
             </div>
           )}
 
+          {/* Token Information */}
+          {!generatedVideoUrl && (
+            <div className="mb-4 bg-darkBoxSub p-4 rounded-lg border border-gray-600">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-[#F2D543]" />
+                  <span className="text-white text-sm font-medium montserrat-medium">
+                    Current Tokens:
+                  </span>
+                </div>
+                <span className="text-[#F2D543] text-sm font-semibold montserrat-medium">
+                  {isLoadingTokens
+                    ? "..."
+                    : Math.floor(tokens).toLocaleString("en-US")}
+                </span>
+              </div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-400 text-sm montserrat-regular">
+                  Model:{" "}
+                  {aiModel === "runway"
+                    ? "Runway ML"
+                    : aiModel === "aleph"
+                    ? "Aleph"
+                    : aiModel === "veo-3"
+                    ? "Veo-3"
+                    : aiModel === "luma"
+                    ? "LumaLabs"
+                    : aiModel === "vidu"
+                    ? "Vidu"
+                    : aiModel}
+                  {aiModel === "veo-3" &&
+                    ` (${withAudio ? "with audio" : "no audio"})`}
+                </span>
+                <span className="text-white text-sm font-medium montserrat-medium">
+                  {aiModel === "veo-3"
+                    ? `${
+                        withAudio
+                          ? MODEL_COSTS_PER_SECOND["veo-3-audio"]
+                          : MODEL_COSTS_PER_SECOND["veo-3-no-audio"]
+                      } tokens/sec`
+                    : `${MODEL_COSTS_PER_SECOND[aiModel] || 8} tokens/sec`}
+                </span>
+              </div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-400 text-sm montserrat-regular">
+                  Duration: {videoDuration} seconds
+                </span>
+                <span className="text-white text-sm font-medium montserrat-medium">
+                  Total cost: {calculateTokenCost()} tokens
+                </span>
+              </div>
+              {tokens < calculateTokenCost() && (
+                <div className="mt-2 p-2 bg-red-900/20 border border-red-500/30 rounded-lg">
+                  <p className="text-red-400 text-xs montserrat-regular text-center">
+                    Insufficient tokens for video generation
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Generate Video Button - Solo mostrar si no hay video generado */}
           {!generatedVideoUrl && (
             <div className="mb-6">
@@ -1330,7 +1512,8 @@ function ModalCreateScene({
                     : isProPromptMode
                     ? !characterAction.trim() // Solo Character Action es requerido
                     : !aiPrompt.trim()) ||
-                  isGenerating
+                  isGenerating ||
+                  tokens < calculateTokenCost()
                 }
                 className={`w-full px-4 py-3 rounded-lg transition-all duration-300 font-medium montserrat-medium flex items-center justify-center gap-2 ${
                   isGenerating

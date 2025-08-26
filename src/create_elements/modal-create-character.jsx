@@ -122,7 +122,7 @@ function ModalCreateCharacter({
   const fetchUserInfo = async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_APP_BACKEND_URL}users/me`,
+        `${import.meta.env.VITE_APP_BACKEND_URL}users/get-user-info`,
         {
           headers: {
             Authorization: "Bearer " + Cookies.get("token"),
@@ -270,14 +270,11 @@ function ModalCreateCharacter({
         setHasGeneratedImage(true);
         setGenerationError(null); // Limpiar errores si la generación fue exitosa
 
-        // Actualizar tokens después de generación exitosa
-        const tokensUsed = MODEL_COSTS[aiModel] || 8;
-        setTokens((prevTokens) => Math.max(0, prevTokens - tokensUsed));
-
-        // También refrescar desde el servidor para asegurar sincronización
-        setTimeout(() => {
-          fetchUserTokens();
-        }, 1000);
+        // Refrescar tokens desde el servidor después de generación exitosa
+        console.log(
+          "Character generation successful, refreshing tokens from server..."
+        );
+        fetchUserTokens();
       } else {
         // Manejar errores específicos del backend
         let errorMessage = "Error generating image. Please try again.";
