@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   X,
   Users,
@@ -8,8 +8,10 @@ import {
   Sparkles,
   FileVideo,
   Layers,
+  CreditCard,
 } from "lucide-react";
 import Cookies from "js-cookie";
+import { createPusherClient } from "../pusher";
 
 function ModalCreateFrame({
   isOpen,
@@ -57,6 +59,20 @@ function ModalCreateFrame({
   // Estado para el botón de submit
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Token system states
+  const [tokens, setTokens] = useState(0);
+  const [isLoadingTokens, setIsLoadingTokens] = useState(false);
+  const [userInfo, setUserInfo] = useState(null);
+
+  // WebSocket
+  const pusherClient = createPusherClient();
+
+  // Costos por modo de creación
+  const MODE_COSTS = {
+    existing: 10, // Use Another Frame
+    ai: 15, // Create with AI
+  };
+
   // Estilos de imagen disponibles
   const imageStyles = [
     {
@@ -100,6 +116,75 @@ function ModalCreateFrame({
       prompt: `Cyberpunk style with neon lights and futuristic details. The result must exactly match the provided reference images while set in a sci-fi cityscape.`,
     },
   ];
+
+  // Token management functions
+  const fetchUserTokens = async () => {
+    setIsLoadingTokens(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}users/tokens`,
+        {
+          headers: {
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        const newTokens = data.data || 0;
+        console.log(`Fetched tokens from server: ${newTokens}`);
+        setTokens(newTokens);
+      }
+    } catch (error) {
+      console.error("Error fetching tokens:", error);
+    } finally {
+      setIsLoadingTokens(false);
+    }
+  };
+
+  const fetchUserInfo = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}users/get-user-info`,
+        {
+          headers: {
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        setUserInfo(data.data || null);
+      }
+    } catch (error) {
+      console.error("Error fetching user info:", error);
+    }
+  };
+
+  // useEffect para cargar tokens y user info cuando se abre el modal
+  useEffect(() => {
+    if (isOpen) {
+      fetchUserTokens();
+      fetchUserInfo();
+    }
+  }, [isOpen]);
+
+  // Socket para tokens
+  useEffect(() => {
+    if (!userInfo?.id || !isOpen) return;
+
+    let channel = pusherClient.subscribe(
+      `private-get-user-tokens.${userInfo.id}`
+    );
+
+    channel.bind("fill-user-tokens", ({ user_id }) => {
+      fetchUserTokens();
+    });
+
+    return () => {
+      pusherClient.unsubscribe(`private-get-user-tokens.${userInfo.id}`);
+    };
+  }, [userInfo?.id, isOpen]);
 
   // Opciones de aspect ratio
   const aspectRatioOptions = [
@@ -240,6 +325,17 @@ function ModalCreateFrame({
       return;
     }
 
+    // Validar tokens suficientes para AI (15 tokens)
+    const requiredTokens = MODE_COSTS["ai"];
+    if (tokens < requiredTokens) {
+      setImageGenerationError(
+        `Insufficient tokens. You need ${requiredTokens} tokens but only have ${Math.floor(
+          tokens
+        ).toLocaleString("en-US")}.`
+      );
+      return;
+    }
+
     setIsGeneratingImage(true);
     setImageGenerationError(null);
 
@@ -278,6 +374,12 @@ function ModalCreateFrame({
         const base64Image = `data:image/jpeg;base64,${responseData.data.image_base64}`;
         setGeneratedImageUrl(base64Image);
         setImageGenerationError(null);
+
+        // Refrescar tokens desde el servidor después de generación exitosa (AI)
+        console.log(
+          "Frame AI generation successful, refreshing tokens from server..."
+        );
+        fetchUserTokens();
       } else {
         let errorMessage = "Error generating image. Please try again.";
         if (responseData && responseData.message) {
@@ -321,6 +423,17 @@ function ModalCreateFrame({
     ) {
       setExistingImageGenerationError(
         "Por favor, completa el prompt y selecciona el aspect ratio."
+      );
+      return;
+    }
+
+    // Validar tokens suficientes para usar otro frame (10 tokens)
+    const requiredTokens = MODE_COSTS["existing"];
+    if (tokens < requiredTokens) {
+      setExistingImageGenerationError(
+        `Insufficient tokens. You need ${requiredTokens} tokens but only have ${Math.floor(
+          tokens
+        ).toLocaleString("en-US")}.`
       );
       return;
     }
@@ -389,6 +502,12 @@ function ModalCreateFrame({
         const base64Image = `data:image/jpeg;base64,${responseData.data.image_base64}`;
         setExistingGeneratedImageUrl(base64Image);
         setExistingImageGenerationError(null);
+
+        // Refrescar tokens desde el servidor después de generación exitosa (Use Another Frame)
+        console.log(
+          "Frame existing generation successful, refreshing tokens from server..."
+        );
+        fetchUserTokens();
       } else {
         let errorMessage = "Error generating image. Please try again.";
         if (responseData && responseData.message) {
@@ -957,6 +1076,38 @@ function ModalCreateFrame({
                             </div>
                           </div>
 
+                          {/* Token Information for Use Another Frame */}
+                          <div className="mb-4 bg-darkBoxSub p-4 rounded-lg border border-gray-600">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <CreditCard className="h-4 w-4 text-[#F2D543]" />
+                                <span className="text-white text-sm font-medium montserrat-medium">
+                                  Current Tokens:
+                                </span>
+                              </div>
+                              <span className="text-[#F2D543] text-sm font-semibold montserrat-medium">
+                                {isLoadingTokens
+                                  ? "..."
+                                  : Math.floor(tokens).toLocaleString("en-US")}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-400 text-sm montserrat-regular">
+                                Cost (Use Another Frame):
+                              </span>
+                              <span className="text-white text-sm font-medium montserrat-medium">
+                                {MODE_COSTS["existing"]} tokens
+                              </span>
+                            </div>
+                            {tokens < MODE_COSTS["existing"] && (
+                              <div className="mt-2 p-2 bg-red-900/20 border border-red-500/30 rounded-lg">
+                                <p className="text-red-400 text-xs montserrat-regular text-center">
+                                  Insufficient tokens for generation
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
                           {/* Generate Enhanced Frame Button */}
                           <button
                             type="button"
@@ -965,13 +1116,15 @@ function ModalCreateFrame({
                               isGeneratingFromExisting ||
                               !selectedExistingFrame ||
                               !selectedAspectRatio ||
-                              !customPrompt.trim()
+                              !customPrompt.trim() ||
+                              tokens < MODE_COSTS["existing"]
                             }
                             className={`w-full px-4 py-3 rounded-lg transition-all duration-300 font-medium montserrat-medium flex items-center justify-center gap-2 ${
                               isGeneratingFromExisting ||
                               !selectedExistingFrame ||
                               !selectedAspectRatio ||
-                              !customPrompt.trim()
+                              !customPrompt.trim() ||
+                              tokens < MODE_COSTS["existing"]
                                 ? "bg-gray-600 text-gray-400 cursor-not-allowed"
                                 : "bg-purple-600 text-white hover:bg-purple-700"
                             }`}
@@ -1285,6 +1438,38 @@ function ModalCreateFrame({
                       </div>
                     </div>
 
+                    {/* Token Information for Create with AI */}
+                    <div className="mb-4 bg-darkBoxSub p-4 rounded-lg border border-gray-600">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="h-4 w-4 text-[#F2D543]" />
+                          <span className="text-white text-sm font-medium montserrat-medium">
+                            Current Tokens:
+                          </span>
+                        </div>
+                        <span className="text-[#F2D543] text-sm font-semibold montserrat-medium">
+                          {isLoadingTokens
+                            ? "..."
+                            : Math.floor(tokens).toLocaleString("en-US")}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400 text-sm montserrat-regular">
+                          Cost (Create with AI):
+                        </span>
+                        <span className="text-white text-sm font-medium montserrat-medium">
+                          {MODE_COSTS["ai"]} tokens
+                        </span>
+                      </div>
+                      {tokens < MODE_COSTS["ai"] && (
+                        <div className="mt-2 p-2 bg-red-900/20 border border-red-500/30 rounded-lg">
+                          <p className="text-red-400 text-xs montserrat-regular text-center">
+                            Insufficient tokens for generation
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Generate Image Button */}
                     <div className="mb-4">
                       <button
@@ -1293,7 +1478,8 @@ function ModalCreateFrame({
                         disabled={
                           !imagePrompt.trim() ||
                           !selectedAspectRatio ||
-                          isGeneratingImage
+                          isGeneratingImage ||
+                          tokens < MODE_COSTS["ai"]
                         }
                         className={`w-full px-4 py-3 rounded-lg transition-all duration-300 font-medium montserrat-medium flex items-center justify-center gap-2 ${
                           isGeneratingImage
