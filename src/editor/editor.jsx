@@ -5751,7 +5751,7 @@ function Editor() {
             }
           `}</style>
           <div
-            className="space-y-3"
+            className="space-y-3 relative"
             style={{
               minWidth:
                 visibleDuration < getTimelineDuration()
@@ -5767,15 +5767,6 @@ function Editor() {
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, "video")}
               >
-                {/* Vertical playhead line */}
-                <div
-                  className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
-                  style={{
-                    left: `${getPlayheadPosition()}%`,
-                    transform: "translateX(-50%)",
-                    display: getPlayheadPosition() < 0 ? "none" : "block",
-                  }}
-                />
                 {/* Render timeline elements for video channel */}
                 {arrayVideoMake
                   .filter((item) => item.channel === "video")
@@ -5929,15 +5920,6 @@ function Editor() {
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, "image")}
               >
-                {/* Vertical playhead line */}
-                <div
-                  className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
-                  style={{
-                    left: `${getPlayheadPosition()}%`,
-                    transform: "translateX(-50%)",
-                    display: getPlayheadPosition() < 0 ? "none" : "block",
-                  }}
-                />
                 {/* Render timeline elements for image/text channel */}
                 {arrayVideoMake
                   .filter((item) => item.channel === "image")
@@ -6054,15 +6036,6 @@ function Editor() {
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, "music")}
               >
-                {/* Vertical playhead line */}
-                <div
-                  className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
-                  style={{
-                    left: `${getPlayheadPosition()}%`,
-                    transform: "translateX(-50%)",
-                    display: getPlayheadPosition() < 0 ? "none" : "block",
-                  }}
-                />
                 {/* Renderizar elementos del timeline para el canal de música */}
                 {arrayVideoMake
                   .filter((item) => item.channel === "music")
@@ -6160,15 +6133,6 @@ function Editor() {
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, "voice")}
               >
-                {/* Vertical playhead line */}
-                <div
-                  className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
-                  style={{
-                    left: `${getPlayheadPosition()}%`,
-                    transform: "translateX(-50%)",
-                    display: getPlayheadPosition() < 0 ? "none" : "block",
-                  }}
-                />
                 {/* Renderizar elementos del timeline para el canal de voz */}
                 {arrayVideoMake
                   .filter((item) => item.channel === "voice")
@@ -6266,15 +6230,6 @@ function Editor() {
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, "sound")}
               >
-                {/* Vertical playhead line */}
-                <div
-                  className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60 pointer-events-none"
-                  style={{
-                    left: `${getPlayheadPosition()}%`,
-                    transform: "translateX(-50%)",
-                    display: getPlayheadPosition() < 0 ? "none" : "block",
-                  }}
-                />
                 {/* Renderizar elementos del timeline para el canal de sonido */}
                 {arrayVideoMake
                   .filter((item) => item.channel === "sound")
@@ -6413,7 +6368,7 @@ function Editor() {
                   {/* Línea vertical hacia arriba desde la bolita */}
                   <div
                     className="absolute left-1/2 -translate-x-1/2 bottom-full w-0.5 bg-primarioLogo"
-                    style={{ height: "190px", zIndex: 60 }}
+                    style={{ height: "250px", zIndex: 60 }}
                   />
                 </div>
                 {/* Indicador visual cuando se hace hover */}

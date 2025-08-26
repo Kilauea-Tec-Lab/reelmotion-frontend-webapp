@@ -57,26 +57,6 @@ function ModalExportEdit({
     }
   };
 
-  const downloadVideo = async (videoUrl, fileName) => {
-    setIsDownloading(true);
-    try {
-      // Add a small delay to show the animation
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      const link = document.createElement("a");
-      link.href = videoUrl;
-      link.download = fileName || "exported-video.mp4";
-      link.target = "_blank";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error("Error downloading video:", error);
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
   const handleExport = async () => {
     if (!selectedProjectId || !arrayVideoMake?.length) return;
 
@@ -141,12 +121,90 @@ function ModalExportEdit({
   };
 
   const handleDownload = async () => {
-    if (!renderResult) return;
+    if (!renderResult?.video_url) {
+      alert("No video available to download.");
+      return;
+    }
 
-    const fileName = `${editName || "exported-edit"}-${new Date()
-      .toISOString()
-      .slice(0, 10)}.mp4`;
-    await downloadVideo(renderResult.video_url, fileName);
+    setIsDownloading(true);
+    try {
+      // Show loading message
+      console.log("Downloading video... Please wait.");
+
+      // Call your backend endpoint
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}editor/download-video`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            // Add authorization header if needed
+            Authorization: `Bearer ${Cookies.get("token")}`,
+          },
+          body: JSON.stringify({
+            video_url: renderResult.video_url,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.code !== 200 || !result.video_data) {
+        throw new Error(result.message || "Failed to download video");
+      }
+
+      // Convert base64 to blob
+      const base64Data = result.video_data;
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: "video/mp4" });
+
+      // Create download link
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `${editName || "exported-edit"}-${new Date()
+        .toISOString()
+        .slice(0, 10)}.mp4`;
+      a.style.display = "none";
+
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      // Clean up blob URL
+      window.URL.revokeObjectURL(blobUrl);
+
+      console.log("Video downloaded successfully via backend");
+    } catch (error) {
+      console.error("Error downloading video:", error);
+
+      // Show user-friendly error message
+      let errorMessage = "Failed to download video. ";
+
+      if (error.message.includes("Server error: 500")) {
+        errorMessage += "Server error occurred. Please try again later.";
+      } else if (error.message.includes("Network")) {
+        errorMessage += "Network error. Please check your connection.";
+      } else {
+        errorMessage += "Please try again or contact support.";
+      }
+
+      alert(errorMessage);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleSaveExport = async () => {
