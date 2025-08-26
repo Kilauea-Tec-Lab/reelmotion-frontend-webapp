@@ -1,10 +1,19 @@
-import { useState, useCallback } from "react";
-import { X, Upload, Sparkles, Image as ImageIcon, Brain } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import {
+  X,
+  Upload,
+  Sparkles,
+  Image as ImageIcon,
+  Brain,
+  CreditCard,
+} from "lucide-react";
 import {
   createImageFreepik,
   createCharacter,
   createImageOpenAI,
 } from "../project/functions";
+import { createPusherClient } from "../pusher";
+import Cookies from "js-cookie";
 
 function ModalCreateCharacter({
   isOpen,
@@ -25,6 +34,20 @@ function ModalCreateCharacter({
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGeneratedImage, setHasGeneratedImage] = useState(false);
   const [generationError, setGenerationError] = useState(null);
+
+  // Token system states
+  const [tokens, setTokens] = useState(0);
+  const [isLoadingTokens, setIsLoadingTokens] = useState(false);
+  const [userInfo, setUserInfo] = useState(null);
+
+  // WebSocket
+  const pusherClient = createPusherClient();
+
+  // Costos por modelo
+  const MODEL_COSTS = {
+    gpt: 8, // OpenAI/Sora
+    freepik: 8, // Freepik
+  };
 
   // Estilos de imagen disponibles
   const imageStyles = [
@@ -72,6 +95,73 @@ function ModalCreateCharacter({
       prompt: ", cyberpunk style character, neon lights, futuristic, high-tech",
     },
   ];
+
+  // Token management functions
+  const fetchUserTokens = async () => {
+    setIsLoadingTokens(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}users/tokens`,
+        {
+          headers: {
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        setTokens(data.data || 0);
+      }
+    } catch (error) {
+      console.error("Error fetching tokens:", error);
+    } finally {
+      setIsLoadingTokens(false);
+    }
+  };
+
+  const fetchUserInfo = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}users/me`,
+        {
+          headers: {
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        setUserInfo(data.data || null);
+      }
+    } catch (error) {
+      console.error("Error fetching user info:", error);
+    }
+  };
+
+  // useEffect para cargar tokens y user info cuando se abre el modal
+  useEffect(() => {
+    if (isOpen) {
+      fetchUserTokens();
+      fetchUserInfo();
+    }
+  }, [isOpen]);
+
+  // Socket para tokens
+  useEffect(() => {
+    if (!userInfo?.id || !isOpen) return;
+
+    let channel = pusherClient.subscribe(
+      `private-get-user-tokens.${userInfo.id}`
+    );
+
+    channel.bind("fill-user-tokens", ({ user_id }) => {
+      fetchUserTokens();
+    });
+
+    return () => {
+      pusherClient.unsubscribe(`private-get-user-tokens.${userInfo.id}`);
+    };
+  }, [userInfo?.id, isOpen]);
 
   // Función para crear el prompt final con el estilo seleccionado
   const createFinalPrompt = () => {
@@ -136,6 +226,17 @@ function ModalCreateCharacter({
   async function handleGenerateAI() {
     if (!aiPrompt.trim()) return;
 
+    // Validar tokens suficientes
+    const requiredTokens = MODEL_COSTS[aiModel] || 8;
+    if (tokens < requiredTokens) {
+      setGenerationError(
+        `Insufficient tokens. You need ${requiredTokens} tokens but only have ${Math.floor(
+          tokens
+        ).toLocaleString("en-US")}.`
+      );
+      return;
+    }
+
     setIsGenerating(true);
     setGenerationError(null); // Limpiar errores anteriores
 
@@ -168,6 +269,15 @@ function ModalCreateCharacter({
         setPreviewUrl(base64Image);
         setHasGeneratedImage(true);
         setGenerationError(null); // Limpiar errores si la generación fue exitosa
+
+        // Actualizar tokens después de generación exitosa
+        const tokensUsed = MODEL_COSTS[aiModel] || 8;
+        setTokens((prevTokens) => Math.max(0, prevTokens - tokensUsed));
+
+        // También refrescar desde el servidor para asegurar sincronización
+        setTimeout(() => {
+          fetchUserTokens();
+        }, 1000);
       } else {
         // Manejar errores específicos del backend
         let errorMessage = "Error generating image. Please try again.";
@@ -605,11 +715,47 @@ function ModalCreateCharacter({
                     </div>
                   )}
 
+                  {/* Token Information */}
+                  <div className="bg-darkBoxSub p-4 rounded-lg border border-gray-600">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-[#F2D543]" />
+                        <span className="text-white text-sm font-medium montserrat-medium">
+                          Current Tokens:
+                        </span>
+                      </div>
+                      <span className="text-[#F2D543] text-sm font-semibold montserrat-medium">
+                        {isLoadingTokens
+                          ? "..."
+                          : Math.floor(tokens).toLocaleString("en-US")}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400 text-sm montserrat-regular">
+                        Cost ({aiModel === "gpt" ? "Sora/OpenAI" : "Freepik"}):
+                      </span>
+                      <span className="text-white text-sm font-medium montserrat-medium">
+                        {MODEL_COSTS[aiModel]} tokens
+                      </span>
+                    </div>
+                    {tokens < MODEL_COSTS[aiModel] && (
+                      <div className="mt-2 p-2 bg-red-900/20 border border-red-500/30 rounded-lg">
+                        <p className="text-red-400 text-xs montserrat-regular text-center">
+                          Insufficient tokens for generation
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Generate Button */}
                   <button
                     type="button"
                     onClick={handleGenerateAI}
-                    disabled={!aiPrompt.trim() || isGenerating}
+                    disabled={
+                      !aiPrompt.trim() ||
+                      isGenerating ||
+                      tokens < MODEL_COSTS[aiModel]
+                    }
                     className={`w-full px-4 py-3 rounded-lg transition-all duration-300 font-medium montserrat-medium flex items-center justify-center gap-2 ${
                       isGenerating
                         ? "bg-[#F2D543] text-primarioDark animate-pulse cursor-not-allowed"

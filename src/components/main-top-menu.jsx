@@ -236,6 +236,23 @@ function MainTopMenu({ user_info }) {
     getNotifications();
   }, []);
 
+  // Socket para tokens
+  useEffect(() => {
+    if (!user_info?.id) return;
+
+    let channel = pusherClient.subscribe(
+      `private-get-user-tokens.${user_info.id}`
+    );
+
+    channel.bind("fill-user-tokens", ({ user_id }) => {
+      fetchUserTokens();
+    });
+
+    return () => {
+      pusherClient.unsubscribe(`private-get-user-tokens.${user_info.id}`);
+    };
+  }, [user_info?.id]);
+
   // Helper function to format date as "hace 1 min", "hace 2 hrs", etc.
   function timeAgo(dateString) {
     const now = new Date();
@@ -294,7 +311,7 @@ function MainTopMenu({ user_info }) {
     setIsLoadingTokens(true);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_APP_BACKEND_URL}user/tokens`,
+        `${import.meta.env.VITE_APP_BACKEND_URL}users/tokens`,
         {
           headers: {
             Authorization: "Bearer " + Cookies.get("token"),
@@ -303,7 +320,7 @@ function MainTopMenu({ user_info }) {
       );
       const data = await response.json();
       if (response.ok) {
-        setTokens(data.tokens || 0);
+        setTokens(data.data || 0);
       }
     } catch (error) {
       console.error("Error fetching tokens:", error);
@@ -535,7 +552,10 @@ function MainTopMenu({ user_info }) {
           <div className="flex items-center space-x-2 bg-darkBoxSub px-3 py-1.5 rounded-lg">
             <CreditCard className="h-4 w-4 text-primarioLogo" />
             <span className="text-white text-sm font-medium montserrat-medium">
-              Tokens: {isLoadingTokens ? "..." : tokens}
+              Tokens:{" "}
+              {isLoadingTokens
+                ? "..."
+                : Math.floor(tokens).toLocaleString("en-US")}
             </span>
           </div>
 
