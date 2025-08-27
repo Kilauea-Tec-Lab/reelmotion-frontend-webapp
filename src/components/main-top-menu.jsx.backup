@@ -1,0 +1,1318 @@
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Bell,
+  User,
+  Search,
+  LogOut,
+  ChevronDown,
+  Cog,
+  Play,
+  RefreshCw,
+  CreditCard,
+  DollarSign,
+} from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import Cookies from "js-cookie";
+import { searchProjects } from "../create_elements/functions";
+import PostModal from "../discover/components/post-modal";
+import { getUserNotifications, deleteNotification } from "../auth/functions";
+import { getPostById } from "../discover/functions";
+import { createPusherClient } from "@/pusher";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  CardElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+
+// Initialize Stripe
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+
+// Card input component with Stripe Elements
+function CardInput({ onPaymentProcess, isProcessing, purchaseAmount }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [cardComplete, setCardComplete] = useState(false);
+  const [cardError, setCardError] = useState(null);
+
+  const handleCardChange = (event) => {
+    setCardComplete(event.complete);
+    setCardError(event.error?.message || null);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!stripe || !elements || !cardComplete) return;
+    await onPaymentProcess(stripe, elements);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="p-4 border border-gray-600 rounded-lg bg-darkBoxSub">
+        <CardElement
+          onChange={handleCardChange}
+          options={{
+            style: {
+              base: {
+                fontSize: "16px",
+                color: "#ffffff",
+                "::placeholder": {
+                  color: "#9ca3af",
+                },
+              },
+              invalid: {
+                color: "#ef4444",
+              },
+            },
+          }}
+        />
+      </div>
+
+      {cardError && (
+        <div className="text-red-400 text-sm mt-2">{cardError}</div>
+      )}
+
+      <button
+        type="submit"
+        disabled={!stripe || isProcessing || !cardComplete}
+        className="w-full px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        {isProcessing && (
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        )}
+        {isProcessing
+          ? "Processing..."
+          : !cardComplete
+          ? "Enter card details"
+          : `Pay $${purchaseAmount}`}
+      </button>
+    </form>
+  );
+}
+
+function MainTopMenu({ user_info }) {
+  const navigate = useNavigate();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const menuRef = useRef(null);
+  const notificationsRef = useRef(null);
+  const searchRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [notificationsInfo, setNotificationsInfo] = useState([]);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [selectedNotificationPost, setSelectedNotificationPost] =
+    useState(null);
+
+  // Token system states
+  const [tokens, setTokens] = useState(0);
+  const [isLoadingTokens, setIsLoadingTokens] = useState(false);
+  const [showTokenModal, setShowTokenModal] = useState(false);
+  const [tokenPurchaseStep, setTokenPurchaseStep] = useState("select-amount"); // 'select-amount', 'select-gateway', 'payment-method', 'confirm', 'success', 'error'
+  const [purchaseAmount, setPurchaseAmount] = useState(6); // Amount in dollars
+  const [selectedGateway, setSelectedGateway] = useState(""); // 'stripe', 'square', 'paypal'
+  const [savedCards, setSavedCards] = useState([]);
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [useNewCard, setUseNewCard] = useState(true);
+  const [paymentMessage, setPaymentMessage] = useState("");
+  const [paymentMessageType, setPaymentMessageType] = useState(""); // 'success', 'error', 'warning'
+  const [paymentDetails, setPaymentDetails] = useState(null); // Para detalles adicionales como tokens agregados
+
+  //WEBSOCKET
+  const pusherClient = createPusherClient();
+
+  // Calcular notificaciones no leídas
+  const unreadCount = notificationsInfo.filter((n) => n.unread).length;
+
+  // Cerrar los menús cuando se hace clic fuera
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+      if (
+        notificationsRef.current &&
+        !notificationsRef.current.contains(event.target)
+      ) {
+        setShowNotifications(false);
+      }
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowSearchResults(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Búsqueda de proyectos con debounce
+  useEffect(() => {
+    if (searchTerm.trim().length < 2) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Set new timeout for search
+    searchTimeoutRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const response = await searchProjects(searchTerm.trim());
+
+        if (response.success && response.data && Array.isArray(response.data)) {
+          setSearchResults(response.data);
+          setShowSearchResults(response.data.length > 0);
+        } else {
+          setSearchResults([]);
+          setShowSearchResults(false);
+        }
+      } catch (error) {
+        console.error("Search error:", error);
+        setSearchResults([]);
+        setShowSearchResults(false);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500); // 500ms delay
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm]);
+
+  function handleLogOut() {
+    Cookies.remove("token");
+    navigate("/login", { replace: true });
+  }
+
+  const handleProjectSelect = (project) => {
+    // Abrir el visualizador de proyectos con el ID seleccionado
+    setSelectedProjectId(project.id);
+    setSearchTerm("");
+    setSearchResults([]);
+    setShowSearchResults(false);
+    setShowProjectModal(true);
+  };
+
+  const handleCloseProjectModal = () => {
+    setShowProjectModal(false);
+    setSelectedProjectId(null);
+  };
+
+  async function getNotifications() {
+    const response = await getUserNotifications();
+    setNotificationsInfo(response?.data || []);
+  }
+
+  // Socket para notificaciones
+
+  useEffect(() => {
+    if (!user_info?.id) return;
+
+    let channel = pusherClient.subscribe(
+      `private-get-notifications.${user_info.id}`
+    );
+
+    channel.bind("fill-notifications", ({ user_id }) => {
+      getNotifications();
+    });
+
+    return () => {
+      pusherClient.unsubscribe(`private-get-notifications.${user_info.id}`);
+    };
+  }, [user_info?.id]);
+
+  useEffect(() => {
+    getNotifications();
+  }, []);
+
+  // Socket para tokens
+  useEffect(() => {
+    if (!user_info?.id) return;
+
+    let channel = pusherClient.subscribe(
+      `private-get-user-tokens.${user_info.id}`
+    );
+
+    channel.bind("fill-user-tokens", ({ user_id }) => {
+      fetchUserTokens();
+    });
+
+    return () => {
+      pusherClient.unsubscribe(`private-get-user-tokens.${user_info.id}`);
+    };
+  }, [user_info?.id]);
+
+  // Helper function to format date as "hace 1 min", "hace 2 hrs", etc.
+  function timeAgo(dateString) {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diff = Math.floor((now - date) / 1000); // seconds
+
+    if (isNaN(diff) || diff < 0) return "";
+
+    if (diff < 60) return "hace unos segundos";
+    if (diff < 3600) {
+      const mins = Math.floor(diff / 60);
+      return `hace ${mins} min${mins > 1 ? "s" : ""}`;
+    }
+    if (diff < 86400) {
+      const hrs = Math.floor(diff / 3600);
+      return `hace ${hrs} hr${hrs > 1 ? "s" : ""}`;
+    }
+    const days = Math.floor(diff / 86400);
+    return `hace ${days} día${days > 1 ? "s" : ""}`;
+  }
+
+  // Función para manejar el click en notificaciones
+  const handleNotificationClick = async (notification) => {
+    try {
+      // 1. Eliminar la notificación
+      await deleteNotification(notification.id);
+
+      // 3. Si es una notificación de post, obtener la info y abrir el modal
+      if (notification.type == "post" && notification.referente_to_go) {
+        const postResponse = await getPostById(notification.referente_to_go);
+        if (postResponse.data) {
+          setSelectedNotificationPost(postResponse.data);
+          setShowNotificationModal(true);
+        }
+      }
+
+      if (notification.type == "folder_shared") {
+        // Redirigir al usuario a la carpeta compartida
+        navigate(`/projects`);
+      }
+
+      // Cerrar el dropdown de notificaciones
+      setShowNotifications(false);
+    } catch (error) {
+      console.error("Error handling notification click:", error);
+    }
+  };
+
+  const handleCloseNotificationModal = () => {
+    setShowNotificationModal(false);
+    setSelectedNotificationPost(null);
+  };
+
+  // Token management functions
+  const fetchUserTokens = async () => {
+    setIsLoadingTokens(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}users/tokens`,
+        {
+          headers: {
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        setTokens(data.data || 0);
+      }
+    } catch (error) {
+      console.error("Error fetching tokens:", error);
+    } finally {
+      setIsLoadingTokens(false);
+    }
+  };
+
+  const handleOpenTokenModal = () => {
+    setShowTokenModal(true);
+    setTokenPurchaseStep("select-amount");
+    setPurchaseAmount(6);
+    setSelectedCard(null);
+    setUseNewCard(true);
+  };
+
+  const handleCloseTokenModal = () => {
+    setShowTokenModal(false);
+    setTokenPurchaseStep("select-amount");
+    setPurchaseAmount(6);
+    setSelectedGateway("");
+    setSelectedCard(null);
+    setUseNewCard(true);
+    setIsProcessingPayment(false);
+    setPaymentMessage("");
+    setPaymentMessageType("");
+    setPaymentDetails(null);
+  };
+
+  // Calculate tokens from dollar amount (1 dollar = 100 tokens)
+  const calculateTokens = (dollars) => dollars * 100;
+
+  const handleAmountChange = (e) => {
+    const value = Math.max(6, parseInt(e.target.value) || 6);
+    setPurchaseAmount(value);
+  };
+
+  const handleContinueToPayment = () => {
+    if (purchaseAmount >= 6) {
+      setTokenPurchaseStep("select-gateway");
+    }
+  };
+
+  const handleProcessPayment = async (stripe, elements) => {
+    setIsProcessingPayment(true);
+    setPaymentMessage("");
+    setPaymentMessageType("");
+    setPaymentDetails(null);
+
+    try {
+      let response;
+      let endpoint;
+      let bodyData;
+
+      // Determine endpoint based on selected gateway
+      if (selectedGateway === "stripe") {
+        if (useNewCard && elements) {
+          const cardElement = elements.getElement(CardElement);
+
+          // Create payment method
+          const { error, paymentMethod } = await stripe.createPaymentMethod({
+            type: "card",
+            card: cardElement,
+          });
+
+          if (error) {
+            throw new Error(error.message);
+          }
+
+          endpoint = "payments/create-payment-intent";
+          bodyData = {
+            amount: purchaseAmount * 100, // Convert to tokens (100 tokens per dollar)
+            currency: "usd",
+            payment_method_id: paymentMethod.id,
+            gateway: "stripe",
+          };
+        } else {
+          endpoint = "payments/charge-saved-card";
+          bodyData = {
+            amount: purchaseAmount * 100, // Convert to tokens
+            currency: "usd",
+            payment_method_id: selectedCard,
+            gateway: "stripe",
+          };
+        }
+      } else if (selectedGateway === "square") {
+        // Square implementation
+        endpoint = "payments/create-square-payment";
+        bodyData = {
+          amount: purchaseAmount * 100, // Convert to tokens
+          currency: "usd",
+          gateway: "square",
+          // Square-specific data will be handled differently
+        };
+      }
+
+      // Make the API call
+      response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}${endpoint}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: JSON.stringify(bodyData),
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Pago exitoso
+        setTokenPurchaseStep("success");
+        setPaymentMessage(result.message || "Payment successful");
+        setPaymentMessageType("success");
+        setPaymentDetails({
+          tokens_added: result.tokens_added,
+          total_paid: result.total_paid,
+          currency: result.currency,
+          payment_intent_id: result.payment_intent_id,
+        });
+
+        // Refresh user tokens from server
+        await fetchUserTokens();
+      } else {
+        // Error en el pago
+        setTokenPurchaseStep("error");
+        setPaymentMessage(result.message || "Payment failed");
+        setPaymentMessageType("error");
+
+        // Manejar casos específicos según el tipo de error
+        switch (result.error_type) {
+          case "card_error":
+            setPaymentMessage(`Card Error: ${result.message}`);
+            break;
+          case "rate_limit":
+            setPaymentMessage("Too many requests. Please try again later.");
+            break;
+          case "invalid_request":
+            setPaymentMessage(`Request Error: ${result.message}`);
+            break;
+          case "authentication_error":
+            setPaymentMessage(
+              "Authentication error with payment system. Please try again."
+            );
+            break;
+          case "connection_error":
+            setPaymentMessage(
+              "Connection error. Please check your internet and try again."
+            );
+            break;
+          case "api_error":
+            setPaymentMessage(`Payment system error: ${result.message}`);
+            break;
+          case "server_error":
+            setPaymentMessage("Server error. Please try again later.");
+            break;
+          default:
+            setPaymentMessage(result.message || "An unexpected error occurred");
+        }
+      }
+    } catch (error) {
+      console.error("Error processing payment:", error);
+      setTokenPurchaseStep("error");
+      setPaymentMessage(`Payment failed: ${error.message}`);
+      setPaymentMessageType("error");
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  // Load tokens on component mount
+  useEffect(() => {
+    fetchUserTokens();
+  }, []);
+
+  return (
+    <header className="bg-primarioDark h-15 pt-1 flex items-center justify-between px-6 fixed top-0 left-0 right-0 z-50  border-b pb-2 border-gray-800">
+      {/* Project Modal */}
+      <PostModal
+        isOpen={showProjectModal}
+        onClose={handleCloseProjectModal}
+        postId={selectedProjectId}
+      />
+
+      {/* Notification Post Modal */}
+      <PostModal
+        isOpen={showNotificationModal}
+        onClose={handleCloseNotificationModal}
+        postId={selectedNotificationPost?.id}
+      />
+
+      {/* Logo y navegación principal */}
+      <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
+          <img
+            src="/logos/logo_reelmotion.webp"
+            alt="Reelmotion AI"
+            className="h-7 w-auto"
+          />
+        </div>
+      </div>
+
+      {/* Barra de búsqueda central */}
+      <div
+        className="flex-1 max-w-lg mx-8 bg-darkBoxSub rounded-lg relative"
+        ref={searchRef}
+      >
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search projects..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-lg focus:ring-0 focus:outline-none text-white bg-transparent montserrat-medium wider placeholder-[#808191]"
+          />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#808191] h-4 w-4" />
+          {isSearching && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="w-4 h-4 border-2 border-gray-400 border-t-[#F2D543] rounded-full animate-spin"></div>
+            </div>
+          )}
+        </div>
+
+        {/* Search Results Dropdown */}
+        {showSearchResults && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-darkBoxSub rounded-lg shadow-xl border border-gray-600 max-h-96 overflow-y-auto z-50">
+            {searchResults.length > 0 ? (
+              <div className="p-2">
+                {searchResults.map((project) => (
+                  <button
+                    key={project.id}
+                    onClick={() => handleProjectSelect(project)}
+                    className="w-full flex items-center gap-3 px-3 py-3 text-white hover:bg-darkBox transition-colors text-left rounded-lg"
+                  >
+                    {/* Video thumbnail */}
+                    <div className="w-16 h-12 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center flex-shrink-0">
+                      {project.video_url ? (
+                        <video
+                          src={project.video_url}
+                          className="w-full h-full object-cover"
+                          muted
+                          playsInline
+                        />
+                      ) : (
+                        <Play size={20} className="text-gray-400" />
+                      )}
+                    </div>
+
+                    {/* Project info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white montserrat-medium truncate">
+                        {project.name}
+                      </p>
+                    </div>
+
+                    {/* Arrow indicator */}
+                    <ChevronDown className="rotate-[-90deg] text-gray-400 w-4 h-4 flex-shrink-0" />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="px-4 py-3 text-gray-400 text-sm montserrat-light">
+                {searchTerm.trim().length < 2
+                  ? "Type at least 2 characters to search"
+                  : "No projects found"}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Controles del usuario */}
+      <div className="flex items-center space-x-6">
+        {/* Token indicator */}
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 bg-darkBoxSub px-3 py-1.5 rounded-lg">
+            <CreditCard className="h-4 w-4 text-primarioLogo" />
+            <span className="text-white text-sm font-medium montserrat-medium">
+              Tokens:{" "}
+              {isLoadingTokens
+                ? "..."
+                : Math.floor(tokens).toLocaleString("en-US")}
+            </span>
+          </div>
+
+          <button
+            onClick={handleOpenTokenModal}
+            className="px-3 py-1.5 bg-primarioLogo hover:bg-primarioLogo/80 text-white text-xs font-medium rounded-lg transition-colors montserrat-medium"
+          >
+            <DollarSign className="h-3 w-3 inline-block mr-1 mt-[-2px]" />
+            Buy Tokens
+          </button>
+        </div>
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="flex items-center space-x-2 p-2 text-[#808191] rounded-lg transition-colors hover:bg-darkBoxSub"
+          >
+            {user_info?.image ? (
+              <img
+                src={user_info.image}
+                alt="User Avatar"
+                className="h-8 w-8 rounded-full"
+              />
+            ) : (
+              <User className="h-8 w-8 rounded-full" />
+            )}
+            <span className="text-sm font-medium">{user_info?.name}</span>
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${
+                showUserMenu ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+
+          {/* Dropdown Menu */}
+          {showUserMenu && (
+            <div className="absolute top-12 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[160px]">
+              <Link
+                to="/profile"
+                className="w-full text-left flex items-center gap-2 px-4 py-3 text-sm text-white montserrat-light hover:bg-darkBox transition-colors rounded-lg"
+              >
+                <Cog size={16} />
+                Settings
+              </Link>
+              <button
+                onClick={() => {
+                  setShowUserMenu(false);
+                  handleLogOut();
+                }}
+                className="w-full text-left flex items-center gap-2 px-4 py-3 text-sm text-white montserrat-light hover:bg-darkBox transition-colors rounded-lg"
+              >
+                <LogOut size={16} />
+                Log Out
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Notifications */}
+        <div className="relative" ref={notificationsRef}>
+          <button
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="p-2 text-[#808191] rounded-lg transition-colors hover:bg-darkBoxSub relative"
+          >
+            <Bell className="h-5 w-5" />
+            {notificationsInfo.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                {notificationsInfo.length}
+              </span>
+            )}
+          </button>
+
+          {/* Notifications Dropdown */}
+          {showNotifications && (
+            <div className="absolute top-12 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 w-80 max-h-96 overflow-y-auto">
+              <div className="p-4 border-b border-gray-600">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-white montserrat-medium text-sm">
+                    Notifications
+                  </h3>
+                  {unreadCount > 0 && (
+                    <span className="text-xs text-[#F2D543] montserrat-light">
+                      {unreadCount} unread
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="max-h-80 overflow-y-auto">
+                {notificationsInfo.length > 0 ? (
+                  notificationsInfo.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={`p-4 border-b border-gray-700 hover:bg-darkBox transition-colors cursor-pointer ${
+                        notification.unread ? "bg-darkBox bg-opacity-30" : ""
+                      }`}
+                      onClick={() => handleNotificationClick(notification)}
+                    >
+                      <div className="flex items-start gap-3">
+                        {notification?.other_user?.image ? (
+                          <img
+                            src={notification?.other_user?.image}
+                            alt=""
+                            className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
+                            <User className="text-gray-200" size={15} />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h4
+                            className={`text-sm montserrat-medium ${
+                              notification.unread
+                                ? "text-white"
+                                : "text-gray-300"
+                            }`}
+                          >
+                            {notification.type == "post"
+                              ? "Discovery"
+                              : "Notification"}
+                          </h4>
+                          <p className="text-xs text-gray-400 montserrat-light mt-1 line-clamp-2">
+                            {notification.notification}
+                          </p>
+                          <span className="text-xs text-gray-500 montserrat-light mt-2 block">
+                            {timeAgo(notification.created_at)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-6 text-center">
+                    <Bell className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-400 text-sm montserrat-light">
+                      No notifications yet
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {notificationsInfo.length > 0 && (
+                <div className="p-3">
+                  <button
+                    onClick={() => setShowNotifications(false)}
+                    className="w-full text-center text-xs text-[#F2D543] montserrat-light hover:text-[#f2f243] transition-colors"
+                  >
+                    Mark all as read
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Token Purchase Modal */}
+      {showTokenModal && (
+        <Elements stripe={stripePromise}>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-darkBox rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-600">
+                <h2 className="text-xl font-semibold text-white montserrat-medium">
+                  {tokenPurchaseStep === "select-amount" && "Buy Tokens"}
+                  {tokenPurchaseStep === "select-gateway" && "Select Payment Gateway"}
+                  {tokenPurchaseStep === "payment-method" && "Payment Method"}
+                  {tokenPurchaseStep === "confirm" && "Confirm Purchase"}
+                  {tokenPurchaseStep === "success" && "Purchase Successful"}
+                  {tokenPurchaseStep === "error" && "Payment Error"}
+                </h2>
+                <button
+                  onClick={handleCloseTokenModal}
+                  className="text-gray-400 hover:text-white transition-colors text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6">
+                {/* Step 1: Select Amount */}
+                {tokenPurchaseStep === "select-amount" && (
+                  <div className="space-y-6">
+                    <p className="text-gray-300 text-sm montserrat-regular">
+                      Enter the amount you want to spend. Each dollar gives you
+                      100 tokens. Minimum purchase is $6.
+                    </p>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-white text-sm font-medium mb-2">
+                          Amount (USD)
+                        </label>
+                        <input
+                          type="number"
+                          min="6"
+                          step="1"
+                          value={purchaseAmount}
+                          onChange={handleAmountChange}
+                          className="w-full px-4 py-3 bg-darkBoxSub border border-gray-600 rounded-lg text-white text-lg font-medium focus:outline-none focus:border-primarioLogo transition-colors"
+                          placeholder="6"
+                        />
+                      </div>
+
+                      <div className="bg-darkBoxSub p-4 rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">Amount:</span>
+                          <span className="text-white font-medium">
+                            ${purchaseAmount}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-gray-400">
+                            Tokens you'll receive:
+                          </span>
+                          <span className="text-primarioLogo font-semibold">
+                            {calculateTokens(purchaseAmount)} tokens
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center mt-2 text-sm">
+                          <span className="text-gray-500">Rate:</span>
+                          <span className="text-gray-500">$1 = 100 tokens</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleContinueToPayment}
+                      disabled={purchaseAmount < 6}
+                      className="w-full px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Continue to Payment
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 2: Select Payment Gateway */}
+                {tokenPurchaseStep === "select-gateway" && (
+                  <div className="space-y-6">
+                    <div className="bg-darkBoxSub p-4 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Amount:</span>
+                        <span className="text-white font-medium">
+                          ${purchaseAmount}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Tokens:</span>
+                        <span className="text-primarioLogo font-semibold">
+                          {calculateTokens(purchaseAmount)} tokens
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-white text-lg font-medium mb-4">
+                        Choose your payment gateway
+                      </h3>
+                      <div className="space-y-3">
+                        {/* Stripe Gateway */}
+                        <div
+                          onClick={() => setSelectedGateway("stripe")}
+                          className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                            selectedGateway === "stripe"
+                              ? "border-primarioLogo bg-primarioLogo/10"
+                              : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
+                          }`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div
+                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                selectedGateway === "stripe"
+                                  ? "border-primarioLogo bg-primarioLogo"
+                                  : "border-gray-400"
+                              }`}
+                            >
+                              {selectedGateway === "stripe" && (
+                                <div className="w-2 h-2 bg-white rounded-full"></div>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3">
+                                <span className="text-white font-medium">Stripe</span>
+                                <div className="bg-blue-600 text-white text-xs px-2 py-1 rounded">
+                                  POPULAR
+                                </div>
+                              </div>
+                              <p className="text-gray-400 text-sm mt-1">
+                                Secure payments with credit/debit cards worldwide
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Square Gateway */}
+                        <div
+                          onClick={() => setSelectedGateway("square")}
+                          className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                            selectedGateway === "square"
+                              ? "border-primarioLogo bg-primarioLogo/10"
+                              : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
+                          }`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div
+                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                selectedGateway === "square"
+                                  ? "border-primarioLogo bg-primarioLogo"
+                                  : "border-gray-400"
+                              }`}
+                            >
+                              {selectedGateway === "square" && (
+                                <div className="w-2 h-2 bg-white rounded-full"></div>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3">
+                                <span className="text-white font-medium">Square</span>
+                                <div className="bg-green-600 text-white text-xs px-2 py-1 rounded">
+                                  SECURE
+                                </div>
+                              </div>
+                              <p className="text-gray-400 text-sm mt-1">
+                                Business-grade payment processing by Square
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* PayPal Gateway */}
+                        <div
+                          onClick={() => setSelectedGateway("paypal")}
+                          className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                            selectedGateway === "paypal"
+                              ? "border-primarioLogo bg-primarioLogo/10"
+                              : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
+                          }`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div
+                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                selectedGateway === "paypal"
+                                  ? "border-primarioLogo bg-primarioLogo"
+                                  : "border-gray-400"
+                              }`}
+                            >
+                              {selectedGateway === "paypal" && (
+                                <div className="w-2 h-2 bg-white rounded-full"></div>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3">
+                                <span className="text-white font-medium">PayPal</span>
+                                <div className="bg-yellow-600 text-white text-xs px-2 py-1 rounded">
+                                  COMING SOON
+                                </div>
+                              </div>
+                              <p className="text-gray-400 text-sm mt-1">
+                                Pay with PayPal balance or linked accounts
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setTokenPurchaseStep("select-amount")}
+                        className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 hover:text-white transition-colors"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (selectedGateway && selectedGateway !== "paypal") {
+                            setTokenPurchaseStep("payment-method");
+                          }
+                        }}
+                        disabled={!selectedGateway || selectedGateway === "paypal"}
+                        className="flex-1 px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Continue
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Payment Method */}
+                {tokenPurchaseStep === "payment-method" && (
+                  <div className="space-y-6">
+                    <div className="bg-darkBoxSub p-4 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Amount:</span>
+                        <span className="text-white font-medium">
+                          ${purchaseAmount}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-gray-400">Tokens:</span>
+                        <span className="text-primarioLogo font-semibold">
+                          {calculateTokens(purchaseAmount)} tokens
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-gray-400">Gateway:</span>
+                        <span className="text-white font-medium capitalize">
+                          {selectedGateway}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Stripe Payment Interface */}
+                    {selectedGateway === "stripe" && (
+                      <div className="space-y-4">
+                        <h3 className="text-white font-medium montserrat-medium">
+                          Payment Method
+                        </h3>
+
+                      {/* New Card Option */}
+                      <div
+                        onClick={() => setUseNewCard(true)}
+                        className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                          useNewCard
+                            ? "border-primarioLogo bg-primarioLogo bg-opacity-10"
+                            : "border-gray-600 hover:border-gray-500"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <CreditCard className="h-5 w-5 text-primarioLogo" />
+                          <div>
+                            <div className="text-white font-medium">
+                              New Card
+                            </div>
+                            <div className="text-gray-400 text-sm">
+                              Add a new payment method
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Saved Cards */}
+                      {savedCards.map((card) => (
+                        <div
+                          key={card.id}
+                          onClick={() => {
+                            setUseNewCard(false);
+                            setSelectedCard(card.id);
+                          }}
+                          className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                            !useNewCard && selectedCard === card.id
+                              ? "border-primarioLogo bg-primarioLogo bg-opacity-10"
+                              : "border-gray-600 hover:border-gray-500"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <CreditCard className="h-5 w-5 text-primarioLogo" />
+                            <div>
+                              <div className="text-white font-medium">
+                                •••• •••• •••• {card.last4}
+                              </div>
+                              <div className="text-gray-400 text-sm">
+                                {card.brand} • Expires {card.exp_month}/
+                                {card.exp_year}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {useNewCard && (
+                      <div className="mt-6">
+                        <h4 className="text-white font-medium mb-3">
+                          Card Details
+                        </h4>
+                        <CardInput
+                          onPaymentProcess={handleProcessPayment}
+                          isProcessing={isProcessingPayment}
+                          purchaseAmount={purchaseAmount}
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setTokenPurchaseStep("select-amount")}
+                        disabled={isProcessingPayment}
+                        className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                      >
+                        Back
+                      </button>
+                      {!useNewCard && (
+                        <button
+                          onClick={() => handleProcessPayment(null, null)}
+                          disabled={isProcessingPayment || !selectedCard}
+                          className="flex-1 px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {isProcessingPayment && (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          )}
+                          {isProcessingPayment
+                            ? "Processing..."
+                            : `Pay $${purchaseAmount}`}
+                        </button>
+                      )}
+                    </div>
+                      </div>
+                    )}
+
+                    {/* Square Payment Interface */}
+                    {selectedGateway === "square" && (
+                      <div className="space-y-4">
+                        <h3 className="text-white font-medium montserrat-medium">
+                          Square Payment
+                        </h3>
+                        
+                        <div className="bg-yellow-900 bg-opacity-20 border border-yellow-600 rounded-lg p-4">
+                          <p className="text-yellow-400 text-sm">
+                            <strong>Square Payment Integration</strong><br/>
+                            Square payment processing will be implemented here. This includes Square's Web Payments SDK for secure card processing.
+                          </p>
+                        </div>
+
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => setTokenPurchaseStep("select-gateway")}
+                            disabled={isProcessingPayment}
+                            className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                          >
+                            Back
+                          </button>
+                          <button
+                            onClick={() => {
+                              // Square payment processing logic will go here
+                              alert("Square payment integration coming soon!");
+                            }}
+                            disabled={isProcessingPayment}
+                            className="flex-1 px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                          >
+                            {isProcessingPayment && (
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            )}
+                            {isProcessingPayment
+                              ? "Processing..."
+                              : `Pay $${purchaseAmount} with Square`}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 3: Success */}
+                {tokenPurchaseStep === "success" && (
+                  <div className="text-center space-y-6">
+                    <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto">
+                      <svg
+                        className="w-8 h-8 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    </div>
+
+                    <div>
+                      <h3 className="text-white text-xl font-semibold montserrat-medium mb-2">
+                        Purchase Successful!
+                      </h3>
+                      <p className="text-gray-300 montserrat-regular">
+                        {calculateTokens(purchaseAmount)} tokens have been added
+                        to your account.
+                      </p>
+                    </div>
+
+                    <div className="bg-darkBoxSub p-4 rounded-lg space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Amount Paid:</span>
+                        <span className="text-white font-medium">
+                          ${paymentDetails?.total_paid || purchaseAmount}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Tokens Received:</span>
+                        <span className="text-primarioLogo font-semibold">
+                          {paymentDetails?.tokens_added ||
+                            calculateTokens(purchaseAmount)}{" "}
+                          tokens
+                        </span>
+                      </div>
+                      <div className="border-t border-gray-600 pt-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">
+                            New Token Balance:
+                          </span>
+                          <span className="text-primarioLogo font-semibold text-lg">
+                            {tokens} tokens
+                          </span>
+                        </div>
+                      </div>
+                      {paymentDetails?.payment_intent_id && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">Transaction ID:</span>
+                          <span className="text-gray-300 text-sm font-mono">
+                            {paymentDetails.payment_intent_id.substring(0, 20)}
+                            ...
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={handleCloseTokenModal}
+                      className="w-full px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors"
+                    >
+                      Continue
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 4: Error */}
+                {tokenPurchaseStep === "error" && (
+                  <div className="text-center space-y-6">
+                    <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto">
+                      <svg
+                        className="w-8 h-8 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </div>
+
+                    <div>
+                      <h3 className="text-white text-xl font-semibold montserrat-medium mb-2">
+                        Payment Failed
+                      </h3>
+                      <p className="text-gray-300 montserrat-regular mb-4">
+                        {paymentMessage}
+                      </p>
+                    </div>
+
+                    <div className="bg-darkBoxSub p-4 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Attempted Amount:</span>
+                        <span className="text-white font-medium">
+                          ${purchaseAmount}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Attempted Tokens:</span>
+                        <span className="text-gray-300">
+                          {calculateTokens(purchaseAmount)} tokens
+                        </span>
+                      </div>
+                      <div className="border-t border-gray-600 pt-2 mt-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">
+                            Current Balance:
+                          </span>
+                          <span className="text-primarioLogo font-semibold">
+                            {tokens} tokens
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setTokenPurchaseStep("select-amount")}
+                        className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500 transition-colors"
+                      >
+                        Try Again
+                      </button>
+                      <button
+                        onClick={handleCloseTokenModal}
+                        className="flex-1 px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </Elements>
+      )}
+    </header>
+  );
+}
+
+export default MainTopMenu;
