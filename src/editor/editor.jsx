@@ -21,6 +21,7 @@ import {
   ZoomOut,
   Scissors,
   Undo,
+  Headphones,
 } from "lucide-react";
 import { useLoaderData } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -79,6 +80,7 @@ function Editor() {
   const imageRefs = useRef({});
   const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
   const timelineRef = useRef(null);
+  const hasInitializedTimelineRef = useRef(false); // Track if timeline has been initialized
   const [hoveredElement, setHoveredElement] = useState(null);
 
   // States for timeline element dragging
@@ -206,6 +208,7 @@ function Editor() {
   // States for library item hover (to hide add buttons when delete buttons are visible)
   const [hoveredImageItem, setHoveredImageItem] = useState(null);
   const [hoveredMusicItem, setHoveredMusicItem] = useState(null);
+  const [hoveredSoundItem, setHoveredSoundItem] = useState(null);
   const [hoveredVoiceItem, setHoveredVoiceItem] = useState(null);
 
   // States for image dragging in preview area
@@ -253,6 +256,13 @@ function Editor() {
   const [voiceList, setVoiceList] = useState([]);
   const [showDeleteVoiceModal, setShowDeleteVoiceModal] = useState(false);
   const [voiceToDelete, setVoiceToDelete] = useState(null);
+
+  // State for sound uploads and deletion
+  const [isUploadingSound, setIsUploadingSound] = useState(false);
+  const [soundList, setSoundList] = useState([]);
+  const [showDeleteSoundModal, setShowDeleteSoundModal] = useState(false);
+  const [soundToDelete, setSoundToDelete] = useState(null);
+  const [isDeletingSound, setIsDeletingSound] = useState(false);
 
   // State for scene video hover
   const [hoveredScene, setHoveredScene] = useState(null);
@@ -392,11 +402,18 @@ function Editor() {
 
   // Initialize visible duration based on content
   useEffect(() => {
-    // Solo resetear el zoom cuando pasamos de 0 elementos a tener elementos (primer elemento agregado)
-    // No resetear en cortes o modificaciones posteriores
-    if (arrayVideoMake.length === 1) {
+    // Solo resetear el zoom cuando es realmente el primer elemento agregado desde cero
+    // No resetear cuando queda un elemento después de eliminar otros
+    if (arrayVideoMake.length === 1 && !hasInitializedTimelineRef.current) {
       const totalDuration = getTimelineDuration();
       setVisibleDuration(totalDuration);
+      setTimelineZoom(1); // También resetear el zoom visual
+      hasInitializedTimelineRef.current = true;
+      console.log("🎬 Timeline initialized with first element");
+    } else if (arrayVideoMake.length === 0) {
+      // Resetear la bandera cuando no hay elementos
+      hasInitializedTimelineRef.current = false;
+      console.log("🗑️ Timeline reset - no elements");
     }
   }, [arrayVideoMake.length]);
 
@@ -422,6 +439,17 @@ function Editor() {
 
     // Calculate percentage within the visible area
     const percentage = (timeInVisibleArea / visibleDuration) * 100;
+
+    // Debug log only when cutting (to avoid spam)
+    if (showCutButton && selectedElement) {
+      console.log("📍 Playhead Position Debug:");
+      console.log("Current Time:", currentTime);
+      console.log("Timeline Scroll Offset:", timelineScrollOffset);
+      console.log("Time in Visible Area:", timeInVisibleArea);
+      console.log("Visible Duration:", visibleDuration);
+      console.log("Percentage:", percentage);
+    }
+
     return percentage;
   };
 
@@ -1922,6 +1950,12 @@ function Editor() {
       setExpandedVoiceGroups(initialExpandedState);
     }
 
+    // Initialize sounds list
+    const sounds = Array.isArray(data?.sounds)
+      ? data.sounds.map((s) => normalizeAudio(s, "sound"))
+      : [];
+    if (sounds.length) setSoundList(sounds);
+
     // Preload and cache durations for all voices
     const preload = async (items) => {
       for (const it of items) {
@@ -1977,6 +2011,16 @@ function Editor() {
           getTimelineDuration()
         )
       );
+
+      console.log("⏰ Timeline Click Debug:");
+      console.log("Click X:", clickX);
+      console.log("Timeline Width:", rect.width);
+      console.log("Percentage:", percentage);
+      console.log("Visible Duration:", visibleDuration);
+      console.log("Time in Visible Area:", timeInVisibleArea);
+      console.log("Timeline Scroll Offset:", timelineScrollOffset);
+      console.log("New Time:", newTime);
+      console.log("Timeline Zoom:", timelineZoom);
 
       setCurrentTime(newTime);
       // Immediately sync media positions on seek (won't auto-play when paused)
@@ -2426,6 +2470,15 @@ function Editor() {
 
     const cutTime = currentTime;
     const element = selectedElement;
+
+    console.log("🔪 Cut Element Debug:");
+    console.log("Current Time:", cutTime);
+    console.log("Element Start:", element.startTime);
+    console.log("Element End:", element.endTime);
+    console.log("Timeline Zoom:", timelineZoom);
+    console.log("Visible Duration:", visibleDuration);
+    console.log("Total Duration:", getTimelineDuration());
+    console.log("Playhead Position %:", getPlayheadPosition());
 
     // Create two new elements from the cut
     const firstPart = {
@@ -3446,6 +3499,36 @@ function Editor() {
     }
   };
 
+  // Sound drag-over and drop handlers
+  const handleSoundContainerDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "copy";
+  };
+
+  const handleSoundContainerDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const files = Array.from(e.dataTransfer.files);
+    const audioFiles = files.filter((file) => file.type.startsWith("audio/"));
+
+    if (audioFiles.length === 0) {
+      alert("Por favor, suelta archivos de audio válidos");
+      return;
+    }
+
+    setIsUploadingSound(true);
+    try {
+      const newSound = await handleAudioDrop(audioFiles, "sound");
+      setSoundList((prev) => [...prev, ...newSound]);
+    } catch (error) {
+      alert("Error al subir sounds. Intenta nuevamente.");
+    } finally {
+      setIsUploadingSound(false);
+    }
+  };
+
   // Delete music
   const handleDeleteMusicClick = (e, music) => {
     e.stopPropagation();
@@ -3645,6 +3728,89 @@ function Editor() {
     }
   };
 
+  // Sound upload and deletion functions
+  const handleSoundInputChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setIsUploadingSound(true);
+    try {
+      const audioFiles = files.filter(
+        (file) =>
+          file.type.startsWith("audio/") ||
+          file.name.toLowerCase().match(/\.(mp3|wav|ogg|m4a|aac)$/)
+      );
+
+      const newSound = await handleAudioDrop(audioFiles, "sound");
+      setSoundList((prev) => [...prev, ...newSound]);
+    } catch (error) {
+      console.error("Error uploading sound:", error);
+      alert("Error uploading sound files");
+    } finally {
+      setIsUploadingSound(false);
+    }
+  };
+
+  const handleSoundDrop = async (e) => {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    setIsUploadingSound(true);
+    try {
+      const newSound = await handleAudioDrop(files, "sound");
+      setSoundList((prev) => [...prev, ...newSound]);
+    } catch (error) {
+      console.error("Error uploading sound:", error);
+      alert("Error uploading sound files");
+    } finally {
+      setIsUploadingSound(false);
+    }
+  };
+
+  const handleDeleteSoundClick = (e, sound) => {
+    e.stopPropagation();
+    setSoundToDelete(sound);
+    setShowDeleteSoundModal(true);
+  };
+
+  const handleConfirmDeleteSound = async () => {
+    if (!soundToDelete) return;
+    setIsDeletingSound(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}editor/destroy-sound`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: JSON.stringify({ id: soundToDelete.id }),
+        }
+      );
+      const data = await response.json();
+      if (response.ok && data.code === 200) {
+        setSoundList((prev) => prev.filter((s) => s.id !== soundToDelete.id));
+        setShowDeleteSoundModal(false);
+        setSoundToDelete(null);
+      } else {
+        alert(data.message || "No se pudo eliminar el sound");
+      }
+    } catch (err) {
+      alert("Error al eliminar sound");
+    } finally {
+      setIsDeletingSound(false);
+    }
+  };
+
+  const handleCloseDeleteSoundModal = () => {
+    if (!isDeletingSound) {
+      setShowDeleteSoundModal(false);
+      setSoundToDelete(null);
+    }
+  };
+
   const handleImageInputChange = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
@@ -3839,7 +4005,7 @@ function Editor() {
                   : "text-white text-center flex items-center justify-center h-16 cursor-pointer"
               }
             >
-              <Volume2 />
+              <Headphones />
             </div>
             <div
               onClick={() => setMenuActive(5)}
@@ -4208,44 +4374,44 @@ function Editor() {
             ) : menuActive == 4 ? (
               <div
                 className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative overflow-hidden"
-                onDragOver={handleMusicContainerDragOver}
-                onDrop={handleMusicContainerDrop}
+                onDragOver={handleSoundContainerDragOver}
+                onDrop={handleSoundContainerDrop}
               >
-                {/* Add Music Button - always visible */}
+                {/* Add Sound Button - always visible */}
                 <button
                   onClick={() => {
                     const input =
-                      musicList.length > 0
-                        ? document.getElementById("music-upload-hidden")
-                        : document.getElementById("music-upload");
+                      soundList.length > 0
+                        ? document.getElementById("sound-upload-hidden")
+                        : document.getElementById("sound-upload");
                     input?.click();
                   }}
                   className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                  title="Add sound/music"
-                  disabled={isUploadingMusic}
+                  title="Add sound"
+                  disabled={isUploadingSound}
                 >
                   <Plus size={20} />
                 </button>
 
-                {/* Upload area - only show when no music */}
-                {musicList.length === 0 && (
+                {/* Upload area - only show when no sounds */}
+                {soundList.length === 0 && (
                   <div className="mb-4 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-primarioLogo transition-colors duration-200">
                     <input
                       type="file"
                       multiple
                       accept="audio/*"
-                      onChange={handleMusicInputChange}
+                      onChange={handleSoundInputChange}
                       className="hidden"
-                      id="music-upload"
-                      disabled={isUploadingMusic}
+                      id="sound-upload"
+                      disabled={isUploadingSound}
                     />
                     <label
-                      htmlFor="music-upload"
+                      htmlFor="sound-upload"
                       className="cursor-pointer flex flex-col items-center gap-2"
                     >
                       <Upload size={32} className="text-gray-400" />
                       <span className="text-gray-400 text-sm">
-                        {isUploadingMusic
+                        {isUploadingSound
                           ? "Uploading sounds..."
                           : "Drag sound files here or click to select"}
                       </span>
@@ -4253,42 +4419,42 @@ function Editor() {
                   </div>
                 )}
 
-                {/* Hidden input for drag & drop when music exists */}
-                {musicList.length > 0 && (
+                {/* Hidden input for drag & drop when sounds exist */}
+                {soundList.length > 0 && (
                   <input
                     type="file"
                     multiple
                     accept="audio/*"
-                    onChange={handleMusicInputChange}
+                    onChange={handleSoundInputChange}
                     className="hidden"
-                    id="music-upload-hidden"
-                    disabled={isUploadingMusic}
+                    id="sound-upload-hidden"
+                    disabled={isUploadingSound}
                   />
                 )}
 
-                {/* Music list */}
+                {/* Sound list */}
                 <div
                   className={`grid mt-11 grid-cols-1 gap-4 overflow-y-auto ${
-                    musicList.length === 0
+                    soundList.length === 0
                       ? "max-h-[calc(100%-140px)]"
                       : "h-full"
                   }`}
                 >
-                  {musicList.map((music, index) => (
+                  {soundList.map((sound, index) => (
                     <div
                       key={index}
-                      draggable={!isUploadingMusic}
-                      onDragStart={(e) => handleDragStart(e, music, "sound")}
-                      onClick={() => addItemToTimeline(music, "sound")}
+                      draggable={!isUploadingSound}
+                      onDragStart={(e) => handleDragStart(e, sound, "sound")}
+                      onClick={() => addItemToTimeline(sound, "sound")}
                       onMouseEnter={() =>
-                        setHoveredMusicItem(music.id || index)
+                        setHoveredSoundItem(sound.id || index)
                       }
-                      onMouseLeave={() => setHoveredMusicItem(null)}
+                      onMouseLeave={() => setHoveredSoundItem(null)}
                       className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
                     >
                       {/* Delete Button - Only visible on hover */}
                       <button
-                        onClick={(e) => handleDeleteMusicClick(e, music)}
+                        onClick={(e) => handleDeleteSoundClick(e, sound)}
                         className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
                         title="Delete sound"
                       >
@@ -4296,24 +4462,24 @@ function Editor() {
                       </button>
 
                       <div className="flex items-center gap-3">
-                        <Volume2 size={24} className="text-primarioLogo" />
+                        <Headphones size={24} className="text-primarioLogo" />
                         <div className="w-3/4">
                           <div className="w-full line-clamp-1">
                             <span className="text-[#E7E7E7] text-sm font-medium block">
-                              {music.name}
+                              {sound.name}
                             </span>
                           </div>
                           <span className="text-gray-400 text-xs">
-                            {music.duration || 30}s
+                            {formatDuration(sound.duration || 30)}s
                           </span>
                         </div>
                       </div>
                     </div>
                   ))}
 
-                  {musicList.length === 0 && !isUploadingMusic && (
+                  {soundList.length === 0 && !isUploadingSound && (
                     <div className="text-center py-8">
-                      <Volume2
+                      <Headphones
                         size={48}
                         className="text-gray-400 mx-auto mb-2"
                       />
@@ -4747,7 +4913,7 @@ function Editor() {
             {selectedElement && selectedElement.type === "video" ? (
               <div className="space-y-4">
                 <div className="text-sm text-gray-300 mb-4">
-                  <p>Duration: {selectedElement.duration}s</p>
+                  <p>Duration: {formatDuration(selectedElement.duration)}s</p>
                   <p className="text-xs mt-1">Click again to deselect</p>
                 </div>
 
@@ -4952,7 +5118,7 @@ function Editor() {
             ) : selectedElement && selectedElement.type === "image" ? (
               <div className="space-y-4">
                 <div className="text-sm text-gray-300 mb-4">
-                  <p>Duration: {selectedElement.duration}s</p>
+                  <p>Duration: {formatDuration(selectedElement.duration)}s</p>
                   <p className="text-xs mt-1">
                     Click again to deselect. Drag image to reposition.
                   </p>
@@ -5211,9 +5377,12 @@ function Editor() {
             ) : selectedElement && selectedElement.type === "music" ? (
               <div className="space-y-4">
                 <div className="text-sm text-gray-300 mb-4">
-                  <p>Duration: {selectedElement.duration}s</p>
+                  <p>Duration: {formatDuration(selectedElement.duration)}s</p>
                   {selectedElement.originalDuration && (
-                    <p>Original: {selectedElement.originalDuration}s</p>
+                    <p>
+                      Original:{" "}
+                      {formatDuration(selectedElement.originalDuration)}s
+                    </p>
                   )}
                   <p className="text-xs mt-1">Click again to deselect</p>
                 </div>
@@ -5284,9 +5453,12 @@ function Editor() {
             ) : selectedElement && selectedElement.type === "voice" ? (
               <div className="space-y-4">
                 <div className="text-sm text-gray-300 mb-4">
-                  <p>Duration: {selectedElement.duration}s</p>
+                  <p>Duration: {formatDuration(selectedElement.duration)}s</p>
                   {selectedElement.originalDuration && (
-                    <p>Original: {selectedElement.originalDuration}s</p>
+                    <p>
+                      Original:{" "}
+                      {formatDuration(selectedElement.originalDuration)}s
+                    </p>
                   )}
                   <p className="text-xs mt-1">Click again to deselect</p>
                 </div>
@@ -5357,9 +5529,12 @@ function Editor() {
             ) : selectedElement && selectedElement.type === "sound" ? (
               <div className="space-y-4">
                 <div className="text-sm text-gray-300 mb-4">
-                  <p>Duration: {selectedElement.duration}s</p>
+                  <p>Duration: {formatDuration(selectedElement.duration)}s</p>
                   {selectedElement.originalDuration && (
-                    <p>Original: {selectedElement.originalDuration}s</p>
+                    <p>
+                      Original:{" "}
+                      {formatDuration(selectedElement.originalDuration)}s
+                    </p>
                   )}
                   <p className="text-xs mt-1">Click again to deselect</p>
                 </div>
@@ -6445,6 +6620,17 @@ function Editor() {
         message="Are you sure you want to delete this voice file?"
         itemName={voiceToDelete?.name}
         isLoading={isDeletingVoice}
+      />
+
+      {/* Delete Sound Confirmation Modal */}
+      <ModalConfirmDelete
+        isOpen={showDeleteSoundModal}
+        onClose={handleCloseDeleteSoundModal}
+        onConfirm={handleConfirmDeleteSound}
+        title="Delete Sound"
+        message="Are you sure you want to delete this sound file?"
+        itemName={soundToDelete?.name}
+        isLoading={isDeletingSound}
       />
     </div>
   );

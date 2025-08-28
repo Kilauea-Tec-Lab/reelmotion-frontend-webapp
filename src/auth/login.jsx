@@ -267,6 +267,7 @@ function Login() {
                     Login
                   </button>
                 </div>
+                {/* 
                 <div className="items-center text-center w-2/5">
                   <span className="text-white montserrat-light text-xs">
                     Or Continue with
@@ -275,6 +276,7 @@ function Login() {
                     \
                   </div>
                 </div>
+                */}
               </div>
             ) : (
               <div className="text-left w-full space-y-6 flex flex-col justify-center mt-18">
@@ -418,6 +420,7 @@ function Login() {
                     Register
                   </button>
                 </div>
+                {/* 
                 <div className="items-center text-center w-2/5">
                   <span className="text-white montserrat-light text-xs">
                     Or Continue with
@@ -425,7 +428,7 @@ function Login() {
                   <div className="flex items-center justify-center space-x-4">
                     \
                   </div>
-                </div>
+                </div>*/}
               </div>
             )}
           </div>
