@@ -2468,17 +2468,46 @@ function Editor() {
   const handleCutElement = () => {
     if (!selectedElement || !showCutButton) return;
 
-    const cutTime = currentTime;
+    // Calculate the actual cut time based on the timeline position
+    // The issue: the progress line position != dot center position when zoomed
+    const rawCutTime = currentTime;
+
+    // Get timeline dimensions for accurate calculation
+    const timelineElement = timelineRef.current;
+    if (!timelineElement) {
+      console.warn("Timeline element not found, using raw cut time");
+      return;
+    }
+
+    const timelineRect = timelineElement.getBoundingClientRect();
+    const timelineWidth = timelineRect.width;
+    const visibleDuration = getVisualTimelineDuration();
+
+    // Calculate the pixel offset of the dot (16px width, centered with translate(-50%))
+    // The dot center is at the correct position, but the progress line starts from left edge
+    // At high zoom, this difference becomes significant
+    const dotWidth = 16; // w-4 = 16px
+    const dotCenterOffset = dotWidth / 2; // 8px
+
+    // Calculate how much time this pixel difference represents
+    const pixelsPerSecond = timelineWidth / visibleDuration;
+    const timeOffsetFromDotToLine = dotCenterOffset / pixelsPerSecond;
+
+    // Adjust the cut time to match where the progress line visually appears
+    // Since the progress line extends from left edge, we need to subtract the offset
+    const cutTime = rawCutTime - timeOffsetFromDotToLine;
+
     const element = selectedElement;
 
     console.log("🔪 Cut Element Debug:");
-    console.log("Current Time:", cutTime);
-    console.log("Element Start:", element.startTime);
-    console.log("Element End:", element.endTime);
-    console.log("Timeline Zoom:", timelineZoom);
+    console.log("Raw Cut Time:", rawCutTime);
+    console.log("Timeline Width:", timelineWidth);
     console.log("Visible Duration:", visibleDuration);
-    console.log("Total Duration:", getTimelineDuration());
-    console.log("Playhead Position %:", getPlayheadPosition());
+    console.log("Pixels per Second:", pixelsPerSecond);
+    console.log("Dot Center Offset (px):", dotCenterOffset);
+    console.log("Time Offset (s):", timeOffsetFromDotToLine);
+    console.log("Adjusted Cut Time:", cutTime);
+    console.log("Timeline Zoom:", timelineZoom);
 
     // Create two new elements from the cut
     const firstPart = {
