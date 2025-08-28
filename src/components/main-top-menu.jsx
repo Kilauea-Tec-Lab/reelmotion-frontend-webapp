@@ -21,7 +21,7 @@ import { createPusherClient } from "@/pusher";
 
 // PayPal configuration
 let paypalClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
-let paypalEnvironment = import.meta.env.VITE_PAYPAL_ENVIRONMENT; // 'sandbox' or 'production'
+let paypalEnvironment = import.meta.env.VITE_PAYPAL_ENVIRONMENT;
 
 function MainTopMenu({ user_info }) {
   const navigate = useNavigate();
