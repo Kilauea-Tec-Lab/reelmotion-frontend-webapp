@@ -245,6 +245,7 @@ input[type="range"]::-moz-range-thumb:hover {
   background: #4b5563;
   border-radius: 3px;
   z-index: 1;
+  cursor: pointer;
 }
 
 .custom-slider-progress {
@@ -256,6 +257,7 @@ input[type="range"]::-moz-range-thumb:hover {
   border-radius: 3px;
   z-index: 2;
   transition: width 0.1s ease;
+  pointer-events: none;
 }
 
 .custom-slider-thumb {
@@ -267,10 +269,12 @@ input[type="range"]::-moz-range-thumb:hover {
   background: #DC569D;
   border: 3px solid #ffffff;
   border-radius: 50%;
-  cursor: pointer;
-  z-index: 3;
+  cursor: grab;
+  z-index: 10;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   transition: all 0.2s ease;
+  user-select: none;
+  pointer-events: auto;
 }
 
 .custom-slider-thumb:hover {
@@ -278,15 +282,15 @@ input[type="range"]::-moz-range-thumb:hover {
   box-shadow: 0 4px 12px rgba(220, 86, 157, 0.4);
 }
 
-.custom-slider-input {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  z-index: 4;
+.custom-slider-thumb.dragging {
+  cursor: grabbing;
+  transform: translate(-50%, -50%) scale(1.15);
+  box-shadow: 0 6px 16px rgba(220, 86, 157, 0.6);
+  transition: none;
+}
+
+.custom-slider-container:hover .custom-slider-thumb {
+  transform: translate(-50%, -50%) scale(1.05);
 }
 
 /* Estilos para react-resizable */
