@@ -29,6 +29,7 @@ import ModalLoadEdit from "./modals/modal-load-edit";
 import ModalExportEdit from "./modals/modal-export-edit";
 import ModalConfirmDelete from "./modals/modal-confirm-delete";
 import { handleImageDrop, handleAudioDrop } from "./functions";
+import CustomSlider from "../components/CustomSlider";
 
 // Editor - Advanced Timeline Video Editor
 //
@@ -284,134 +285,6 @@ function Editor() {
 
     // For main video, it will be updated in syncMediaWithTime
     // considering both master volume and specific video volume
-  };
-
-  // Custom Slider Component
-  const CustomSlider = ({
-    value,
-    min,
-    max,
-    step,
-    onChange,
-    className = "",
-  }) => {
-    const [isDragging, setIsDragging] = useState(false);
-    const sliderRef = useRef(null);
-    const percentage = ((value - min) / (max - min)) * 100;
-
-    const calculateValue = useCallback(
-      (clientX) => {
-        if (!sliderRef.current) return value;
-
-        const rect = sliderRef.current.getBoundingClientRect();
-        const clickX = clientX - rect.left;
-        const newPercentage = Math.max(0, Math.min(clickX / rect.width, 1));
-        const newValue = min + newPercentage * (max - min);
-
-        // Round to step if specified
-        const steppedValue = step
-          ? Math.round(newValue / step) * step
-          : newValue;
-        return Math.max(min, Math.min(max, steppedValue));
-      },
-      [min, max, step, value]
-    );
-
-    const updateValue = useCallback(
-      (newValue) => {
-        if (onChange) {
-          const syntheticEvent = {
-            target: { value: newValue },
-            currentTarget: { value: newValue },
-          };
-          onChange(syntheticEvent);
-        }
-      },
-      [onChange]
-    );
-
-    const handleThumbMouseDown = useCallback(
-      (e) => {
-        e.preventDefault();
-        e.stopPropagation(); // Prevent track click
-        setIsDragging(true);
-
-        // Immediately update value on mouse down
-        const newValue = calculateValue(e.clientX);
-        updateValue(newValue);
-      },
-      [calculateValue, updateValue]
-    );
-
-    const handleTrackClick = useCallback(
-      (e) => {
-        // Only handle if we're not dragging the thumb and the click didn't come from the thumb area
-        if (isDragging || e.target.closest(".custom-slider-thumb")) return;
-
-        e.stopPropagation();
-        const newValue = calculateValue(e.clientX);
-        updateValue(newValue);
-      },
-      [isDragging, calculateValue, updateValue]
-    );
-
-    // Global mouse move handler
-    useEffect(() => {
-      if (!isDragging) return;
-
-      const handleMouseMove = (e) => {
-        e.stopPropagation();
-        const newValue = calculateValue(e.clientX);
-        updateValue(newValue);
-      };
-
-      const handleMouseUp = (e) => {
-        e.stopPropagation();
-        setIsDragging(false);
-      };
-
-      // Use capture to ensure our events run first
-      document.addEventListener("mousemove", handleMouseMove, true);
-      document.addEventListener("mouseup", handleMouseUp, true);
-
-      return () => {
-        document.removeEventListener("mousemove", handleMouseMove, true);
-        document.removeEventListener("mouseup", handleMouseUp, true);
-      };
-    }, [isDragging, calculateValue, updateValue]);
-
-    return (
-      <div
-        ref={sliderRef}
-        className={`custom-slider-container ${className}`}
-        onClick={handleTrackClick}
-      >
-        <div className="custom-slider-track"></div>
-        <div
-          className="custom-slider-progress"
-          style={{ width: `${percentage}%` }}
-        ></div>
-        <div
-          className={`custom-slider-thumb ${isDragging ? "dragging" : ""}`}
-          style={{ left: `${percentage}%` }}
-          onMouseDown={handleThumbMouseDown}
-        >
-          {/* Invisible larger click area */}
-          <div
-            style={{
-              position: "absolute",
-              top: "-10px",
-              left: "-10px",
-              width: "38px",
-              height: "38px",
-              cursor: "grab",
-              zIndex: 11,
-            }}
-            onMouseDown={handleThumbMouseDown}
-          />
-        </div>
-      </div>
-    );
   };
 
   // Render range input as CustomSlider for better styling

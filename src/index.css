@@ -227,6 +227,55 @@ input[type="range"]::-moz-range-thumb:hover {
   box-shadow: 0 4px 12px rgba(220, 86, 157, 0.4);
 }
 
+/* Input range invisible para custom slider - Solo funcionalidad, sin UI nativa */
+.custom-slider-input {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+  height: 24px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5; /* Debajo de la bolita personalizada */
+  opacity: 0; /* Completamente invisible */
+}
+
+.custom-slider-input::-webkit-slider-track {
+  background: transparent;
+  height: 24px;
+}
+
+.custom-slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 24px;
+  width: 24px;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  border: none;
+  opacity: 0; /* Bolita invisible */
+}
+
+.custom-slider-input::-moz-range-track {
+  background: transparent;
+  height: 24px;
+  border: none;
+}
+
+.custom-slider-input::-moz-range-thumb {
+  height: 24px;
+  width: 24px;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  border: none;
+  box-shadow: none;
+  opacity: 0; /* Bolita invisible */
+}
+
 /* Contenedor personalizado para slider con progreso */
 .custom-slider-container {
   position: relative;

@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Heart,
   MessageCircle,
   Share,
   MoreHorizontal,
   User,
-  Send,
+  Settings,
+  Download,
   Maximize,
   Minimize,
   Expand,
@@ -13,11 +14,13 @@ import {
   VolumeX,
   Play,
   Pause,
+  Send,
 } from "lucide-react";
 import { likePost, addComment, getPostById } from "../functions";
 import CommentsSection from "./comments-section";
 import ShareModal from "./share-modal";
 import { createPusherClient } from "../../pusher";
+import CustomSlider from "../../components/CustomSlider";
 
 function PostCard({ post, onUpdate, public_post }) {
   const [likesCount, setLikesCount] = useState(post?.likes_count || 0);
@@ -37,41 +40,6 @@ function PostCard({ post, onUpdate, public_post }) {
   const [isSameUser, setIsSameUser] = useState(post?.own_person);
 
   const pusherClient = createPusherClient();
-
-  // Custom Slider Component
-  const CustomSlider = ({
-    value,
-    min,
-    max,
-    step,
-    onChange,
-    className = "",
-  }) => {
-    const percentage = ((value - min) / (max - min)) * 100;
-
-    return (
-      <div className={`custom-slider-container ${className}`}>
-        <div className="custom-slider-track"></div>
-        <div
-          className="custom-slider-progress"
-          style={{ width: `${percentage}%` }}
-        ></div>
-        <div
-          className="custom-slider-thumb"
-          style={{ left: `${percentage}%` }}
-        ></div>
-        <input
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={onChange}
-          className="custom-slider-input"
-        />
-      </div>
-    );
-  };
 
   async function getPost(postId) {
     const info = await getPostById(postId);
@@ -195,13 +163,27 @@ function PostCard({ post, onUpdate, public_post }) {
 
   const handleSeek = (e) => {
     const newTime = parseFloat(e.target.value);
-    setCurrentTime(newTime);
-    if (videoRef.current) {
-      videoRef.current.currentTime = newTime;
+
+    // Validar que el valor sea un número válido y esté dentro del rango
+    if (isNaN(newTime) || !isFinite(newTime) || newTime < 0) {
+      return; // No hacer nada si el valor no es válido
+    }
+
+    // Asegurar que no exceda la duración
+    const clampedTime = Math.min(newTime, duration || 0);
+
+    setCurrentTime(clampedTime);
+    if (videoRef.current && isFinite(clampedTime)) {
+      videoRef.current.currentTime = clampedTime;
     }
   };
 
   const formatTime = (time) => {
+    // Validar que el tiempo sea un número válido
+    if (!isFinite(time) || isNaN(time) || time < 0) {
+      return "0:00";
+    }
+
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
@@ -324,17 +306,17 @@ function PostCard({ post, onUpdate, public_post }) {
                 {isVideoPlaying ? <Pause size={15} /> : <Play size={15} />}
               </button>
               <span className="text-white text-xs font-mono min-w-[35px]">
-                {formatTime(currentTime)}
+                {formatTime(isFinite(currentTime) ? currentTime : 0)}
               </span>
               <CustomSlider
                 min={0}
-                max={duration || 0}
-                value={currentTime}
+                max={isFinite(duration) && duration > 0 ? duration : 100}
+                value={isFinite(currentTime) ? currentTime : 0}
                 onChange={handleSeek}
                 className="flex-1"
               />
               <span className="text-white text-xs font-mono min-w-[35px]">
-                {formatTime(duration)}
+                {formatTime(isFinite(duration) ? duration : 0)}
               </span>
             </div>
 
@@ -497,7 +479,6 @@ function PostCard({ post, onUpdate, public_post }) {
       </div>
 
       {/* Share Modal */}
-
       <ShareModal
         post={post}
         onClose={() => setShowShareModal(false)}
