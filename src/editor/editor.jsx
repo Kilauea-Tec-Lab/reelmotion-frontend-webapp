@@ -1,5 +1,5 @@
 import { div, span } from "framer-motion/client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Play,
   Pause,
@@ -295,28 +295,121 @@ function Editor() {
     onChange,
     className = "",
   }) => {
+    const [isDragging, setIsDragging] = useState(false);
+    const sliderRef = useRef(null);
     const percentage = ((value - min) / (max - min)) * 100;
 
+    const calculateValue = useCallback(
+      (clientX) => {
+        if (!sliderRef.current) return value;
+
+        const rect = sliderRef.current.getBoundingClientRect();
+        const clickX = clientX - rect.left;
+        const newPercentage = Math.max(0, Math.min(clickX / rect.width, 1));
+        const newValue = min + newPercentage * (max - min);
+
+        // Round to step if specified
+        const steppedValue = step
+          ? Math.round(newValue / step) * step
+          : newValue;
+        return Math.max(min, Math.min(max, steppedValue));
+      },
+      [min, max, step, value]
+    );
+
+    const updateValue = useCallback(
+      (newValue) => {
+        if (onChange) {
+          const syntheticEvent = {
+            target: { value: newValue },
+            currentTarget: { value: newValue },
+          };
+          onChange(syntheticEvent);
+        }
+      },
+      [onChange]
+    );
+
+    const handleThumbMouseDown = useCallback(
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation(); // Prevent track click
+        setIsDragging(true);
+
+        // Immediately update value on mouse down
+        const newValue = calculateValue(e.clientX);
+        updateValue(newValue);
+      },
+      [calculateValue, updateValue]
+    );
+
+    const handleTrackClick = useCallback(
+      (e) => {
+        // Only handle if we're not dragging the thumb and the click didn't come from the thumb area
+        if (isDragging || e.target.closest(".custom-slider-thumb")) return;
+
+        e.stopPropagation();
+        const newValue = calculateValue(e.clientX);
+        updateValue(newValue);
+      },
+      [isDragging, calculateValue, updateValue]
+    );
+
+    // Global mouse move handler
+    useEffect(() => {
+      if (!isDragging) return;
+
+      const handleMouseMove = (e) => {
+        e.stopPropagation();
+        const newValue = calculateValue(e.clientX);
+        updateValue(newValue);
+      };
+
+      const handleMouseUp = (e) => {
+        e.stopPropagation();
+        setIsDragging(false);
+      };
+
+      // Use capture to ensure our events run first
+      document.addEventListener("mousemove", handleMouseMove, true);
+      document.addEventListener("mouseup", handleMouseUp, true);
+
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove, true);
+        document.removeEventListener("mouseup", handleMouseUp, true);
+      };
+    }, [isDragging, calculateValue, updateValue]);
+
     return (
-      <div className={`custom-slider-container ${className}`}>
+      <div
+        ref={sliderRef}
+        className={`custom-slider-container ${className}`}
+        onClick={handleTrackClick}
+      >
         <div className="custom-slider-track"></div>
         <div
           className="custom-slider-progress"
           style={{ width: `${percentage}%` }}
         ></div>
         <div
-          className="custom-slider-thumb"
+          className={`custom-slider-thumb ${isDragging ? "dragging" : ""}`}
           style={{ left: `${percentage}%` }}
-        ></div>
-        <input
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={onChange}
-          className="custom-slider-input"
-        />
+          onMouseDown={handleThumbMouseDown}
+        >
+          {/* Invisible larger click area */}
+          <div
+            style={{
+              position: "absolute",
+              top: "-10px",
+              left: "-10px",
+              width: "38px",
+              height: "38px",
+              cursor: "grab",
+              zIndex: 11,
+            }}
+            onMouseDown={handleThumbMouseDown}
+          />
+        </div>
       </div>
     );
   };
@@ -2445,13 +2538,13 @@ function Editor() {
   // Zoom functions
   const handleZoomIn = () => {
     setVisibleDuration((prev) => Math.max(prev / 1.5, 30)); // Min 30 seconds visible
-    setTimelineZoom((prev) => Math.min(prev * 1.5, 8)); // Max zoom 8x
+    setTimelineZoom((prev) => Math.min(prev * 1.5, 5.06)); // Max zoom 5.06x (506%)
   };
 
   const handleZoomOut = () => {
     const totalDuration = getTimelineDuration();
     setVisibleDuration((prev) => Math.min(prev * 1.5, totalDuration)); // Max = total duration
-    setTimelineZoom((prev) => Math.max(prev / 1.5, 0.5)); // Min zoom 0.5x
+    setTimelineZoom((prev) => Math.max(prev / 1.5, 1)); // Min zoom 1x (100%)
   };
 
   // Cut function - splits an element at the current time
@@ -4049,7 +4142,7 @@ function Editor() {
               </div>
             ) : menuActive == 2 ? (
               <div
-                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative"
+                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative overflow-hidden"
                 onDragOver={handleMusicContainerDragOver}
                 onDrop={handleMusicContainerDrop}
               >
@@ -4158,7 +4251,7 @@ function Editor() {
               </div>
             ) : menuActive == 3 ? (
               <div
-                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative"
+                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative overflow-hidden"
                 onDragOver={handleVoiceContainerDragOver}
                 onDrop={handleVoiceContainerDrop}
               >
@@ -4241,7 +4334,7 @@ function Editor() {
               </div>
             ) : menuActive == 4 ? (
               <div
-                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative"
+                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative overflow-hidden"
                 onDragOver={handleMusicContainerDragOver}
                 onDrop={handleMusicContainerDrop}
               >
@@ -4360,7 +4453,7 @@ function Editor() {
               </div>
             ) : menuActive == 5 ? (
               <div
-                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative"
+                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative overflow-hidden"
                 onDragOver={handleImageContainerDragOver}
                 onDrop={handleImageContainerDrop}
               >
