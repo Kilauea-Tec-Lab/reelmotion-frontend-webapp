@@ -1,11 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Heart, MessageCircle, User, Clock } from "lucide-react";
+import { useIntersectionObserver } from "../../hooks/useIntersectionObserver";
+import OptimizedVideo from "../../components/OptimizedVideo";
 
 function PinterestCard({ post, onClick }) {
   const [isHovered, setIsHovered] = useState(false);
-  const [videoLoaded, setVideoLoaded] = useState(false);
   const [videoDuration, setVideoDuration] = useState(null);
-  const [videoRef, setVideoRef] = useState(null);
+
+  // Intersection Observer para detectar visibilidad de la card
+  const [cardRef, isIntersecting] = useIntersectionObserver({
+    threshold: 0.2,
+    rootMargin: "100px",
+  });
 
   const formatDuration = (seconds) => {
     if (!seconds) return "0:00";
@@ -25,23 +31,8 @@ function PinterestCard({ post, onClick }) {
   };
 
   const handleLoadedMetadata = (e) => {
-    setVideoLoaded(true);
     setVideoDuration(e.target.duration);
-    setVideoRef(e.target);
-    // Auto-play when video loads
-    e.target.play().catch((err) => console.log("Autoplay prevented:", err));
   };
-
-  // Handle hover effects - pause on hover, play when not hovering
-  useEffect(() => {
-    if (videoRef) {
-      if (isHovered) {
-        videoRef.pause();
-      } else {
-        videoRef.play().catch((err) => console.log("Play prevented:", err));
-      }
-    }
-  }, [isHovered, videoRef]);
 
   const handleClick = () => {
     onClick(post.id);
@@ -49,6 +40,7 @@ function PinterestCard({ post, onClick }) {
 
   return (
     <div
+      ref={cardRef}
       className="group relative cursor-pointer transition-transform duration-300 hover:scale-105"
       onClick={handleClick}
       onMouseEnter={() => setIsHovered(true)}
@@ -58,25 +50,13 @@ function PinterestCard({ post, onClick }) {
       <div className="bg-darkBox rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
         <div className="relative">
           {(post.video_url || post.image_url) && (
-            <video
+            <OptimizedVideo
               src={post.video_url || post.image_url}
-              className={`w-full h-48 object-cover transition-opacity duration-300 ${
-                videoLoaded ? "opacity-100" : "opacity-0"
-              }`}
+              className="w-full h-48 object-cover"
               onLoadedMetadata={handleLoadedMetadata}
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              style={{ display: videoLoaded ? "block" : "none" }}
+              isHovered={isHovered}
+              autoPlay={true}
             />
-          )}
-          {!videoLoaded && (
-            <div className="w-full h-48 bg-darkBoxSub animate-pulse flex items-center justify-center">
-              <div className="w-8 h-8 border-2 border-gray-600 border-t-[#F2D543] rounded-full animate-spin">
-                {" "}
-              </div>
-            </div>
           )}
 
           {/* User Info and Likes Overlay - Top */}

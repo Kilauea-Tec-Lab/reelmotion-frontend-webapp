@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useLoaderData } from "react-router-dom";
 import PostCard from "./components/post-card";
 import PostCardSkeleton from "./components/post-card-skeleton";
@@ -21,7 +21,7 @@ function Discover() {
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const loadMorePosts = async () => {
+  const loadMorePosts = useCallback(async () => {
     if (loading || !hasMore) return;
 
     setLoading(true);
@@ -40,42 +40,79 @@ function Discover() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [loading, hasMore, page]);
 
-  const handlePostUpdate = (postId, updatedPost) => {
+  const handlePostUpdate = useCallback((postId, updatedPost) => {
     setPosts((prev) =>
       prev.map((post) =>
         post.id === postId ? { ...post, ...updatedPost } : post
       )
     );
-  };
+  }, []);
 
-  const handleCardClick = (postId) => {
+  const handleCardClick = useCallback((postId) => {
     setSelectedPostId(postId);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
     setSelectedPostId(null);
-  };
+  }, []);
 
+  // Optimizar el manejo del scroll con debouncing
   useEffect(() => {
+    let timeoutId;
+
     const handleScroll = () => {
-      if (
-        window.innerHeight + document.documentElement.scrollTop !==
-          document.documentElement.offsetHeight ||
-        loading ||
-        !hasMore
-      ) {
-        return;
-      }
-      loadMorePosts();
+      // Debounce para evitar múltiples llamadas
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        const { scrollTop, scrollHeight, clientHeight } =
+          document.documentElement;
+        const threshold = 1000; // Cargar más contenido cuando falten 1000px para llegar al final
+
+        if (
+          scrollTop + clientHeight >= scrollHeight - threshold &&
+          !loading &&
+          hasMore
+        ) {
+          loadMorePosts();
+        }
+      }, 100); // Esperar 100ms antes de ejecutar
     };
 
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [loading, hasMore, page]);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      clearTimeout(timeoutId);
+    };
+  }, [loadMorePosts, loading, hasMore]);
+
+  // Memoizar el componente de loading skeleton
+  const loadingSkeleton = useMemo(
+    () => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-8">
+        {Array.from({ length: 10 }).map((_, index) => (
+          <div key={index} className="bg-darkBox rounded-lg overflow-hidden">
+            <div className="w-full h-48 bg-darkBoxSub animate-pulse"></div>
+            <div className="p-3 space-y-2">
+              <div className="h-4 bg-darkBoxSub animate-pulse rounded"></div>
+              <div className="h-3 bg-darkBoxSub animate-pulse rounded w-3/4"></div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 bg-darkBoxSub animate-pulse rounded-full"></div>
+                  <div className="h-3 bg-darkBoxSub animate-pulse rounded w-16"></div>
+                </div>
+                <div className="h-3 bg-darkBoxSub animate-pulse rounded w-8"></div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    ),
+    []
+  );
 
   return (
     <div className="min-h-screen bg-primarioDark">
@@ -88,29 +125,7 @@ function Discover() {
             {/* Pinterest Grid */}
             <PinterestGrid posts={posts} onCardClick={handleCardClick} />
 
-            {loading && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-8">
-                {Array.from({ length: 10 }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="bg-darkBox rounded-lg overflow-hidden"
-                  >
-                    <div className="w-full h-48 bg-darkBoxSub animate-pulse"></div>
-                    <div className="p-3 space-y-2">
-                      <div className="h-4 bg-darkBoxSub animate-pulse rounded"></div>
-                      <div className="h-3 bg-darkBoxSub animate-pulse rounded w-3/4"></div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 bg-darkBoxSub animate-pulse rounded-full"></div>
-                          <div className="h-3 bg-darkBoxSub animate-pulse rounded w-16"></div>
-                        </div>
-                        <div className="h-3 bg-darkBoxSub animate-pulse rounded w-8"></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            {loading && loadingSkeleton}
 
             {!hasMore && posts.length > 0 && (
               <div className="text-center py-8">
