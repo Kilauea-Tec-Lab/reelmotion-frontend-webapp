@@ -18,10 +18,82 @@ import PostModal from "../discover/components/post-modal";
 import { getUserNotifications, deleteNotification } from "../auth/functions";
 import { getPostById } from "../discover/functions";
 import { createPusherClient } from "@/pusher";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  CardElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
 
 // PayPal configuration
 let paypalClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
 let paypalEnvironment = import.meta.env.VITE_PAYPAL_ENVIRONMENT;
+
+// Initialize Stripe
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+
+// Card input component with Stripe Elements
+function CardInput({ onPaymentProcess, isProcessing, purchaseAmount }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [cardComplete, setCardComplete] = useState(false);
+  const [cardError, setCardError] = useState(null);
+
+  const handleCardChange = (event) => {
+    setCardComplete(event.complete);
+    setCardError(event.error?.message || null);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!stripe || !elements || !cardComplete) return;
+    await onPaymentProcess(stripe, elements);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="p-4 border border-gray-600 rounded-lg bg-darkBoxSub">
+        <CardElement
+          onChange={handleCardChange}
+          options={{
+            style: {
+              base: {
+                fontSize: "16px",
+                color: "#ffffff",
+                "::placeholder": {
+                  color: "#9ca3af",
+                },
+              },
+              invalid: {
+                color: "#ef4444",
+              },
+            },
+          }}
+        />
+      </div>
+
+      {cardError && (
+        <div className="text-red-400 text-sm mt-2">{cardError}</div>
+      )}
+
+      <button
+        type="submit"
+        disabled={!stripe || isProcessing || !cardComplete}
+        className="w-full px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        {isProcessing && (
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        )}
+        {isProcessing
+          ? "Processing..."
+          : !cardComplete
+          ? "Enter card details"
+          : `Pay $${purchaseAmount}`}
+      </button>
+    </form>
+  );
+}
 
 function MainTopMenu({ user_info }) {
   const navigate = useNavigate();
@@ -293,13 +365,28 @@ function MainTopMenu({ user_info }) {
   const calculateTokens = (dollars) => dollars * 100;
 
   const handleAmountChange = (e) => {
-    const value = Math.max(6, parseInt(e.target.value) || 6);
-    setPurchaseAmount(value);
+    const value = e.target.value;
+    // Permitir valores vacíos y números válidos
+    if (value === "" || (!isNaN(value) && Number(value) >= 0)) {
+      setPurchaseAmount(value === "" ? "" : Number(value));
+    }
+  };
+
+  const handleAmountBlur = (e) => {
+    const value = e.target.value;
+    // Al perder el foco, asegurar que tenga un valor mínimo válido
+    if (value === "" || Number(value) < 6) {
+      setPurchaseAmount(6);
+    }
   };
 
   const handleContinueToPayment = () => {
-    if (purchaseAmount >= 6) {
+    // Asegurar que el valor sea válido antes de continuar
+    const amount = Number(purchaseAmount);
+    if (amount >= 6) {
       setTokenPurchaseStep("select-gateway");
+    } else {
+      setPurchaseAmount(6);
     }
   };
 
@@ -680,6 +767,91 @@ function MainTopMenu({ user_info }) {
     }
   };
 
+  // Handle Stripe payment processing
+  const handleStripePayment = async (stripe, elements) => {
+    setIsProcessingPayment(true);
+    setPaymentMessage("");
+    setPaymentMessageType("");
+    setPaymentDetails(null);
+
+    try {
+      if (!stripe || !elements) {
+        throw new Error("Stripe not loaded");
+      }
+
+      const cardElement = elements.getElement(CardElement);
+
+      // Create payment method
+      const { error, paymentMethod } = await stripe.createPaymentMethod({
+        type: "card",
+        card: cardElement,
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Create payment intent on backend
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}payments/create-payment-intent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: JSON.stringify({
+            amount: purchaseAmount * 100, // Convert to cents
+            currency: "usd",
+            payment_method_id: paymentMethod.id,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to create payment intent");
+      }
+
+      const { client_secret } = result;
+
+      // Confirm payment
+      const { error: confirmError, paymentIntent } =
+        await stripe.confirmCardPayment(client_secret);
+
+      if (confirmError) {
+        throw new Error(confirmError.message);
+      }
+
+      if (paymentIntent.status === "succeeded") {
+        // Process successful payment
+        const tokensAdded = calculateTokens(purchaseAmount);
+        setTokens((prev) => prev + tokensAdded);
+
+        setPaymentDetails({
+          payment_intent_id: paymentIntent.id,
+          total_paid: purchaseAmount,
+          tokens_added: tokensAdded,
+        });
+
+        setTokenPurchaseStep("success");
+
+        // Refresh user tokens from server
+        await fetchUserTokens();
+      } else {
+        throw new Error(`Payment failed with status: ${paymentIntent.status}`);
+      }
+    } catch (error) {
+      console.error("Error processing Stripe payment:", error);
+      setTokenPurchaseStep("error");
+      setPaymentMessage(`Payment failed: ${error.message}`);
+      setPaymentMessageType("error");
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
   // Load tokens on component mount
   useEffect(() => {
     fetchUserTokens();
@@ -724,7 +896,7 @@ function MainTopMenu({ user_info }) {
   // Load PayPal when gateway is selected
   useEffect(() => {
     if (
-      (selectedGateway === "paypal" || selectedGateway === "card") &&
+      selectedGateway === "paypal" &&
       tokenPurchaseStep === "payment-method" &&
       !paypalLoaded
     ) {
@@ -1012,53 +1184,91 @@ function MainTopMenu({ user_info }) {
 
       {/* Token Purchase Modal */}
       {showTokenModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-darkBox rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-600">
-              <h2 className="text-xl font-semibold text-white montserrat-medium">
-                {tokenPurchaseStep === "select-amount" && "Buy Tokens"}
-                {tokenPurchaseStep === "select-gateway" &&
-                  "Select Payment Gateway"}
-                {tokenPurchaseStep === "payment-method" && "Payment Method"}
-                {tokenPurchaseStep === "confirm" && "Confirm Purchase"}
-                {tokenPurchaseStep === "success" && "Purchase Successful"}
-                {tokenPurchaseStep === "error" && "Payment Error"}
-              </h2>
-              <button
-                onClick={handleCloseTokenModal}
-                className="text-gray-400 hover:text-white transition-colors text-2xl"
-              >
-                ×
-              </button>
-            </div>
+        <Elements stripe={stripePromise}>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-darkBox rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-600">
+                <h2 className="text-xl font-semibold text-white montserrat-medium">
+                  {tokenPurchaseStep === "select-amount" && "Buy Tokens"}
+                  {tokenPurchaseStep === "select-gateway" &&
+                    "Select Payment Gateway"}
+                  {tokenPurchaseStep === "payment-method" && "Payment Method"}
+                  {tokenPurchaseStep === "confirm" && "Confirm Purchase"}
+                  {tokenPurchaseStep === "success" && "Purchase Successful"}
+                  {tokenPurchaseStep === "error" && "Payment Error"}
+                </h2>
+                <button
+                  onClick={handleCloseTokenModal}
+                  className="text-gray-400 hover:text-white transition-colors text-2xl"
+                >
+                  ×
+                </button>
+              </div>
 
-            {/* Modal Content */}
-            <div className="p-6">
-              {/* Step 1: Select Amount */}
-              {tokenPurchaseStep === "select-amount" && (
-                <div className="space-y-6">
-                  <p className="text-gray-300 text-sm montserrat-regular">
-                    Enter the amount you want to spend. Each dollar gives you
-                    100 tokens. Minimum purchase is $6.
-                  </p>
+              {/* Modal Content */}
+              <div className="p-6">
+                {/* Step 1: Select Amount */}
+                {tokenPurchaseStep === "select-amount" && (
+                  <div className="space-y-6">
+                    <p className="text-gray-300 text-sm montserrat-regular">
+                      Enter the amount you want to spend. Each dollar gives you
+                      100 tokens. Minimum purchase is $6.
+                    </p>
 
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-white text-sm font-medium mb-2">
-                        Amount (USD)
-                      </label>
-                      <input
-                        type="number"
-                        min="6"
-                        step="1"
-                        value={purchaseAmount}
-                        onChange={handleAmountChange}
-                        className="w-full px-4 py-3 bg-darkBoxSub border border-gray-600 rounded-lg text-white text-lg font-medium focus:outline-none focus:border-primarioLogo transition-colors"
-                        placeholder="6"
-                      />
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-white text-sm font-medium mb-2">
+                          Amount (USD)
+                        </label>
+                        <input
+                          type="number"
+                          min="6"
+                          step="1"
+                          value={purchaseAmount}
+                          onChange={handleAmountChange}
+                          onBlur={handleAmountBlur}
+                          className="w-full px-4 py-3 bg-darkBoxSub border border-gray-600 rounded-lg text-white text-lg font-medium focus:outline-none focus:border-primarioLogo transition-colors"
+                          placeholder="6"
+                        />
+                      </div>
+
+                      <div className="bg-darkBoxSub p-4 rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">Amount:</span>
+                          <span className="text-white font-medium">
+                            ${purchaseAmount || 0}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-gray-400">
+                            Tokens you'll receive:
+                          </span>
+                          <span className="text-primarioLogo font-semibold">
+                            {calculateTokens(Number(purchaseAmount) || 0)}{" "}
+                            tokens
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center mt-2 text-sm">
+                          <span className="text-gray-500">Rate:</span>
+                          <span className="text-gray-500">$1 = 100 tokens</span>
+                        </div>
+                      </div>
                     </div>
 
+                    <button
+                      onClick={handleContinueToPayment}
+                      disabled={!purchaseAmount || Number(purchaseAmount) < 6}
+                      className="w-full px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Continue to Payment
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 2: Select Payment Gateway */}
+                {tokenPurchaseStep === "select-gateway" && (
+                  <div className="space-y-6">
                     <div className="bg-darkBoxSub p-4 rounded-lg">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-400">Amount:</span>
@@ -1066,429 +1276,375 @@ function MainTopMenu({ user_info }) {
                           ${purchaseAmount}
                         </span>
                       </div>
-                      <div className="flex justify-between items-center mt-2">
-                        <span className="text-gray-400">
-                          Tokens you'll receive:
-                        </span>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-gray-400">Tokens:</span>
                         <span className="text-primarioLogo font-semibold">
                           {calculateTokens(purchaseAmount)} tokens
                         </span>
                       </div>
-                      <div className="flex justify-between items-center mt-2 text-sm">
-                        <span className="text-gray-500">Rate:</span>
-                        <span className="text-gray-500">$1 = 100 tokens</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleContinueToPayment}
-                    disabled={purchaseAmount < 6}
-                    className="w-full px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Continue to Payment
-                  </button>
-                </div>
-              )}
-
-              {/* Step 2: Select Payment Gateway */}
-              {tokenPurchaseStep === "select-gateway" && (
-                <div className="space-y-6">
-                  <div className="bg-darkBoxSub p-4 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Amount:</span>
-                      <span className="text-white font-medium">
-                        ${purchaseAmount}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-gray-400">Tokens:</span>
-                      <span className="text-primarioLogo font-semibold">
-                        {calculateTokens(purchaseAmount)} tokens
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Payment Gateway Options */}
-                  <div className="space-y-3">
-                    <h3 className="text-white font-medium montserrat-medium">
-                      Choose Payment Method
-                    </h3>
-
-                    {/* Credit/Debit Card Option */}
-                    <div
-                      onClick={() => setSelectedGateway("card")}
-                      className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
-                        selectedGateway === "card"
-                          ? "border-primarioLogo bg-primarioLogo bg-opacity-10"
-                          : "border-gray-600 hover:border-gray-500"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-                          <CreditCard className="h-4 w-4 text-white" />
-                        </div>
-                        <div>
-                          <div className="text-white font-medium">
-                            Credit/Debit Card
-                          </div>
-                          <div className="text-gray-400 text-sm">
-                            Pay directly with your card - No account required
-                          </div>
-                        </div>
-                      </div>
                     </div>
 
-                    {/* PayPal Account Option */}
-                    <div
-                      onClick={() => setSelectedGateway("paypal")}
-                      className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
-                        selectedGateway === "paypal"
-                          ? "border-primarioLogo bg-primarioLogo bg-opacity-10"
-                          : "border-gray-600 hover:border-gray-500"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                          <svg
-                            className="w-5 h-5 text-white"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 4.814-4.622 6.969-8.956 6.969H8.563c-.34 0-.62.24-.669.566l-.284 1.793-.13.919c-.028.213-.174.339-.386.339z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <div className="text-white font-medium">
-                            PayPal Account
-                          </div>
-                          <div className="text-gray-400 text-sm">
-                            Login to your PayPal account or create one
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setTokenPurchaseStep("select-amount")}
-                      className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
-                    >
-                      Back
-                    </button>
-                    <button
-                      onClick={() => setTokenPurchaseStep("payment-method")}
-                      className="flex-1 px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors"
-                    >
-                      Continue to Payment
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3: Payment Method */}
-              {tokenPurchaseStep === "payment-method" && (
-                <div className="space-y-6">
-                  <div className="bg-darkBoxSub p-4 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Amount:</span>
-                      <span className="text-white font-medium">
-                        ${purchaseAmount}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-gray-400">Tokens:</span>
-                      <span className="text-primarioLogo font-semibold">
-                        {calculateTokens(purchaseAmount)} tokens
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-gray-400">Payment Method:</span>
-                      <span className="text-white font-medium capitalize">
-                        {selectedGateway === "card"
-                          ? "Credit/Debit Card"
-                          : "PayPal Account"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Credit/Debit Card Payment Interface */}
-                  {selectedGateway === "card" && (
-                    <div className="space-y-4">
+                    {/* Payment Gateway Options */}
+                    <div className="space-y-3">
                       <h3 className="text-white font-medium montserrat-medium">
-                        Credit/Debit Card Payment
+                        Choose Payment Method
                       </h3>
 
-                      <div className="bg-darkBoxSub p-4 rounded-lg border border-green-500/30">
-                        <h4 className="text-white font-medium mb-3 flex items-center gap-2">
-                          <svg
-                            className="w-5 h-5 text-green-500"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                            />
-                          </svg>
-                          Pay with Credit/Debit Card
-                        </h4>
-
-                        {!paypalContainerReady && (
-                          <div className="text-center py-4 mb-4">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primarioLogo mx-auto mb-2"></div>
-                            <p className="text-gray-400 text-sm">
-                              Loading secure payment form...
-                            </p>
+                      {/* Credit/Debit Card Option */}
+                      <div
+                        onClick={() => setSelectedGateway("card")}
+                        className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                          selectedGateway === "card"
+                            ? "border-primarioLogo bg-primarioLogo bg-opacity-10"
+                            : "border-gray-600 hover:border-gray-500"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+                            <CreditCard className="h-4 w-4 text-white" />
                           </div>
-                        )}
-
-                        {/* Credit/Debit card button */}
-                        <div
-                          id="paypal-card-container"
-                          className={
-                            !paypalContainerReady
-                              ? "opacity-50 pointer-events-none"
-                              : ""
-                          }
-                          style={{ minHeight: "50px" }}
-                        ></div>
-
-                        <div className="mt-3 text-center">
-                          <p className="text-gray-400 text-xs">
-                            No PayPal account required - Pay directly with your
-                            card
-                          </p>
-                          <p className="text-gray-400 text-xs mt-1">
-                            Secured by PayPal • SSL Encrypted
-                          </p>
+                          <div>
+                            <div className="text-white font-medium">
+                              Credit/Debit Card
+                            </div>
+                            <div className="text-gray-400 text-sm">
+                              Pay directly with your card - No account required
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => setTokenPurchaseStep("select-gateway")}
-                          disabled={isProcessingPayment}
-                          className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
-                        >
-                          Back
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* PayPal Account Payment Interface */}
-                  {selectedGateway === "paypal" && (
-                    <div className="space-y-4">
-                      <h3 className="text-white font-medium montserrat-medium">
-                        PayPal Account Payment
-                      </h3>
-
-                      <div className="bg-darkBoxSub p-4 rounded-lg border border-blue-500/30">
-                        <h4 className="text-white font-medium mb-3 flex items-center gap-2">
-                          <svg
-                            className="w-5 h-5 text-blue-500"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 4.814-4.622 6.969-8.956 6.969H8.563c-.34 0-.62.24-.669.566l-.284 1.793-.13.919c-.028.213-.174.339-.386.339z" />
-                          </svg>
-                          Login to PayPal Account
-                        </h4>
-
-                        {!paypalContainerReady && (
-                          <div className="text-center py-4 mb-4">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primarioLogo mx-auto mb-2"></div>
-                            <p className="text-gray-400 text-sm">
-                              Loading PayPal payment options...
-                            </p>
+                      {/* PayPal Account Option */}
+                      <div
+                        onClick={() => setSelectedGateway("paypal")}
+                        className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                          selectedGateway === "paypal"
+                            ? "border-primarioLogo bg-primarioLogo bg-opacity-10"
+                            : "border-gray-600 hover:border-gray-500"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                            <svg
+                              className="w-5 h-5 text-white"
+                              fill="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 4.814-4.622 6.969-8.956 6.969H8.563c-.34 0-.62.24-.669.566l-.284 1.793-.13.919c-.028.213-.174.339-.386.339z" />
+                            </svg>
                           </div>
-                        )}
-
-                        {/* PayPal account button */}
-                        <div
-                          id="paypal-button-container"
-                          className={
-                            !paypalContainerReady
-                              ? "opacity-50 pointer-events-none"
-                              : ""
-                          }
-                          style={{ minHeight: "50px" }}
-                        ></div>
-
-                        <div className="mt-3 text-center">
-                          <p className="text-gray-400 text-xs">
-                            Login to your existing PayPal account or create a
-                            new one
-                          </p>
-                          <p className="text-gray-400 text-xs mt-1">
-                            Use your PayPal balance or linked bank account
-                          </p>
+                          <div>
+                            <div className="text-white font-medium">
+                              PayPal Account
+                            </div>
+                            <div className="text-gray-400 text-sm">
+                              Login to your PayPal account or create one
+                            </div>
+                          </div>
                         </div>
                       </div>
-
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => setTokenPurchaseStep("select-gateway")}
-                          disabled={isProcessingPayment}
-                          className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
-                        >
-                          Back
-                        </button>
-                      </div>
                     </div>
-                  )}
-                </div>
-              )}
 
-              {/* Step 3: Success */}
-              {tokenPurchaseStep === "success" && (
-                <div className="text-center space-y-6">
-                  <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto">
-                    <svg
-                      className="w-8 h-8 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setTokenPurchaseStep("select-amount")}
+                        className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={() => setTokenPurchaseStep("payment-method")}
+                        className="flex-1 px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors"
+                      >
+                        Continue to Payment
+                      </button>
+                    </div>
                   </div>
+                )}
 
-                  <div>
-                    <h3 className="text-white text-xl font-semibold montserrat-medium mb-2">
-                      Purchase Successful!
-                    </h3>
-                    <p className="text-gray-300 montserrat-regular">
-                      {calculateTokens(purchaseAmount)} tokens have been added
-                      to your account.
-                    </p>
-                  </div>
-
-                  <div className="bg-darkBoxSub p-4 rounded-lg space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Amount Paid:</span>
-                      <span className="text-white font-medium">
-                        ${paymentDetails?.total_paid || purchaseAmount}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Tokens Received:</span>
-                      <span className="text-primarioLogo font-semibold">
-                        {paymentDetails?.tokens_added ||
-                          calculateTokens(purchaseAmount)}{" "}
-                        tokens
-                      </span>
-                    </div>
-                    <div className="border-t border-gray-600 pt-2">
+                {/* Step 3: Payment Method */}
+                {tokenPurchaseStep === "payment-method" && (
+                  <div className="space-y-6">
+                    <div className="bg-darkBoxSub p-4 rounded-lg">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-400">
-                          New Token Balance:
+                        <span className="text-gray-400">Amount:</span>
+                        <span className="text-white font-medium">
+                          ${purchaseAmount}
                         </span>
-                        <span className="text-primarioLogo font-semibold text-lg">
-                          {tokens} tokens
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-gray-400">Tokens:</span>
+                        <span className="text-primarioLogo font-semibold">
+                          {calculateTokens(purchaseAmount)} tokens
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-gray-400">Payment Method:</span>
+                        <span className="text-white font-medium capitalize">
+                          {selectedGateway === "card"
+                            ? "Credit/Debit Card"
+                            : "PayPal Account"}
                         </span>
                       </div>
                     </div>
-                    {paymentDetails?.payment_intent_id && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-400">Transaction ID:</span>
-                        <span className="text-gray-300 text-sm font-mono">
-                          {paymentDetails.payment_intent_id.substring(0, 20)}
-                          ...
-                        </span>
+
+                    {/* Credit/Debit Card Payment Interface */}
+                    {selectedGateway === "card" && (
+                      <div className="space-y-4">
+                        <h3 className="text-white font-medium montserrat-medium">
+                          Credit/Debit Card Payment
+                        </h3>
+
+                        <div className="bg-darkBoxSub p-4 rounded-lg border border-green-500/30">
+                          <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                            <CreditCard className="w-5 h-5 text-green-500" />
+                            Pay with Credit/Debit Card
+                          </h4>
+
+                          {/* Stripe Card Input */}
+                          <CardInput
+                            onPaymentProcess={handleStripePayment}
+                            isProcessing={isProcessingPayment}
+                            purchaseAmount={purchaseAmount}
+                          />
+
+                          <div className="mt-3 text-center">
+                            <p className="text-gray-400 text-xs">
+                              Secure payment processing powered by Stripe
+                            </p>
+                            <p className="text-gray-400 text-xs mt-1">
+                              Your card information is encrypted and secure
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() =>
+                              setTokenPurchaseStep("select-gateway")
+                            }
+                            disabled={isProcessingPayment}
+                            className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                          >
+                            Back
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PayPal Account Payment Interface */}
+                    {selectedGateway === "paypal" && (
+                      <div className="space-y-4">
+                        <h3 className="text-white font-medium montserrat-medium">
+                          PayPal Account Payment
+                        </h3>
+
+                        <div className="bg-darkBoxSub p-4 rounded-lg border border-blue-500/30">
+                          <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                            <svg
+                              className="w-5 h-5 text-blue-500"
+                              fill="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 4.814-4.622 6.969-8.956 6.969H8.563c-.34 0-.62.24-.669.566l-.284 1.793-.13.919c-.028.213-.174.339-.386.339z" />
+                            </svg>
+                            Login to PayPal Account
+                          </h4>
+
+                          {!paypalContainerReady && (
+                            <div className="text-center py-4 mb-4">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primarioLogo mx-auto mb-2"></div>
+                              <p className="text-gray-400 text-sm">
+                                Loading PayPal payment options...
+                              </p>
+                            </div>
+                          )}
+
+                          {/* PayPal account button */}
+                          <div
+                            id="paypal-button-container"
+                            className={
+                              !paypalContainerReady
+                                ? "opacity-50 pointer-events-none"
+                                : ""
+                            }
+                            style={{ minHeight: "50px" }}
+                          ></div>
+
+                          <div className="mt-3 text-center">
+                            <p className="text-gray-400 text-xs">
+                              Login to your existing PayPal account or create a
+                              new one
+                            </p>
+                            <p className="text-gray-400 text-xs mt-1">
+                              Use your PayPal balance or linked bank account
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() =>
+                              setTokenPurchaseStep("select-gateway")
+                            }
+                            disabled={isProcessingPayment}
+                            className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                          >
+                            Back
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
+                )}
 
-                  <button
-                    onClick={handleCloseTokenModal}
-                    className="w-full px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors"
-                  >
-                    Continue
-                  </button>
-                </div>
-              )}
-
-              {/* Step 4: Error */}
-              {tokenPurchaseStep === "error" && (
-                <div className="text-center space-y-6">
-                  <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto">
-                    <svg
-                      className="w-8 h-8 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </div>
-
-                  <div>
-                    <h3 className="text-white text-xl font-semibold montserrat-medium mb-2">
-                      Payment Failed
-                    </h3>
-                    <p className="text-gray-300 montserrat-regular mb-4">
-                      {paymentMessage}
-                    </p>
-                  </div>
-
-                  <div className="bg-darkBoxSub p-4 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Attempted Amount:</span>
-                      <span className="text-white font-medium">
-                        ${purchaseAmount}
-                      </span>
+                {/* Step 3: Success */}
+                {tokenPurchaseStep === "success" && (
+                  <div className="text-center space-y-6">
+                    <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto">
+                      <svg
+                        className="w-8 h-8 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Attempted Tokens:</span>
-                      <span className="text-gray-300">
-                        {calculateTokens(purchaseAmount)} tokens
-                      </span>
+
+                    <div>
+                      <h3 className="text-white text-xl font-semibold montserrat-medium mb-2">
+                        Purchase Successful!
+                      </h3>
+                      <p className="text-gray-300 montserrat-regular">
+                        {calculateTokens(purchaseAmount)} tokens have been added
+                        to your account.
+                      </p>
                     </div>
-                    <div className="border-t border-gray-600 pt-2 mt-2">
+
+                    <div className="bg-darkBoxSub p-4 rounded-lg space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-400">Current Balance:</span>
-                        <span className="text-primarioLogo font-semibold">
-                          {tokens} tokens
+                        <span className="text-gray-400">Amount Paid:</span>
+                        <span className="text-white font-medium">
+                          ${paymentDetails?.total_paid || purchaseAmount}
                         </span>
                       </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Tokens Received:</span>
+                        <span className="text-primarioLogo font-semibold">
+                          {paymentDetails?.tokens_added ||
+                            calculateTokens(purchaseAmount)}{" "}
+                          tokens
+                        </span>
+                      </div>
+                      <div className="border-t border-gray-600 pt-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">
+                            New Token Balance:
+                          </span>
+                          <span className="text-primarioLogo font-semibold text-lg">
+                            {tokens} tokens
+                          </span>
+                        </div>
+                      </div>
+                      {paymentDetails?.payment_intent_id && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">Transaction ID:</span>
+                          <span className="text-gray-300 text-sm font-mono">
+                            {paymentDetails.payment_intent_id.substring(0, 20)}
+                            ...
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  </div>
 
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setTokenPurchaseStep("select-amount")}
-                      className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500 transition-colors"
-                    >
-                      Try Again
-                    </button>
                     <button
                       onClick={handleCloseTokenModal}
-                      className="flex-1 px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors"
+                      className="w-full px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors"
                     >
-                      Close
+                      Continue
                     </button>
                   </div>
-                </div>
-              )}
+                )}
+
+                {/* Step 4: Error */}
+                {tokenPurchaseStep === "error" && (
+                  <div className="text-center space-y-6">
+                    <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto">
+                      <svg
+                        className="w-8 h-8 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </div>
+
+                    <div>
+                      <h3 className="text-white text-xl font-semibold montserrat-medium mb-2">
+                        Payment Failed
+                      </h3>
+                      <p className="text-gray-300 montserrat-regular mb-4">
+                        {paymentMessage}
+                      </p>
+                    </div>
+
+                    <div className="bg-darkBoxSub p-4 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Attempted Amount:</span>
+                        <span className="text-white font-medium">
+                          ${purchaseAmount}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Attempted Tokens:</span>
+                        <span className="text-gray-300">
+                          {calculateTokens(purchaseAmount)} tokens
+                        </span>
+                      </div>
+                      <div className="border-t border-gray-600 pt-2 mt-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">
+                            Current Balance:
+                          </span>
+                          <span className="text-primarioLogo font-semibold">
+                            {tokens} tokens
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setTokenPurchaseStep("select-amount")}
+                        className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500 transition-colors"
+                      >
+                        Try Again
+                      </button>
+                      <button
+                        onClick={handleCloseTokenModal}
+                        className="flex-1 px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </Elements>
       )}
     </header>
   );
