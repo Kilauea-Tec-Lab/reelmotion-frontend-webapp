@@ -257,7 +257,7 @@ function Login() {
                     />
                   </div>
                   <span className="text-white montserrat-light text-xs">
-                    Forgot you password?
+                    Forgot your password?
                   </span>
                   <button
                     type="button"
