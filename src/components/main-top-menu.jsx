@@ -34,7 +34,7 @@ let paypalEnvironment = import.meta.env.VITE_PAYPAL_ENVIRONMENT;
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 // Card input component with Stripe Elements
-function CardInput({ onPaymentProcess, isProcessing, purchaseAmount }) {
+function CardInput({ onPaymentProcess, isProcessing, totalAmount }) {
   const stripe = useStripe();
   const elements = useElements();
   const [cardComplete, setCardComplete] = useState(false);
@@ -89,7 +89,7 @@ function CardInput({ onPaymentProcess, isProcessing, purchaseAmount }) {
           ? "Processing..."
           : !cardComplete
           ? "Enter card details"
-          : `Pay $${purchaseAmount}`}
+          : `Pay $${Number(totalAmount).toFixed(2)}`}
       </button>
     </form>
   );
@@ -364,6 +364,33 @@ function MainTopMenu({ user_info }) {
   // Calculate tokens from dollar amount (1 dollar = 100 tokens)
   const calculateTokens = (dollars) => dollars * 100;
 
+  // Calculate VAT (20%)
+  const calculateVAT = (amount) => {
+    const vatRate = 0.2; // 20%
+    return Number((amount * vatRate).toFixed(2));
+  };
+
+  // Calculate total amount including VAT
+  const calculateTotalWithVAT = (baseAmount) => {
+    const vat = calculateVAT(baseAmount);
+    return Number((baseAmount + vat).toFixed(2));
+  };
+
+  // Calculate subtotal, VAT, and total
+  const getPaymentBreakdown = (baseAmount) => {
+    const subtotal = Number(baseAmount) || 0;
+    const vat = calculateVAT(subtotal);
+    const total = calculateTotalWithVAT(subtotal);
+    const tokens = calculateTokens(subtotal); // Tokens based on subtotal (before taxes)
+
+    return {
+      subtotal,
+      vat,
+      total,
+      tokens,
+    };
+  };
+
   const handleAmountChange = (e) => {
     const value = e.target.value;
     // Permitir valores vacíos y números válidos
@@ -437,19 +464,46 @@ function MainTopMenu({ user_info }) {
           },
           fundingSource: window.paypal.FUNDING.CARD,
           createOrder: (data, actions) => {
+            const breakdown = getPaymentBreakdown(Number(purchaseAmount) || 0);
+
+            // Ensure totals match PayPal requirements
+            const itemTotal = Number(breakdown.subtotal.toFixed(2));
+            const taxTotal = Number(breakdown.vat.toFixed(2));
+            const total = Number(breakdown.total.toFixed(2));
+
+            console.log("PayPal Card Order Breakdown:", {
+              subtotal: itemTotal,
+              vat: taxTotal,
+              total: total,
+              tokens: breakdown.tokens,
+            });
+
             return actions.order.create({
               purchase_units: [
                 {
                   amount: {
-                    value: purchaseAmount.toString(),
+                    value: total.toString(),
                     currency_code: "USD",
+                    breakdown: {
+                      item_total: {
+                        currency_code: "USD",
+                        value: itemTotal.toString(),
+                      },
+                      tax_total: {
+                        currency_code: "USD",
+                        value: taxTotal.toString(),
+                      },
+                    },
                   },
-                  description: `${purchaseAmount * 100} ReelMotion Tokens`,
+                  description: `${breakdown.tokens} ReelMotion Tokens (Subtotal: $${itemTotal} + VAT: $${taxTotal})`,
+                  custom_id: `tokens-${breakdown.tokens}-total-${total}`,
                 },
               ],
               application_context: {
                 shipping_preference: "NO_SHIPPING",
                 user_action: "PAY_NOW",
+                brand_name: "ReelMotion AI",
+                landing_page: "BILLING",
               },
             });
           },
@@ -526,25 +580,52 @@ function MainTopMenu({ user_info }) {
         const paypalButtons = window.paypal.Buttons({
           style: {
             layout: "vertical",
-            color: "white",
+            color: "blue",
             shape: "rect",
             label: "paypal",
           },
           fundingSource: window.paypal.FUNDING.PAYPAL,
           createOrder: (data, actions) => {
+            const breakdown = getPaymentBreakdown(Number(purchaseAmount) || 0);
+
+            // Ensure totals match PayPal requirements
+            const itemTotal = Number(breakdown.subtotal.toFixed(2));
+            const taxTotal = Number(breakdown.vat.toFixed(2));
+            const total = Number(breakdown.total.toFixed(2));
+
+            console.log("PayPal Account Order Breakdown:", {
+              subtotal: itemTotal,
+              vat: taxTotal,
+              total: total,
+              tokens: breakdown.tokens,
+            });
+
             return actions.order.create({
               purchase_units: [
                 {
                   amount: {
-                    value: purchaseAmount.toString(),
+                    value: total.toString(),
                     currency_code: "USD",
+                    breakdown: {
+                      item_total: {
+                        currency_code: "USD",
+                        value: itemTotal.toString(),
+                      },
+                      tax_total: {
+                        currency_code: "USD",
+                        value: taxTotal.toString(),
+                      },
+                    },
                   },
-                  description: `${purchaseAmount * 100} ReelMotion Tokens`,
+                  description: `${breakdown.tokens} ReelMotion Tokens (Subtotal: $${itemTotal} + VAT: $${taxTotal})`,
+                  custom_id: `tokens-${breakdown.tokens}-total-${total}`,
                 },
               ],
               application_context: {
                 shipping_preference: "NO_SHIPPING",
                 user_action: "PAY_NOW",
+                brand_name: "ReelMotion AI",
+                landing_page: "BILLING",
                 payment_method: {
                   payee_preferred: "IMMEDIATE_PAYMENT_REQUIRED",
                   payer_selected: "PAYPAL",
@@ -583,7 +664,7 @@ function MainTopMenu({ user_info }) {
           );
 
           paypalContainerElements.forEach((element) => {
-            element.style.backgroundColor = "white";
+            element.style.backgroundColor = "black";
             element.style.borderRadius = "8px";
             element.style.overflow = "hidden";
           });
@@ -620,6 +701,9 @@ function MainTopMenu({ user_info }) {
     setPaymentDetails(null);
 
     try {
+      // Calculate payment breakdown with VAT
+      const breakdown = getPaymentBreakdown(Number(purchaseAmount) || 0);
+
       if (order.status !== "COMPLETED") {
         console.error(
           "❌ [VALIDATION 1] Payment not completed. Status:",
@@ -670,14 +754,16 @@ function MainTopMenu({ user_info }) {
         return;
       }
 
-      if (parseFloat(captureAmount) !== parseFloat(purchaseAmount)) {
+      // 🔥 VALIDACIÓN 5: Verificar monto (debe coincidir con el total incluyendo VAT)
+      if (parseFloat(captureAmount) !== parseFloat(breakdown.total)) {
         console.error("❌ [VALIDATION 5] Amount mismatch:", {
-          expected: purchaseAmount,
+          expected_total_with_vat: breakdown.total,
           captured: captureAmount,
+          breakdown: breakdown,
         });
         setTokenPurchaseStep("error");
         setPaymentMessage(
-          `Amount mismatch: Expected $${purchaseAmount}, captured $${captureAmount}`
+          `Amount mismatch: Expected $${breakdown.total} (including VAT), captured $${captureAmount}`
         );
         setPaymentMessageType("error");
         return;
@@ -697,7 +783,7 @@ function MainTopMenu({ user_info }) {
       const payer = order.payer;
 
       // 🔥 VALIDACIÓN 9: Verificar seller_receivable_breakdown
-      const breakdown = captures[0]?.seller_receivable_breakdown;
+      const paypalBreakdown = captures[0]?.seller_receivable_breakdown;
 
       // Call backend for PayPal payment processing
       const response = await fetch(
@@ -709,20 +795,28 @@ function MainTopMenu({ user_info }) {
             Authorization: "Bearer " + Cookies.get("token"),
           },
           body: JSON.stringify({
-            amount: purchaseAmount,
+            amount: breakdown.subtotal, // Send subtotal amount (before VAT)
             currency: "USD", // Backend expects uppercase
             gateway: "paypal",
             order_id: order.id,
             payment_details: order,
-            tokens_to_add: purchaseAmount * 100, // Convert to tokens
+            tokens_to_add: breakdown.tokens, // Tokens based on subtotal
+            // Payment breakdown with VAT information
+            payment_breakdown: {
+              subtotal: breakdown.subtotal,
+              vat_rate: 0.2,
+              vat_amount: breakdown.vat,
+              total_amount: breakdown.total,
+              tokens_to_add: breakdown.tokens,
+            },
             // 🔥 AGREGAR: Detalles adicionales para verificación backend
             capture_details: {
               capture_id: captureId,
               capture_status: captureStatus,
               capture_amount: captureAmount,
               capture_currency: captureCurrency,
-              paypal_fee: breakdown?.paypal_fee,
-              net_amount: breakdown?.net_amount,
+              paypal_fee: paypalBreakdown?.paypal_fee,
+              net_amount: paypalBreakdown?.net_amount,
             },
             environment: paypalEnvironment,
             payer_details: payer
@@ -791,6 +885,9 @@ function MainTopMenu({ user_info }) {
         throw new Error(error.message);
       }
 
+      // Calculate payment breakdown with VAT
+      const breakdown = getPaymentBreakdown(Number(purchaseAmount) || 0);
+
       // Create payment intent on backend
       const response = await fetch(
         `${import.meta.env.VITE_APP_BACKEND_URL}payments/create-payment-intent`,
@@ -801,46 +898,74 @@ function MainTopMenu({ user_info }) {
             Authorization: "Bearer " + Cookies.get("token"),
           },
           body: JSON.stringify({
-            amount: purchaseAmount * 100, // Convert to cents
+            amount: breakdown.tokens, // Send tokens (based on subtotal)
             currency: "usd",
             payment_method_id: paymentMethod.id,
+            // Additional payment information
+            payment_breakdown: {
+              subtotal: breakdown.subtotal,
+              vat_rate: 0.2,
+              vat_amount: breakdown.vat,
+              total_amount: breakdown.total,
+              tokens_to_add: breakdown.tokens,
+            },
           }),
         }
       );
 
       const result = await response.json();
 
+      console.log("Backend response:", result);
+
       if (!response.ok) {
         throw new Error(result.message || "Failed to create payment intent");
       }
 
-      const { client_secret } = result;
-
-      // Confirm payment
-      const { error: confirmError, paymentIntent } =
-        await stripe.confirmCardPayment(client_secret);
-
-      if (confirmError) {
-        throw new Error(confirmError.message);
-      }
-
-      if (paymentIntent.status === "succeeded") {
-        // Process successful payment
-        const tokensAdded = calculateTokens(purchaseAmount);
-        setTokens((prev) => prev + tokensAdded);
-
+      // Check if payment was successful immediately (backend confirms automatically)
+      if (result.success) {
+        // Payment successful - backend already processed everything
         setPaymentDetails({
-          payment_intent_id: paymentIntent.id,
-          total_paid: purchaseAmount,
-          tokens_added: tokensAdded,
+          payment_intent_id: result.payment_intent_id,
+          total_paid: result.total_paid,
+          tokens_added: result.tokens_added,
         });
 
         setTokenPurchaseStep("success");
+        setPaymentMessage(result.message || "Payment successful");
+        setPaymentMessageType("success");
 
         // Refresh user tokens from server
         await fetchUserTokens();
+      } else if (result.client_secret) {
+        // Payment requires additional action (3D Secure, etc.)
+        const { error: confirmError, paymentIntent } =
+          await stripe.confirmCardPayment(result.client_secret);
+
+        if (confirmError) {
+          throw new Error(confirmError.message);
+        }
+
+        if (paymentIntent.status === "succeeded") {
+          // Payment confirmed successfully
+          setPaymentDetails({
+            payment_intent_id: paymentIntent.id,
+            total_paid: breakdown.total, // Total with VAT
+            tokens_added: breakdown.tokens,
+          });
+
+          setTokenPurchaseStep("success");
+          setPaymentMessage("Payment successful");
+          setPaymentMessageType("success");
+
+          // Refresh user tokens from server
+          await fetchUserTokens();
+        } else {
+          throw new Error(
+            `Payment failed with status: ${paymentIntent.status}`
+          );
+        }
       } else {
-        throw new Error(`Payment failed with status: ${paymentIntent.status}`);
+        throw new Error(result.message || "Payment failed");
       }
     } catch (error) {
       console.error("Error processing Stripe payment:", error);
@@ -1234,25 +1359,53 @@ function MainTopMenu({ user_info }) {
                       </div>
 
                       <div className="bg-darkBoxSub p-4 rounded-lg">
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-400">Amount:</span>
-                          <span className="text-white font-medium">
-                            ${purchaseAmount || 0}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center mt-2">
-                          <span className="text-gray-400">
-                            Tokens you'll receive:
-                          </span>
-                          <span className="text-primarioLogo font-semibold">
-                            {calculateTokens(Number(purchaseAmount) || 0)}{" "}
-                            tokens
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center mt-2 text-sm">
-                          <span className="text-gray-500">Rate:</span>
-                          <span className="text-gray-500">$1 = 100 tokens</span>
-                        </div>
+                        {(() => {
+                          const breakdown = getPaymentBreakdown(
+                            Number(purchaseAmount) || 0
+                          );
+                          return (
+                            <>
+                              <div className="flex justify-between items-center">
+                                <span className="text-gray-400">Subtotal:</span>
+                                <span className="text-white font-medium">
+                                  ${breakdown.subtotal.toFixed(2)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center mt-1">
+                                <span className="text-gray-400">
+                                  VAT (20%):
+                                </span>
+                                <span className="text-white font-medium">
+                                  ${breakdown.vat.toFixed(2)}
+                                </span>
+                              </div>
+                              <div className="border-t border-gray-600 mt-2 pt-2">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-white font-semibold">
+                                    Total Amount:
+                                  </span>
+                                  <span className="text-primarioLogo font-bold text-lg">
+                                    ${breakdown.total.toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex justify-between items-center mt-3 pt-2 border-t border-gray-600">
+                                <span className="text-gray-400">
+                                  Tokens you'll receive:
+                                </span>
+                                <span className="text-primarioLogo font-semibold">
+                                  {breakdown.tokens} tokens
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center mt-1 text-sm">
+                                <span className="text-gray-500">Rate:</span>
+                                <span className="text-gray-500">
+                                  $1 = 100 tokens (before tax)
+                                </span>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -1270,18 +1423,43 @@ function MainTopMenu({ user_info }) {
                 {tokenPurchaseStep === "select-gateway" && (
                   <div className="space-y-6">
                     <div className="bg-darkBoxSub p-4 rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-400">Amount:</span>
-                        <span className="text-white font-medium">
-                          ${purchaseAmount}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center mt-1">
-                        <span className="text-gray-400">Tokens:</span>
-                        <span className="text-primarioLogo font-semibold">
-                          {calculateTokens(purchaseAmount)} tokens
-                        </span>
-                      </div>
+                      {(() => {
+                        const breakdown = getPaymentBreakdown(
+                          Number(purchaseAmount) || 0
+                        );
+                        return (
+                          <>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-400">Subtotal:</span>
+                              <span className="text-white font-medium">
+                                ${breakdown.subtotal.toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center mt-1">
+                              <span className="text-gray-400">VAT (20%):</span>
+                              <span className="text-white font-medium">
+                                ${breakdown.vat.toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="border-t border-gray-600 mt-2 pt-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-white font-semibold">
+                                  Total to Pay:
+                                </span>
+                                <span className="text-primarioLogo font-bold text-lg">
+                                  ${breakdown.total.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center mt-2">
+                              <span className="text-gray-400">Tokens:</span>
+                              <span className="text-primarioLogo font-semibold">
+                                {breakdown.tokens} tokens
+                              </span>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {/* Payment Gateway Options */}
@@ -1366,26 +1544,53 @@ function MainTopMenu({ user_info }) {
                 {tokenPurchaseStep === "payment-method" && (
                   <div className="space-y-6">
                     <div className="bg-darkBoxSub p-4 rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-400">Amount:</span>
-                        <span className="text-white font-medium">
-                          ${purchaseAmount}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center mt-1">
-                        <span className="text-gray-400">Tokens:</span>
-                        <span className="text-primarioLogo font-semibold">
-                          {calculateTokens(purchaseAmount)} tokens
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center mt-1">
-                        <span className="text-gray-400">Payment Method:</span>
-                        <span className="text-white font-medium capitalize">
-                          {selectedGateway === "card"
-                            ? "Credit/Debit Card"
-                            : "PayPal Account"}
-                        </span>
-                      </div>
+                      {(() => {
+                        const breakdown = getPaymentBreakdown(
+                          Number(purchaseAmount) || 0
+                        );
+                        return (
+                          <>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-400">Subtotal:</span>
+                              <span className="text-white font-medium">
+                                ${breakdown.subtotal.toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center mt-1">
+                              <span className="text-gray-400">VAT (20%):</span>
+                              <span className="text-white font-medium">
+                                ${breakdown.vat.toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="border-t border-gray-600 mt-2 pt-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-white font-semibold">
+                                  Total to Pay:
+                                </span>
+                                <span className="text-primarioLogo font-bold text-lg">
+                                  ${breakdown.total.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center mt-2">
+                              <span className="text-gray-400">Tokens:</span>
+                              <span className="text-primarioLogo font-semibold">
+                                {breakdown.tokens} tokens
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center mt-1">
+                              <span className="text-gray-400">
+                                Payment Method:
+                              </span>
+                              <span className="text-white font-medium capitalize">
+                                {selectedGateway === "card"
+                                  ? "Credit/Debit Card"
+                                  : "PayPal Account"}
+                              </span>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {/* Credit/Debit Card Payment Interface */}
@@ -1405,7 +1610,10 @@ function MainTopMenu({ user_info }) {
                           <CardInput
                             onPaymentProcess={handleStripePayment}
                             isProcessing={isProcessingPayment}
-                            purchaseAmount={purchaseAmount}
+                            totalAmount={
+                              getPaymentBreakdown(Number(purchaseAmount) || 0)
+                                .total
+                            }
                           />
 
                           <div className="mt-3 text-center">
