@@ -22,6 +22,9 @@ import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
   CardElement,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
@@ -37,49 +40,112 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 function CardInput({ onPaymentProcess, isProcessing, totalAmount }) {
   const stripe = useStripe();
   const elements = useElements();
-  const [cardComplete, setCardComplete] = useState(false);
-  const [cardError, setCardError] = useState(null);
+  const [cardNumberComplete, setCardNumberComplete] = useState(false);
+  const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
+  const [cardCvcComplete, setCardCvcComplete] = useState(false);
+  const [cardErrors, setCardErrors] = useState({});
 
-  const handleCardChange = (event) => {
-    setCardComplete(event.complete);
-    setCardError(event.error?.message || null);
+  const handleCardNumberChange = (event) => {
+    setCardNumberComplete(event.complete);
+    setCardErrors((prev) => ({
+      ...prev,
+      cardNumber: event.error?.message || null,
+    }));
   };
+
+  const handleCardExpiryChange = (event) => {
+    setCardExpiryComplete(event.complete);
+    setCardErrors((prev) => ({
+      ...prev,
+      cardExpiry: event.error?.message || null,
+    }));
+  };
+
+  const handleCardCvcChange = (event) => {
+    setCardCvcComplete(event.complete);
+    setCardErrors((prev) => ({
+      ...prev,
+      cardCvc: event.error?.message || null,
+    }));
+  };
+
+  const allFieldsComplete =
+    cardNumberComplete && cardExpiryComplete && cardCvcComplete;
+  const hasErrors = Object.values(cardErrors).some((error) => error);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!stripe || !elements || !cardComplete) return;
+    if (!stripe || !elements || !allFieldsComplete) return;
     await onPaymentProcess(stripe, elements);
+  };
+
+  const elementStyle = {
+    style: {
+      base: {
+        fontSize: "16px",
+        color: "#ffffff",
+        "::placeholder": {
+          color: "#9ca3af",
+        },
+      },
+      invalid: {
+        color: "#ef4444",
+      },
+    },
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="p-4 border border-gray-600 rounded-lg bg-darkBoxSub">
-        <CardElement
-          onChange={handleCardChange}
-          options={{
-            style: {
-              base: {
-                fontSize: "16px",
-                color: "#ffffff",
-                "::placeholder": {
-                  color: "#9ca3af",
-                },
-              },
-              invalid: {
-                color: "#ef4444",
-              },
-            },
-          }}
-        />
+      {/* Card Number */}
+      <div className="space-y-2">
+        <label className="block text-white text-sm font-medium">
+          Card Number
+        </label>
+        <div className="p-4 border border-gray-600 rounded-lg bg-darkBoxSub">
+          <CardNumberElement
+            onChange={handleCardNumberChange}
+            options={elementStyle}
+          />
+        </div>
+        {cardErrors.cardNumber && (
+          <div className="text-red-400 text-sm">{cardErrors.cardNumber}</div>
+        )}
       </div>
 
-      {cardError && (
-        <div className="text-red-400 text-sm mt-2">{cardError}</div>
-      )}
+      {/* Expiry and CVC in same row */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Card Expiry */}
+        <div className="space-y-2">
+          <label className="block text-white text-sm font-medium">MM/YY</label>
+          <div className="p-4 border border-gray-600 rounded-lg bg-darkBoxSub">
+            <CardExpiryElement
+              onChange={handleCardExpiryChange}
+              options={elementStyle}
+            />
+          </div>
+          {cardErrors.cardExpiry && (
+            <div className="text-red-400 text-sm">{cardErrors.cardExpiry}</div>
+          )}
+        </div>
+
+        {/* Card CVC */}
+        <div className="space-y-2">
+          <label className="block text-white text-sm font-medium">CVC</label>
+          <div className="p-4 border border-gray-600 rounded-lg bg-darkBoxSub">
+            <CardCvcElement
+              onChange={handleCardCvcChange}
+              options={elementStyle}
+            />
+          </div>
+          {cardErrors.cardCvc && (
+            <div className="text-red-400 text-sm">{cardErrors.cardCvc}</div>
+          )}
+        </div>
+      </div>
 
       <button
         type="submit"
-        disabled={!stripe || isProcessing || !cardComplete}
+        disabled={!stripe || isProcessing || !allFieldsComplete}
         className="w-full px-4 py-2 bg-primarioLogo text-white rounded-lg hover:bg-primarioLogo/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {isProcessing && (
@@ -87,7 +153,7 @@ function CardInput({ onPaymentProcess, isProcessing, totalAmount }) {
         )}
         {isProcessing
           ? "Processing..."
-          : !cardComplete
+          : !allFieldsComplete
           ? "Enter card details"
           : `Pay $${Number(totalAmount).toFixed(2)}`}
       </button>
@@ -873,7 +939,7 @@ function MainTopMenu({ user_info }) {
         throw new Error("Stripe not loaded");
       }
 
-      const cardElement = elements.getElement(CardElement);
+      const cardElement = elements.getElement(CardNumberElement);
 
       // Create payment method
       const { error, paymentMethod } = await stripe.createPaymentMethod({
