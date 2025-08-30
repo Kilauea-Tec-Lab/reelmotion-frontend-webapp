@@ -1805,7 +1805,11 @@ function MainTopMenu({ user_info }) {
                       <div className="flex justify-between items-center">
                         <span className="text-gray-400">Amount Paid:</span>
                         <span className="text-white font-medium">
-                          ${paymentDetails?.total_paid || purchaseAmount}
+                          $
+                          {paymentDetails?.total_paid ||
+                            getPaymentBreakdown(
+                              Number(purchaseAmount) || 0
+                            ).total.toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
