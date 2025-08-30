@@ -6,7 +6,7 @@ function ReelBot({ onClose }) {
     {
       id: 1,
       type: "bot",
-      text: "Hi! I'm ReelBot, your support assistant. How can I help you today?",
+      text: "Hi! I'm Reelbot, your support assistant. How can I help you today?",
       timestamp: new Date(),
     },
   ]);
@@ -118,14 +118,14 @@ function ReelBot({ onClose }) {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-[#F2D543] flex items-center justify-center">
             <img
-              src="/logos/reelbot.jpg"
+              src="/logos/reelbot.png"
               size={35}
               alt="Reelbot"
               className="rounded-4xl"
             />
           </div>
           <div>
-            <h3 className="text-white montserrat-medium text-sm">ReelBot</h3>
+            <h3 className="text-white montserrat-medium text-sm">Reelbot</h3>
             <p className="text-green-400 montserrat-light text-xs">Online</p>
           </div>
         </div>
@@ -156,7 +156,7 @@ function ReelBot({ onClose }) {
               <div className="flex items-start gap-2">
                 {message.type === "bot" && (
                   <img
-                    src="/logos/reelbot.jpg"
+                    src="/logos/reelbot.png"
                     alt="Reelbot"
                     className="rounded-4xl mt-1 flex-shrink-0 w-7"
                   />
@@ -191,7 +191,7 @@ function ReelBot({ onClose }) {
             <div className="bg-darkBoxSub text-white rounded-2xl px-4 py-2 max-w-[80%]">
               <div className="flex items-center gap-2">
                 <img
-                  src="/logos/reelbot.jpg"
+                  src="/logos/reelbot.png"
                   alt="Reelbot"
                   className="rounded-4xl mt-1 flex-shrink-0 w-7"
                 />
