@@ -909,7 +909,6 @@ function MainProject() {
         folders={[]} // Aquí necesitarías pasar las carpetas disponibles
         onProjectUpdated={handleProjectUpdated}
       />
-
       <ModalDeleteProject
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}

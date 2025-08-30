@@ -56,7 +56,7 @@ function HelpButton() {
                 className="text-[#F2D543] group-hover:scale-110 transition-transform"
               />
               <div>
-                <span className="montserrat-medium text-sm block">ReelBot</span>
+                <span className="montserrat-medium text-sm block">Reelbot</span>
                 <span className="montserrat-light text-xs text-gray-400">
                   Support Chat
                 </span>

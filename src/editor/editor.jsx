@@ -4694,13 +4694,8 @@ function Editor() {
                   size={64}
                   className="text-gray-400 mx-auto mb-4"
                 />
-                <p className="text-gray-400 text-lg">
-                  {arrayVideoMake.some((item) => item.channel === "video")
-                    ? "Press play to preview your video"
-                    : "Drag videos here to get started"}
-                </p>
                 <p className="text-gray-500 text-sm mt-2">
-                  Your final video will appear in this area
+                  Your video will appear in this area
                 </p>
               </div>
             </div>
