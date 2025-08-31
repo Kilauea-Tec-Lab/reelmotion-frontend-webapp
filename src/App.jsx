@@ -2,6 +2,7 @@ import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import "./App.css";
 import Editor from "./editor/editor";
 import Login from "./auth/login";
+import ResetPassword from "./auth/reset-password";
 import Home from "./dashboard/home";
 import Profile from "./profile/profile";
 import Discover from "./discover/discover";
@@ -19,6 +20,11 @@ const router = createBrowserRouter([
   {
     path: "/login",
     element: <Login />,
+    errorElement: <ErrorBoundary />,
+  },
+  {
+    path: "/reset-password/:token",
+    element: <ResetPassword />,
     errorElement: <ErrorBoundary />,
   },
   {

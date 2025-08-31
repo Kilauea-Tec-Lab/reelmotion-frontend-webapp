@@ -15,6 +15,14 @@ function Login() {
   const [loginEmailError, setLoginEmailError] = useState(false);
   const [loginPasswordError, setLoginPasswordError] = useState(false);
 
+  // Reset Password States
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetEmailError, setResetEmailError] = useState(false);
+  const [resetMessage, setResetMessage] = useState("");
+  const [resetSuccess, setResetSuccess] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
   //Create Account States
   const [username, setUsername] = useState("");
   const [createEmail, setCreateEmail] = useState("");
@@ -69,6 +77,66 @@ function Login() {
       }
     } catch (error) {}
   }
+
+  async function handleResetPassword() {
+    setResetEmailError(false);
+    setResetMessage("");
+    setIsResetting(true);
+
+    try {
+      if (!resetEmail) {
+        setResetEmailError("Email is required");
+        setIsResetting(false);
+        return;
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(resetEmail)) {
+        setResetEmailError("Please enter a valid email address");
+        setIsResetting(false);
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}users/reset-password`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: resetEmail.toLowerCase(),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      // Handle the specific response format: {"code":200,"message":"Test email sent successfully","data":[]}
+      if (response.ok && data.code === 200) {
+        setResetSuccess(true);
+        setResetMessage(
+          data.message ||
+            "Password reset instructions have been sent to your email."
+        );
+      } else {
+        // Handle error cases
+        setResetEmailError(data.message || "Error sending reset email");
+      }
+    } catch (error) {
+      setResetEmailError("Network error. Please try again.");
+    } finally {
+      setIsResetting(false);
+    }
+  }
+
+  const handleBackToLogin = () => {
+    setShowResetPassword(false);
+    setResetEmail("");
+    setResetEmailError(false);
+    setResetMessage("");
+    setResetSuccess(false);
+  };
 
   async function handleRegister() {
     setUsernameError(false);
@@ -256,9 +324,13 @@ function Login() {
                       }}
                     />
                   </div>
-                  <span className="text-white montserrat-light text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setShowResetPassword(true)}
+                    className="text-white montserrat-light text-xs hover:text-[#F2D543] transition-colors cursor-pointer"
+                  >
                     Forgot your password?
-                  </span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleLogin()}
@@ -996,6 +1068,109 @@ function Login() {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {showResetPassword && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-darkBox rounded-xl p-8 max-w-md w-full mx-4 border border-gray-600">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-white montserrat-medium mb-2">
+                Reset Password
+              </h2>
+              <p className="text-gray-400 text-sm montserrat-light">
+                Enter your email address and we'll send you instructions to
+                reset your password.
+              </p>
+            </div>
+
+            {!resetSuccess ? (
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-white text-sm font-medium mb-2 montserrat-medium">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    className={`w-full px-4 py-3 rounded-lg bg-darkBoxSub border ${
+                      resetEmailError ? "border-red-500" : "border-gray-600"
+                    } text-white placeholder-gray-400 focus:outline-none focus:border-[#F2D543] transition-colors montserrat-regular`}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleResetPassword();
+                    }}
+                  />
+                  {resetEmailError && (
+                    <p className="text-red-400 text-sm mt-2 montserrat-light">
+                      {resetEmailError}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleBackToLogin}
+                    className="flex-1 px-4 py-3 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors montserrat-medium"
+                  >
+                    Back to Login
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetPassword}
+                    disabled={isResetting}
+                    className="flex-1 px-4 py-3 rounded-lg bg-[#F2D543] text-primarioDark hover:bg-[#f2f243] transition-colors montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  >
+                    {isResetting ? (
+                      <div className="w-5 h-5 border-2 border-primarioDark border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      "Send Reset Email"
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center space-y-6">
+                <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto">
+                  <svg
+                    className="w-8 h-8 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-white text-xl font-semibold montserrat-medium mb-2">
+                    Email Sent!
+                  </h3>
+                  <p className="text-gray-300 montserrat-regular text-sm">
+                    {resetMessage}
+                  </p>
+                  <p className="text-gray-400 montserrat-light text-xs mt-2">
+                    Check your email inbox and follow the instructions to reset
+                    your password.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleBackToLogin}
+                  className="w-full px-4 py-3 rounded-lg bg-[#F2D543] text-primarioDark hover:bg-[#f2f243] transition-colors montserrat-medium"
+                >
+                  Back to Login
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
