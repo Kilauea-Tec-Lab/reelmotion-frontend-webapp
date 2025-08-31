@@ -1,15 +1,53 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Send, Bot, User } from "lucide-react";
+import Cookies from "js-cookie";
 
 function ReelBot({ onClose }) {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      type: "bot",
-      text: "Hi! I'm Reelbot, your support assistant. How can I help you today?",
-      timestamp: new Date(),
-    },
-  ]);
+  // Load conversation from cookies
+  const loadConversationFromCookies = () => {
+    try {
+      const savedConversation = Cookies.get("reelbot-conversation");
+      if (savedConversation) {
+        const parsed = JSON.parse(savedConversation);
+        // Convert timestamp strings back to Date objects
+        return parsed.map((message) => ({
+          ...message,
+          timestamp: new Date(message.timestamp),
+        }));
+      }
+    } catch (error) {
+      console.error("Error loading conversation from cookies:", error);
+    }
+    return [
+      {
+        id: 1,
+        type: "bot",
+        text: "Hi! I'm Reelbot, your support assistant. How can I help you today?",
+        timestamp: new Date(),
+      },
+    ];
+  };
+
+  // Save conversation to cookies
+  const saveConversationToCookies = (messages) => {
+    try {
+      Cookies.set("reelbot-conversation", JSON.stringify(messages), {
+        expires: 7,
+      });
+    } catch (error) {
+      console.error("Error saving conversation to cookies:", error);
+    }
+  };
+
+  // Convert messages to backend format
+  const convertMessagesToBackendFormat = (messages) => {
+    return messages.map((message) => ({
+      role: message.type === "bot" ? "assistant" : "user",
+      content: message.text,
+    }));
+  };
+
+  const [messages, setMessages] = useState(loadConversationFromCookies());
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
@@ -20,6 +58,11 @@ function ReelBot({ onClose }) {
 
   useEffect(() => {
     scrollToBottom();
+  }, [messages]);
+
+  // Save conversation to cookies whenever messages change
+  useEffect(() => {
+    saveConversationToCookies(messages);
   }, [messages]);
 
   const handleSendMessage = async (e) => {
@@ -34,20 +77,61 @@ function ReelBot({ onClose }) {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const messageToSend = inputMessage;
     setInputMessage("");
     setIsTyping(true);
 
-    // Simulate bot response
-    setTimeout(() => {
+    try {
+      // Convert previous messages (without the new user message) to backend format
+      // Only take the last 10 messages
+      const lastMessages = messages.slice(-10);
+      const previousConversation = convertMessagesToBackendFormat(lastMessages);
+
+      // Call the API endpoint
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}users/send-reelbot-mensaje`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: JSON.stringify({
+            message: messageToSend,
+            conversation: JSON.stringify(previousConversation),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      // Create bot response with API data
       const botResponse = {
         id: messages.length + 2,
         type: "bot",
-        text: getBotResponse(inputMessage),
+        text:
+          data.message ||
+          data.response ||
+          "I'm sorry, I couldn't process your request at the moment. Please try again.",
         timestamp: new Date(),
       };
+
       setMessages((prev) => [...prev, botResponse]);
+    } catch (error) {
+      console.error("Error sending message to Reelbot:", error);
+
+      // Fallback to local response if API fails
+      const botResponse = {
+        id: messages.length + 2,
+        type: "bot",
+        text: "I'm sorry, I'm having trouble connecting right now. Please try again later or contact our support team.",
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, botResponse]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const getBotResponse = (userInput) => {
@@ -108,7 +192,12 @@ function ReelBot({ onClose }) {
   };
 
   const formatTime = (date) => {
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    // Ensure date is a Date object
+    const dateObj = date instanceof Date ? date : new Date(date);
+    return dateObj.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   return (
