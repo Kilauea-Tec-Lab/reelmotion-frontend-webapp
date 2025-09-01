@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 
 function ResetPassword() {
   const navigate = useNavigate();
@@ -14,6 +15,10 @@ function ResetPassword() {
   const [resetSuccess, setResetSuccess] = useState(false);
   const [resetMessage, setResetMessage] = useState("");
   const [tokenValid, setTokenValid] = useState(true);
+
+  // Password visibility states
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Verify token on component mount
   useEffect(() => {
@@ -145,15 +150,24 @@ function ResetPassword() {
               <label className="block text-white text-sm font-medium mb-2 montserrat-medium">
                 New Password
               </label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter your new password"
-                className={`w-full px-4 py-3 rounded-lg bg-darkBoxSub border ${
-                  newPasswordError ? "border-red-500" : "border-gray-600"
-                } text-white placeholder-gray-400 focus:outline-none focus:border-[#F2D543] transition-colors montserrat-regular`}
-              />
+              <div className="relative">
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter your new password"
+                  className={`w-full px-4 py-3 pr-12 rounded-lg bg-darkBoxSub border ${
+                    newPasswordError ? "border-red-500" : "border-gray-600"
+                  } text-white placeholder-gray-400 focus:outline-none focus:border-[#F2D543] transition-colors montserrat-regular`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                >
+                  {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
               {newPasswordError && (
                 <p className="text-red-400 text-sm mt-2 montserrat-light">
                   {newPasswordError}
@@ -165,18 +179,27 @@ function ResetPassword() {
               <label className="block text-white text-sm font-medium mb-2 montserrat-medium">
                 Confirm New Password
               </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm your new password"
-                className={`w-full px-4 py-3 rounded-lg bg-darkBoxSub border ${
-                  confirmPasswordError ? "border-red-500" : "border-gray-600"
-                } text-white placeholder-gray-400 focus:outline-none focus:border-[#F2D543] transition-colors montserrat-regular`}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleResetPassword();
-                }}
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm your new password"
+                  className={`w-full px-4 py-3 pr-12 rounded-lg bg-darkBoxSub border ${
+                    confirmPasswordError ? "border-red-500" : "border-gray-600"
+                  } text-white placeholder-gray-400 focus:outline-none focus:border-[#F2D543] transition-colors montserrat-regular`}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleResetPassword();
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
               {confirmPasswordError && (
                 <p className="text-red-400 text-sm mt-2 montserrat-light">
                   {confirmPasswordError}
