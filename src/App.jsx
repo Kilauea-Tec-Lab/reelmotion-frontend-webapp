@@ -3,6 +3,7 @@ import "./App.css";
 import Editor from "./editor/editor";
 import Login from "./auth/login";
 import ResetPassword from "./auth/reset-password";
+import VerifyEmail from "./auth/verify-email";
 import Home from "./dashboard/home";
 import Profile from "./profile/profile";
 import Discover from "./discover/discover";
@@ -25,6 +26,11 @@ const router = createBrowserRouter([
   {
     path: "/reset-password/:token",
     element: <ResetPassword />,
+    errorElement: <ErrorBoundary />,
+  },
+  {
+    path: "/verify-email",
+    element: <VerifyEmail />,
     errorElement: <ErrorBoundary />,
   },
   {

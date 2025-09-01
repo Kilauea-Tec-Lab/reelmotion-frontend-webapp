@@ -4,7 +4,6 @@ import {
   Settings,
   User,
   Mail,
-  Phone,
   MapPin,
   Calendar,
   Tag,
@@ -30,7 +29,6 @@ function Profile() {
   const [editForm, setEditForm] = useState({
     name: user?.data?.name || "",
     email: user?.data?.email || "",
-    phone: user?.data?.phone || "",
     solana_wallet_address: user?.data?.solana_wallet_address || "",
     password: "",
     confirmPassword: "",
@@ -41,7 +39,6 @@ function Profile() {
   const [validationErrors, setValidationErrors] = useState({
     name: "",
     email: "",
-    phone: "",
     profile_image: "",
   });
   const fileInputRef = useRef(null);
@@ -72,13 +69,6 @@ function Profile() {
       if (!emailRegex.test(email)) {
         return "Please enter a valid email address";
       }
-    }
-    return "";
-  };
-
-  const validatePhone = (phone) => {
-    if (phone && phone.length > 20) {
-      return "Phone number cannot exceed 20 characters";
     }
     return "";
   };
@@ -124,7 +114,6 @@ function Profile() {
     const errors = {
       name: validateName(editForm.name),
       email: validateEmail(editForm.email),
-      phone: validatePhone(editForm.phone),
       profile_image: selectedImageFile
         ? validateProfileImage(selectedImageFile)
         : "",
@@ -143,12 +132,11 @@ function Profile() {
   const isFormValid = () => {
     const nameError = validateName(editForm.name);
     const emailError = validateEmail(editForm.email);
-    const phoneError = validatePhone(editForm.phone);
     const imageError = selectedImageFile
       ? validateProfileImage(selectedImageFile)
       : "";
 
-    return !nameError && !emailError && !phoneError && !imageError;
+    return !nameError && !emailError && !imageError;
   };
 
   const handleImageUpload = async (event) => {
@@ -183,7 +171,6 @@ function Profile() {
       setEditForm({
         name: user?.data?.name || "",
         email: user?.data?.email || "",
-        phone: user?.data?.phone || "",
         solana_wallet_address: user?.data?.solana_wallet_address || "",
         password: "",
         confirmPassword: "",
@@ -220,7 +207,6 @@ function Profile() {
       const profileData = {
         name: editForm.name,
         email: editForm.email,
-        phone: editForm.phone,
         solana_wallet_address: editForm.solana_wallet_address,
       };
 
@@ -249,7 +235,6 @@ function Profile() {
         setEditForm({
           name: result?.data?.name || "",
           email: result?.data?.email || "",
-          phone: result?.data?.phone || "",
           solana_wallet_address: result?.data?.solana_wallet_address || "",
           password: "",
           confirmPassword: "",
@@ -285,9 +270,6 @@ function Profile() {
         break;
       case "email":
         error = validateEmail(value);
-        break;
-      case "phone":
-        error = validatePhone(value);
         break;
     }
 
@@ -473,40 +455,6 @@ function Profile() {
                     ) : (
                       <p className="text-white montserrat-regular">
                         {user?.data?.email || "Not provided"}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Phone */}
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="bg-darkBoxSub p-2 rounded-lg">
-                    <Phone size={18} className="text-[#F2D543]" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-gray-400 montserrat-light text-sm">
-                      Phone
-                    </p>
-                    {isEditing ? (
-                      <>
-                        <input
-                          type="tel"
-                          value={editForm.phone}
-                          onChange={(e) =>
-                            handleInputChange("phone", e.target.value)
-                          }
-                          className="bg-darkBoxSub rounded-lg px-3 py-2 text-white montserrat-regular w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
-                          placeholder="Enter your phone number"
-                        />
-                        {validationErrors.phone && (
-                          <p className="text-red-400 montserrat-light text-xs mt-1">
-                            {validationErrors.phone}
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-white montserrat-regular">
-                        {user?.data?.phone || "Not provided"}
                       </p>
                     )}
                   </div>

@@ -9,12 +9,15 @@ import {
   Search,
   Filter,
   Square,
+  CreditCard,
 } from "lucide-react";
 import {
   getElevenLabsVoices,
   generateElevenLabsSpeech,
   createElevenLabsVoice,
 } from "./functions";
+import { createPusherClient } from "../pusher";
+import Cookies from "js-cookie";
 
 function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
   const [voiceName, setVoiceName] = useState("");
@@ -47,6 +50,17 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const VOICES_PER_PAGE = 50;
+
+  // Token system states
+  const [tokens, setTokens] = useState(0);
+  const [isLoadingTokens, setIsLoadingTokens] = useState(false);
+  const [userInfo, setUserInfo] = useState(null);
+
+  // WebSocket
+  const pusherClient = createPusherClient();
+
+  // Cost per minute of voice (16 tokens per minute)
+  const VOICE_COST_PER_MINUTE = 16;
 
   // Audio preview states
   const [previewAudio, setPreviewAudio] = useState(null);
@@ -136,12 +150,118 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
     return voice.labels?.age || "Unknown";
   };
 
+  // Token management functions
+  const fetchUserTokens = async () => {
+    setIsLoadingTokens(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}users/tokens`,
+        {
+          headers: {
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        setTokens(data.data || 0);
+      }
+    } catch (error) {
+      console.error("Error fetching tokens:", error);
+    } finally {
+      setIsLoadingTokens(false);
+    }
+  };
+
+  const fetchUserInfo = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}users/get-user-info`,
+        {
+          headers: {
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        setUserInfo(data.data || null);
+      }
+    } catch (error) {
+      console.error("Error fetching user info:", error);
+    }
+  };
+
+  // Function to reduce tokens after successful voice generation
+  const reduceTokens = async (tokensToReduce) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}tokens/reduce-tokens`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: JSON.stringify({
+            tokens: tokensToReduce,
+          }),
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        console.log(`Successfully reduced ${tokensToReduce} tokens`);
+        // Refresh tokens from server
+        fetchUserTokens();
+      } else {
+        console.error("Error reducing tokens:", data.message);
+      }
+    } catch (error) {
+      console.error("Error reducing tokens:", error);
+    }
+  };
+
+  // Function to calculate tokens required based on estimated duration
+  const calculateRequiredTokens = () => {
+    if (!estimatedTime) return VOICE_COST_PER_MINUTE;
+
+    // Apply the 2x multiplier for more realistic duration
+    const adjustedTime = estimatedTime * 2;
+    const minutes = Math.ceil(adjustedTime / 60); // Round up to next minute
+    return minutes * VOICE_COST_PER_MINUTE;
+  };
+
   // Load voices when modal opens
   useEffect(() => {
     if (isOpen) {
       loadVoices();
     }
   }, [isOpen]);
+
+  // Load tokens and user info when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchUserTokens();
+      fetchUserInfo();
+    }
+  }, [isOpen]);
+
+  // Socket for tokens
+  useEffect(() => {
+    if (!userInfo?.id || !isOpen) return;
+
+    let channel = pusherClient.subscribe(
+      `private-get-user-tokens.${userInfo.id}`
+    );
+
+    channel.bind("fill-user-tokens", ({ user_id }) => {
+      fetchUserTokens();
+    });
+
+    return () => {
+      pusherClient.unsubscribe(`private-get-user-tokens.${userInfo.id}`);
+    };
+  }, [userInfo?.id, isOpen]);
 
   // Filter and search logic
   useEffect(() => {
@@ -275,20 +395,25 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
     onClose();
   };
 
-  // Calcular tiempo estimado basado en el texto
+  // Calculate estimated time based on text length (more accurate for voice synthesis)
   const calculateEstimatedTime = (text) => {
     if (!text || text.trim().length === 0) {
       setEstimatedTime(0);
       return 0;
     }
 
-    // Promedio de 150 palabras por minuto de habla
-    const wordsPerMinute = 150;
-    const words = text.trim().split(/\s+/).length;
-    const estimatedSeconds = (words / wordsPerMinute) * 60;
+    // More accurate calculation based on character count including spaces
+    // Average speaking rate: ~8-12 characters per second including spaces
+    // We'll use 10 characters per second as a middle ground
+    const charactersPerSecond = 10;
+    const totalCharacters = text.length; // Include spaces and all characters
+    const estimatedSeconds = totalCharacters / charactersPerSecond;
 
-    setEstimatedTime(estimatedSeconds);
-    return estimatedSeconds;
+    // Minimum duration of 2 seconds for any text
+    const finalEstimatedSeconds = Math.max(estimatedSeconds, 2);
+
+    setEstimatedTime(finalEstimatedSeconds);
+    return finalEstimatedSeconds;
   };
 
   // Actualizar estimación cuando cambia el texto
@@ -362,10 +487,22 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
       return;
     }
 
+    // Validate sufficient tokens
+    const requiredTokens = calculateRequiredTokens();
+    if (tokens < requiredTokens) {
+      alert(
+        `Insufficient tokens. You need ${requiredTokens} tokens but only have ${Math.floor(
+          tokens
+        ).toLocaleString("en-US")}.`
+      );
+      return;
+    }
+
     console.log("Starting voice generation with:", {
       text: textToSpeak,
       selectedVoice: selectedVoice,
       voiceId: voiceId,
+      requiredTokens: requiredTokens,
     });
 
     setIsGenerating(true);
@@ -384,14 +521,19 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
         throw new Error(`Error generating speech: ${speechResult.error}`);
       }
 
-      // Configurar el audio generado y cambiar al modo de reproductor
+      // Calculate actual tokens to reduce based on actual duration
+      const actualDuration = speechResult.data.duration || estimatedTime;
+      const actualMinutes = Math.ceil(actualDuration / 60);
+      const tokensToReduce = actualMinutes * VOICE_COST_PER_MINUTE;
+
+      // Configure generated audio and switch to player mode
       setGeneratedAudioUrl(speechResult.data.audioUrl);
-      setDuration(speechResult.data.duration || estimatedTime);
+      setDuration(actualDuration);
       setGeneratedVoiceData({
         audioUrl: speechResult.data.audioUrl,
         audioBlob: speechResult.data.audioBlob,
         playableAudioUrl: speechResult.data.audioUrl,
-        duration: speechResult.data.duration || estimatedTime,
+        duration: actualDuration,
         format: speechResult.data.format || "mp3",
         textUsed: textToSpeak,
         voiceUsed: selectedVoice,
@@ -399,8 +541,14 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
         voice_settings: speechResult.data.voice_settings,
       });
 
-      // Ocultar el creador y mostrar el reproductor
+      // Hide creator and show player
       setShowVoiceCreator(false);
+
+      // Reduce tokens after successful generation
+      console.log(
+        `Voice generation successful, reducing ${tokensToReduce} tokens...`
+      );
+      await reduceTokens(tokensToReduce);
 
       console.log("Voice generated successfully:", speechResult.data);
     } catch (error) {
@@ -435,7 +583,7 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
     }
 
     if (!generatedVoiceData) {
-      alert("No hay audio generado para guardar.");
+      alert("No voice audio generated to save.");
       return;
     }
 
@@ -465,7 +613,7 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
         }
         handleClose();
       } else {
-        throw new Error(result.error || "Error desconocido al guardar la voz");
+        throw new Error(result.error || "Unknown error saving voice");
       }
     } catch (error) {
       console.error("Error saving voice:", error);
@@ -524,9 +672,21 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
       <div className="bg-darkBox rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6">
-          <h2 className="text-xl font-semibold text-white montserrat-medium">
-            Create Voice
-          </h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-semibold text-white montserrat-medium">
+              Create Voice
+            </h2>
+            {/* Token Display */}
+            <div className="flex items-center gap-2 bg-darkBoxSub px-3 py-1 rounded-lg">
+              <CreditCard size={16} className="text-[#F2D543]" />
+              <span className="text-sm text-gray-300 montserrat-regular">
+                {isLoadingTokens
+                  ? "..."
+                  : Math.floor(tokens).toLocaleString("en-US")}{" "}
+                tokens
+              </span>
+            </div>
+          </div>
           <button
             onClick={handleClose}
             className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-700"
@@ -795,20 +955,51 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
                 {estimatedTime > 0 && (
                   <p className="text-[#F2D543] text-sm mt-2 flex items-center">
                     <Clock className="w-4 h-4 mr-1" />
-                    Estimated duration: {Math.ceil(estimatedTime)}s
+                    Base estimate: {Math.ceil(estimatedTime * 2)}s (
+                    {textToSpeak.length} characters)
                   </p>
                 )}
               </div>
 
               {/* Generate Button */}
               <div className="mb-6">
+                {/* Token Cost Info */}
+                <div className="mb-3 p-3 bg-darkBoxSub rounded-lg border border-gray-600">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-300 montserrat-regular">
+                      Estimated Cost:
+                    </span>
+                    <span className="text-[#F2D543] font-medium montserrat-medium">
+                      {calculateRequiredTokens()} tokens
+                    </span>
+                  </div>
+                  {estimatedTime > 0 && (
+                    <div className="text-xs text-gray-400 mt-1 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span>
+                          Base estimate: ~{Math.ceil(estimatedTime)}s (
+                          {textToSpeak.length} chars)
+                        </span>
+                        <span>Adjusted: ~{Math.ceil(estimatedTime * 2)}s</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>
+                          Billing: {Math.ceil((estimatedTime * 2) / 60)} min
+                        </span>
+                        <span>{VOICE_COST_PER_MINUTE} tokens/min</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   onClick={handleGenerateVoice}
                   disabled={
                     isGenerating ||
                     !textToSpeak.trim() ||
                     !selectedVoice ||
-                    isLoadingVoices
+                    isLoadingVoices ||
+                    tokens < calculateRequiredTokens()
                   }
                   className="w-full px-6 py-3 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543] flex items-center justify-center"
                 >
