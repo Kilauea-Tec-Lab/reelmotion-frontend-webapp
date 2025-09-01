@@ -445,7 +445,7 @@ function Profile() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Email */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 overflow-hidden">
                   <div className="bg-darkBoxSub p-2 rounded-lg">
                     <Mail size={18} className="text-[#F2D543]" />
                   </div>
@@ -479,7 +479,7 @@ function Profile() {
                 </div>
 
                 {/* Phone */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 overflow-hidden">
                   <div className="bg-darkBoxSub p-2 rounded-lg">
                     <Phone size={18} className="text-[#F2D543]" />
                   </div>
@@ -513,7 +513,7 @@ function Profile() {
                 </div>
 
                 {/* Location */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 overflow-hidden">
                   <div className="bg-darkBoxSub p-2 rounded-lg">
                     <User size={18} className="text-[#F2D543]" />
                   </div>
@@ -528,7 +528,7 @@ function Profile() {
                 </div>
 
                 {/* Member Since */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 overflow-hidden">
                   <div className="bg-darkBoxSub p-2 rounded-lg">
                     <Calendar size={18} className="text-[#F2D543]" />
                   </div>
@@ -545,7 +545,7 @@ function Profile() {
                 </div>
 
                 {/* Solana Wallet Address */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 overflow-hidden">
                   <div className="bg-darkBoxSub p-2 rounded-lg">
                     <Wallet size={18} className="text-[#F2D543]" />
                   </div>
