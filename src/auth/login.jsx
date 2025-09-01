@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import { createAccount, login } from "./functions";
 import Cookies from "js-cookie";
 
@@ -43,6 +44,14 @@ function Login() {
     useState(false);
   const [createNameError, setCreateNameError] = useState(false);
   const [acceptTermsError, setAcceptTermsError] = useState(false);
+
+  // Password visibility states
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [showCreateConfirmPassword, setShowCreateConfirmPassword] =
+    useState(false);
+  const [showCreatePasswordConfirm, setShowCreatePasswordConfirm] =
+    useState(false);
 
   async function handleLogin() {
     // Reset error states
@@ -310,12 +319,12 @@ function Login() {
                       placeholder="Enter email or user name"
                     />
                   </div>
-                  <div>
+                  <div className="relative">
                     <input
-                      className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0 ${
-                        loginEmailError ? "border-2 border-red-500" : ""
+                      className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 pr-12 text-[#161619] outline-none focus:ring-0 ${
+                        loginPasswordError ? "border-2 border-red-500" : ""
                       }`}
-                      type="password"
+                      type={showLoginPassword ? "text" : "password"}
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="Enter your password"
@@ -323,6 +332,17 @@ function Login() {
                         if (e.key === "Enter") handleLogin();
                       }}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                      {showLoginPassword ? (
+                        <EyeOff size={20} />
+                      ) : (
+                        <Eye size={20} />
+                      )}
+                    </button>
                   </div>
                   <button
                     type="button"
@@ -410,15 +430,30 @@ function Login() {
                         {createPasswordError}
                       </p>
                     )}
-                    <input
-                      className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0 ${
-                        createPasswordError ? "border-2 border-red-500" : ""
-                      }`}
-                      type="password"
-                      value={createPassword}
-                      onChange={(e) => setCreatePassword(e.target.value)}
-                      placeholder="Enter your password"
-                    />
+                    <div className="relative">
+                      <input
+                        className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 pr-12 text-[#161619] outline-none focus:ring-0 ${
+                          createPasswordError ? "border-2 border-red-500" : ""
+                        }`}
+                        type={showCreatePassword ? "text" : "password"}
+                        value={createPassword}
+                        onChange={(e) => setCreatePassword(e.target.value)}
+                        placeholder="Enter your password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowCreatePassword(!showCreatePassword)
+                        }
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                      >
+                        {showCreatePassword ? (
+                          <EyeOff size={20} />
+                        ) : (
+                          <Eye size={20} />
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <div>
                     {createPasswordConfirmError && (
@@ -426,17 +461,36 @@ function Login() {
                         {createPasswordConfirmError}
                       </p>
                     )}
-                    <input
-                      className={`bg-white rounded-lg w-full montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0 ${
-                        createPasswordConfirmError
-                          ? "border-2 border-red-500"
-                          : ""
-                      }`}
-                      type="password"
-                      value={createPasswordConfirm}
-                      onChange={(e) => setCreatePasswordConfirm(e.target.value)}
-                      placeholder="Confirm your password"
-                    />
+                    <div className="relative">
+                      <input
+                        className={`bg-white rounded-lg w-full montserrat-light text-sm px-4 py-3 pr-12 text-[#161619] outline-none focus:ring-0 ${
+                          createPasswordConfirmError
+                            ? "border-2 border-red-500"
+                            : ""
+                        }`}
+                        type={showCreateConfirmPassword ? "text" : "password"}
+                        value={createPasswordConfirm}
+                        onChange={(e) =>
+                          setCreatePasswordConfirm(e.target.value)
+                        }
+                        placeholder="Confirm your password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowCreateConfirmPassword(
+                            !showCreateConfirmPassword
+                          )
+                        }
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                      >
+                        {showCreateConfirmPassword ? (
+                          <EyeOff size={20} />
+                        ) : (
+                          <Eye size={20} />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Terms and Privacy Policy Checkbox */}
