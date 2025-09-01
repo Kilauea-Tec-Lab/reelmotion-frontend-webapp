@@ -38,6 +38,12 @@ function Profile() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+  const [validationErrors, setValidationErrors] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    profile_image: "",
+  });
   const fileInputRef = useRef(null);
 
   // Limpiar URL del objeto cuando el componente se desmonte
@@ -49,21 +55,115 @@ function Profile() {
     };
   }, [previewImage]);
 
+  // Validation functions based on backend rules
+  const validateName = (name) => {
+    if (name && name.length > 255) {
+      return "Name cannot exceed 255 characters";
+    }
+    return "";
+  };
+
+  const validateEmail = (email) => {
+    if (email) {
+      if (email.length > 255) {
+        return "Email cannot exceed 255 characters";
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return "Please enter a valid email address";
+      }
+    }
+    return "";
+  };
+
+  const validatePhone = (phone) => {
+    if (phone && phone.length > 20) {
+      return "Phone number cannot exceed 20 characters";
+    }
+    return "";
+  };
+
+  const validateProfileImage = (file) => {
+    if (file) {
+      // Check file type
+      const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/jpg",
+        "image/gif",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        return "Please select a valid image file (JPEG, PNG, JPG, or GIF)";
+      }
+
+      // Check file size (10MB = 10240KB)
+      const maxSize = 10240 * 1024; // 10MB in bytes
+      if (file.size > maxSize) {
+        return "Image size cannot exceed 10MB";
+      }
+    }
+    return "";
+  };
+
+  const clearValidationError = (field) => {
+    setValidationErrors((prev) => ({
+      ...prev,
+      [field]: "",
+    }));
+  };
+
+  const setValidationError = (field, error) => {
+    setValidationErrors((prev) => ({
+      ...prev,
+      [field]: error,
+    }));
+  };
+
+  // Validate entire form based on backend rules
+  const validateForm = () => {
+    const errors = {
+      name: validateName(editForm.name),
+      email: validateEmail(editForm.email),
+      phone: validatePhone(editForm.phone),
+      profile_image: selectedImageFile
+        ? validateProfileImage(selectedImageFile)
+        : "",
+    };
+
+    // Check if any validation errors exist
+    const hasErrors = Object.values(errors).some((error) => error !== "");
+
+    // Update validation errors state
+    setValidationErrors(errors);
+
+    return !hasErrors;
+  };
+
+  // Check if form is valid (for button state)
+  const isFormValid = () => {
+    const nameError = validateName(editForm.name);
+    const emailError = validateEmail(editForm.email);
+    const phoneError = validatePhone(editForm.phone);
+    const imageError = selectedImageFile
+      ? validateProfileImage(selectedImageFile)
+      : "";
+
+    return !nameError && !emailError && !phoneError && !imageError;
+  };
+
   const handleImageUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Validar tipo de archivo
-    if (!file.type.startsWith("image/")) {
-      alert("Please select a valid image file");
+    // Validate image using backend rules
+    const imageError = validateProfileImage(file);
+    if (imageError) {
+      setValidationError("profile_image", imageError);
       return;
     }
 
-    // Validar tamaño (máximo 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Image size should be less than 5MB");
-      return;
-    }
+    // Clear any previous image validation errors
+    clearValidationError("profile_image");
 
     // Solo crear vista previa, no subir al backend aún
     const imageUrl = URL.createObjectURL(file);
@@ -95,6 +195,12 @@ function Profile() {
   };
 
   const handleSaveProfile = async () => {
+    // First validate all form fields
+    if (!validateForm()) {
+      // If validation fails, don't proceed
+      return;
+    }
+
     // Validar contraseñas si se proporcionaron
     if (editForm.password || editForm.confirmPassword) {
       if (editForm.password !== editForm.confirmPassword) {
@@ -133,7 +239,7 @@ function Profile() {
       if (result.success) {
         // Actualizar el estado del usuario con la nueva información del backend
         setUser(result);
-        
+
         // Actualizar la imagen de perfil si cambió
         if (result?.data?.image) {
           setProfileImage(result?.data?.image);
@@ -170,9 +276,32 @@ function Profile() {
       ...prev,
       [field]: value,
     }));
-    
+
+    // Real-time validation
+    let error = "";
+    switch (field) {
+      case "name":
+        error = validateName(value);
+        break;
+      case "email":
+        error = validateEmail(value);
+        break;
+      case "phone":
+        error = validatePhone(value);
+        break;
+    }
+
+    if (error) {
+      setValidationError(field, error);
+    } else {
+      clearValidationError(field);
+    }
+
     // Limpiar error de contraseña cuando el usuario escriba
-    if ((field === 'password' || field === 'confirmPassword') && passwordError) {
+    if (
+      (field === "password" || field === "confirmPassword") &&
+      passwordError
+    ) {
       setPasswordError("");
     }
   };
@@ -203,8 +332,8 @@ function Profile() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleSaveProfile}
-                disabled={isUploading}
-                className="flex items-center gap-2 bg-[#F2D543] hover:bg-[#f2f243] transition-colors px-4 py-2 rounded-lg text-primarioDark font-medium disabled:opacity-50"
+                disabled={isUploading || !isFormValid()}
+                className="flex items-center gap-2 bg-[#F2D543] hover:bg-[#f2f243] transition-colors px-4 py-2 rounded-lg text-primarioDark font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save size={18} />
                 {isUploading ? "Saving..." : "Save"}
@@ -257,18 +386,34 @@ function Profile() {
                   onChange={handleImageUpload}
                   className="hidden"
                 />
+
+                {/* Image validation error */}
+                {validationErrors.profile_image && (
+                  <p className="text-red-400 montserrat-light text-xs mt-2 text-center">
+                    {validationErrors.profile_image}
+                  </p>
+                )}
               </div>
 
               {/* User Name and Role */}
               <div className="text-center">
                 {isEditing ? (
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                    className="bg-darkBoxSub rounded-lg px-3 py-2 text-white text-xl text-center montserrat-medium mb-2 w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
-                    placeholder="Enter your name"
-                  />
+                  <>
+                    <input
+                      type="text"
+                      value={editForm.name}
+                      onChange={(e) =>
+                        handleInputChange("name", e.target.value)
+                      }
+                      className="bg-darkBoxSub rounded-lg px-3 py-2 text-white text-xl text-center montserrat-medium mb-2 w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
+                      placeholder="Enter your name"
+                    />
+                    {validationErrors.name && (
+                      <p className="text-red-400 montserrat-light text-xs mt-1 text-center">
+                        {validationErrors.name}
+                      </p>
+                    )}
+                  </>
                 ) : (
                   <h2 className="text-white montserrat-medium text-xl mb-2">
                     {user?.data?.name || "User Name"}
@@ -309,15 +454,22 @@ function Profile() {
                       Email
                     </p>
                     {isEditing ? (
-                      <input
-                        type="email"
-                        value={editForm.email}
-                        onChange={(e) =>
-                          handleInputChange("email", e.target.value)
-                        }
-                        className="bg-darkBoxSub rounded-lg px-3 py-2 text-white montserrat-regular w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
-                        placeholder="Enter your email"
-                      />
+                      <>
+                        <input
+                          type="email"
+                          value={editForm.email}
+                          onChange={(e) =>
+                            handleInputChange("email", e.target.value)
+                          }
+                          className="bg-darkBoxSub rounded-lg px-3 py-2 text-white montserrat-regular w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
+                          placeholder="Enter your email"
+                        />
+                        {validationErrors.email && (
+                          <p className="text-red-400 montserrat-light text-xs mt-1">
+                            {validationErrors.email}
+                          </p>
+                        )}
+                      </>
                     ) : (
                       <p className="text-white montserrat-regular">
                         {user?.data?.email || "Not provided"}
@@ -336,15 +488,22 @@ function Profile() {
                       Phone
                     </p>
                     {isEditing ? (
-                      <input
-                        type="tel"
-                        value={editForm.phone}
-                        onChange={(e) =>
-                          handleInputChange("phone", e.target.value)
-                        }
-                        className="bg-darkBoxSub rounded-lg px-3 py-2 text-white montserrat-regular w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
-                        placeholder="Enter your phone number"
-                      />
+                      <>
+                        <input
+                          type="tel"
+                          value={editForm.phone}
+                          onChange={(e) =>
+                            handleInputChange("phone", e.target.value)
+                          }
+                          className="bg-darkBoxSub rounded-lg px-3 py-2 text-white montserrat-regular w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
+                          placeholder="Enter your phone number"
+                        />
+                        {validationErrors.phone && (
+                          <p className="text-red-400 montserrat-light text-xs mt-1">
+                            {validationErrors.phone}
+                          </p>
+                        )}
+                      </>
                     ) : (
                       <p className="text-white montserrat-regular">
                         {user?.data?.phone || "Not provided"}
@@ -473,7 +632,9 @@ function Profile() {
                         />
                         <button
                           type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          onClick={() =>
+                            setShowConfirmPassword(!showConfirmPassword)
+                          }
                           className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                         >
                           {showConfirmPassword ? (
