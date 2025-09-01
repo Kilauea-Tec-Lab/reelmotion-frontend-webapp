@@ -2765,6 +2765,31 @@ function Editor() {
     return element.startTime;
   };
 
+  // Helper function to calculate element position percentage considering zoom and scroll
+  const getElementPositionPercentage = (element) => {
+    const elementStartTime = getElementRenderPosition(element);
+    const visibleDuration = getVisualTimelineDuration();
+
+    // Time relative to the visible portion of the timeline
+    const timeInVisibleArea = elementStartTime - timelineScrollOffset;
+
+    // If element is outside the visible area, it will still be positioned correctly
+    // but might be clipped by the container
+    const percentage = (timeInVisibleArea / visibleDuration) * 100;
+
+    return percentage;
+  };
+
+  // Helper function to calculate element width percentage considering zoom
+  const getElementWidthPercentage = (element) => {
+    const elementDuration = element.endTime - element.startTime;
+    const visibleDuration = getVisualTimelineDuration();
+
+    const percentage = (elementDuration / visibleDuration) * 100;
+
+    return percentage;
+  };
+
   // Function to start timeline element drag
   const handleElementDragStart = (e, element) => {
     e.stopPropagation(); // Prevent timeline drag activation
@@ -5949,16 +5974,8 @@ function Editor() {
                             : ""
                         }`}
                         style={{
-                          left: `${
-                            (getElementRenderPosition(item) /
-                              getTimelineDuration()) *
-                            100
-                          }%`,
-                          width: `${
-                            ((item.endTime - item.startTime) /
-                              getTimelineDuration()) *
-                            100
-                          }%`,
+                          left: `${getElementPositionPercentage(item)}%`,
+                          width: `${getElementWidthPercentage(item)}%`,
                           top: "4px",
                         }}
                         onMouseEnter={() => setHoveredElement(item.id)}
@@ -6102,16 +6119,8 @@ function Editor() {
                             : ""
                         }`}
                         style={{
-                          left: `${
-                            (getElementRenderPosition(item) /
-                              getTimelineDuration()) *
-                            100
-                          }%`,
-                          width: `${
-                            ((item.endTime - item.startTime) /
-                              getTimelineDuration()) *
-                            100
-                          }%`,
+                          left: `${getElementPositionPercentage(item)}%`,
+                          width: `${getElementWidthPercentage(item)}%`,
                           top: "4px",
                         }}
                         onMouseEnter={() => setHoveredElement(item.id)}
@@ -6217,16 +6226,8 @@ function Editor() {
                           : ""
                       }`}
                       style={{
-                        left: `${
-                          (getElementRenderPosition(item) /
-                            getTimelineDuration()) *
-                          100
-                        }%`,
-                        width: `${
-                          ((item.endTime - item.startTime) /
-                            getTimelineDuration()) *
-                          100
-                        }%`,
+                        left: `${getElementPositionPercentage(item)}%`,
+                        width: `${getElementWidthPercentage(item)}%`,
                         top: "4px",
                         backgroundColor: getElementColor(item.id, index),
                       }}
@@ -6314,16 +6315,8 @@ function Editor() {
                           : ""
                       }`}
                       style={{
-                        left: `${
-                          (getElementRenderPosition(item) /
-                            getTimelineDuration()) *
-                          100
-                        }%`,
-                        width: `${
-                          ((item.endTime - item.startTime) /
-                            getTimelineDuration()) *
-                          100
-                        }%`,
+                        left: `${getElementPositionPercentage(item)}%`,
+                        width: `${getElementWidthPercentage(item)}%`,
                         top: "4px",
                         backgroundColor: getElementColor(item.id, index),
                       }}
@@ -6411,16 +6404,8 @@ function Editor() {
                           : ""
                       }`}
                       style={{
-                        left: `${
-                          (getElementRenderPosition(item) /
-                            getTimelineDuration()) *
-                          100
-                        }%`,
-                        width: `${
-                          ((item.endTime - item.startTime) /
-                            getTimelineDuration()) *
-                          100
-                        }%`,
+                        left: `${getElementPositionPercentage(item)}%`,
+                        width: `${getElementWidthPercentage(item)}%`,
                         top: "4px",
                         backgroundColor: getElementColor(item.id, index),
                       }}
@@ -6483,89 +6468,89 @@ function Editor() {
                   ))}
               </div>
             </div>
-          </div>
 
-          {/* Timeline Ruler */}
-          <div className="mt-4 flex items-center gap-3">
-            <div className="w-16">
-              {/* Indicador de tiempo currente */}
-              <div className="text-xs text-primarioLogo font-medium">
-                {Math.floor(currentTime / 60)}:
-                {String(Math.floor(currentTime) % 60).padStart(2, "0")}
-              </div>
-            </div>
-            <div className="flex-1 relative">
-              <div
-                ref={timelineRef}
-                className="w-full h-4 bg-darkBoxSub rounded-full cursor-pointer relative group"
-                onMouseDown={handleTimelineMouseDown}
-                onClick={handleTimelineClick}
-              >
-                {/* Barra de fondo más alta para mejor interacción */}
-                <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-1 bg-darkBoxSub rounded-full"></div>
-
-                {/* Barra de progreso */}
-                <div
-                  className="absolute top-1/2 transform -translate-y-1/2 h-1 bg-primarioLogo rounded-full transition-all duration-100"
-                  style={{
-                    width: `${getPlayheadPosition()}%`,
-                    display: getPlayheadPosition() < 0 ? "none" : "block",
-                  }}
-                ></div>
-
-                {/* Indicador (bolita) - más grande y con mejor hover */}
-                <div
-                  className={`absolute top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-primarioLogo cursor-grab transition-all duration-100 shadow-lg ${
-                    isDraggingTimeline
-                      ? "scale-125 cursor-grabbing"
-                      : "hover:scale-110"
-                  }`}
-                  style={{
-                    left: `${getPlayheadPosition()}%`,
-                    transform: "translate(-50%, -50%)",
-                    display: getPlayheadPosition() < 0 ? "none" : "block",
-                  }}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    setIsDraggingTimeline(true);
-                  }}
-                >
-                  {/* Línea vertical hacia arriba desde la bolita */}
-                  <div
-                    className="absolute left-1/2 -translate-x-1/2 bottom-full w-0.5 bg-primarioLogo"
-                    style={{ height: "250px", zIndex: 60 }}
-                  />
+            {/* Timeline Ruler */}
+            <div className="flex items-center gap-3">
+              <div className="w-16">
+                {/* Indicador de tiempo currente */}
+                <div className="text-xs text-primarioLogo font-medium">
+                  {Math.floor(currentTime / 60)}:
+                  {String(Math.floor(currentTime) % 60).padStart(2, "0")}
                 </div>
-                {/* Indicador visual cuando se hace hover */}
-                <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-3 opacity-0 group-hover:opacity-20 bg-primarioLogo rounded-full transition-opacity duration-200"></div>
               </div>
-              {/* Vertical playhead line under the ruler */}
-              <div className="relative h-3 mt-1">
+              <div className="flex-1 relative">
                 <div
-                  className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60"
-                  style={{
-                    left: `${getPlayheadPosition()}%`,
-                    transform: "translateX(-50%)",
-                    display: getPlayheadPosition() < 0 ? "none" : "block",
-                  }}
-                />
-              </div>
-              <div
-                className="relative text-xs text-gray-400 mt-1"
-                style={{ height: "16px" }}
-              >
-                {getTimeMarkers().map((marker, index) => (
-                  <span
-                    key={index}
-                    className="absolute whitespace-nowrap"
+                  ref={timelineRef}
+                  className="w-full h-4 bg-darkBoxSub rounded-full cursor-pointer relative group"
+                  onMouseDown={handleTimelineMouseDown}
+                  onClick={handleTimelineClick}
+                >
+                  {/* Barra de fondo más alta para mejor interacción */}
+                  <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-1 bg-darkBoxSub rounded-full"></div>
+
+                  {/* Barra de progreso */}
+                  <div
+                    className="absolute top-1/2 transform -translate-y-1/2 h-1 bg-primarioLogo rounded-full transition-all duration-100"
                     style={{
-                      left: `${marker.position}%`,
-                      transform: "translateX(-50%)",
+                      width: `${getPlayheadPosition()}%`,
+                      display: getPlayheadPosition() < 0 ? "none" : "block",
+                    }}
+                  ></div>
+
+                  {/* Indicador (bolita) - más grande y con mejor hover */}
+                  <div
+                    className={`absolute top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-primarioLogo cursor-grab transition-all duration-100 shadow-lg ${
+                      isDraggingTimeline
+                        ? "scale-125 cursor-grabbing"
+                        : "hover:scale-110"
+                    }`}
+                    style={{
+                      left: `${getPlayheadPosition()}%`,
+                      transform: "translate(-50%, -50%)",
+                      display: getPlayheadPosition() < 0 ? "none" : "block",
+                    }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setIsDraggingTimeline(true);
                     }}
                   >
-                    {marker.text}
-                  </span>
-                ))}
+                    {/* Línea vertical hacia arriba desde la bolita */}
+                    <div
+                      className="absolute  -translate-x-1/2 bottom-full w-0.5 bg-primarioLogo"
+                      style={{ height: "250px", zIndex: 60 }}
+                    />
+                  </div>
+                  {/* Indicador visual cuando se hace hover */}
+                  <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-3 opacity-0 group-hover:opacity-20 bg-primarioLogo rounded-full transition-opacity duration-200"></div>
+                </div>
+                {/* Vertical playhead line under the ruler */}
+                <div className="relative h-3 mt-1">
+                  <div
+                    className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60"
+                    style={{
+                      left: `${getPlayheadPosition()}%`,
+                      transform: "translateX(-50%)",
+                      display: getPlayheadPosition() < 0 ? "none" : "block",
+                    }}
+                  />
+                </div>
+                <div
+                  className="relative text-xs text-gray-400 mt-1"
+                  style={{ height: "16px" }}
+                >
+                  {getTimeMarkers().map((marker, index) => (
+                    <span
+                      key={index}
+                      className="absolute whitespace-nowrap"
+                      style={{
+                        left: `${marker.position}%`,
+                        transform: "translateX(-50%)",
+                      }}
+                    >
+                      {marker.text}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
