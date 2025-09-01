@@ -71,7 +71,6 @@ function ModalCreateScene({
     "veo-3-audio": 85, // Veo-3 con sonido
     "veo-3-no-audio": 60, // Veo-3 sin sonido
     lumalabs: 13, // LumaLabs
-    vidu: 8, // Vidu
   };
 
   // Función para calcular el costo total basado en modelo y duración
@@ -292,11 +291,6 @@ function ModalCreateScene({
       id: "runway-aleph",
       name: "Runway Aleph",
       description: "Runway Aleph model for video processing",
-    },
-    {
-      id: "vidu",
-      name: "Vidu",
-      description: "Second generation Seedance model for video",
     },
   ];
 
@@ -1464,8 +1458,6 @@ function ModalCreateScene({
                     ? "Veo-3"
                     : aiModel === "luma"
                     ? "LumaLabs"
-                    : aiModel === "vidu"
-                    ? "Vidu"
                     : aiModel}
                   {aiModel === "veo-3" &&
                     ` (${withAudio ? "with audio" : "no audio"})`}
