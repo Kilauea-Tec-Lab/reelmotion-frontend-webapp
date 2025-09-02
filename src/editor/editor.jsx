@@ -2336,12 +2336,9 @@ function Editor() {
           (item) => item.id === resizingElement.id
         );
         if (updatedElement) {
-          // Resolve collisions after resize is complete using the updated element
-          const updatedElements = resolveCollisions(
-            updatedElement,
-            updatedElement.startTime
-          );
-          updateTimelineWithHistory(updatedElements);
+          // For resize, don't call resolveCollisions as it's designed for dragging
+          // Just save to history with the updated elements
+          saveToHistory(arrayVideoMake);
         }
 
         setIsResizing(false);
@@ -2349,6 +2346,7 @@ function Editor() {
         setResizeType(null);
         setResizeStartX(0);
         setResizeStartTime(0);
+        document.body.style.cursor = "default";
       }
     };
 
@@ -6038,7 +6036,7 @@ function Editor() {
 
                         {/* Left resize handle */}
                         <div
-                          className="resize-handle absolute left-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                          className="resize-handle absolute left-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-r border-gray-400"
                           onMouseDown={(e) =>
                             handleResizeStart(e, item, "start")
                           }
@@ -6047,7 +6045,7 @@ function Editor() {
 
                         {/* Right resize handle */}
                         <div
-                          className="resize-handle absolute right-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                          className="resize-handle absolute right-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-l border-gray-400"
                           onMouseDown={(e) => handleResizeStart(e, item, "end")}
                           title="Trim end"
                         ></div>
@@ -6162,7 +6160,7 @@ function Editor() {
 
                         {/* Manija de redimensionamiento izquierda */}
                         <div
-                          className="resize-handle absolute left-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                          className="resize-handle absolute left-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-r border-gray-400"
                           onMouseDown={(e) =>
                             handleResizeStart(e, item, "start")
                           }
@@ -6171,14 +6169,10 @@ function Editor() {
 
                         {/* Manija de redimensionamiento derecha */}
                         <div
-                          className="resize-handle absolute right-0 top-0 w-1 h-full bg-white opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                          className="resize-handle absolute right-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-l border-gray-400"
                           onMouseDown={(e) => handleResizeStart(e, item, "end")}
                           title="Cambiar duración"
                         ></div>
-
-                        <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
-                          {item.title} ({item.duration}s)
-                        </span>
 
                         {/* Opciones de hover */}
                         {hoveredElement === item.id && !draggingElement && (
@@ -6254,14 +6248,14 @@ function Editor() {
                     >
                       {/* Manija de redimensionamiento izquierda */}
                       <div
-                        className="resize-handle absolute left-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                        className="resize-handle absolute left-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-r border-gray-400"
                         onMouseDown={(e) => handleResizeStart(e, item, "start")}
                         title="Recortar inicio"
                       ></div>
 
                       {/* Manija de redimensionamiento derecha */}
                       <div
-                        className="resize-handle absolute right-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                        className="resize-handle absolute right-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-l border-gray-400"
                         onMouseDown={(e) => handleResizeStart(e, item, "end")}
                         title="Recortar final"
                       ></div>
@@ -6343,14 +6337,14 @@ function Editor() {
                     >
                       {/* Manija de redimensionamiento izquierda */}
                       <div
-                        className="resize-handle absolute left-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                        className="resize-handle absolute left-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-r border-gray-400"
                         onMouseDown={(e) => handleResizeStart(e, item, "start")}
                         title="Recortar inicio"
                       ></div>
 
                       {/* Manija de redimensionamiento derecha */}
                       <div
-                        className="resize-handle absolute right-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                        className="resize-handle absolute right-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-l border-gray-400"
                         onMouseDown={(e) => handleResizeStart(e, item, "end")}
                         title="Recortar final"
                       ></div>
@@ -6432,14 +6426,14 @@ function Editor() {
                     >
                       {/* Manija de redimensionamiento izquierda */}
                       <div
-                        className="resize-handle absolute left-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                        className="resize-handle absolute left-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-r border-gray-400"
                         onMouseDown={(e) => handleResizeStart(e, item, "start")}
                         title="Recortar inicio"
                       ></div>
 
                       {/* Manija de redimensionamiento derecha */}
                       <div
-                        className="resize-handle absolute right-0 top-0 w-2 h-full bg-white/90 opacity-0 hover:opacity-100 cursor-ew-resize z-30"
+                        className="resize-handle absolute right-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-l border-gray-400"
                         onMouseDown={(e) => handleResizeStart(e, item, "end")}
                         title="Recortar final"
                       ></div>
