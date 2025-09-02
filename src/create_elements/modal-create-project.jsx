@@ -147,7 +147,7 @@ function ModalCreateProject({ isOpen, onClose, folders }) {
                   </h3>
                 </div>
                 <p className="text-sm text-gray-400 montserrat-regular">
-                  Only you can access this project
+                  Only you can view this project.
                 </p>
               </div>
 
@@ -175,7 +175,7 @@ function ModalCreateProject({ isOpen, onClose, folders }) {
                   </h3>
                 </div>
                 <p className="text-sm text-gray-400 montserrat-regular">
-                  Anyone can view and collaborate
+                  Anyone can view this project.
                 </p>
               </div>
             </div>
