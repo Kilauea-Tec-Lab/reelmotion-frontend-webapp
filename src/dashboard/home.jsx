@@ -138,14 +138,24 @@ function Home() {
         </div>
       </div>
       {/* Recents */}
-      {projectsData.length === 0 ? (
+      {projectsData.length === 0 && foldersData.length === 0 ? (
         <div
-          className="flex items-center justify-center rounded
+          className="flex flex-col items-center justify-center rounded p-8 text-center
         "
         >
-          <span className="text-gray-400 montserrat-light text-lg">
-            No Projects Found
-          </span>
+          <h2 className="text-white montserrat-medium text-xl mb-4">
+            Welcome to your project section!
+          </h2>
+          <div className="text-gray-400 montserrat-light text-sm leading-relaxed max-w-md">
+            <p className="mb-3">
+              You don't have any projects or folders yet. To get started, you'll
+              need to create a folder where your projects will be stored.
+            </p>
+            <p>
+              Click the Create button to set up your first folder. Once it's
+              created, you'll be able to start building your projects.
+            </p>
+          </div>
         </div>
       ) : (
         <RecentProjects

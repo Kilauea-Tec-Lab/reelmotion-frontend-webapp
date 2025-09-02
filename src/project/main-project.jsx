@@ -416,6 +416,12 @@ function MainProject() {
             <Plus size={15} />
           </button>
         </div>
+        <div className="text-gray-400 montserrat-light text-sm mt-3 mb-2">
+          <span className="font-bold text-gray-400">Step 1:</span> In this
+          section, you'll create all the characters you want to include in your
+          video. Once you've finished setting them up, you can move on to the
+          next step.
+        </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.characters?.length > 0 ? (
             <div className="grid grid-cols-7 overflow-auto gap-4">
@@ -512,6 +518,11 @@ function MainProject() {
             <Plus size={15} />
           </button>
         </div>
+        <div className="text-gray-400 montserrat-light text-sm mt-3 mb-2">
+          <span className="font-bold text-gray-400">Step 2:</span> Now you need
+          to define the advertising spots (backgrounds and scenarios) where your
+          characters will be located.
+        </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.spots?.length > 0 ? (
             <div className="grid grid-cols-7 overflow-auto gap-4">
@@ -606,6 +617,11 @@ function MainProject() {
             <Plus size={15} />
           </button>
         </div>
+        <div className="text-gray-400 montserrat-light text-sm mt-3 mb-2">
+          <span className="font-bold text-gray-400">Step 3:</span> Here you will
+          create and customize the different voices that will narrate and give
+          life to your characters.
+        </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.voices?.length > 0 ? (
             <div className="grid grid-cols-7 overflow-auto gap-4">
@@ -699,6 +715,11 @@ function MainProject() {
           >
             <Plus size={15} />
           </button>
+        </div>
+        <div className="text-gray-400 montserrat-light text-sm mt-3 mb-2">
+          <span className="font-bold text-gray-400">Step 4:</span> Create the
+          frames that will make up your visual story. Each frame represents a
+          key moment in your video narrative.
         </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.frames?.length > 0 ? (
@@ -811,6 +832,11 @@ function MainProject() {
           >
             <Plus size={15} />
           </button>
+        </div>
+        <div className="text-gray-400 montserrat-light text-sm mt-3 mb-2">
+          <span className="font-bold text-gray-400">Step 5:</span> Now you can
+          assemble complete scenes by combining your characters, spots, voices
+          and storyboard frames. This is where your project comes to life!
         </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.scenes?.length > 0 ? (
