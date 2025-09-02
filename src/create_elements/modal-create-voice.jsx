@@ -16,7 +16,6 @@ import {
   generateElevenLabsSpeech,
   createElevenLabsVoice,
 } from "./functions";
-import { createPusherClient } from "../pusher";
 import Cookies from "js-cookie";
 
 function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
@@ -55,9 +54,6 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
   const [tokens, setTokens] = useState(0);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
-
-  // WebSocket
-  const pusherClient = createPusherClient();
 
   // Cost per minute of voice (16 tokens per minute)
   const VOICE_COST_PER_MINUTE = 16;
@@ -245,23 +241,6 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
       fetchUserInfo();
     }
   }, [isOpen]);
-
-  // Socket for tokens
-  useEffect(() => {
-    if (!userInfo?.id || !isOpen) return;
-
-    let channel = pusherClient.subscribe(
-      `private-get-user-tokens.${userInfo.id}`
-    );
-
-    channel.bind("fill-user-tokens", ({ user_id }) => {
-      fetchUserTokens();
-    });
-
-    return () => {
-      pusherClient.unsubscribe(`private-get-user-tokens.${userInfo.id}`);
-    };
-  }, [userInfo?.id, isOpen]);
 
   // Filter and search logic
   useEffect(() => {

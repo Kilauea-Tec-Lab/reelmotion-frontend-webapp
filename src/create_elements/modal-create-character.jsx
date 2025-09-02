@@ -12,7 +12,6 @@ import {
   createCharacter,
   createImageOpenAI,
 } from "../project/functions";
-import { createPusherClient } from "../pusher";
 import Cookies from "js-cookie";
 
 function ModalCreateCharacter({
@@ -39,9 +38,6 @@ function ModalCreateCharacter({
   const [tokens, setTokens] = useState(0);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
-
-  // WebSocket
-  const pusherClient = createPusherClient();
 
   // Costos por modelo
   const MODEL_COSTS = {
@@ -145,23 +141,6 @@ function ModalCreateCharacter({
       fetchUserInfo();
     }
   }, [isOpen]);
-
-  // Socket para tokens
-  useEffect(() => {
-    if (!userInfo?.id || !isOpen) return;
-
-    let channel = pusherClient.subscribe(
-      `private-get-user-tokens.${userInfo.id}`
-    );
-
-    channel.bind("fill-user-tokens", ({ user_id }) => {
-      fetchUserTokens();
-    });
-
-    return () => {
-      pusherClient.unsubscribe(`private-get-user-tokens.${userInfo.id}`);
-    };
-  }, [userInfo?.id, isOpen]);
 
   // Función para crear el prompt final con el estilo seleccionado
   const createFinalPrompt = () => {

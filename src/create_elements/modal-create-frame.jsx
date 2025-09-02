@@ -11,7 +11,6 @@ import {
   CreditCard,
 } from "lucide-react";
 import Cookies from "js-cookie";
-import { createPusherClient } from "../pusher";
 
 function ModalCreateFrame({
   isOpen,
@@ -63,10 +62,6 @@ function ModalCreateFrame({
   const [tokens, setTokens] = useState(0);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
-
-  // WebSocket
-  const pusherClient = createPusherClient();
-
   // Costos por modo de creación
   const MODE_COSTS = {
     existing: 10, // Use Another Frame
@@ -168,23 +163,6 @@ function ModalCreateFrame({
       fetchUserInfo();
     }
   }, [isOpen]);
-
-  // Socket para tokens
-  useEffect(() => {
-    if (!userInfo?.id || !isOpen) return;
-
-    let channel = pusherClient.subscribe(
-      `private-get-user-tokens.${userInfo.id}`
-    );
-
-    channel.bind("fill-user-tokens", ({ user_id }) => {
-      fetchUserTokens();
-    });
-
-    return () => {
-      pusherClient.unsubscribe(`private-get-user-tokens.${userInfo.id}`);
-    };
-  }, [userInfo?.id, isOpen]);
 
   // Opciones de aspect ratio
   const aspectRatioOptions = [
