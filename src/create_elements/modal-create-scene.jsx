@@ -12,7 +12,6 @@ import {
   CreditCard,
 } from "lucide-react";
 import Cookies from "js-cookie";
-import { createPusherClient } from "../pusher";
 
 function ModalCreateScene({
   isOpen,
@@ -60,9 +59,6 @@ function ModalCreateScene({
   const [tokens, setTokens] = useState(0);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
-
-  // WebSocket
-  const pusherClient = createPusherClient();
 
   // Costos por modelo y configuración (tokens por segundo)
   const MODEL_COSTS_PER_SECOND = {
@@ -251,24 +247,6 @@ function ModalCreateScene({
       fetchUserInfo();
     }
   }, [isOpen]);
-
-  // Socket para tokens
-  useEffect(() => {
-    if (!userInfo?.id || !isOpen) return;
-
-    let channel = pusherClient.subscribe(
-      `private-get-user-tokens.${userInfo.id}`
-    );
-
-    channel.bind("fill-user-tokens", ({ user_id }) => {
-      fetchUserTokens();
-    });
-
-    return () => {
-      pusherClient.unsubscribe(`private-get-user-tokens.${userInfo.id}`);
-    };
-  }, [userInfo?.id, isOpen]);
-
   // Mock data - En producción esto vendría de props o API
 
   const allAiModels = [

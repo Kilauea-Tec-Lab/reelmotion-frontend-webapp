@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Bell,
   User,
@@ -198,7 +198,10 @@ function MainTopMenu({ user_info }) {
   const [paypalContainerReady, setPaypalContainerReady] = useState(false);
 
   //WEBSOCKET
-  const pusherClient = createPusherClient();
+  const pusherClient = useMemo(() => {
+    console.log("🔌 [PUSHER] Creating new Pusher client instance");
+    return createPusherClient();
+  }, []);
 
   // Calcular notificaciones no leídas
   const unreadCount = notificationsInfo.filter((n) => n.unread).length;
@@ -316,15 +319,31 @@ function MainTopMenu({ user_info }) {
   useEffect(() => {
     if (!user_info?.id) return;
 
+    console.log(
+      `🔌 [TOKENS SOCKET] Subscribing to channel: private-get-user-tokens.${user_info.id}`
+    );
+
     let channel = pusherClient.subscribe(
       `private-get-user-tokens.${user_info.id}`
     );
 
-    channel.bind("fill-user-tokens", ({ user_id }) => {
+    const handleTokenUpdate = ({ user_id }) => {
+      console.log(
+        `💰 [TOKENS SOCKET] Token update received for user: ${user_id}`
+      );
       fetchUserTokens();
-    });
+    };
+
+    channel.bind("fill-user-tokens", handleTokenUpdate);
+
+    // Log channel state
+    console.log(`📊 [TOKENS SOCKET] Channel subscribed:`, channel);
 
     return () => {
+      console.log(
+        `🔌 [TOKENS SOCKET] Unsubscribing from channel: private-get-user-tokens.${user_info.id}`
+      );
+      channel.unbind("fill-user-tokens", handleTokenUpdate);
       pusherClient.unsubscribe(`private-get-user-tokens.${user_info.id}`);
     };
   }, [user_info?.id]);
@@ -385,6 +404,7 @@ function MainTopMenu({ user_info }) {
   // Token management functions
   const fetchUserTokens = async () => {
     setIsLoadingTokens(true);
+    console.log(`💰 [FETCH TOKENS] Starting token fetch...`);
     try {
       const response = await fetch(
         `${import.meta.env.VITE_APP_BACKEND_URL}users/tokens`,
@@ -399,10 +419,15 @@ function MainTopMenu({ user_info }) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
+      console.log(`💰 [FETCH TOKENS] Response received, parsing data...`);
+
       const data = await response.json();
-      setTokens(data.data || 0);
+      const newTokens = data.data || 0;
+      setTokens(newTokens);
+
+      console.log(`💰 [FETCH TOKENS] Tokens updated: ${newTokens}`);
     } catch (error) {
-      console.error("Error fetching tokens:", error);
+      console.error("💰 [FETCH TOKENS] Error fetching tokens:", error);
       // Set a default value if fetch fails
       setTokens(0);
     } finally {
