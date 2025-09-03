@@ -519,9 +519,10 @@ function MainProject() {
           </button>
         </div>
         <div className="text-gray-400 montserrat-light text-sm mt-3 mb-2">
-          <span className="font-bold text-gray-400">Step 2:</span> Now you need
-          to define the advertising spots (backgrounds and scenarios) where your
-          characters will be located.
+          <span className="font-bold text-gray-400">Step 2:</span> In this
+          section, you’ll create or upload the pictures of the scenery that will
+          be part of your video. Make sure to upload all the backgrounds and
+          landscapes needed for each of your scenes.
         </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.spots?.length > 0 ? (
@@ -618,9 +619,10 @@ function MainProject() {
           </button>
         </div>
         <div className="text-gray-400 montserrat-light text-sm mt-3 mb-2">
-          <span className="font-bold text-gray-400">Step 3:</span> Here you will
-          create and customize the different voices that will narrate and give
-          life to your characters.
+          <span className="font-bold text-gray-400">Step 3 (Optional):</span> In
+          this section, you can create narrator voices for your video. Please
+          note that these voices are for narration only and will not be used for
+          your characters. life to your characters.
         </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.voices?.length > 0 ? (
@@ -717,9 +719,10 @@ function MainProject() {
           </button>
         </div>
         <div className="text-gray-400 montserrat-light text-sm mt-3 mb-2">
-          <span className="font-bold text-gray-400">Step 4:</span> Create the
-          frames that will make up your visual story. Each frame represents a
-          key moment in your video narrative.
+          <span className="font-bold text-gray-400">Step 4:</span> This is the
+          storyboard section.To help reduce errors with the AI tools, we use
+          frames as visual references. In this section, you’ll need to create
+          frames—pictures of the scenes that you’ll later turn into full scenes.
         </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.frames?.length > 0 ? (
@@ -834,9 +837,9 @@ function MainProject() {
           </button>
         </div>
         <div className="text-gray-400 montserrat-light text-sm mt-3 mb-2">
-          <span className="font-bold text-gray-400">Step 5:</span> Now you can
-          assemble complete scenes by combining your characters, spots, voices
-          and storyboard frames. This is where your project comes to life!
+          <span className="font-bold text-gray-400">Step 5:</span> In this
+          section, you can turn your frames into a video in the format you need.
+          Be sure to explore all the different generation options available.
         </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.scenes?.length > 0 ? (
