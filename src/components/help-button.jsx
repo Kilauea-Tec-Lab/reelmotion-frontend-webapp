@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { HelpCircle, MessageCircle, Lightbulb, X } from "lucide-react";
+import {
+  HelpCircle,
+  MessageCircle,
+  Lightbulb,
+  X,
+  PlayCircle,
+} from "lucide-react";
 import ReelBot from "./reel-bot";
 import SuggestionsForm from "./suggestions-form";
 
@@ -53,7 +59,7 @@ function HelpButton() {
             >
               <MessageCircle
                 size={20}
-                className="text-[#F2D543] group-hover:scale-110 transition-transform"
+                className="text-[#F2D543] group-hover:scale-110 transition-transform flex-shrink-0"
               />
               <div>
                 <span className="montserrat-medium text-sm block">Reelbot</span>
@@ -69,7 +75,7 @@ function HelpButton() {
             >
               <Lightbulb
                 size={20}
-                className="text-[#F2D543] group-hover:scale-110 transition-transform"
+                className="text-[#F2D543] group-hover:scale-110 transition-transform flex-shrink-0"
               />
               <div>
                 <span className="montserrat-medium text-sm block">
@@ -77,6 +83,29 @@ function HelpButton() {
                 </span>
                 <span className="montserrat-light text-xs text-gray-400">
                   Help us improve
+                </span>
+              </div>
+            </button>
+
+            <button
+              onClick={() =>
+                window.open(
+                  "https://www.youtube.com/playlist?list=PLus6MnxFx_4VmwfexycpWnIXeJzXv0YgT",
+                  "_blank"
+                )
+              }
+              className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-darkBoxSub rounded-lg transition-all duration-200 text-left group"
+            >
+              <PlayCircle
+                size={20}
+                className="text-[#F2D543] group-hover:scale-110 transition-transform flex-shrink-0"
+              />
+              <div>
+                <span className="montserrat-medium text-sm block">
+                  Learn to use Reelmotion AI
+                </span>
+                <span className="montserrat-light text-xs text-gray-400">
+                  Video tutorials
                 </span>
               </div>
             </button>
