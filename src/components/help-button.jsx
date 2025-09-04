@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import ReelBot from "./reel-bot";
 import SuggestionsForm from "./suggestions-form";
+import TutorialModal from "./tutorial-modal";
 
 function HelpButton() {
   const [isOpen, setIsOpen] = useState(false);
@@ -88,12 +89,7 @@ function HelpButton() {
             </button>
 
             <button
-              onClick={() =>
-                window.open(
-                  "https://www.youtube.com/playlist?list=PLus6MnxFx_4VmwfexycpWnIXeJzXv0YgT",
-                  "_blank"
-                )
-              }
+              onClick={() => handleOptionSelect("tutorials")}
               className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-darkBoxSub rounded-lg transition-all duration-200 text-left group"
             >
               <PlayCircle
@@ -119,6 +115,11 @@ function HelpButton() {
       {/* Suggestions Form Component */}
       {activeComponent === "suggestions" && (
         <SuggestionsForm onClose={handleClose} />
+      )}
+
+      {/* Tutorial Modal Component */}
+      {activeComponent === "tutorials" && (
+        <TutorialModal onClose={handleClose} />
       )}
     </>
   );
