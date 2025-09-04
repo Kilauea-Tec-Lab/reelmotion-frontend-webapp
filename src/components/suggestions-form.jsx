@@ -37,8 +37,25 @@ function SuggestionsForm({ onClose }) {
     }));
   };
 
+  const isFormValid = () => {
+    return (
+      formData.category.trim() !== "" &&
+      formData.rating > 0 &&
+      formData.suggestion.trim() !== "" &&
+      formData.email.trim() !== "" &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
+    );
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validación adicional antes de enviar
+    if (!isFormValid()) {
+      alert("Please fill in all required fields with valid information.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -115,7 +132,7 @@ function SuggestionsForm({ onClose }) {
         {/* Category */}
         <div>
           <label className="block text-white montserrat-medium text-sm mb-2">
-            Category
+            Category *
           </label>
           <select
             name="category"
@@ -136,7 +153,7 @@ function SuggestionsForm({ onClose }) {
         {/* Rating */}
         <div>
           <label className="block text-white montserrat-medium text-sm mb-2">
-            Overall rating
+            Overall rating *
           </label>
           <div className="flex items-center gap-1">
             {[1, 2, 3, 4, 5].map((star) => (
@@ -181,7 +198,7 @@ function SuggestionsForm({ onClose }) {
         {/* Email */}
         <div>
           <label className="block text-white montserrat-medium text-sm mb-2">
-            Email (optional)
+            Email *
           </label>
           <input
             type="email"
@@ -190,16 +207,17 @@ function SuggestionsForm({ onClose }) {
             onChange={handleInputChange}
             placeholder="your@email.com"
             className="w-full bg-darkBoxSub text-white border border-gray-600 rounded-lg px-3 py-2 montserrat-regular text-sm focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent"
+            required
           />
           <p className="text-gray-500 montserrat-light text-xs mt-1">
-            If you want us to contact you about your suggestion
+            We need your email to follow up on your suggestion
           </p>
         </div>
 
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isSubmitting || !formData.suggestion.trim()}
+          disabled={isSubmitting || !isFormValid()}
           className="w-full bg-[#F2D543] hover:bg-[#f2f243] disabled:bg-gray-600 disabled:cursor-not-allowed text-primarioDark py-3 rounded-lg montserrat-medium text-sm transition-colors flex items-center justify-center gap-2"
         >
           {isSubmitting ? (
