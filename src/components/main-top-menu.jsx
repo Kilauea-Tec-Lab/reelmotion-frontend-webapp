@@ -10,6 +10,7 @@ import {
   RefreshCw,
   CreditCard,
   DollarSign,
+  Wallet,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -28,10 +29,52 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
+import {
+  Connection,
+  PublicKey,
+  Transaction,
+  SystemProgram,
+  LAMPORTS_PER_SOL,
+} from "@solana/web3.js";
+import {
+  getAssociatedTokenAddress,
+  createTransferInstruction,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
 
 // PayPal configuration
 let paypalClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
 let paypalEnvironment = import.meta.env.VITE_PAYPAL_ENVIRONMENT;
+
+// Solana configuration
+const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"); // USDC Mainnet
+
+// Use QuickNode RPC directly (most reliable)
+const connection = new Connection(
+  "https://dark-tame-bridge.solana-mainnet.quiknode.pro/6370ec416f2fa776f93550624527f7b46624b912/",
+  {
+    commitment: "confirmed",
+    confirmTransactionInitialTimeout: 60000,
+  }
+);
+
+// Validate merchant wallet address
+let MERCHANT_WALLET;
+try {
+  const merchantWalletString = import.meta.env.VITE_MERCHANT_WALLET;
+  if (
+    !merchantWalletString ||
+    merchantWalletString === "YOUR_MERCHANT_WALLET_ADDRESS_HERE"
+  ) {
+    console.warn("Merchant wallet not configured properly");
+    MERCHANT_WALLET = null;
+  } else {
+    MERCHANT_WALLET = new PublicKey(merchantWalletString);
+  }
+} catch (error) {
+  console.error("Invalid merchant wallet address:", error);
+  MERCHANT_WALLET = null;
+}
 
 // Initialize Stripe
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
@@ -161,6 +204,197 @@ function CardInput({ onPaymentProcess, isProcessing, totalAmount }) {
   );
 }
 
+// Crypto payment component with Phantom Wallet
+function CryptoInput({ onPaymentProcess, isProcessing, totalAmount }) {
+  const [walletAddress, setWalletAddress] = useState(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [phantomProvider, setPhantomProvider] = useState(null);
+
+  useEffect(() => {
+    // Check if Phantom is installed
+    const checkPhantom = () => {
+      if (
+        typeof window !== "undefined" &&
+        window.solana &&
+        window.solana.isPhantom
+      ) {
+        setPhantomProvider(window.solana);
+      }
+    };
+
+    checkPhantom();
+    // Check again after a delay in case Phantom takes time to load
+    setTimeout(checkPhantom, 1000);
+  }, []);
+
+  // Check if crypto payments are properly configured
+  if (!MERCHANT_WALLET) {
+    return (
+      <div className="text-center py-6">
+        <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg
+            className="w-6 h-6 text-white"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </div>
+        <h4 className="text-white font-medium mb-2">
+          Crypto Payments Unavailable
+        </h4>
+        <p className="text-gray-400 text-sm">
+          Crypto payments are temporarily unavailable. Please use another
+          payment method.
+        </p>
+      </div>
+    );
+  }
+
+  const connectWallet = async () => {
+    if (!phantomProvider) {
+      // Redirect to Phantom download
+      window.open("https://phantom.app/", "_blank");
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      const response = await phantomProvider.connect();
+      setWalletAddress(response.publicKey.toString());
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
+      alert("Failed to connect wallet. Please try again.");
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const disconnectWallet = () => {
+    if (phantomProvider) {
+      phantomProvider.disconnect();
+    }
+    setWalletAddress(null);
+  };
+
+  const handleCryptoPayment = async () => {
+    if (!walletAddress || !phantomProvider) {
+      alert("Please connect your Phantom wallet first.");
+      return;
+    }
+
+    try {
+      await onPaymentProcess(phantomProvider, totalAmount);
+    } catch (error) {
+      console.error("Crypto payment failed:", error);
+      alert("Payment failed. Please try again.");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {!phantomProvider ? (
+        <div className="text-center py-6">
+          <Wallet className="w-12 h-12 text-purple-500 mx-auto mb-4" />
+          <h4 className="text-white font-medium mb-2">
+            Phantom Wallet Required
+          </h4>
+          <p className="text-gray-400 text-sm mb-4">
+            You need Phantom wallet to pay with USDC on Solana
+          </p>
+          <button
+            onClick={connectWallet}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            Install Phantom Wallet
+          </button>
+        </div>
+      ) : !walletAddress ? (
+        <div className="text-center py-6">
+          <Wallet className="w-12 h-12 text-purple-500 mx-auto mb-4" />
+          <h4 className="text-white font-medium mb-2">Connect Your Wallet</h4>
+          <p className="text-gray-400 text-sm mb-4">
+            Connect your Phantom wallet to pay with USDC
+          </p>
+          <button
+            onClick={connectWallet}
+            disabled={isConnecting}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center gap-2 mx-auto"
+          >
+            {isConnecting && (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            )}
+            {isConnecting ? "Connecting..." : "Connect Phantom Wallet"}
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="bg-gray-700 p-4 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-white font-medium">Wallet Connected</h4>
+                <p className="text-gray-400 text-sm">
+                  {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                </p>
+              </div>
+              <button
+                onClick={disconnectWallet}
+                className="text-red-400 hover:text-red-300 text-sm"
+              >
+                Disconnect
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-purple-900/20 border border-purple-500/30 p-4 rounded-lg">
+            <h4 className="text-white font-medium mb-2">Payment Details</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Amount:</span>
+                <span className="text-white">
+                  ${Number(totalAmount).toFixed(2)} USD
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Payment Method:</span>
+                <span className="text-purple-400">USDC on Solana</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Network:</span>
+                <span className="text-white">Solana Mainnet</span>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={handleCryptoPayment}
+            disabled={isProcessing}
+            className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isProcessing && (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            )}
+            {isProcessing
+              ? "Processing Payment..."
+              : `Pay $${Number(totalAmount).toFixed(2)} with USDC`}
+          </button>
+
+          <div className="text-center text-xs text-gray-400">
+            <p>Secure payment on Solana blockchain</p>
+            <p>Transaction fees will be deducted from your wallet</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MainTopMenu({ user_info }) {
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -186,7 +420,7 @@ function MainTopMenu({ user_info }) {
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [tokenPurchaseStep, setTokenPurchaseStep] = useState("select-amount"); // 'select-amount', 'select-gateway', 'payment-method', 'confirm', 'success', 'error'
   const [purchaseAmount, setPurchaseAmount] = useState(6); // Amount in dollars
-  const [selectedGateway, setSelectedGateway] = useState("card"); // 'card', 'paypal'
+  const [selectedGateway, setSelectedGateway] = useState("card"); // 'card', 'paypal', 'crypto'
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentMessage, setPaymentMessage] = useState("");
   const [paymentMessageType, setPaymentMessageType] = useState(""); // 'success', 'error', 'warning'
@@ -1068,10 +1302,144 @@ function MainTopMenu({ user_info }) {
     }
   };
 
+  // Handle Crypto payment processing with Phantom Wallet
+  const handleCryptoPayment = async (phantomProvider, totalAmount) => {
+    setIsProcessingPayment(true);
+    setPaymentMessage("");
+    setPaymentMessageType("");
+    setPaymentDetails(null);
+
+    try {
+      if (!MERCHANT_WALLET) {
+        throw new Error("Crypto payments not configured");
+      }
+
+      if (!phantomProvider || !phantomProvider.publicKey) {
+        throw new Error("Wallet not connected");
+      }
+
+      // Calculate payment breakdown
+      const breakdown = getPaymentBreakdown(Number(purchaseAmount) || 0);
+      const usdcAmount = breakdown.total;
+
+      // Get user's USDC token account
+      const userPublicKey = phantomProvider.publicKey;
+      const userUsdcAccount = await getAssociatedTokenAddress(
+        USDC_MINT,
+        userPublicKey
+      );
+
+      // Get merchant's USDC token account
+      const merchantUsdcAccount = await getAssociatedTokenAddress(
+        USDC_MINT,
+        MERCHANT_WALLET
+      );
+
+      // Convert USD to USDC (1:1 ratio, but with 6 decimals for USDC)
+      const usdcAmountInDecimals = Math.floor(usdcAmount * 1000000); // USDC has 6 decimals
+
+      // Create transaction
+      const transaction = new Transaction();
+
+      // Add transfer instruction
+      transaction.add(
+        createTransferInstruction(
+          userUsdcAccount,
+          merchantUsdcAccount,
+          userPublicKey,
+          usdcAmountInDecimals,
+          [],
+          TOKEN_PROGRAM_ID
+        )
+      );
+
+      // Get recent blockhash
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = userPublicKey;
+
+      // Sign and send transaction
+      const signedTransaction = await phantomProvider.signTransaction(
+        transaction
+      );
+      const signature = await connection.sendRawTransaction(
+        signedTransaction.serialize()
+      );
+
+      // Wait for confirmation
+      await connection.confirmTransaction(signature, "confirmed");
+
+      // ✅ Transacción confirmada exitosamente
+      console.log("🎉 ¡TRANSACCIÓN COMPLETADA EXITOSAMENTE! 🎉");
+      console.log("Transaction Signature:", signature);
+      console.log("Amount paid:", usdcAmount, "USDC");
+      console.log("From wallet:", userPublicKey.toString());
+      console.log("To merchant wallet:", MERCHANT_WALLET.toString());
+
+      // Verify payment on backend
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}payments/verify-crypto-payment`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: JSON.stringify({
+            transaction_signature: signature,
+            amount: usdcAmount,
+            wallet_address: userPublicKey.toString(),
+            payment_breakdown: {
+              subtotal: breakdown.subtotal,
+              vat_rate: 0.2,
+              vat_amount: breakdown.vat,
+              total_amount: breakdown.total,
+              tokens_to_add: breakdown.tokens,
+            },
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to verify crypto payment");
+      }
+
+      if (result.success) {
+        setPaymentDetails({
+          transaction_signature: signature,
+          total_paid: result.total_paid,
+          tokens_added: result.tokens_added,
+        });
+
+        setTokenPurchaseStep("success");
+        setPaymentMessage(result.message || "Crypto payment successful");
+        setPaymentMessageType("success");
+
+        // Refresh user tokens from server
+        await fetchUserTokens();
+      } else {
+        throw new Error(result.message || "Crypto payment verification failed");
+      }
+    } catch (error) {
+      console.error("Error processing crypto payment:", error);
+      setTokenPurchaseStep("error");
+      setPaymentMessage(`Crypto payment failed: ${error.message}`);
+      setPaymentMessageType("error");
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
   // Load tokens on component mount
   useEffect(() => {
     fetchUserTokens();
-  }, []);
+    // Reset to card payment if crypto is selected but not available
+    if (selectedGateway === "crypto" && !MERCHANT_WALLET) {
+      setSelectedGateway("card");
+    }
+  }, [selectedGateway]);
 
   // Inject custom CSS for white PayPal containers
   useEffect(() => {
@@ -1612,6 +1980,32 @@ function MainTopMenu({ user_info }) {
                           </div>
                         </div>
                       </div>
+
+                      {/* Crypto Payment Option */}
+                      {MERCHANT_WALLET && (
+                        <div
+                          onClick={() => setSelectedGateway("crypto")}
+                          className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                            selectedGateway === "crypto"
+                              ? "border-primarioLogo bg-primarioLogo bg-opacity-10"
+                              : "border-gray-600 hover:border-gray-500"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
+                              <Wallet className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-white font-medium">
+                                Pay with Crypto
+                              </div>
+                              <div className="text-gray-400 text-sm">
+                                Pay with USDC on Solana using Phantom Wallet
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex gap-3">
@@ -1676,7 +2070,12 @@ function MainTopMenu({ user_info }) {
                               <span className="text-white font-medium capitalize">
                                 {selectedGateway === "card"
                                   ? "Credit/Debit Card"
-                                  : "PayPal Account"}
+                                  : selectedGateway === "paypal"
+                                  ? "PayPal Account"
+                                  : selectedGateway === "crypto" &&
+                                    MERCHANT_WALLET
+                                  ? "USDC on Solana"
+                                  : "Credit/Debit Card"}
                               </span>
                             </div>
                           </>
@@ -1777,6 +2176,53 @@ function MainTopMenu({ user_info }) {
                             </p>
                             <p className="text-gray-400 text-xs mt-1">
                               Use your PayPal balance or linked bank account
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() =>
+                              setTokenPurchaseStep("select-gateway")
+                            }
+                            disabled={isProcessingPayment}
+                            className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                          >
+                            Back
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Crypto Payment Interface */}
+                    {selectedGateway === "crypto" && (
+                      <div className="space-y-4">
+                        <h3 className="text-white font-medium montserrat-medium">
+                          Crypto Payment
+                        </h3>
+
+                        <div className="bg-darkBoxSub p-4 rounded-lg border border-purple-500/30">
+                          <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                            <Wallet className="w-5 h-5 text-purple-500" />
+                            Pay with USDC on Solana
+                          </h4>
+
+                          {/* Crypto Payment Input */}
+                          <CryptoInput
+                            onPaymentProcess={handleCryptoPayment}
+                            isProcessing={isProcessingPayment}
+                            totalAmount={
+                              getPaymentBreakdown(Number(purchaseAmount) || 0)
+                                .total
+                            }
+                          />
+
+                          <div className="mt-3 text-center">
+                            <p className="text-gray-400 text-xs">
+                              Secure blockchain payment using Phantom Wallet
+                            </p>
+                            <p className="text-gray-400 text-xs mt-1">
+                              Your transaction is verified on Solana blockchain
                             </p>
                           </div>
                         </div>
