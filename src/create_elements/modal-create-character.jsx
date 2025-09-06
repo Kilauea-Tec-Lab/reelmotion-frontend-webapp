@@ -11,6 +11,7 @@ import {
   createImageFreepik,
   createCharacter,
   createImageOpenAI,
+  createImageNanoBanana,
 } from "../project/functions";
 import Cookies from "js-cookie";
 
@@ -24,7 +25,7 @@ function ModalCreateCharacter({
   const [characterName, setCharacterName] = useState("");
   const [characterDescription, setCharacterDescription] = useState("");
   const [creationType, setCreationType] = useState("upload"); // 'upload' or 'ai'
-  const [aiModel, setAiModel] = useState("gpt");
+  const [aiModel, setAiModel] = useState("nano_banana");
   const [aiPrompt, setAiPrompt] = useState("");
   const [selectedImageStyle, setSelectedImageStyle] = useState("");
   const [dragActive, setDragActive] = useState(false);
@@ -43,6 +44,7 @@ function ModalCreateCharacter({
   const MODEL_COSTS = {
     gpt: 8, // OpenAI/Sora
     freepik: 8, // Freepik
+    nano_banana: 8, // Nano Banana
   };
 
   // Estilos de imagen disponibles
@@ -156,7 +158,7 @@ function ModalCreateCharacter({
     setCharacterName("");
     setCharacterDescription("");
     setCreationType("upload");
-    setAiModel("gpt");
+    setAiModel("nano_banana");
     setAiPrompt("");
     setSelectedImageStyle("");
     setSelectedFile(null);
@@ -223,7 +225,7 @@ function ModalCreateCharacter({
       // Crear el prompt final con el estilo seleccionado
       const finalPrompt = createFinalPrompt();
       // Agregar contexto al prompt para mejorar la calidad del personaje
-      const enhancedPrompt = `${finalPrompt}. This character will be used in video production.`;
+      const enhancedPrompt = `${finalPrompt}. This character will be used in video production, I only need the character, do not include anything else.`;
 
       let response;
       let responseData;
@@ -233,6 +235,9 @@ function ModalCreateCharacter({
         responseData = await response.json();
       } else if (aiModel === "freepik") {
         response = await createImageFreepik({ prompt: enhancedPrompt });
+        responseData = await response.json();
+      } else if (aiModel === "nano_banana") {
+        response = await createImageNanoBanana({ prompt: enhancedPrompt });
         responseData = await response.json();
       }
 
@@ -553,7 +558,7 @@ function ModalCreateCharacter({
                     <img
                       src={previewUrl}
                       alt="Character preview"
-                      className="mx-auto max-h-48 rounded-lg"
+                      className="mx-auto max-h-96 rounded-lg"
                     />
                     <button
                       type="button"
@@ -614,6 +619,12 @@ function ModalCreateCharacter({
                       onChange={(e) => setAiModel(e.target.value)}
                       className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
                     >
+                      <option
+                        value="nano_banana"
+                        className="bg-darkBoxSub text-white"
+                      >
+                        Nano Banana
+                      </option>
                       <option value="gpt" className="bg-darkBoxSub text-white">
                         Sora
                       </option>
@@ -708,7 +719,13 @@ function ModalCreateCharacter({
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-400 text-sm montserrat-regular">
-                        Cost ({aiModel === "gpt" ? "Sora/OpenAI" : "Freepik"}):
+                        Cost (
+                        {aiModel === "gpt"
+                          ? "Sora/OpenAI"
+                          : aiModel === "freepik"
+                          ? "Freepik"
+                          : "Nano Banana"}
+                        ):
                       </span>
                       <span className="text-white text-sm font-medium montserrat-medium">
                         {MODEL_COSTS[aiModel]} tokens
@@ -823,7 +840,7 @@ function ModalCreateCharacter({
                   <img
                     src={previewUrl}
                     alt="AI Generated character"
-                    className="mx-auto max-h-48 rounded-lg"
+                    className="mx-auto max-h-96 rounded-lg"
                   />
                 </div>
               )}

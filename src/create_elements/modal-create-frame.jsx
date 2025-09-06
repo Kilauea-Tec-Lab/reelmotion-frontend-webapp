@@ -30,6 +30,7 @@ function ModalCreateFrame({
   const [selectedSpot, setSelectedSpot] = useState("");
   const [imagePrompt, setImagePrompt] = useState("");
   const [selectedImageStyle, setSelectedImageStyle] = useState("");
+  const [aiModel, setAiModel] = useState("nano_banana"); // Modelo AI por defecto
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
   const [imageGenerationError, setImageGenerationError] = useState(null);
@@ -43,6 +44,7 @@ function ModalCreateFrame({
   const [customPrompt, setCustomPrompt] = useState("");
   const [selectedExistingImageStyle, setSelectedExistingImageStyle] =
     useState("");
+  const [existingAiModel, setExistingAiModel] = useState("nano_banana"); // Modelo AI por defecto para existing frame
   const [isGeneratingFromExisting, setIsGeneratingFromExisting] =
     useState(false);
   const [existingGeneratedImageUrl, setExistingGeneratedImageUrl] =
@@ -51,7 +53,7 @@ function ModalCreateFrame({
     useState(null);
 
   // Estados para aspect ratio y controles de tomas
-  const [selectedAspectRatio, setSelectedAspectRatio] = useState("");
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState("16:9"); // 16:9 por defecto
   const [selectedCameraAngle, setSelectedCameraAngle] = useState("");
   const [selectedCameraShot, setSelectedCameraShot] = useState("");
 
@@ -321,6 +323,7 @@ function ModalCreateFrame({
       const finalPrompt = createFinalPrompt();
       const payload = {
         prompt: finalPrompt,
+        ai_model: aiModel, // Agregar modelo AI
         characters: selectedCharacters, // Opcional
         spot: selectedSpot, // Opcional
         aspect_ratio: selectedAspectRatio,
@@ -451,6 +454,7 @@ function ModalCreateFrame({
 
       const payload = {
         prompt: finalPrompt,
+        ai_model: existingAiModel, // Agregar modelo AI
         image_url: selectedFrameData?.media_url,
         aspect_ratio: selectedAspectRatio,
         camera_angle: selectedCameraAngle,
@@ -783,13 +787,13 @@ function ModalCreateFrame({
                     <video
                       src={uploadPreview}
                       controls
-                      className="w-full max-h-64 rounded-lg bg-black"
+                      className="w-full max-h-[512px] rounded-lg bg-black"
                     />
                   ) : (
                     <img
                       src={uploadPreview}
                       alt="Upload preview"
-                      className="w-full max-h-64 object-contain rounded-lg bg-black"
+                      className="w-full max-h-[512px] object-contain rounded-lg bg-black"
                     />
                   )}
                 </div>
@@ -805,6 +809,25 @@ function ModalCreateFrame({
                 <h3 className="text-white montserrat-medium text-sm">
                   Select Existing Frame
                 </h3>
+              </div>
+
+              {/* AI Model Selection for Existing Frame */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+                  AI Model *
+                </label>
+                <select
+                  value={existingAiModel}
+                  onChange={(e) => setExistingAiModel(e.target.value)}
+                  className="w-full px-4 py-3 bg-darkBox rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
+                >
+                  <option value="nano_banana" className="bg-darkBox text-white">
+                    Nano Banana
+                  </option>
+                  <option value="sora" className="bg-darkBox text-white">
+                    Sora
+                  </option>
+                </select>
               </div>
 
               {existingFrames && existingFrames.length > 0 ? (
@@ -1071,7 +1094,11 @@ function ModalCreateFrame({
                             </div>
                             <div className="flex items-center justify-between">
                               <span className="text-gray-400 text-sm montserrat-regular">
-                                Cost (Use Another Frame):
+                                Cost (Use Another Frame -{" "}
+                                {existingAiModel === "sora"
+                                  ? "Sora"
+                                  : "Nano Banana"}
+                                ):
                               </span>
                               <span className="text-white text-sm font-medium montserrat-medium">
                                 {MODE_COSTS["existing"]} tokens
@@ -1156,7 +1183,7 @@ function ModalCreateFrame({
                           <img
                             src={existingGeneratedImageUrl}
                             alt="Enhanced frame"
-                            className="w-full max-h-64 object-contain rounded-lg bg-black"
+                            className="w-full max-h-[512px] object-contain rounded-lg bg-black"
                           />
                           <p className="mt-2 text-green-400 text-sm montserrat-regular">
                             ✓ Frame enhanced successfully!
@@ -1180,6 +1207,28 @@ function ModalCreateFrame({
           {/* AI Mode Content */}
           {creationMode === "ai" && (
             <>
+              {/* AI Model Selection */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+                  AI Model *
+                </label>
+                <select
+                  value={aiModel}
+                  onChange={(e) => setAiModel(e.target.value)}
+                  className="w-full px-4 py-3 bg-darkBoxSub rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular"
+                >
+                  <option
+                    value="nano_banana"
+                    className="bg-darkBoxSub text-white"
+                  >
+                    Nano Banana
+                  </option>
+                  <option value="sora" className="bg-darkBoxSub text-white">
+                    Sora
+                  </option>
+                </select>
+              </div>
+
               {/* Character Selection */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
@@ -1433,7 +1482,8 @@ function ModalCreateFrame({
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400 text-sm montserrat-regular">
-                          Cost (Create with AI):
+                          Cost (Create with AI -{" "}
+                          {aiModel === "sora" ? "Sora" : "Nano Banana"}):
                         </span>
                         <span className="text-white text-sm font-medium montserrat-medium">
                           {MODE_COSTS["ai"]} tokens
@@ -1553,7 +1603,7 @@ function ModalCreateFrame({
                     <img
                       src={generatedImageUrl}
                       alt="Generated frame"
-                      className="w-full max-h-64 object-contain rounded-lg bg-black"
+                      className="w-full max-h-[512px] object-contain rounded-lg bg-black"
                     />
                     <div className="mt-4 flex flex-col gap-3">
                       <p className="text-green-400 text-sm montserrat-regular">

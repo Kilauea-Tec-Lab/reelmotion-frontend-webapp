@@ -56,6 +56,26 @@ export async function createImageOpenAI(data) {
   return response;
 }
 
+export async function createImageNanoBanana(data) {
+  const info = {
+    prompt: data.prompt,
+  };
+
+  const response = await fetch(
+    `${import.meta.env.VITE_APP_BACKEND_URL}ai/generate-image-nano-banana`,
+    {
+      method: "POST",
+      body: JSON.stringify(info),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + Cookies.get("token"),
+      },
+    }
+  );
+
+  return response;
+}
+
 export async function createCharacter(data) {
   const info = {
     project_id: data.project_id, // Asegurarse de enviar el ID del proyecto

@@ -12,6 +12,7 @@ import {
   createImageFreepik,
   createSpot,
   createImageOpenAI,
+  createImageNanoBanana,
 } from "../project/functions";
 import Cookies from "js-cookie";
 
@@ -19,7 +20,7 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
   const [spotName, setSpotName] = useState("");
   const [spotDescription, setSpotDescription] = useState("");
   const [creationType, setCreationType] = useState("upload"); // 'upload' or 'ai'
-  const [aiModel, setAiModel] = useState("gpt");
+  const [aiModel, setAiModel] = useState("nano_banana");
   const [aiPrompt, setAiPrompt] = useState("");
   const [selectedImageStyle, setSelectedImageStyle] = useState("");
   const [dragActive, setDragActive] = useState(false);
@@ -38,6 +39,7 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
   const MODEL_COSTS = {
     gpt: 8, // OpenAI/Sora
     freepik: 8, // Freepik
+    nano_banana: 8, // Nano Banana
   };
 
   // Estilos de imagen disponibles para spots/locations
@@ -151,7 +153,7 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
     setSpotName("");
     setSpotDescription("");
     setCreationType("upload");
-    setAiModel("gpt");
+    setAiModel("nano_banana");
     setAiPrompt("");
     setSelectedImageStyle("");
     setSelectedFile(null);
@@ -228,6 +230,9 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
         responseData = await response.json();
       } else if (aiModel === "freepik") {
         response = await createImageFreepik({ prompt: enhancedPrompt });
+        responseData = await response.json();
+      } else if (aiModel === "nano_banana") {
+        response = await createImageNanoBanana({ prompt: enhancedPrompt });
         responseData = await response.json();
       }
 
@@ -546,7 +551,7 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
                     <img
                       src={previewUrl}
                       alt="Spot preview"
-                      className="mx-auto max-h-48 rounded-lg"
+                      className="mx-auto max-h-96 rounded-lg"
                     />
                     <button
                       type="button"
@@ -615,6 +620,12 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
                         className="bg-darkBoxSub text-white"
                       >
                         Freepik
+                      </option>
+                      <option
+                        value="nano_banana"
+                        className="bg-darkBoxSub text-white"
+                      >
+                        Nano Banana
                       </option>
                     </select>
                   </div>
@@ -701,7 +712,13 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-400 text-sm montserrat-regular">
-                        Cost ({aiModel === "gpt" ? "Sora/OpenAI" : "Freepik"}):
+                        Cost (
+                        {aiModel === "gpt"
+                          ? "Sora/OpenAI"
+                          : aiModel === "freepik"
+                          ? "Freepik"
+                          : "Nano Banana"}
+                        ):
                       </span>
                       <span className="text-white text-sm font-medium montserrat-medium">
                         {MODEL_COSTS[aiModel]} tokens
@@ -816,7 +833,7 @@ function ModalCreateSpot({ isOpen, onClose, onSpotCreated, project_id }) {
                   <img
                     src={previewUrl}
                     alt="AI Generated spot"
-                    className="mx-auto max-h-48 rounded-lg"
+                    className="mx-auto max-h-96 rounded-lg"
                   />
                 </div>
               )}
