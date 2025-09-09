@@ -49,12 +49,17 @@ function ModalExportEdit({
         setProjects(responseData.data || []);
         setError(null); // Clear any previous errors when successful
       } else {
-        const errorMessage = responseData.message || responseData.error || "Failed to load projects";
+        const errorMessage =
+          responseData.message ||
+          responseData.error ||
+          "Failed to load projects";
         setError(`Error loading projects: ${errorMessage}`);
         setProjects([]);
       }
     } catch (error) {
-      setError(`Error loading projects: ${error.message || "Network error occurred"}`);
+      setError(
+        `Error loading projects: ${error.message || "Network error occurred"}`
+      );
       setProjects([]);
     } finally {
       setIsLoading(false);
@@ -114,11 +119,16 @@ function ModalExportEdit({
 
         // Don't auto-download anymore - let user choose
       } else {
-        const errorMessage = responseData.message || responseData.error || "Unknown error occurred";
+        const errorMessage =
+          responseData.message ||
+          responseData.error ||
+          "Unknown error occurred";
         setError(`Error with the edit: ${errorMessage}`);
       }
     } catch (error) {
-      setError(`Error with the edit: ${error.message || "Network error occurred"}`);
+      setError(
+        `Error with the edit: ${error.message || "Network error occurred"}`
+      );
     } finally {
       setIsExporting(false);
     }
@@ -246,11 +256,16 @@ function ModalExportEdit({
         // Redirigir a la página de inicio después de la exportación exitosa
         navigate("/");
       } else {
-        const errorMessage = responseData.message || responseData.error || "Unknown error occurred";
+        const errorMessage =
+          responseData.message ||
+          responseData.error ||
+          "Unknown error occurred";
         setError(`Error saving export: ${errorMessage}`);
       }
     } catch (error) {
-      setError(`Error saving export: ${error.message || "Network error occurred"}`);
+      setError(
+        `Error saving export: ${error.message || "Network error occurred"}`
+      );
     } finally {
       setIsSaving(false);
     }

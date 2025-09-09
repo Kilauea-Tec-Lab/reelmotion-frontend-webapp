@@ -2468,13 +2468,47 @@ function Editor() {
 
   // Zoom functions
   const handleZoomIn = () => {
-    setVisibleDuration((prev) => Math.max(prev / 1.5, 30)); // Min 30 seconds visible
+    const totalDuration = getTimelineDuration();
+    const currentVisibleDuration = getVisualTimelineDuration();
+    const newVisibleDuration = Math.max(currentVisibleDuration / 1.5, 30); // Min 30 seconds visible
+    
+    // For zoom in, we want to keep the current view centered
+    // Calculate a safe center point that considers current scroll position
+    const viewportCenter = timelineScrollOffset + (currentVisibleDuration / 2);
+    
+    // Calculate new scroll offset, but ensure we don't go negative or beyond bounds
+    let newScrollOffset = viewportCenter - (newVisibleDuration / 2);
+    
+    // Ensure the new scroll offset is within valid bounds
+    const maxScrollOffset = Math.max(0, totalDuration - newVisibleDuration);
+    newScrollOffset = Math.max(0, Math.min(newScrollOffset, maxScrollOffset));
+    
+    // If we're at the beginning of the timeline, keep it there
+    if (timelineScrollOffset <= 0) {
+      newScrollOffset = 0;
+    }
+    
+    setVisibleDuration(newVisibleDuration);
+    setTimelineScrollOffset(newScrollOffset);
     setTimelineZoom((prev) => Math.min(prev * 1.5, 5.06)); // Max zoom 5.06x (506%)
   };
 
   const handleZoomOut = () => {
     const totalDuration = getTimelineDuration();
-    setVisibleDuration((prev) => Math.min(prev * 1.5, totalDuration)); // Max = total duration
+    const currentVisibleDuration = getVisualTimelineDuration();
+    const newVisibleDuration = Math.min(currentVisibleDuration * 1.5, totalDuration); // Max = total duration
+    
+    // Calculate the center point of current view to maintain focus
+    const currentCenter = timelineScrollOffset + (currentVisibleDuration / 2);
+    
+    // Adjust scroll offset to keep the center point in view
+    const newScrollOffset = Math.max(0, Math.min(
+      currentCenter - (newVisibleDuration / 2),
+      totalDuration - newVisibleDuration
+    ));
+    
+    setVisibleDuration(newVisibleDuration);
+    setTimelineScrollOffset(newScrollOffset);
     setTimelineZoom((prev) => Math.max(prev / 1.5, 1)); // Min zoom 1x (100%)
   };
 
