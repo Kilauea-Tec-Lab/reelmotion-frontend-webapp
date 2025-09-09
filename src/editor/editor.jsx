@@ -366,8 +366,8 @@ function Editor() {
       const audio = document.createElement("audio");
       audio.preload = "metadata";
       audio.onloadedmetadata = function () {
-        const duration = formatDuration(audio.duration || 0);
-        resolve(duration || 0);
+        const duration = audio.duration || 0;
+        resolve(duration); // Return the actual number, not formatted
       };
       audio.onerror = function () {
         console.warn(`Could not load audio: ${audioUrl}`);
@@ -1903,6 +1903,7 @@ function Editor() {
       ...it,
       type,
       url: it?.url || it?.audio_url || it?.music_url || it?.voice_url,
+      duration: it?.duration || (type === "music" ? 30 : 15), // Extract duration from backend or use fallback
     });
     const mus = Array.isArray(data?.music)
       ? data.music.map((m) => normalizeAudio(m, "music"))
@@ -1956,7 +1957,7 @@ function Editor() {
       : [];
     if (sounds.length) setSoundList(sounds);
 
-    // Preload and cache durations for all voices
+    // Preload and cache durations for all audio
     const preload = async (items) => {
       for (const it of items) {
         const u = it.url;
@@ -1966,7 +1967,8 @@ function Editor() {
           setAudioDurations((prev) => ({ ...prev, [u]: d }));
           // reflect in UI data object
           it.duration = d;
-          // For voices, also update state so the gallery shows real duration
+
+          // Update state so the gallery shows real duration
           if (it.type === "voice") {
             setVoiceList((prev) =>
               Array.isArray(prev)
@@ -1978,12 +1980,25 @@ function Editor() {
                   }))
                 : prev
             );
+          } else if (it.type === "music") {
+            setMusicList((prev) =>
+              Array.isArray(prev)
+                ? prev.map((m) => (m.url === u ? { ...m, duration: d } : m))
+                : prev
+            );
+          } else if (it.type === "sound") {
+            setSoundList((prev) =>
+              Array.isArray(prev)
+                ? prev.map((s) => (s.url === u ? { ...s, duration: d } : s))
+                : prev
+            );
           }
         }
       }
     };
 
     preload(mus);
+    preload(sounds); // Also preload sound durations
     // Preload voices from all groups
     structuredVoices.forEach((group) => {
       preload(group.voices);

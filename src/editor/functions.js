@@ -130,7 +130,7 @@ export async function handleImageDrop(files) {
 }
 
 // Function to create audio (music/voice) via API
-export async function createAudio(type, base64Audio, audioName) {
+export async function createAudio(type, base64Audio, audioName, duration = null) {
   // type should be 'music' or 'voice'
   try {
     const response = await fetch(
@@ -145,6 +145,7 @@ export async function createAudio(type, base64Audio, audioName) {
           // Use a generic key the backend can map; adjust if needed server-side
           base_64_audio: base64Audio,
           name: audioName,
+          duration: duration, // Send the real duration to backend
         }),
       }
     );
@@ -172,7 +173,8 @@ export async function createAudio(type, base64Audio, audioName) {
         name: item?.name || audioName,
         url: urlField,
         user_id: item?.user_id,
-        duration: type === "music" ? 30 : 15,
+        // Use the real duration if available, otherwise fallback to defaults
+        duration: duration || item?.duration || (type === "music" ? 30 : 15),
         type,
       };
     } else {
@@ -185,6 +187,26 @@ export async function createAudio(type, base64Audio, audioName) {
 }
 
 // Function to handle audio (music/voice) drop and upload
+// Function to get audio duration
+function getAudioDuration(file) {
+  return new Promise((resolve, reject) => {
+    const audio = document.createElement("audio");
+    const url = URL.createObjectURL(file);
+    
+    audio.addEventListener("loadedmetadata", () => {
+      URL.revokeObjectURL(url);
+      resolve(audio.duration);
+    });
+    
+    audio.addEventListener("error", () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Error loading audio file"));
+    });
+    
+    audio.src = url;
+  });
+}
+
 export async function handleAudioDrop(files, type) {
   const uploaded = [];
 
@@ -195,11 +217,14 @@ export async function handleAudioDrop(files, type) {
         continue;
       }
 
+      // Get audio duration
+      const duration = await getAudioDuration(file);
+
       // Convert to base64 (no compression for audio)
       const base64 = await fileToBase64(file);
 
-      // Upload to server
-      const audioData = await createAudio(type, base64, file.name);
+      // Upload to server with real duration
+      const audioData = await createAudio(type, base64, file.name, duration);
 
       uploaded.push(audioData);
     } catch (error) {
