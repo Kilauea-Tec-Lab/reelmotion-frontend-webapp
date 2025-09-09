@@ -19,10 +19,12 @@ function ModalExportEdit({
   const [renderResult, setRenderResult] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (isOpen) {
+      setError(null); // Clear any previous errors when opening modal
       fetchProjects();
     }
   }, [isOpen]);
@@ -45,12 +47,14 @@ function ModalExportEdit({
 
       if (response.ok && responseData.success) {
         setProjects(responseData.data || []);
+        setError(null); // Clear any previous errors when successful
       } else {
-        console.error("Error fetching projects:", responseData);
+        const errorMessage = responseData.message || responseData.error || "Failed to load projects";
+        setError(`Error loading projects: ${errorMessage}`);
         setProjects([]);
       }
     } catch (error) {
-      console.error("Error fetching projects:", error);
+      setError(`Error loading projects: ${error.message || "Network error occurred"}`);
       setProjects([]);
     } finally {
       setIsLoading(false);
@@ -61,6 +65,7 @@ function ModalExportEdit({
     if (!selectedProjectId || !arrayVideoMake?.length) return;
 
     setIsExporting(true);
+    setError(null); // Clear any previous errors
     try {
       const exportData = {
         project_id: selectedProjectId,
@@ -109,12 +114,11 @@ function ModalExportEdit({
 
         // Don't auto-download anymore - let user choose
       } else {
-        console.error("Error exporting edit:", responseData);
-        alert("Error exporting edit. Please try again.");
+        const errorMessage = responseData.message || responseData.error || "Unknown error occurred";
+        setError(`Error with the edit: ${errorMessage}`);
       }
     } catch (error) {
-      console.error("Error exporting edit:", error);
-      alert("Error exporting edit. Please try again.");
+      setError(`Error with the edit: ${error.message || "Network error occurred"}`);
     } finally {
       setIsExporting(false);
     }
@@ -242,12 +246,11 @@ function ModalExportEdit({
         // Redirigir a la página de inicio después de la exportación exitosa
         navigate("/");
       } else {
-        console.error("Error saving export:", responseData);
-        alert("Error saving export. Please try again.");
+        const errorMessage = responseData.message || responseData.error || "Unknown error occurred";
+        setError(`Error saving export: ${errorMessage}`);
       }
     } catch (error) {
-      console.error("Error saving export:", error);
-      alert("Error saving export. Please try again.");
+      setError(`Error saving export: ${error.message || "Network error occurred"}`);
     } finally {
       setIsSaving(false);
     }
@@ -256,6 +259,7 @@ function ModalExportEdit({
   const handleClose = () => {
     setSelectedProjectId("");
     setRenderResult(null);
+    setError(null);
     onClose();
   };
 
@@ -281,6 +285,26 @@ function ModalExportEdit({
 
         {/* Content */}
         <div className="p-6">
+          {/* Error Alert */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-900 bg-opacity-20 border border-red-600 rounded-lg">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h3 className="text-red-400 font-medium text-sm mb-1">
+                    Export Error
+                  </h3>
+                  <p className="text-gray-300 text-sm">{error}</p>
+                </div>
+                <button
+                  onClick={() => setError(null)}
+                  className="text-red-400 hover:text-red-300 transition-colors p-1 rounded-lg hover:bg-red-800 hover:bg-opacity-20 ml-2"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {renderResult ? (
             /* Video Result Section */
             <div className="space-y-6">

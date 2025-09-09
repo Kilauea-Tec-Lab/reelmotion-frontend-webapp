@@ -1185,6 +1185,7 @@ function Editor() {
     const newElement = {
       // === IDENTIFICACIÓN ===
       id: `${targetChannel}_${Date.now()}`,
+      originalId: draggedItem.id, // Reference to the library element ID
       channel: targetChannel,
       type: draggedItem.type,
 
@@ -3604,6 +3605,62 @@ function Editor() {
     setShowDeleteMusicModal(true);
   };
 
+  // Helper function to remove elements from timeline when library item is deleted
+  const removeElementsFromTimeline = (deletedElement) => {
+    const { id, url, audio_url, music_url, voice_url, image_url, name, title } =
+      deletedElement;
+
+    // Create a list of possible URLs that could match this element
+    const possibleUrls = [
+      url,
+      audio_url,
+      music_url,
+      voice_url,
+      image_url,
+    ].filter(Boolean);
+
+    // Also create possible names for additional matching
+    const possibleNames = [name, title].filter(Boolean);
+
+    setArrayVideoMake((prevTimeline) => {
+      const filteredTimeline = prevTimeline.filter((timelineElement) => {
+        // Remove by originalId match (most reliable, for new elements)
+        if (timelineElement.originalId && timelineElement.originalId === id) {
+          console.log(`🗑️ Removing timeline element with originalId: ${id}`);
+          return false;
+        }
+
+        // Fallback: Remove by URL match (for all elements)
+        const timelineUrl = timelineElement.url;
+        if (timelineUrl && possibleUrls.includes(timelineUrl)) {
+          console.log(
+            `🗑️ Removing timeline element with matching URL: ${timelineUrl}`
+          );
+          return false;
+        }
+
+        // Additional fallback: Remove by title/name match (for older elements)
+        const timelineTitle = timelineElement.title;
+        if (timelineTitle && possibleNames.includes(timelineTitle)) {
+          console.log(
+            `🗑️ Removing timeline element with matching title: ${timelineTitle}`
+          );
+          return false;
+        }
+
+        return true;
+      });
+
+      const removedCount = prevTimeline.length - filteredTimeline.length;
+      if (removedCount > 0) {
+        console.log(
+          `🗑️ Removed ${removedCount} timeline element(s) after deleting library item: ${id}`
+        );
+      }
+      return filteredTimeline;
+    });
+  };
+
   const handleConfirmDeleteMusic = async () => {
     if (!musicToDelete) return;
     setIsDeletingMusic(true);
@@ -3621,7 +3678,10 @@ function Editor() {
       );
       const data = await response.json();
       if (response.ok && data.code === 200) {
+        // Remove from library
         setMusicList((prev) => prev.filter((m) => m.id !== musicToDelete.id));
+        // Remove from timeline
+        removeElementsFromTimeline(musicToDelete);
         setShowDeleteMusicModal(false);
         setMusicToDelete(null);
       } else {
@@ -3766,6 +3826,7 @@ function Editor() {
       );
       const data = await response.json();
       if (response.ok && data.code === 200) {
+        // Remove from library
         setVoiceList((prev) => {
           return prev
             .map((group) => ({
@@ -3776,6 +3837,8 @@ function Editor() {
             }))
             .filter((group) => group.voices.length > 0); // Remove empty groups
         });
+        // Remove from timeline
+        removeElementsFromTimeline(voiceToDelete);
         setShowDeleteVoiceModal(false);
         setVoiceToDelete(null);
       } else {
@@ -3858,7 +3921,10 @@ function Editor() {
       );
       const data = await response.json();
       if (response.ok && data.code === 200) {
+        // Remove from library
         setSoundList((prev) => prev.filter((s) => s.id !== soundToDelete.id));
+        // Remove from timeline
+        removeElementsFromTimeline(soundToDelete);
         setShowDeleteSoundModal(false);
         setSoundToDelete(null);
       } else {
@@ -3923,10 +3989,12 @@ function Editor() {
       const responseData = await response.json();
 
       if (response.ok && responseData.code === 200) {
-        // Remove deleted image from list
+        // Remove from library
         setImages((prevImages) =>
           prevImages.filter((img) => img.id !== imageToDelete.id)
         );
+        // Remove from timeline
+        removeElementsFromTimeline(imageToDelete);
         setShowDeleteImageModal(false);
         setImageToDelete(null);
       } else {
