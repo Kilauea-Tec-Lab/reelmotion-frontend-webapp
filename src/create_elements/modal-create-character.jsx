@@ -34,6 +34,12 @@ function ModalCreateCharacter({
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGeneratedImage, setHasGeneratedImage] = useState(false);
   const [generationError, setGenerationError] = useState(null);
+  const [modifyImageUrl, setModifyImageUrl] = useState(null);
+  const [showModifyImageUpload, setShowModifyImageUpload] = useState(false);
+  const [baseImageFile, setBaseImageFile] = useState(null);
+  const [baseImagePreview, setBaseImagePreview] = useState(null);
+  const [useBaseImage, setUseBaseImage] = useState(false);
+  const [baseImageDragActive, setBaseImageDragActive] = useState(false);
 
   // Token system states
   const [tokens, setTokens] = useState(0);
@@ -45,6 +51,8 @@ function ModalCreateCharacter({
     gpt: 8, // OpenAI/Sora
     freepik: 8, // Freepik
     nano_banana: 8, // Nano Banana
+    sora: 8, // Sora
+    modify: 10, // Costo por modificación con AI
   };
 
   // Estilos de imagen disponibles
@@ -144,6 +152,13 @@ function ModalCreateCharacter({
     }
   }, [isOpen]);
 
+  // useEffect to handle AI model changes when base image option is toggled
+  useEffect(() => {
+    if (useBaseImage && aiModel === "freepik") {
+      setAiModel("nano_banana"); // Default to nano_banana when base image is enabled and freepik was selected
+    }
+  }, [useBaseImage, aiModel]);
+
   // Función para crear el prompt final con el estilo seleccionado
   const createFinalPrompt = () => {
     const basePrompt = aiPrompt.trim();
@@ -166,6 +181,10 @@ function ModalCreateCharacter({
     setIsGenerating(false);
     setHasGeneratedImage(false);
     setGenerationError(null);
+    setBaseImageFile(null);
+    setBaseImagePreview(null);
+    setUseBaseImage(false);
+    setBaseImageDragActive(false);
     onClose();
   };
 
@@ -204,6 +223,42 @@ function ModalCreateCharacter({
     }
   };
 
+  // Base image handlers
+  const handleBaseImageDrag = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setBaseImageDragActive(true);
+    } else if (e.type === "dragleave") {
+      setBaseImageDragActive(false);
+    }
+  }, []);
+
+  const handleBaseImageDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setBaseImageDragActive(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files && files[0]) {
+      const file = files[0];
+      if (file.type.startsWith("image/")) {
+        setBaseImageFile(file);
+        const url = URL.createObjectURL(file);
+        setBaseImagePreview(url);
+      }
+    }
+  }, []);
+
+  const handleBaseImageFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith("image/")) {
+      setBaseImageFile(file);
+      const url = URL.createObjectURL(file);
+      setBaseImagePreview(url);
+    }
+  };
+
   async function handleGenerateAI() {
     if (!aiPrompt.trim()) return;
 
@@ -230,14 +285,23 @@ function ModalCreateCharacter({
       let response;
       let responseData;
 
+      // Prepare the request data
+      let requestData = { prompt: enhancedPrompt };
+
+      // If using base image, convert it to base64 and add to request
+      if (useBaseImage && baseImageFile) {
+        const base64Image = await fileToBase64(baseImageFile);
+        requestData.base_image = base64Image;
+      }
+
       if (aiModel === "gpt") {
-        response = await createImageOpenAI({ prompt: enhancedPrompt });
+        response = await createImageOpenAI(requestData);
         responseData = await response.json();
       } else if (aiModel === "freepik") {
-        response = await createImageFreepik({ prompt: enhancedPrompt });
+        response = await createImageFreepik(requestData);
         responseData = await response.json();
       } else if (aiModel === "nano_banana") {
-        response = await createImageNanoBanana({ prompt: enhancedPrompt });
+        response = await createImageNanoBanana(requestData);
         responseData = await response.json();
       }
 
@@ -308,6 +372,7 @@ function ModalCreateCharacter({
     setPreviewUrl(null);
     setHasGeneratedImage(false);
     setGenerationError(null); // Limpiar errores al descartar
+    // Don't reset base image states here as user might want to try again with same base image
   };
 
   // Función para comprimir y convertir archivo a base64
@@ -609,6 +674,87 @@ function ModalCreateCharacter({
               {/* AI Generation Controls - Solo mostrar si no hay imagen generada y no se está generando */}
               {!hasGeneratedImage && !isGenerating && (
                 <>
+                  {/* Base Image Upload Option */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-sm font-medium text-white montserrat-regular">
+                        Add Base Image to Modify (Optional)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setUseBaseImage(!useBaseImage)}
+                        className={`px-3 py-1 text-xs rounded-lg transition-all text-sm ${
+                          useBaseImage
+                            ? "bg-[#F2D543] text-primarioDark"
+                            : "border border-gray-600 text-gray-300 hover:border-gray-500"
+                        }`}
+                      >
+                        {useBaseImage ? "Remove Base Image" : "Add Base Image"}
+                      </button>
+                    </div>
+
+                    {useBaseImage && (
+                      <div
+                        className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${
+                          baseImageDragActive
+                            ? "border-[#F2D543] bg-[#F2D54315]"
+                            : "border-gray-600 hover:border-gray-500"
+                        }`}
+                        onDragEnter={handleBaseImageDrag}
+                        onDragLeave={handleBaseImageDrag}
+                        onDragOver={handleBaseImageDrag}
+                        onDrop={handleBaseImageDrop}
+                      >
+                        {baseImagePreview ? (
+                          <div className="space-y-3">
+                            <img
+                              src={baseImagePreview}
+                              alt="Base image preview"
+                              className="mx-auto max-h-48 rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBaseImageFile(null);
+                                setBaseImagePreview(null);
+                              }}
+                              className="text-red-400 hover:text-red-300 text-sm montserrat-regular"
+                            >
+                              Remove base image
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="mx-auto w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center">
+                              <ImageIcon className="w-5 h-5 text-gray-400" />
+                            </div>
+                            <div>
+                              <p className="text-white montserrat-medium mb-1 text-sm">
+                                Drop base image here or click to browse
+                              </p>
+                              <p className="text-gray-400 text-xs montserrat-regular">
+                                PNG, JPG, GIF up to 10MB
+                              </p>
+                            </div>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleBaseImageFileChange}
+                              className="hidden"
+                              id="base-image"
+                            />
+                            <label
+                              htmlFor="base-image"
+                              className="inline-block px-3 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors cursor-pointer montserrat-medium text-sm"
+                            >
+                              Browse Files
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   {/* AI Model Selection */}
                   <div>
                     <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
@@ -625,16 +771,24 @@ function ModalCreateCharacter({
                       >
                         Nano Banana
                       </option>
+                      {!useBaseImage && (
+                        <option
+                          value="freepik"
+                          className="bg-darkBoxSub text-white"
+                        >
+                          Freepik
+                        </option>
+                      )}
                       <option value="gpt" className="bg-darkBoxSub text-white">
                         Sora
                       </option>
-                      <option
-                        value="freepik"
-                        className="bg-darkBoxSub text-white"
-                      >
-                        Freepik
-                      </option>
                     </select>
+                    {useBaseImage && (
+                      <p className="mt-2 text-xs text-[#F2D543] montserrat-regular">
+                        Only Nano Banana and Sora support base image
+                        modification
+                      </p>
+                    )}
                   </div>
 
                   {/* Image Style Selection */}
