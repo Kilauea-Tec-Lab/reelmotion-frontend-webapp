@@ -60,8 +60,8 @@ function Login() {
   // Check for referral code in URL
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    
+    const code = urlParams.get("code");
+
     if (code) {
       setReferralCode(code);
       setIsReferralMode(true);
@@ -1103,21 +1103,153 @@ function Login() {
                 </li>
               </ul>
 
-              <h4 className="font-semibold text-lg">12. Governing Law</h4>
+              <h4 className="font-semibold text-lg">
+                12. Affiliate Program Terms
+              </h4>
+
+              <h5 className="font-semibold text-base mt-4">1. Eligibility</h5>
+              <p>
+                By creating a profile on Reelmotion AI (the "Platform"), you are
+                automatically enrolled in our Affiliate Program ("Program").
+                Participation in the Program is conditional upon compliance with
+                these Terms & Conditions. We reserve the right to refuse or
+                terminate participation at any time at our sole discretion.
+              </p>
+
+              <h5 className="font-semibold text-base mt-4">
+                2. Affiliate Links
+              </h5>
+              <p>
+                Each registered user will be provided with a unique referral
+                link ("Affiliate Link"). You may share this link to promote our
+                services/products. Any sales generated through your Affiliate
+                Link will be tracked and attributed to you through our system.
+              </p>
+
+              <h5 className="font-semibold text-base mt-4">
+                3. Commission & Payments
+              </h5>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>
+                  Affiliates earn a 10% commission on every purchase made by
+                  customers who signed up or were introduced through their
+                  Affiliate Link.
+                </li>
+                <li>
+                  This commission applies to all future purchases made by those
+                  referred customers for as long as the customer remains active,
+                  unless the Program or Platform is terminated.
+                </li>
+                <li>
+                  No commissions will be earned for profile creations or
+                  sign-ups without purchase.
+                </li>
+                <li>
+                  Payments will be made bimonthly (every two months) via PayPal,
+                  bank transfer, or cryptocurrency transfer, depending on the
+                  Affiliate's selected payment method.
+                </li>
+                <li>
+                  Commissions will only be paid on valid, completed purchases
+                  that are not canceled, refunded, or disputed.
+                </li>
+                <li>
+                  A minimum payout threshold of USD $50 applies. If the
+                  Affiliate's commission balance is below this threshold at the
+                  time of payout, the balance will be carried forward to the
+                  next payout cycle until the threshold is reached.
+                </li>
+                <li>
+                  Any transfer fees (e.g., bank or crypto network fees) may be
+                  deducted from the payout.
+                </li>
+              </ul>
+
+              <h5 className="font-semibold text-base mt-4">
+                4. Prohibited Activities
+              </h5>
+              <p>Affiliates are strictly prohibited from:</p>
+              <ul className="list-disc ml-6 space-y-1">
+                <li>
+                  Engaging in misleading, false, or deceptive marketing
+                  practices.
+                </li>
+                <li>
+                  Using paid advertising (including search engine ads) that
+                  compete with Reel Me In Media's own advertising.
+                </li>
+                <li>
+                  Promoting the Platform on websites or channels that contain
+                  unlawful, harmful, or offensive content.
+                </li>
+                <li>Spamming or sending unsolicited communications.</li>
+              </ul>
+              <p className="mt-2">
+                Violation of these rules may result in forfeiture of commissions
+                and termination from the Program.
+              </p>
+
+              <h5 className="font-semibold text-base mt-4">
+                5. Intellectual Property
+              </h5>
+              <p>
+                You are granted a limited, non-exclusive, revocable license to
+                use our brand name, trademarks, and promotional materials solely
+                for the purpose of promoting the Platform through your Affiliate
+                Link. All rights not expressly granted remain reserved by Reel
+                Me In Media Limited.
+              </p>
+
+              <h5 className="font-semibold text-base mt-4">
+                6. Relationship of Parties
+              </h5>
+              <p>
+                Nothing in these Terms shall create any partnership, joint
+                venture, employment, or agency relationship between you and Reel
+                Me In Media. You act as an independent contractor in promoting
+                the Platform.
+              </p>
+
+              <h5 className="font-semibold text-base mt-4">7. Termination</h5>
+              <p>
+                We reserve the right to suspend or terminate your participation
+                in the Program at any time, with or without cause, and without
+                prior notice. Upon termination, any unpaid commissions may be
+                forfeited at our discretion.
+              </p>
+
+              <h5 className="font-semibold text-base mt-4">
+                8. Limitation of Liability
+              </h5>
+              <p>
+                Reel Me In Media will not be liable for indirect, incidental, or
+                consequential damages related to your participation in the
+                Program. Our total liability shall not exceed the total
+                commissions paid to you in the last 6 months.
+              </p>
+
+              <h5 className="font-semibold text-base mt-4">9. Amendments</h5>
+              <p>
+                We may modify these Terms at any time. Continued participation
+                in the Program after changes take effect constitutes acceptance
+                of the updated Terms.
+              </p>
+
+              <h4 className="font-semibold text-lg">13. Governing Law</h4>
               <p>
                 These Terms shall be governed by and construed in accordance
                 with the laws of England and Wales, without regard to
                 conflict-of-law principles.
               </p>
 
-              <h4 className="font-semibold text-lg">13. Changes to Terms</h4>
+              <h4 className="font-semibold text-lg">14. Changes to Terms</h4>
               <p>
                 We may amend these Terms at any time by posting an updated
                 version on our Platform. Continued use of the Platform after
                 changes take effect constitutes acceptance of the updated Terms.
               </p>
 
-              <h4 className="font-semibold text-lg">14. Contact Information</h4>
+              <h4 className="font-semibold text-lg">15. Contact Information</h4>
               <p>If you have questions about these Terms, contact us:</p>
               <ul className="list-none space-y-1">
                 <li>
