@@ -14,6 +14,8 @@ import {
   Eye,
   EyeOff,
   Lock,
+  Copy,
+  Gift,
 } from "lucide-react";
 import { useLoaderData } from "react-router-dom";
 import { updateUserProfile } from "./functions";
@@ -41,6 +43,7 @@ function Profile() {
     email: "",
     profile_image: "",
   });
+  const [copySuccess, setCopySuccess] = useState(false);
   const fileInputRef = useRef(null);
 
   // Limpiar URL del objeto cuando el componente se desmonte
@@ -292,9 +295,73 @@ function Profile() {
     fileInputRef.current?.click();
   };
 
+  const copyRewardsLink = async () => {
+    const rewardsLink = `https://reelmotion.ai/login?code=${
+      user?.data?.email || ""
+    }`;
+
+    try {
+      await navigator.clipboard.writeText(rewardsLink);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000); // Reset after 2 seconds
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = rewardsLink;
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand("copy");
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+      } catch (fallbackErr) {
+        console.error("Failed to copy link:", fallbackErr);
+      }
+      document.body.removeChild(textArea);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-primarioDark p-6">
       <div className="max-w-4xl mx-auto">
+        {/* Rewards Link Widget */}
+        <div className="bg-darkBox border border-gray-600 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-[#F2D543] rounded-lg">
+                <Gift className="w-5 h-5 text-primarioDark" />
+              </div>
+              <div>
+                <h3 className="text-white montserrat-medium text-sm">
+                  Share Your Rewards Link
+                </h3>
+                <p className="text-gray-400 text-xs montserrat-regular">
+                  Invite friends and earn rewards
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={copyRewardsLink}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                copySuccess
+                  ? "bg-green-600 text-white"
+                  : "bg-[#F2D543] hover:bg-[#f2f243] text-primarioDark"
+              }`}
+            >
+              <Copy className="w-4 h-4" />
+              <span className="text-sm montserrat-medium">
+                {copySuccess ? "Copied!" : "Copy Link"}
+              </span>
+            </button>
+          </div>
+          <div className="mt-3 p-3 bg-darkBoxSub rounded-lg border border-gray-700">
+            <p className="text-gray-300 text-sm montserrat-regular break-all">
+              {`https://reelmotion.ai/login?code=${user?.data?.email || ""}`}
+            </p>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-white montserrat-medium text-3xl tracking-wider">

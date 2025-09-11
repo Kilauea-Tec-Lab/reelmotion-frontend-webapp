@@ -39,6 +39,7 @@ export async function createImageFreepik(data) {
 export async function createImageOpenAI(data) {
   const info = {
     prompt: data.prompt,
+    base_image: data.base_image,
   };
 
   const response = await fetch(
@@ -59,6 +60,7 @@ export async function createImageOpenAI(data) {
 export async function createImageNanoBanana(data) {
   const info = {
     prompt: data.prompt,
+    base_image: data.base_image, // base64
   };
 
   const response = await fetch(

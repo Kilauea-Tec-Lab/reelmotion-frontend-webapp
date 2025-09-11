@@ -257,14 +257,48 @@ function ModalCreateFrame({
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
-      setUploadedFile(file);
+      // Check if it's a video file
+      if (file.type.startsWith("video/")) {
+        // Create a video element to check duration
+        const video = document.createElement("video");
+        video.preload = "metadata";
 
-      // Crear preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setUploadPreview(e.target.result);
-      };
-      reader.readAsDataURL(file);
+        video.onloadedmetadata = () => {
+          // Release the video element
+          window.URL.revokeObjectURL(video.src);
+
+          // Check if duration is more than 10 seconds
+          if (video.duration > 10) {
+            alert(
+              "Video duration must be 10 seconds or less. Please select a shorter video."
+            );
+            event.target.value = ""; // Clear the input
+            return;
+          }
+
+          // If duration is valid, proceed with upload
+          setUploadedFile(file);
+          setUploadPreview(window.URL.createObjectURL(file));
+        };
+
+        video.onerror = () => {
+          alert("Error loading video file. Please try a different file.");
+          event.target.value = ""; // Clear the input
+          window.URL.revokeObjectURL(video.src);
+        };
+
+        video.src = window.URL.createObjectURL(file);
+      } else {
+        // For image files, proceed normally
+        setUploadedFile(file);
+
+        // Crear preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setUploadPreview(e.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -772,7 +806,7 @@ function ModalCreateFrame({
                       Click to upload or drag and drop
                     </p>
                     <p className="text-gray-400 text-sm mt-1">
-                      PNG, JPG, GIF, MP4 up to 10MB
+                      PNG, JPG, GIF, MP4 up to 10MB (videos max 10 seconds)
                     </p>
                   </div>
                 </label>

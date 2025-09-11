@@ -23,6 +23,7 @@ export async function createAccount(data) {
     last_name: data.last_name || "", // Add default if not provided
     email: data.email,
     password: data.password,
+    referral_code: data.referral_code || "", // Add default if not provided
   };
 
   const response = await fetch(

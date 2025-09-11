@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { createAccount, login } from "./functions";
@@ -52,6 +52,22 @@ function Login() {
     useState(false);
   const [showCreatePasswordConfirm, setShowCreatePasswordConfirm] =
     useState(false);
+
+  // Referral code states
+  const [referralCode, setReferralCode] = useState("");
+  const [isReferralMode, setIsReferralMode] = useState(false);
+
+  // Check for referral code in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    
+    if (code) {
+      setReferralCode(code);
+      setIsReferralMode(true);
+      setTypeRecord(2); // Switch to create account mode
+    }
+  }, []);
 
   async function handleLogin() {
     // Reset error states
@@ -188,6 +204,7 @@ function Login() {
       email: createEmail.toLowerCase(),
       password: createPassword,
       passwordConfirm: createPasswordConfirm,
+      referral_code: referralCode || null, // Include referral code if present
     });
 
     if (register.ok) {
