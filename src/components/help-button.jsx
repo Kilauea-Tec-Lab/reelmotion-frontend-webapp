@@ -42,11 +42,35 @@ function HelpButton() {
 
   return (
     <>
+      {/* CSS personalizado para animación más visible */}
+      <style>{`
+        @keyframes helpButtonPulse {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(242, 213, 67, 0.7);
+          }
+          50% {
+            transform: scale(1.15);
+            box-shadow: 0 0 0 15px rgba(242, 213, 67, 0);
+          }
+        }
+        
+        .help-button-animated {
+          animation: helpButtonPulse 0.6s ease-in-out infinite;
+        }
+        
+        .help-button-animated:hover {
+          animation: none;
+        }
+      `}</style>
+
       {/* Help Button */}
       <div ref={menuRef} className="fixed bottom-6 left-6 z-50">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="bg-[#F2D543] hover:bg-[#f2f243] text-primarioDark p-4 rounded-full shadow-2xl transition-all transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-[#F2D543] focus:ring-opacity-50 animate-pulse hover:animate-none"
+          className={`bg-[#F2D543] hover:bg-[#f2f243] text-primarioDark p-4 rounded-full shadow-2xl transition-all transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-[#F2D543] focus:ring-opacity-50 ${
+            !isOpen ? 'help-button-animated' : ''
+          }`}
         >
           <HelpCircle size={24} />
         </button>
