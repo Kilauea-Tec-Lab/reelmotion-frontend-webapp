@@ -13,7 +13,16 @@ import TutorialModal from "./tutorial-modal";
 function HelpButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeComponent, setActiveComponent] = useState(null);
+  const [hasBeenClicked, setHasBeenClicked] = useState(false);
   const menuRef = useRef(null);
+
+  // Verificar en el montaje si ya se ha hecho click antes
+  useEffect(() => {
+    const helpButtonClicked = localStorage.getItem("helpButtonClicked");
+    if (helpButtonClicked === "true") {
+      setHasBeenClicked(true);
+    }
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -30,6 +39,16 @@ function HelpButton() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
+
+  // Manejar click del botón principal
+  const handleButtonClick = () => {
+    // Si es el primer click, guardarlo en caché
+    if (!hasBeenClicked) {
+      localStorage.setItem("helpButtonClicked", "true");
+      setHasBeenClicked(true);
+    }
+    setIsOpen(!isOpen);
+  };
 
   const handleOptionSelect = (option) => {
     setActiveComponent(option);
@@ -67,9 +86,9 @@ function HelpButton() {
       {/* Help Button */}
       <div ref={menuRef} className="fixed bottom-6 left-6 z-50">
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleButtonClick}
           className={`bg-[#F2D543] hover:bg-[#f2f243] text-primarioDark p-4 rounded-full shadow-2xl transition-all transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-[#F2D543] focus:ring-opacity-50 ${
-            !isOpen ? 'help-button-animated' : ''
+            !isOpen && !hasBeenClicked ? "help-button-animated" : ""
           }`}
         >
           <HelpCircle size={24} />

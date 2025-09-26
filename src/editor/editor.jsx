@@ -4193,7 +4193,7 @@ function Editor() {
               <Image />
             </div>
           </div>
-          <div className="w-4/5 overflow-scroll bg-darkBoxSub rounded-tr-4xl rounded-br-4xl">
+          <div className="w-4/5 overflow-none bg-darkBoxSub rounded-tr-4xl rounded-br-4xl">
             {menuActive == 1 ? (
               <div className="p-4 w-full h-full">
                 {projects.length > 0 ? (
@@ -4415,7 +4415,7 @@ function Editor() {
                 )}
 
                 {/* Music list */}
-                <div className="overflow-y-auto h-full space-y-3 mt-11">
+                <div className="overflow-y-auto h-full space-y-3 pb-14 mt-11">
                   {musicList.map((music, index) => (
                     <div
                       key={music.id || index}
@@ -4465,7 +4465,7 @@ function Editor() {
               </div>
             ) : menuActive == 3 ? (
               <div
-                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative overflow-hidden"
+                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl pb-14 rounded-br-4xl h-full relative overflow-hidden"
                 onDragOver={handleVoiceContainerDragOver}
                 onDrop={handleVoiceContainerDrop}
               >
@@ -4609,7 +4609,7 @@ function Editor() {
 
                 {/* Sound list */}
                 <div
-                  className={`grid mt-11 grid-cols-1 gap-4 overflow-y-auto ${
+                  className={`grid mt-11 grid-cols-1 pb-14 gap-4 overflow-y-auto ${
                     soundList.length === 0
                       ? "max-h-[calc(100%-140px)]"
                       : "h-full"
@@ -4728,7 +4728,7 @@ function Editor() {
 
                 {/* Images grid */}
                 <div
-                  className={`grid mt-11 grid-cols-1 gap-4 overflow-y-auto ${
+                  className={`grid mt-11 grid-cols-1 gap-4 pb-14 overflow-y-auto ${
                     images.length === 0 ? "max-h-[calc(100%-140px)]" : "h-full"
                   }`}
                 >

@@ -1431,6 +1431,17 @@ function ModalCreateScene({
                                 Tracking Shot
                               </option>
                               <option value="handheld">Handheld</option>
+                              <option value="macro shot">Macro Shot</option>
+                              <option value="shallow depth of field">
+                                Shallow Depth of Field
+                              </option>
+                              <option value="aerial view">Aerial View</option>
+                              <option value="slow pan">Slow Pan</option>
+                              <option value="crane shot">Crane Shot</option>
+                              <option value="wide-angle shot">
+                                Wide-angle Shot
+                              </option>
+                              <option value="tilt up/down">Tilt Up/Down</option>
                             </select>
                           </div>
                         </div>
