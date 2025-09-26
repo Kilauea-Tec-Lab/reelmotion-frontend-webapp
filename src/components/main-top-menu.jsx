@@ -1504,7 +1504,7 @@ function MainTopMenu({ user_info }) {
   }, [selectedGateway, tokenPurchaseStep]);
 
   return (
-    <header className="bg-primarioDark h-15 pt-1 flex items-center justify-between px-6 fixed top-0 left-0 right-0 z-50  border-b pb-2 border-gray-800">
+    <header className="bg-primarioDark h-15 pt-1 flex items-center justify-between px-6 fixed top-0 left-0 right-0 z-30  border-b pb-2 border-gray-800">
       {/* Project Modal */}
       <PostModal
         isOpen={showProjectModal}
