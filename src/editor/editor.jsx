@@ -4195,7 +4195,7 @@ function Editor() {
           </div>
           <div className="w-4/5 overflow-none bg-darkBoxSub rounded-tr-4xl rounded-br-4xl">
             {menuActive == 1 ? (
-              <div className="p-4 w-full h-full">
+              <div className="p-4 w-full h-full overflow-auto">
                 {projects.length > 0 ? (
                   <div className="space-y-6">
                     {projects.map((project) => (
