@@ -1,5 +1,5 @@
 import { div, span } from "framer-motion/client";
-import { Edit, Plus, Trash2, MoreHorizontal, Volume2 } from "lucide-react";
+import { Edit, Plus, Trash2, MoreHorizontal, Volume2, Bot } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLoaderData, useParams, useNavigate } from "react-router-dom";
 import ModalEditProject from "../create_elements/modal-edit-project";
@@ -22,6 +22,7 @@ import ModalDeleteVoice from "./components/modal-delete-voice";
 import ModalPreview from "../components/modal-preview";
 import { createPusherClient } from "../pusher";
 import { getProjects } from "./functions";
+import { openProjectAgent } from "../components/project-agent-manager";
 
 function MainProject() {
   const id = useParams();
@@ -115,6 +116,10 @@ function MainProject() {
 
   const handleDeleteProject = () => {
     setIsDeleteModalOpen(true);
+  };
+
+  const handleOpenAgent = () => {
+    openProjectAgent(project?.id, project?.name);
   };
 
   const handleProjectUpdated = () => {
@@ -378,6 +383,14 @@ function MainProject() {
           <h1 className="text-white montserrat-medium text-2xl tracking-wider">
             {project?.name}
           </h1>
+          <button
+            type="button"
+            className="mt-2 px-2 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors"
+            onClick={handleOpenAgent}
+            title="Open Project Agent"
+          >
+            <Bot size={15} />
+          </button>
           <button
             type="button"
             className="mt-2 px-2 py-2 bg-yellow-900 text-yellow-200 rounded-lg hover:bg-yellow-600"

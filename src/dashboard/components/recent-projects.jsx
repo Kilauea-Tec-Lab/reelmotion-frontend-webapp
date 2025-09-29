@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { MoreHorizontal, Edit, Eye, Trash2, Film } from "lucide-react";
+import { MoreHorizontal, Edit, Eye, Trash2, Film, Bot } from "lucide-react";
 import { Link } from "react-router-dom";
 import PostModal from "../../discover/components/post-modal";
+import { openProjectAgent } from "../../components/project-agent-manager";
 
 function RecentProjects({
   recentsProjects,
@@ -39,6 +40,11 @@ function RecentProjects({
   const handleClosePostModal = () => {
     setIsPostModalOpen(false);
     setSelectedPostId(null);
+  };
+
+  const handleOpenAgent = (project) => {
+    openProjectAgent(project.id, project.name);
+    setShowMenu(null);
   };
 
   return (
@@ -104,6 +110,15 @@ function RecentProjects({
                         >
                           <Eye className="w-4 h-4" /> Show
                         </Link>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenAgent(project);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#F2D543] hover:bg-darkBox transition-colors"
+                        >
+                          <Bot className="w-4 h-4" /> Agent
+                        </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

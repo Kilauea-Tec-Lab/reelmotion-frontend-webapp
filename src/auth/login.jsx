@@ -273,7 +273,7 @@ function Login() {
                 </span>
                 <button
                   type="button"
-                  className="montserrat-light tracking-wider text-sm text-[#F2D543] hover:text-[#ffe969] hover:bg-[#F2D543]/10 hover:px-2 hover:py-1 hover:rounded-md transition-all duration-300 cursor-pointer"
+                  className="montserrat-light tracking-wider text-sm text-[#F2D543] hover:text-[#ffe969]"
                   onClick={() => setTypeRecord(2)}
                 >
                   Register here!
@@ -289,7 +289,7 @@ function Login() {
                 </span>
                 <button
                   type="button"
-                  className="montserrat-light tracking-wider text-sm text-[#F2D543] hover:text-[#ffe969] hover:bg-[#F2D543]/10 hover:px-2 hover:py-1 hover:rounded-md transition-all duration-300 cursor-pointer"
+                  className="montserrat-light tracking-wider text-sm text-[#F2D543] hover:text-[#ffe969]"
                   onClick={() => setTypeRecord(1)}
                 >
                   Login Here!

@@ -46,11 +46,6 @@ function ModalCreateScene({
   const [alephTaskType, setAlephTaskType] = useState("");
   const [alephDetails, setAlephDetails] = useState("");
 
-  // Estados específicos para LumaLabs
-  const [lumaFrameMode, setLumaFrameMode] = useState("single"); // "single" o "start-end"
-  const [startFrame, setStartFrame] = useState("");
-  const [endFrame, setEndFrame] = useState("");
-
   // Estado para aspect ratio
   const [selectedAspectRatio, setSelectedAspectRatio] = useState("");
 
@@ -251,14 +246,6 @@ function ModalCreateScene({
       fetchUserInfo();
     }
   }, [isOpen]);
-
-  // useEffect para inicializar startFrame cuando se selecciona LumaLabs
-  useEffect(() => {
-    if (aiModel === "lumalabs" && selectedFrame && !startFrame) {
-      setStartFrame(selectedFrame);
-    }
-  }, [aiModel, selectedFrame]);
-
   // Mock data - En producción esto vendría de props o API
 
   const allAiModels = [
@@ -508,10 +495,6 @@ function ModalCreateScene({
     // Limpiar estados de Aleph
     setAlephTaskType("");
     setAlephDetails("");
-    // Limpiar estados de LumaLabs
-    setLumaFrameMode("single");
-    setStartFrame("");
-    setEndFrame("");
     onClose();
   };
 
@@ -609,29 +592,6 @@ function ModalCreateScene({
         videoPayload.with_audio = withAudio;
       }
 
-      // Configuración específica para LumaLabs
-      if (aiModel === "lumalabs") {
-        // Enviar configuración del modo de frame
-        videoPayload.frame_mode = lumaFrameMode; // "single" o "start-end"
-
-        if (lumaFrameMode === "start-end") {
-          // Buscar las URLs de los frames
-          const startFrameData = availableFrames?.find(
-            (f) => f.id === startFrame
-          );
-          const endFrameData = availableFrames?.find((f) => f.id === endFrame);
-
-          // Enviar URLs de las imágenes
-          videoPayload.start_frame =
-            startFrameData?.media_url || startFrameData?.url;
-          videoPayload.end_frame = endFrameData?.media_url || endFrameData?.url;
-
-          // Remove media_url ya que usamos start_frame y end_frame
-          delete videoPayload.media_url;
-        }
-        // Si es "single", se mantiene el media_url normal
-      }
-
       // Llamar a la API para generar el video
       const response = await fetch(
         `${import.meta.env.VITE_APP_BACKEND_URL}ai/generate-video`,
@@ -727,7 +687,8 @@ function ModalCreateScene({
       !sceneName.trim() ||
       !sceneDescription.trim() ||
       !selectedFrame ||
-      !generatedVideoUrl
+      !generatedVideoUrl ||
+      (aiModel !== "runway-aleph" && !promptImageUrl)
     )
       return;
 
@@ -1050,173 +1011,6 @@ function ModalCreateScene({
                 </select>
               </div>
 
-              {/* Configuración específica para LumaLabs */}
-              {aiModel === "lumalabs" && (
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-white mb-3 montserrat-regular">
-                    Frame Selection Mode *
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div
-                      onClick={() => setLumaFrameMode("single")}
-                      className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                        lumaFrameMode === "single"
-                          ? "border-[#F2D543] bg-[#F2D54315]"
-                          : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <div
-                          className={`p-1 rounded ${
-                            lumaFrameMode === "single"
-                              ? "bg-[#F2D543] text-primarioDark"
-                              : "bg-gray-700 text-gray-300"
-                          }`}
-                        >
-                          <ImageIcon className="w-4 h-4" />
-                        </div>
-                        <h3 className="font-medium text-white montserrat-medium text-sm">
-                          Single Frame
-                        </h3>
-                      </div>
-                      <p className="text-xs text-gray-400 montserrat-regular">
-                        Use only the selected frame
-                      </p>
-                    </div>
-
-                    <div
-                      onClick={() => setLumaFrameMode("start-end")}
-                      className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                        lumaFrameMode === "start-end"
-                          ? "border-[#F2D543] bg-[#F2D54315]"
-                          : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <div
-                          className={`p-1 rounded ${
-                            lumaFrameMode === "start-end"
-                              ? "bg-[#F2D543] text-primarioDark"
-                              : "bg-gray-700 text-gray-300"
-                          }`}
-                        >
-                          <Video className="w-4 h-4" />
-                        </div>
-                        <h3 className="font-medium text-white montserrat-medium text-sm">
-                          Start & End Frame
-                        </h3>
-                      </div>
-                      <p className="text-xs text-gray-400 montserrat-regular">
-                        Define start and end frames
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Selección de frames para start-end mode */}
-                  {lumaFrameMode === "start-end" && (
-                    <div className="mt-4 space-y-4">
-                      {/* Start Frame */}
-                      <div>
-                        <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
-                          Start Frame *
-                        </label>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-40 overflow-y-auto">
-                          {availableFrames?.map((frame) => (
-                            <div
-                              key={frame.id}
-                              onClick={() => setStartFrame(frame.id)}
-                              className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
-                                startFrame === frame.id
-                                  ? "border-[#F2D543] ring-2 ring-[#F2D543]/50"
-                                  : "border-gray-600 hover:border-gray-400"
-                              }`}
-                            >
-                              <div className="aspect-video">
-                                {frame.media_url || frame.url ? (
-                                  <img
-                                    src={frame.media_url || frame.url}
-                                    alt={frame.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full bg-gray-700 flex items-center justify-center">
-                                    <ImageIcon className="w-6 h-6 text-gray-400" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-1">
-                                <p className="text-white text-xs montserrat-regular truncate">
-                                  {frame.name}
-                                </p>
-                              </div>
-                              {startFrame === frame.id && (
-                                <div className="absolute top-1 right-1 bg-[#F2D543] text-primarioDark rounded-full w-5 h-5 flex items-center justify-center">
-                                  <span className="text-xs font-bold">✓</span>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        {!startFrame && (
-                          <p className="text-gray-400 text-xs mt-1 montserrat-regular">
-                            Click on a frame to select it as start frame
-                          </p>
-                        )}
-                      </div>
-
-                      {/* End Frame */}
-                      <div>
-                        <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
-                          End Frame *
-                        </label>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-40 overflow-y-auto">
-                          {availableFrames?.map((frame) => (
-                            <div
-                              key={frame.id}
-                              onClick={() => setEndFrame(frame.id)}
-                              className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
-                                endFrame === frame.id
-                                  ? "border-[#F2D543] ring-2 ring-[#F2D543]/50"
-                                  : "border-gray-600 hover:border-gray-400"
-                              }`}
-                            >
-                              <div className="aspect-video">
-                                {frame.media_url || frame.url ? (
-                                  <img
-                                    src={frame.media_url || frame.url}
-                                    alt={frame.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full bg-gray-700 flex items-center justify-center">
-                                    <ImageIcon className="w-6 h-6 text-gray-400" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-1">
-                                <p className="text-white text-xs montserrat-regular truncate">
-                                  {frame.name}
-                                </p>
-                              </div>
-                              {endFrame === frame.id && (
-                                <div className="absolute top-1 right-1 bg-[#F2D543] text-primarioDark rounded-full w-5 h-5 flex items-center justify-center">
-                                  <span className="text-xs font-bold">✓</span>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        {!endFrame && (
-                          <p className="text-gray-400 text-xs mt-1 montserrat-regular">
-                            Click on a frame to select it as end frame
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Scene Prompt */}
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-3">
@@ -1431,17 +1225,6 @@ function ModalCreateScene({
                                 Tracking Shot
                               </option>
                               <option value="handheld">Handheld</option>
-                              <option value="macro shot">Macro Shot</option>
-                              <option value="shallow depth of field">
-                                Shallow Depth of Field
-                              </option>
-                              <option value="aerial view">Aerial View</option>
-                              <option value="slow pan">Slow Pan</option>
-                              <option value="crane shot">Crane Shot</option>
-                              <option value="wide-angle shot">
-                                Wide-angle Shot
-                              </option>
-                              <option value="tilt up/down">Tilt Up/Down</option>
                             </select>
                           </div>
                         </div>
@@ -1707,9 +1490,6 @@ function ModalCreateScene({
                 disabled={
                   !selectedFrame ||
                   !selectedAspectRatio ||
-                  (aiModel === "lumalabs" &&
-                    lumaFrameMode === "start-end" &&
-                    (!startFrame || !endFrame)) ||
                   (aiModel === "runway-aleph"
                     ? alephTaskType.trim() && !alephDetails.trim() // Si hay task type, requiere detalles
                     : isProPromptMode
@@ -1873,7 +1653,8 @@ function ModalCreateScene({
                 !sceneName.trim() ||
                 !sceneDescription.trim() ||
                 !selectedFrame ||
-                !generatedVideoUrl
+                !generatedVideoUrl ||
+                (aiModel !== "runway-aleph" && !promptImageUrl)
               }
               className="px-6 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543]"
             >
