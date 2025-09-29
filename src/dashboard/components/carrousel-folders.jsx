@@ -7,6 +7,7 @@ import {
   Film,
   FolderOpen,
   MoreVertical,
+  Bot,
 } from "lucide-react";
 import ModalEditFolder from "../../create_elements/modal-edit-folder";
 import ModalDeleteFolder from "../../create_elements/modal-delete-folder";
@@ -15,6 +16,7 @@ import ModalDeleteProject from "../../create_elements/modal-delete-project";
 import PostModal from "../../discover/components/post-modal";
 import { destroyFolder, destroyProject } from "../../create_elements/functions";
 import { Link } from "react-router-dom";
+import { openProjectAgent } from "../../components/project-agent-manager";
 
 function CarrouselFolders({ folder, folders }) {
   const [hoveredProject, setHoveredProject] = useState(null);
@@ -85,6 +87,11 @@ function CarrouselFolders({ folder, folders }) {
   async function handleConfirmDeleteProject(projectToDelete) {
     const response = await destroyProject({ id: projectToDelete.id });
   }
+
+  const handleOpenAgent = (project) => {
+    openProjectAgent(project.id, project.name);
+    setShowMenu(null);
+  };
 
   return (
     <div className="pt-8">
@@ -226,7 +233,7 @@ function CarrouselFolders({ folder, folders }) {
                     {/* Dropdown Menu */}
                     {showMenu === project.id && (
                       <div
-                        className="absolute top-6 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[70px]"
+                        className="absolute top-6 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[100px]"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <Link
@@ -237,6 +244,16 @@ function CarrouselFolders({ folder, folders }) {
                           <Eye className="w-3 h-3" />
                           Show
                         </Link>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenAgent(project);
+                          }}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-[#F2D543] hover:bg-darkBox transition-colors"
+                        >
+                          <Bot className="w-3 h-3" />
+                          Agent
+                        </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

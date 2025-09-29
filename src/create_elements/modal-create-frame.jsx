@@ -201,106 +201,20 @@ function ModalCreateFrame({
 
   // Opciones de tipos de toma
   const cameraShots = [
-    {
-      id: "close-up",
-      name: "Close-up",
-      description:
-        "Frames the subject from shoulders up, focusing on facial expressions",
-    },
-    {
-      id: "medium-shot",
-      name: "Medium shot",
-      description:
-        "Frames the subject from waist up, balancing detail and context",
-    },
-    {
-      id: "long-shot",
-      name: "Long shot",
-      description: "Shows the full subject and surrounding environment",
-    },
+    { id: "close-up", name: "Close-up", description: "Close Up Shot" },
+    { id: "medium-shot", name: "Medium shot", description: "Medium Shot" },
+    { id: "long-shot", name: "Long shot", description: "General Shot" },
     {
       id: "extreme-close-up",
       name: "Extreme close-up",
-      description:
-        "Very tight framing focusing on specific details like eyes or hands",
+      description: "Primerísimo primer plano",
     },
-    {
-      id: "full-shot",
-      name: "Full shot",
-      description: "Shows the entire subject from head to toe within the frame",
-    },
-    {
-      id: "wide-shot",
-      name: "Wide shot",
-      description:
-        "Captures a broad view of the scene with extensive background",
-    },
+    { id: "full-shot", name: "Full shot", description: "Full Shot" },
+    { id: "wide-shot", name: "Wide shot", description: "Great Full Shot" },
     {
       id: "over-shoulder",
       name: "Over shoulder",
-      description:
-        "Shot taken from behind one person's shoulder looking at another",
-    },
-    {
-      id: "dolly-in",
-      name: "Dolly In",
-      description: "The entire camera physically moves closer to a subject",
-    },
-    {
-      id: "dolly-out",
-      name: "Dolly out",
-      description: "The entire camera physically moves away from a subject",
-    },
-    {
-      id: "handheld-shot",
-      name: "Handheld shot",
-      description:
-        "The camera is held by an operator to create a shaky and authentic feeling",
-    },
-    {
-      id: "macro-shot",
-      name: "Macro Shot",
-      description:
-        "An extreme close up magnifies a tiny subject to reveal its intricate details",
-    },
-    {
-      id: "shallow-depth",
-      name: "Shallow depth of field",
-      description: "The subject is sharp focus while the background is blurred",
-    },
-    {
-      id: "aerial-view",
-      name: "Aerial View",
-      description: "The camera looks straight down from above",
-    },
-    {
-      id: "slow-pan",
-      name: "Slow pan",
-      description:
-        "The camera stays in one spot but pivots horizontally from left to right",
-    },
-    {
-      id: "tracking-shot",
-      name: "Tracking shot",
-      description:
-        "The camera moves alongside the subject usually horizontally",
-    },
-    {
-      id: "crane-shot",
-      name: "Crane Shot",
-      description: "The camera is on a crane and sweeps vertically up or down",
-    },
-    {
-      id: "wide-angle-shot",
-      name: "Wide-angle shot",
-      description:
-        "Uses a wide-angle lens to capture more of the scene with distorted perspective",
-    },
-    {
-      id: "tilt-up-down",
-      name: "Tilt up/down",
-      description:
-        "The camera stays in one spot but pivots vertically up or down",
+      description: "Over the Shoulder",
     },
   ];
 
