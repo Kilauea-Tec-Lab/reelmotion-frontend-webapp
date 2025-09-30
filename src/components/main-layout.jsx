@@ -16,8 +16,12 @@ function MainLayout() {
     const projectsClicked = localStorage.getItem("projectsButtonClicked");
     const isHomePage = location.pathname === "/";
 
-    if (!projectsClicked && isHomePage) {
-      setShowProjectsTutorial(true);
+    if (userInfo?.blur_val == false) {
+      if (!projectsClicked && isHomePage) {
+        setShowProjectsTutorial(true);
+      } else {
+        setShowProjectsTutorial(false);
+      }
     } else {
       setShowProjectsTutorial(false);
     }

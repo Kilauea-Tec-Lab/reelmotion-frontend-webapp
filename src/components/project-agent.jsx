@@ -342,14 +342,13 @@ function ProjectAgent({
             ) : (
               <>
                 {currentMessages.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <Bot size={48} className="text-gray-500 mx-auto mb-4" />
-                      <p className="text-gray-400 montserrat-light mb-2">
-                        No messages yet
-                      </p>
-                      <p className="text-gray-500 montserrat-light text-sm">
-                        Start a conversation with your project agent
+                  <div className="flex justify-start">
+                    <div className="max-w-[80%] p-3 rounded-lg bg-darkBoxSub text-white">
+                      <p className="montserrat-light text-sm">
+                        Hello, I'm your project assistant. I'm here to make
+                        things easier for you. Do you need any ideas,
+                        suggestions or prompts? No problem, just let me know and
+                        I will guide you through the entire process.
                       </p>
                     </div>
                   </div>
