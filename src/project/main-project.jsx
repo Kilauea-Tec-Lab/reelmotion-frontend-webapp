@@ -385,7 +385,7 @@ function MainProject() {
           </h1>
           <button
             type="button"
-            className="mt-2 px-2 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors"
+            className="mt-2 px-2 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors animate-pulse hover:animate-none"
             onClick={handleOpenAgent}
             title="Open Project Agent"
           >
