@@ -52,6 +52,138 @@ function ModalCreateScene({
   // Estado para audio (solo para Veo-3)
   const [withAudio, setWithAudio] = useState(false);
 
+  // Camera shots array for professional cinematography
+  const cameraShots = [
+    // Basic Shots
+    {
+      value: "extreme-wide-shot",
+      label:
+        "Extreme Wide Shot (EWS) - Establishing shot showing vast environment",
+    },
+    {
+      value: "wide-shot",
+      label:
+        "Wide Shot (WS) - Full subject with significant background context",
+    },
+    {
+      value: "full-shot",
+      label: "Full Shot (FS) - Subject from head to toe within frame",
+    },
+    {
+      value: "medium-wide-shot",
+      label:
+        "Medium Wide Shot (MWS) - Subject from knees up, balanced composition",
+    },
+    {
+      value: "medium-shot",
+      label:
+        "Medium Shot (MS) - Subject from waist up, natural conversation distance",
+    },
+    {
+      value: "medium-close-up",
+      label:
+        "Medium Close-Up (MCU) - Subject from chest up, intimate yet comfortable",
+    },
+    {
+      value: "close-up",
+      label: "Close-Up (CU) - Head and shoulders, emotional connection focus",
+    },
+    {
+      value: "extreme-close-up",
+      label: "Extreme Close-Up (ECU) - Detailed facial features or objects",
+    },
+
+    // Special Framing
+    {
+      value: "two-shot",
+      label: "Two Shot - Two subjects equally framed in composition",
+    },
+    {
+      value: "over-shoulder-shot",
+      label:
+        "Over-the-Shoulder Shot (OSS) - Conversation perspective with depth",
+    },
+    {
+      value: "point-of-view",
+      label:
+        "Point of View Shot (POV) - Subjective camera from character's perspective",
+    },
+    {
+      value: "insert-shot",
+      label: "Insert Shot - Detailed view of specific object or action",
+    },
+    {
+      value: "cutaway",
+      label: "Cutaway - Related but separate action or reaction shot",
+    },
+
+    // Camera Movements
+    {
+      value: "static-shot",
+      label: "Static Shot - Fixed camera position, no movement",
+    },
+    {
+      value: "pan-shot",
+      label: "Pan Shot - Horizontal camera rotation on fixed axis",
+    },
+    {
+      value: "tilt-shot",
+      label: "Tilt Shot - Vertical camera rotation on fixed axis",
+    },
+    {
+      value: "dolly-shot",
+      label: "Dolly Shot - Smooth camera movement on tracks or wheels",
+    },
+    {
+      value: "tracking-shot",
+      label: "Tracking Shot - Camera follows subject's movement laterally",
+    },
+    {
+      value: "crane-shot",
+      label: "Crane Shot - Elevated camera movement with vertical freedom",
+    },
+    {
+      value: "handheld-shot",
+      label:
+        "Handheld Shot - Organic, realistic camera movement with subtle shake",
+    },
+
+    // Camera Angles
+    {
+      value: "eye-level",
+      label: "Eye Level - Natural perspective at subject's eye height",
+    },
+    {
+      value: "low-angle",
+      label: "Low Angle - Camera below subject, creates power and dominance",
+    },
+    {
+      value: "high-angle",
+      label: "High Angle - Camera above subject, suggests vulnerability",
+    },
+    {
+      value: "birds-eye-view",
+      label:
+        "Bird's Eye View - Directly overhead perspective, omniscient viewpoint",
+    },
+    {
+      value: "worms-eye-view",
+      label: "Worm's Eye View - Extreme low angle looking up dramatically",
+    },
+
+    // Technical Shots
+    {
+      value: "rack-focus",
+      label:
+        "Rack Focus - Shifting focus between foreground and background elements",
+    },
+    {
+      value: "dutch-angle",
+      label:
+        "Dutch Angle - Tilted camera creating psychological unease or tension",
+    },
+  ];
+
   // Token system states
   const [tokens, setTokens] = useState(0);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
@@ -1173,27 +1305,11 @@ function ModalCreateScene({
                               className="w-full px-3 py-2 bg-darkBox rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent montserrat-regular text-sm"
                             >
                               <option value="">Select shot type...</option>
-                              <option value="extreme wide shot">
-                                Extreme Wide Shot
-                              </option>
-                              <option value="wide shot">Wide Shot</option>
-                              <option value="medium shot">Medium Shot</option>
-                              <option value="close-up">Close-up</option>
-                              <option value="extreme close-up">
-                                Extreme Close-up
-                              </option>
-                              <option value="over-the-shoulder shot">
-                                Over-the-shoulder Shot
-                              </option>
-                              <option value="bird's eye view">
-                                Bird's Eye View
-                              </option>
-                              <option value="low angle shot">
-                                Low Angle Shot
-                              </option>
-                              <option value="high angle shot">
-                                High Angle Shot
-                              </option>
+                              {cameraShots.map((shot, index) => (
+                                <option key={index} value={shot.value}>
+                                  {shot.label}
+                                </option>
+                              ))}
                             </select>
                           </div>
 
