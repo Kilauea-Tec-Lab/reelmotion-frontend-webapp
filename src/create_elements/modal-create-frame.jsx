@@ -201,20 +201,148 @@ function ModalCreateFrame({
 
   // Opciones de tipos de toma
   const cameraShots = [
-    { id: "close-up", name: "Close-up", description: "Close Up Shot" },
-    { id: "medium-shot", name: "Medium shot", description: "Medium Shot" },
-    { id: "long-shot", name: "Long shot", description: "General Shot" },
+    // Basic shots
     {
       id: "extreme-close-up",
-      name: "Extreme close-up",
-      description: "Extreme Close Up Shot",
+      name: "Extreme Close-up",
+      description: "Very tight framing on specific details like eyes or hands",
     },
-    { id: "full-shot", name: "Full shot", description: "Full Shot" },
-    { id: "wide-shot", name: "Wide shot", description: "Great Full Shot" },
+    {
+      id: "close-up",
+      name: "Close-up",
+      description:
+        "Frames subject from shoulders up, focusing on facial expressions",
+    },
+    {
+      id: "medium-close-up",
+      name: "Medium Close-up",
+      description:
+        "Frames subject from chest up, balancing intimacy and context",
+    },
+    {
+      id: "medium-shot",
+      name: "Medium Shot",
+      description: "Frames subject from waist up, ideal for dialogue scenes",
+    },
+    {
+      id: "medium-long-shot",
+      name: "Medium Long Shot",
+      description: "Frames subject from knees up, shows body language clearly",
+    },
+    {
+      id: "long-shot",
+      name: "Long Shot",
+      description: "Shows full subject and immediate surroundings",
+    },
+    {
+      id: "wide-shot",
+      name: "Wide Shot",
+      description: "Captures broad view of scene with extensive background",
+    },
+    {
+      id: "extreme-wide-shot",
+      name: "Extreme Wide Shot",
+      description:
+        "Establishes location with subject small in vast environment",
+    },
+    // Special framing
     {
       id: "over-shoulder",
-      name: "Over shoulder",
-      description: "Over the Shoulder",
+      name: "Over Shoulder",
+      description: "Shot from behind one person looking at another",
+    },
+    {
+      id: "point-of-view",
+      name: "Point of View (POV)",
+      description: "Shows what a character is seeing from their perspective",
+    },
+    {
+      id: "two-shot",
+      name: "Two Shot",
+      description: "Frames two subjects in the same shot, showing interaction",
+    },
+    {
+      id: "group-shot",
+      name: "Group Shot",
+      description: "Frames multiple subjects together in one composition",
+    },
+    // Camera movements
+    {
+      id: "dolly-in",
+      name: "Dolly In",
+      description: "Camera moves physically closer to subject",
+    },
+    {
+      id: "dolly-out",
+      name: "Dolly Out",
+      description: "Camera moves physically away from subject",
+    },
+    {
+      id: "tracking-shot",
+      name: "Tracking Shot",
+      description: "Camera follows subject's movement horizontally",
+    },
+    {
+      id: "crane-shot",
+      name: "Crane Shot",
+      description: "Camera sweeps vertically up or down on a crane",
+    },
+    {
+      id: "handheld-shot",
+      name: "Handheld Shot",
+      description: "Shaky, authentic feeling from handheld camera operation",
+    },
+    // Camera angles and pans
+    {
+      id: "pan-left-right",
+      name: "Pan Left/Right",
+      description: "Camera pivots horizontally while staying in one position",
+    },
+    {
+      id: "tilt-up-down",
+      name: "Tilt Up/Down",
+      description: "Camera pivots vertically while staying in one position",
+    },
+    {
+      id: "aerial-view",
+      name: "Aerial View",
+      description: "Camera looks straight down from directly above",
+    },
+    {
+      id: "birds-eye-view",
+      name: "Bird's Eye View",
+      description: "High angle looking down on subject from above",
+    },
+    {
+      id: "worms-eye-view",
+      name: "Worm's Eye View",
+      description: "Low angle looking up at subject from below",
+    },
+    // Technical shots
+    {
+      id: "macro-shot",
+      name: "Macro Shot",
+      description: "Extreme magnification revealing intricate tiny details",
+    },
+    {
+      id: "shallow-depth",
+      name: "Shallow Depth of Field",
+      description: "Subject in sharp focus with blurred background",
+    },
+    {
+      id: "deep-focus",
+      name: "Deep Focus",
+      description: "Both foreground and background in sharp focus",
+    },
+    {
+      id: "rack-focus",
+      name: "Rack Focus",
+      description: "Focus shifts from one subject to another during shot",
+    },
+    {
+      id: "dutch-angle",
+      name: "Dutch Angle",
+      description: "Camera tilted to create diagonal, unsettling composition",
     },
   ];
 
