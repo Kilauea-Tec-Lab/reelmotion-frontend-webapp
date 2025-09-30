@@ -207,7 +207,7 @@ function ModalCreateFrame({
     {
       id: "extreme-close-up",
       name: "Extreme close-up",
-      description: "Primerísimo primer plano",
+      description: "Extreme Close Up Shot",
     },
     { id: "full-shot", name: "Full shot", description: "Full Shot" },
     { id: "wide-shot", name: "Wide shot", description: "Great Full Shot" },
