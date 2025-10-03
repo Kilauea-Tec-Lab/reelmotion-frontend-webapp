@@ -254,11 +254,7 @@ function ProjectAgent({
             <Bot size={16} className="text-primarioDark" />
           </div>
           <div>
-            <h3 className="text-white montserrat-medium text-sm">Agents</h3>
-            <p className="text-gray-400 montserrat-light text-xs">
-              {agents.length}{" "}
-              {agents.length === 1 ? "agent active" : "agents active"}
-            </p>
+            <h3 className="text-white montserrat-medium text-sm">Agent</h3>
           </div>
         </div>
         <div className="flex items-center gap-2">
