@@ -299,20 +299,22 @@ function Login() {
           </div>
           <div className="sm:w-1/2 h-full justify-center">
             <div class="w-full flex justify-end gap-4 px-6 py-12">
-              <a
-                href="https://www.reelmeinmedia.com/"
-                target="_blank"
-                className="bg-primarioLogo px-4 pb-1 rounded-xl font-medium hover:bg-primarioLogo text-white"
+              <button
+                onClick={() =>
+                  window.open("https://www.reelmeinmedia.com/", "_blank")
+                }
+                className="bg-primarioLogo px-4 rounded-xl py-1 font-medium hover:bg-primarioLogo text-white flex items-center justify-center"
               >
-                Reel Me In Media
-              </a>
-              <a
-                href="/documents/affiliate_program.pdf"
-                target="_blank"
-                className="bg-primarioLogo px-4 pb-1 rounded-xl font-medium hover:bg-primarioLogo text-white"
+                <span className="flex items-center">Reel Me In Media</span>
+              </button>
+              <button
+                onClick={() =>
+                  window.open("/documents/affiliate_program.pdf", "_blank")
+                }
+                className="bg-primarioLogo px-4 rounded-xl font-medium hover:bg-primarioLogo text-white flex items-center justify-center"
               >
-                Affiliate Program
-              </a>
+                <span className="flex items-center">Affiliate Program</span>
+              </button>
             </div>
             {typeRecord == 1 ? (
               <div className="text-left w-full space-y-6 flex flex-col justify-center mt-20">
