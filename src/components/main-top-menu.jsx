@@ -51,7 +51,7 @@ const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 
 // Use QuickNode RPC directly (most reliable)
 const connection = new Connection(
-  "https://dark-tame-bridge.solana-mainnet.quiknode.pro/6370ec416f2fa776f93550624527f7b46624b912/",
+  "https://eu.onetimesecret.com/secret/4e6x1zfoim4yunccm6r4812bmmq98os",
   {
     commitment: "confirmed",
     confirmTransactionInitialTimeout: 60000,
