@@ -303,7 +303,7 @@ function Login() {
                 onClick={() =>
                   window.open("https://www.reelmeinmedia.com/", "_blank")
                 }
-                className="bg-primarioLogo px-4 rounded-xl py-1 font-medium hover:bg-primarioLogo text-white flex items-center justify-center"
+                className="bg-primarioLogo px-4 rounded-xl py-1 font-medium hover:bg-primarioLogo text-white flex items-center justify-center cursor-pointer"
               >
                 <span className="flex items-center">Reel Me In Media</span>
               </button>
@@ -311,7 +311,7 @@ function Login() {
                 onClick={() =>
                   window.open("/documents/affiliate_program.pdf", "_blank")
                 }
-                className="bg-primarioLogo px-4 rounded-xl font-medium hover:bg-primarioLogo text-white flex items-center justify-center"
+                className="bg-primarioLogo px-4 rounded-xl font-medium hover:bg-primarioLogo text-white flex items-center justify-center cursor-pointer"
               >
                 <span className="flex items-center">Affiliate Program</span>
               </button>
