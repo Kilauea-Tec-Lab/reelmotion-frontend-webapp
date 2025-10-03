@@ -9,6 +9,10 @@ import {
   Send,
   Loader2,
   Plus,
+  Paperclip,
+  Image as ImageIcon,
+  Video as VideoIcon,
+  XCircle,
 } from "lucide-react";
 
 function ProjectAgent({
@@ -25,8 +29,13 @@ function ProjectAgent({
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
+  const [fileType, setFileType] = useState(null); // 'image' or 'video'
+  const [isDragging, setIsDragging] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const activeAgent = agents.find((agent) => agent.id === activeAgentId);
   const currentMessages = agentMessages[activeAgentId] || [];
@@ -115,11 +124,47 @@ function ProjectAgent({
                   : new Date();
                 messageDate.setHours(0, 0, 0, 0); // Remove hours, minutes, seconds, milliseconds
 
+                let messageText = msg.message;
+                let fileUrl = null;
+                let fileType = null;
+
+                // Handle multimodal messages (with images/videos)
+                if (msg.type === "multimodal") {
+                  try {
+                    // Try to parse the message as JSON (it might be a string or already an object)
+                    const multimodalData =
+                      typeof msg.message === "string"
+                        ? JSON.parse(msg.message)
+                        : msg.message;
+
+                    messageText = multimodalData.text || "";
+                    fileUrl = multimodalData.media_url || null;
+                    fileType = multimodalData.media_type || null; // 'image' or 'video'
+                  } catch (error) {
+                    console.error("Error parsing multimodal message:", error);
+                    messageText = msg.message;
+                  }
+                }
+
+                // Determine sender based on type
+                let sender = "agent"; // default
+                if (msg.type === "1") {
+                  sender = "user";
+                } else if (msg.type === "2" || msg.type === "text") {
+                  sender = "agent";
+                } else if (msg.type === "multimodal") {
+                  // Multimodal can be from user or agent, check if it has context
+                  // For now, assume multimodal from user (you can adjust this logic)
+                  sender = "user";
+                }
+
                 return {
                   id: msg.id || index + 1,
-                  text: msg.message,
-                  sender: msg.type === "1" ? "user" : "agent", // type "1" = user, type "2" = agent
+                  text: messageText,
+                  sender: sender,
                   timestamp: messageDate,
+                  file: fileUrl,
+                  fileType: fileType,
                 };
               });
           } else {
@@ -147,37 +192,145 @@ function ProjectAgent({
     loadActiveAgentConversation();
   }, [activeAgentId, activeAgent]);
 
+  // Validate video duration
+  const validateVideoDuration = (file) => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+
+      video.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(video.src);
+        const duration = video.duration; // in seconds
+        const maxDuration = 5 * 60; // 5 minutes in seconds
+
+        if (duration > maxDuration) {
+          reject(new Error("Video must be 5 minutes or less"));
+        } else {
+          resolve(true);
+        }
+      };
+
+      video.onerror = () => {
+        reject(new Error("Failed to load video"));
+      };
+
+      video.src = URL.createObjectURL(file);
+    });
+  };
+
+  // Handle file selection
+  const handleFileSelect = async (file) => {
+    if (!file) return;
+
+    const fileType = file.type.startsWith("image/")
+      ? "image"
+      : file.type.startsWith("video/")
+      ? "video"
+      : null;
+
+    if (!fileType) {
+      alert("Please select an image or video file");
+      return;
+    }
+
+    // Validate video duration
+    if (fileType === "video") {
+      try {
+        await validateVideoDuration(file);
+      } catch (error) {
+        alert(error.message || "Video must be 5 minutes or less");
+        return;
+      }
+    }
+
+    setSelectedFile(file);
+    setFileType(fileType);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFilePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handle drag and drop
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  // Remove selected file
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    setFilePreview(null);
+    setFileType(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isLoading || !activeAgent) return;
+    if ((!inputMessage.trim() && !selectedFile) || isLoading || !activeAgent)
+      return;
 
     const userMessage = {
       id: Date.now(),
-      text: inputMessage,
+      text: inputMessage || (selectedFile ? `[${fileType}]` : ""),
       sender: "user",
       timestamp: new Date(),
+      file: filePreview,
+      fileType: fileType,
     };
 
     setAgentMessages((prev) => ({
       ...prev,
       [activeAgentId]: [...(prev[activeAgentId] || []), userMessage],
     }));
+
+    const messageToSend = inputMessage;
+    const fileToSend = selectedFile;
+    const typeToSend = selectedFile ? fileType : "text";
+
     setInputMessage("");
+    handleRemoveFile();
     setIsLoading(true);
 
     try {
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append("message", messageToSend);
+      formData.append("project_id", activeAgent.projectId);
+      formData.append("type", typeToSend);
+
+      if (fileToSend) {
+        formData.append("file", fileToSend);
+      }
+
       // Send message to API
       const response = await fetch(
         `${import.meta.env.VITE_APP_BACKEND_URL}projects/send-message`,
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
             Authorization: "Bearer " + Cookies.get("token"),
           },
-          body: JSON.stringify({
-            message: inputMessage,
-            project_id: activeAgent.projectId,
-          }),
+          body: formData,
         }
       );
 
@@ -366,9 +519,29 @@ function ProjectAgent({
                               : "bg-darkBoxSub text-white"
                           }`}
                         >
-                          <p className="montserrat-light text-sm">
-                            {message.text}
-                          </p>
+                          {/* File preview in message */}
+                          {message.file && (
+                            <div className="mb-2">
+                              {message.fileType === "image" ? (
+                                <img
+                                  src={message.file}
+                                  alt="Attached"
+                                  className="max-w-full rounded max-h-48 object-contain"
+                                />
+                              ) : message.fileType === "video" ? (
+                                <video
+                                  src={message.file}
+                                  controls
+                                  className="max-w-full rounded max-h-48"
+                                />
+                              ) : null}
+                            </div>
+                          )}
+                          {message.text && (
+                            <p className="montserrat-light text-sm">
+                              {message.text}
+                            </p>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -399,29 +572,89 @@ function ProjectAgent({
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-darkBoxSub">
+      <div
+        className={`p-4 border-t border-darkBoxSub ${
+          isDragging ? "bg-darkBoxSub" : ""
+        }`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         {activeAgent ? (
-          <div className="flex gap-2">
-            <textarea
-              ref={inputRef}
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={`Ask the agent about ${
-                agentNames[activeAgentId] || activeAgent.projectName
-              }...`}
-              className="flex-1 bg-darkBoxSub text-white placeholder-gray-400 rounded-lg px-3 py-2 text-sm montserrat-light resize-none max-h-20 min-h-[40px] focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:ring-opacity-50"
-              rows={1}
-              disabled={isLoading}
-            />
-            <button
-              onClick={handleSendMessage}
-              disabled={!inputMessage.trim() || isLoading}
-              className="bg-[#F2D543] hover:bg-[#f2f243] disabled:bg-gray-600 disabled:cursor-not-allowed text-primarioDark p-2 rounded-lg transition-colors"
-              title="Send message"
-            >
-              <Send size={16} />
-            </button>
+          <div className="space-y-2">
+            {/* File Preview */}
+            {selectedFile && filePreview && (
+              <div className="relative bg-darkBoxSub rounded-lg p-2">
+                <button
+                  onClick={handleRemoveFile}
+                  className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 z-10"
+                  title="Remove file"
+                >
+                  <XCircle size={16} />
+                </button>
+                {fileType === "image" ? (
+                  <img
+                    src={filePreview}
+                    alt="Preview"
+                    className="max-h-32 rounded object-contain"
+                  />
+                ) : (
+                  <div className="flex items-center gap-2 text-white">
+                    <VideoIcon size={24} className="text-[#F2D543]" />
+                    <span className="text-sm montserrat-light">
+                      {selectedFile.name}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Drag & Drop indicator */}
+            {isDragging && (
+              <div className="absolute inset-0 bg-[#F2D543] bg-opacity-20 border-2 border-dashed border-[#F2D543] rounded-lg flex items-center justify-center pointer-events-none">
+                <p className="text-[#F2D543] montserrat-medium">
+                  Drop file here
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*"
+                onChange={(e) => handleFileSelect(e.target.files[0])}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-darkBoxSub hover:bg-gray-700 text-white p-2 rounded-lg transition-colors"
+                title="Attach file"
+                disabled={isLoading}
+              >
+                <Paperclip size={16} />
+              </button>
+              <textarea
+                ref={inputRef}
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder={`Ask the agent about ${
+                  agentNames[activeAgentId] || activeAgent.projectName
+                }...`}
+                className="flex-1 bg-darkBoxSub text-white placeholder-gray-400 rounded-lg px-3 py-2 text-sm montserrat-light resize-none max-h-20 min-h-[40px] focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:ring-opacity-50"
+                rows={1}
+                disabled={isLoading}
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={(!inputMessage.trim() && !selectedFile) || isLoading}
+                className="bg-[#F2D543] hover:bg-[#f2f243] disabled:bg-gray-600 disabled:cursor-not-allowed text-primarioDark p-2 rounded-lg transition-colors"
+                title="Send message"
+              >
+                <Send size={16} />
+              </button>
+            </div>
           </div>
         ) : (
           <div className="text-center text-gray-500 montserrat-light text-sm py-2">
