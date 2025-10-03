@@ -34,7 +34,7 @@ function MainLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 relative">
+    <div className="min-h-screen bg-primarioDark relative">
       {/* Frosted Glass Overlay para tutorial de Projects */}
       {showProjectsTutorial && (
         <div className="fixed inset-0 z-40 backdrop-blur-md bg-black/30">
