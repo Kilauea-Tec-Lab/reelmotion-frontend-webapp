@@ -473,7 +473,7 @@ function ProjectAgent({
       </div>
 
       {/* Messages */}
-      <div 
+      <div
         className="flex-1 overflow-y-auto p-4 space-y-4 relative"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -492,7 +492,7 @@ function ProjectAgent({
             </div>
           </div>
         )}
-        
+
         {activeAgent ? (
           <>
             {isLoadingConversation ? (

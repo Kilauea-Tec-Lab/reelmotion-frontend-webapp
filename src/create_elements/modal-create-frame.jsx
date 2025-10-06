@@ -173,12 +173,12 @@ function ModalCreateFrame({
     {
       id: "16:9",
       name: "16:9 (Fullwidth/Desktop)",
-      description: "Ideal for widescreen displays",
+      description: "Widescreen displays",
     },
     {
       id: "9:16",
       name: "9:16 (Mobile/Vertical)",
-      description: "Ideal for mobile devices",
+      description: "Mobile devices",
     },
   ];
 
