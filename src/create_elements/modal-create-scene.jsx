@@ -303,12 +303,12 @@ function ModalCreateScene({
     {
       id: "16:9",
       name: "16:9 (Fullwidth/Desktop)",
-      description: "Ideal para pantallas anchas",
+      description: "Widescreen displays",
     },
     {
       id: "9:16",
       name: "9:16 (Mobile/Vertical)",
-      description: "Ideal para móviles y redes sociales",
+      description: "Mobile devices",
     },
   ];
 
@@ -319,7 +319,7 @@ function ModalCreateScene({
         {
           id: "16:9",
           name: "16:9 (Fullwidth/Desktop)",
-          description: "Ideal para pantallas anchas",
+          description: "Widescreen displays",
         },
       ];
     }
