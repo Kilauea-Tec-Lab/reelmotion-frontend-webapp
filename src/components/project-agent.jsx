@@ -473,7 +473,26 @@ function ProjectAgent({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div 
+        className="flex-1 overflow-y-auto p-4 space-y-4 relative"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {/* Drag & Drop indicator */}
+        {isDragging && activeAgent && (
+          <div className="absolute inset-0 bg-[#F2D543] bg-opacity-20 border-4 border-dashed border-[#F2D543] rounded-lg flex items-center justify-center pointer-events-none z-50 m-2">
+            <div className="text-center">
+              <p className="text-[#F2D543] montserrat-semibold text-2xl mb-2">
+                Drop your file here
+              </p>
+              <p className="text-[#F2D543] montserrat-light text-sm">
+                Images or videos (max 5 min)
+              </p>
+            </div>
+          </div>
+        )}
+        
         {activeAgent ? (
           <>
             {isLoadingConversation ? (
@@ -572,14 +591,7 @@ function ProjectAgent({
       </div>
 
       {/* Input */}
-      <div
-        className={`p-4 border-t border-darkBoxSub ${
-          isDragging ? "bg-darkBoxSub" : ""
-        }`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
+      <div className="p-4 border-t border-darkBoxSub">
         {activeAgent ? (
           <div className="space-y-2">
             {/* File Preview */}
@@ -606,15 +618,6 @@ function ProjectAgent({
                     </span>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* Drag & Drop indicator */}
-            {isDragging && (
-              <div className="absolute inset-0 bg-[#F2D543] bg-opacity-20 border-2 border-dashed border-[#F2D543] rounded-lg flex items-center justify-center pointer-events-none">
-                <p className="text-[#F2D543] montserrat-medium">
-                  Drop file here
-                </p>
               </div>
             )}
 

@@ -9,6 +9,7 @@ import {
   FileVideo,
   Layers,
   CreditCard,
+  Download,
 } from "lucide-react";
 import Cookies from "js-cookie";
 
@@ -38,6 +39,7 @@ function ModalCreateFrame({
   // Estados para modo upload
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploadPreview, setUploadPreview] = useState(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
 
   // Estados para modo existing frame
   const [selectedExistingFrame, setSelectedExistingFrame] = useState("");
@@ -359,6 +361,7 @@ function ModalCreateFrame({
     setImageGenerationError(null);
     setUploadedFile(null);
     setUploadPreview(null);
+    setIsDraggingFile(false);
     setSelectedExistingFrame("");
     setCustomPrompt("");
     setSelectedExistingImageStyle("");
@@ -385,48 +388,77 @@ function ModalCreateFrame({
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
-      // Check if it's a video file
-      if (file.type.startsWith("video/")) {
-        // Create a video element to check duration
-        const video = document.createElement("video");
-        video.preload = "metadata";
+      processFile(file);
+    }
+  };
 
-        video.onloadedmetadata = () => {
-          // Release the video element
-          window.URL.revokeObjectURL(video.src);
+  // Función centralizada para procesar archivos (desde input o drag & drop)
+  const processFile = (file) => {
+    // Check if it's a video file
+    if (file.type.startsWith("video/")) {
+      // Create a video element to check duration
+      const video = document.createElement("video");
+      video.preload = "metadata";
 
-          // Check if duration is more than 10 seconds
-          if (video.duration > 10) {
-            alert(
-              "Video duration must be 10 seconds or less. Please select a shorter video."
-            );
-            event.target.value = ""; // Clear the input
-            return;
-          }
+      video.onloadedmetadata = () => {
+        // Release the video element
+        window.URL.revokeObjectURL(video.src);
 
-          // If duration is valid, proceed with upload
-          setUploadedFile(file);
-          setUploadPreview(window.URL.createObjectURL(file));
-        };
+        // Check if duration is more than 10 seconds
+        if (video.duration > 10) {
+          alert(
+            "Video duration must be 10 seconds or less. Please select a shorter video."
+          );
+          return;
+        }
 
-        video.onerror = () => {
-          alert("Error loading video file. Please try a different file.");
-          event.target.value = ""; // Clear the input
-          window.URL.revokeObjectURL(video.src);
-        };
-
-        video.src = window.URL.createObjectURL(file);
-      } else {
-        // For image files, proceed normally
+        // If duration is valid, proceed with upload
         setUploadedFile(file);
+        setUploadPreview(window.URL.createObjectURL(file));
+      };
 
-        // Crear preview
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setUploadPreview(e.target.result);
-        };
-        reader.readAsDataURL(file);
-      }
+      video.onerror = () => {
+        alert("Error loading video file. Please try a different file.");
+        window.URL.revokeObjectURL(video.src);
+      };
+
+      video.src = window.URL.createObjectURL(file);
+    } else if (file.type.startsWith("image/")) {
+      // For image files, proceed normally
+      setUploadedFile(file);
+
+      // Crear preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setUploadPreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      alert("Please upload only image or video files.");
+    }
+  };
+
+  // Handle drag and drop events
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      processFile(files[0]);
     }
   };
 
@@ -916,35 +948,63 @@ function ModalCreateFrame({
                 </h3>
               </div>
 
-              <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
-                <input
-                  type="file"
-                  accept="image/*,video/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  id="file-upload"
-                />
-                <label
-                  htmlFor="file-upload"
-                  className="cursor-pointer flex flex-col items-center gap-3"
+              {!uploadPreview ? (
+                <div
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${
+                    isDraggingFile
+                      ? "border-[#F2D543] bg-[#F2D54315]"
+                      : "border-gray-600"
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
                 >
-                  <FileVideo className="w-12 h-12 text-gray-400" />
-                  <div>
-                    <p className="text-white montserrat-medium">
-                      Click to upload or drag and drop
-                    </p>
-                    <p className="text-gray-400 text-sm mt-1">
-                      PNG, JPG, GIF, MP4 up to 10MB (videos max 10 seconds)
-                    </p>
-                  </div>
-                </label>
-              </div>
-
-              {uploadPreview && (
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="cursor-pointer flex flex-col items-center gap-3"
+                  >
+                    <FileVideo
+                      className={`w-12 h-12 transition-colors ${
+                        isDraggingFile ? "text-[#F2D543]" : "text-gray-400"
+                      }`}
+                    />
+                    <div>
+                      <p
+                        className={`montserrat-medium ${
+                          isDraggingFile ? "text-[#F2D543]" : "text-white"
+                        }`}
+                      >
+                        {isDraggingFile
+                          ? "Drop file here"
+                          : "Click to upload or drag and drop"}
+                      </p>
+                      <p className="text-gray-400 text-sm mt-1">
+                        PNG, JPG, GIF, MP4 up to 10MB (videos max 10 seconds)
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              ) : (
                 <div className="mt-4">
-                  <p className="text-white montserrat-medium text-sm mb-2">
-                    Preview:
-                  </p>
+                  <div className="flex items-center justify-between mb-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUploadPreview(null);
+                        setUploadedFile(null);
+                      }}
+                      className="text-primarioLogo hover:text-primarioLogo text-sm montserrat-regular"
+                    >
+                      Discard & Upload New
+                    </button>
+                  </div>
                   {uploadedFile?.type?.startsWith("video/") ? (
                     <video
                       src={uploadPreview}

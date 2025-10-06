@@ -406,11 +406,11 @@ function ModalCreateScene({
       name: "Seedance Pro 1",
       description: "Seedance Pro 1 model for video generation",
     },
-    /*{
+    {
       id: "kling-v1",
       name: "Kling V1",
       description: "Kling V1 model for video generation",
-    },*/
+    },
   ];
 
   // Función para obtener modelos disponibles según el tipo seleccionado
