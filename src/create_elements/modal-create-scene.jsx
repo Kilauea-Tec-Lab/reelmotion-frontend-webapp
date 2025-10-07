@@ -499,11 +499,6 @@ function ModalCreateScene({
     }
   }, [aiModel]);
 
-  const durationOptions = [
-    { value: 5, label: "5 seconds", estimatedTime: 30 },
-    { value: 10, label: "10 seconds", estimatedTime: 45 },
-  ];
-
   // Función para obtener opciones de duración según el modelo AI
   const getDurationOptions = () => {
     switch (aiModel) {

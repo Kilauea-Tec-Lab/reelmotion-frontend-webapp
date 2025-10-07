@@ -51,7 +51,7 @@ const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 
 // Use QuickNode RPC directly (most reliable)
 const connection = new Connection(
-  "https://eu.onetimesecret.com/secret/4e6x1zfoim4yunccm6r4812bmmq98os",
+  "https://serene-dark-arrow.solana-mainnet.quiknode.pro/b08eae88206de8395ae6c496eaef50f7eee94a4f/",
   {
     commitment: "confirmed",
     confirmTransactionInitialTimeout: 60000,
