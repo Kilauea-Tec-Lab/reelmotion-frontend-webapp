@@ -46,6 +46,13 @@ function ModalCreateScene({
   const [alephTaskType, setAlephTaskType] = useState("");
   const [alephDetails, setAlephDetails] = useState("");
 
+  // Estados específicos para LumaLabs
+  const [lumaStartFrame, setLumaStartFrame] = useState("");
+  const [lumaEndFrame, setLumaEndFrame] = useState("");
+
+  // Estado para resolución de Sora (solo para sora-2 y sora-2-pro)
+  const [soraResolution, setSoraResolution] = useState("720p"); // "720p" o "1080p"
+
   // Estado para aspect ratio
   const [selectedAspectRatio, setSelectedAspectRatio] = useState("");
 
@@ -197,7 +204,9 @@ function ModalCreateScene({
     "veo-3-no-audio": 60, // Veo-3 sin sonido
     lumalabs: 13, // LumaLabs
     "seedance-pro-1": 15, // Seedance Pro 1
-    "kling-v1": 35, // Kling V1
+    "sora-2-720p": 15, // Sora 2 - 720p ($0.15)
+    "sora-2-pro-720p": 39, // Sora 2 Pro - 720p ($0.39)
+    "sora-2-pro-1080p": 59, // Sora 2 Pro - 1080p ($0.59)
   };
 
   // Función para calcular el costo total basado en modelo y duración
@@ -208,6 +217,15 @@ function ModalCreateScene({
       costPerSecond = withAudio
         ? MODEL_COSTS_PER_SECOND["veo-3-audio"]
         : MODEL_COSTS_PER_SECOND["veo-3-no-audio"];
+    } else if (aiModel === "sora-2") {
+      // Sora 2 solo tiene 720p
+      costPerSecond = MODEL_COSTS_PER_SECOND["sora-2-720p"];
+    } else if (aiModel === "sora-2-pro") {
+      // Sora 2 Pro puede ser 720p o 1080p
+      costPerSecond =
+        soraResolution === "1080p"
+          ? MODEL_COSTS_PER_SECOND["sora-2-pro-1080p"]
+          : MODEL_COSTS_PER_SECOND["sora-2-pro-720p"];
     } else {
       costPerSecond = MODEL_COSTS_PER_SECOND[aiModel] || 8;
     }
@@ -397,6 +415,16 @@ function ModalCreateScene({
       description: "Advanced video generation model",
     },
     {
+      id: "sora-2",
+      name: "Sora 2",
+      description: "OpenAI's video generation model",
+    },
+    {
+      id: "sora-2-pro",
+      name: "Sora 2 Pro",
+      description: "OpenAI's professional video generation model",
+    },
+    {
       id: "runway-aleph",
       name: "Runway Aleph",
       description: "Runway Aleph model for video processing",
@@ -405,11 +433,6 @@ function ModalCreateScene({
       id: "seedance-pro-1",
       name: "Seedance Pro 1",
       description: "Seedance Pro 1 model for video generation",
-    },
-    {
-      id: "kling-v1",
-      name: "Kling V1",
-      description: "Kling V1 model for video generation",
     },
   ];
 
@@ -511,8 +534,13 @@ function ModalCreateScene({
         return [{ value: 5, label: "5 seconds", estimatedTime: 30 }];
       case "veo-3":
         return [{ value: 8, label: "8 seconds", estimatedTime: 40 }];
-      case "kling-v1":
-        return [{ value: 5, label: "5 seconds", estimatedTime: 25 }];
+      case "sora-2":
+      case "sora-2-pro":
+        return [
+          { value: 4, label: "4 seconds", estimatedTime: 30 },
+          { value: 8, label: "8 seconds", estimatedTime: 50 },
+          { value: 12, label: "12 seconds", estimatedTime: 70 },
+        ];
       case "seedance-pro-1":
         return [{ value: 5, label: "5 seconds", estimatedTime: 20 }];
       default:
@@ -622,6 +650,11 @@ function ModalCreateScene({
     // Limpiar estados de Aleph
     setAlephTaskType("");
     setAlephDetails("");
+    // Limpiar estados de LumaLabs
+    setLumaStartFrame("");
+    setLumaEndFrame("");
+    // Limpiar estados de Sora
+    setSoraResolution("720p");
     onClose();
   };
 
@@ -763,30 +796,35 @@ function ModalCreateScene({
         let errorMessage = "Error generating video. Please try again.";
 
         if (responseData && responseData.message) {
-          const message = responseData.message;
+          const message = responseData.message.toLowerCase();
 
-          // Detectar error de moderación
+          // Detectar error de moderación de Sora y otros modelos
           if (
+            message.includes("moderation") ||
+            message.includes("blocked by our moderation system") ||
             message.includes("moderation_blocked") ||
-            message.includes("safety system")
+            message.includes("safety system") ||
+            message.includes("content policy")
           ) {
             errorMessage =
-              "Your content was blocked by the AI safety system. Please try rephrasing your description with different words or avoid potentially sensitive content.";
+              "🚫 Content Blocked by Moderation System\n\nYour content was flagged by the AI's safety filters. Please try:\n• Using different words in your description\n• Choosing a different image\n• Avoiding potentially sensitive or inappropriate content";
           }
           // Detectar otros errores específicos
           else if (message.includes("rate_limit")) {
             errorMessage =
-              "Rate limit exceeded. Please wait a moment and try again.";
+              "⏱️ Rate limit exceeded. Please wait a moment and try again.";
           } else if (
             message.includes("insufficient_quota") ||
             message.includes("billing")
           ) {
             errorMessage =
-              "Service temporarily unavailable. Please try again later.";
+              "⚠️ Service temporarily unavailable. Please try again later.";
           }
           // Error genérico con mensaje del servidor
           else {
-            errorMessage = `Generation failed: ${message.split("\n")[0]}`; // Solo primera línea del error
+            errorMessage = `❌ Generation failed: ${
+              responseData.message.split("\n")[0]
+            }`; // Solo primera línea del error
           }
         }
 
@@ -815,7 +853,10 @@ function ModalCreateScene({
       !sceneDescription.trim() ||
       !selectedFrame ||
       !generatedVideoUrl ||
-      (aiModel !== "runway-aleph" && !promptImageUrl)
+      (aiModel !== "runway-aleph" &&
+        aiModel !== "sora-2" &&
+        aiModel !== "sora-2-pro" &&
+        !promptImageUrl)
     )
       return;
 
@@ -1137,6 +1178,67 @@ function ModalCreateScene({
                   ))}
                 </select>
               </div>
+
+              {/* Sora Resolution Selection - Solo para sora-2-pro */}
+              {aiModel === "sora-2-pro" && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-white mb-2 montserrat-regular">
+                    Video Resolution *
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSoraResolution("720p")}
+                      className={`p-4 border-2 rounded-lg transition-all ${
+                        soraResolution === "720p"
+                          ? "border-[#F2D543] bg-[#F2D54315]"
+                          : "border-gray-600 hover:border-gray-500 hover:bg-darkBox"
+                      }`}
+                    >
+                      <div className="text-center">
+                        <h3 className="font-medium text-white montserrat-medium text-sm mb-1">
+                          720p (Standard)
+                        </h3>
+                        <p className="text-xs text-gray-400 mb-2">
+                          720 x 1280 (Portrait) / 1280 x 720 (Landscape)
+                        </p>
+                        <p className="text-[#F2D543] text-xs font-medium">
+                          39 tokens/sec ($0.39/sec)
+                        </p>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSoraResolution("1080p")}
+                      className={`p-4 border-2 rounded-lg transition-all ${
+                        soraResolution === "1080p"
+                          ? "border-[#F2D543] bg-[#F2D54315]"
+                          : "border-gray-600 hover:border-gray-500 hover:bg-darkBox"
+                      }`}
+                    >
+                      <div className="text-center">
+                        <h3 className="font-medium text-white montserrat-medium text-sm mb-1">
+                          1080p (High Quality)
+                        </h3>
+                        <p className="text-xs text-gray-400 mb-2">
+                          1024 x 1792 (Portrait) / 1792 x 1024 (Landscape)
+                        </p>
+                        <p className="text-[#F2D543] text-xs font-medium">
+                          59 tokens/sec ($0.59/sec)
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+                  {soraResolution && (
+                    <p className="mt-2 text-sm text-[#F2D543] montserrat-regular">
+                      Selected:{" "}
+                      {soraResolution === "720p"
+                        ? "720p Standard"
+                        : "1080p High Quality"}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Scene Prompt */}
               <div className="mb-4">
@@ -1560,6 +1662,12 @@ function ModalCreateScene({
                     ? "Veo-3"
                     : aiModel === "luma"
                     ? "LumaLabs"
+                    : aiModel === "sora-2"
+                    ? "Sora 2 (720p)"
+                    : aiModel === "sora-2-pro"
+                    ? `Sora 2 Pro (${
+                        soraResolution === "1080p" ? "1080p" : "720p"
+                      })`
                     : aiModel}
                   {aiModel === "veo-3" &&
                     ` (${withAudio ? "with audio" : "no audio"})`}
@@ -1570,6 +1678,14 @@ function ModalCreateScene({
                         withAudio
                           ? MODEL_COSTS_PER_SECOND["veo-3-audio"]
                           : MODEL_COSTS_PER_SECOND["veo-3-no-audio"]
+                      } tokens/sec`
+                    : aiModel === "sora-2"
+                    ? `${MODEL_COSTS_PER_SECOND["sora-2-720p"]} tokens/sec`
+                    : aiModel === "sora-2-pro"
+                    ? `${
+                        soraResolution === "1080p"
+                          ? MODEL_COSTS_PER_SECOND["sora-2-pro-1080p"]
+                          : MODEL_COSTS_PER_SECOND["sora-2-pro-720p"]
                       } tokens/sec`
                     : `${MODEL_COSTS_PER_SECOND[aiModel] || 8} tokens/sec`}
                 </span>
@@ -1634,8 +1750,8 @@ function ModalCreateScene({
 
               {/* Error Message for Video Generation */}
               {videoGenerationError && (
-                <div className="mt-3 p-3 bg-red-900 bg-opacity-20 border border-red-600 rounded-lg">
-                  <p className="text-red-400 text-sm montserrat-regular">
+                <div className="mt-3 p-4 bg-red-900 bg-opacity-20 border border-red-600 rounded-lg">
+                  <p className="text-red-400 text-sm montserrat-regular whitespace-pre-line">
                     {videoGenerationError}
                   </p>
                 </div>
@@ -1765,7 +1881,10 @@ function ModalCreateScene({
                 !sceneDescription.trim() ||
                 !selectedFrame ||
                 !generatedVideoUrl ||
-                (aiModel !== "runway-aleph" && !promptImageUrl)
+                (aiModel !== "runway-aleph" &&
+                  aiModel !== "sora-2" &&
+                  aiModel !== "sora-2-pro" &&
+                  !promptImageUrl)
               }
               className="px-6 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543]"
             >
