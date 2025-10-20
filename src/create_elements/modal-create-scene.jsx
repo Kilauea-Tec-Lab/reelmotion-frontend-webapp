@@ -200,8 +200,8 @@ function ModalCreateScene({
   const MODEL_COSTS_PER_SECOND = {
     runway: 8, // Runway ML
     "runway-aleph": 19, // Runway Aleph
-    "veo-3-audio": 85, // Veo-3 con sonido
-    "veo-3-no-audio": 60, // Veo-3 sin sonido
+    "veo-3.1-generate-preview": 48, // Veo-3.1 ($0.48)
+    "veo-3.1-fast-generate-preview": 21, // Veo-3.1 Fast ($0.21)
     lumalabs: 13, // LumaLabs
     "seedance-pro-1": 15, // Seedance Pro 1
     "sora-2-720p": 15, // Sora 2 - 720p ($0.15)
@@ -213,11 +213,7 @@ function ModalCreateScene({
   const calculateTokenCost = () => {
     let costPerSecond;
 
-    if (aiModel === "veo-3") {
-      costPerSecond = withAudio
-        ? MODEL_COSTS_PER_SECOND["veo-3-audio"]
-        : MODEL_COSTS_PER_SECOND["veo-3-no-audio"];
-    } else if (aiModel === "sora-2") {
+    if (aiModel === "sora-2") {
       // Sora 2 solo tiene 720p
       costPerSecond = MODEL_COSTS_PER_SECOND["sora-2-720p"];
     } else if (aiModel === "sora-2-pro") {
@@ -332,7 +328,10 @@ function ModalCreateScene({
 
   // Función para obtener opciones de aspect ratio según el modelo AI
   const getAspectRatioOptions = () => {
-    if (aiModel === "veo-3") {
+    if (
+      aiModel === "veo-3.1-generate-preview" ||
+      aiModel === "veo-3.1-fast-generate-preview"
+    ) {
       return [
         {
           id: "16:9",
@@ -402,37 +401,34 @@ function ModalCreateScene({
     {
       id: "runway",
       name: "Runway ML",
-      description: "Professional video AI model",
     },
     {
       id: "lumalabs",
-      name: "LumaLabs",
-      description: "Ray-2 model",
+      name: "LumaLabs Ray-2",
     },
     {
-      id: "veo-3",
-      name: "Veo-3",
-      description: "Advanced video generation model",
+      id: "veo-3.1-generate-preview",
+      name: "Veo-3.1",
+    },
+    {
+      id: "veo-3.1-fast-generate-preview",
+      name: "Veo-3.1 Fast",
     },
     {
       id: "sora-2",
       name: "Sora 2",
-      description: "OpenAI's video generation model",
     },
     {
       id: "sora-2-pro",
       name: "Sora 2 Pro",
-      description: "OpenAI's professional video generation model",
     },
     {
       id: "runway-aleph",
       name: "Runway Aleph",
-      description: "Runway Aleph model for video processing",
     },
     {
       id: "seedance-pro-1",
       name: "Seedance Pro 1",
-      description: "Seedance Pro 1 model for video generation",
     },
   ];
 
@@ -513,8 +509,11 @@ function ModalCreateScene({
       (option) => option.id === selectedAspectRatio
     );
 
-    if (aiModel === "veo-3") {
-      // Para Veo-3, siempre establecer 16:9
+    if (
+      aiModel === "veo-3.1-generate-preview" ||
+      aiModel === "veo-3.1-fast-generate-preview"
+    ) {
+      // Para Veo-3.1 y Veo-3.1 Fast, siempre establecer 16:9
       setSelectedAspectRatio("16:9");
     } else if (!currentAspectRatioExists && selectedAspectRatio) {
       // Si el aspect ratio actual no está disponible para otros modelos, limpiar selección
@@ -532,8 +531,9 @@ function ModalCreateScene({
         ];
       case "runway-aleph":
         return [{ value: 5, label: "5 seconds", estimatedTime: 30 }];
-      case "veo-3":
-        return [{ value: 8, label: "8 seconds", estimatedTime: 40 }];
+      case "veo-3.1-generate-preview":
+      case "veo-3.1-fast-generate-preview":
+        return [{ value: 8, label: "8 seconds", estimatedTime: 45 }];
       case "sora-2":
       case "sora-2-pro":
         return [
@@ -718,11 +718,11 @@ function ModalCreateScene({
         case "dall-e":
           estimatedTime = 30;
           break;
-        case "veo-3":
+        case "veo-3.1-generate-preview":
           estimatedTime = 90;
           break;
-        case "veo-2":
-          estimatedTime = 75;
+        case "veo-3.1-fast-generate-preview":
+          estimatedTime = 60;
           break;
       }
       setEstimatedTime(estimatedTime);
@@ -746,11 +746,6 @@ function ModalCreateScene({
           selectedData?.url, // URL de la imagen/video del frame/escena
         project_id: projectId, // ID del proyecto
       };
-
-      // Agregar opción de audio solo para Veo-3
-      if (aiModel === "veo-3") {
-        videoPayload.with_audio = withAudio;
-      }
 
       // Llamar a la API para generar el video
       const response = await fetch(
@@ -856,6 +851,8 @@ function ModalCreateScene({
       (aiModel !== "runway-aleph" &&
         aiModel !== "sora-2" &&
         aiModel !== "sora-2-pro" &&
+        aiModel !== "veo-3.1-generate-preview" &&
+        aiModel !== "veo-3.1-fast-generate-preview" &&
         !promptImageUrl)
     )
       return;
@@ -1173,7 +1170,7 @@ function ModalCreateScene({
                       value={model.id}
                       className="bg-darkBox text-white"
                     >
-                      {model.name} - {model.description}
+                      {model.name}
                     </option>
                   ))}
                 </select>
@@ -1561,51 +1558,6 @@ function ModalCreateScene({
                   ))}
                 </div>
               </div>
-
-              {/* Audio Option - Only for Veo-3 */}
-              {aiModel === "veo-3" && (
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-white mb-4 montserrat-regular">
-                    Audio Options
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div
-                      onClick={() => setWithAudio(false)}
-                      className={`p-3 border-2 rounded-lg cursor-pointer transition-all text-center ${
-                        !withAudio
-                          ? "border-[#F2D543] bg-[#F2D54315]"
-                          : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
-                      }`}
-                    >
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="text-white text-sm montserrat-medium">
-                          Without Sound
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          Silent video
-                        </span>
-                      </div>
-                    </div>
-                    <div
-                      onClick={() => setWithAudio(true)}
-                      className={`p-3 border-2 rounded-lg cursor-pointer transition-all text-center ${
-                        withAudio
-                          ? "border-[#F2D543] bg-[#F2D54315]"
-                          : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
-                      }`}
-                    >
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="text-white text-sm montserrat-medium">
-                          With Sound
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          Audio included
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -1658,8 +1610,10 @@ function ModalCreateScene({
                     ? "Runway ML"
                     : aiModel === "aleph"
                     ? "Aleph"
-                    : aiModel === "veo-3"
-                    ? "Veo-3"
+                    : aiModel === "veo-3.1-generate-preview"
+                    ? "Veo-3.1"
+                    : aiModel === "veo-3.1-fast-generate-preview"
+                    ? "Veo-3.1 Fast"
                     : aiModel === "luma"
                     ? "LumaLabs"
                     : aiModel === "sora-2"
@@ -1669,17 +1623,9 @@ function ModalCreateScene({
                         soraResolution === "1080p" ? "1080p" : "720p"
                       })`
                     : aiModel}
-                  {aiModel === "veo-3" &&
-                    ` (${withAudio ? "with audio" : "no audio"})`}
                 </span>
                 <span className="text-white text-sm font-medium montserrat-medium">
-                  {aiModel === "veo-3"
-                    ? `${
-                        withAudio
-                          ? MODEL_COSTS_PER_SECOND["veo-3-audio"]
-                          : MODEL_COSTS_PER_SECOND["veo-3-no-audio"]
-                      } tokens/sec`
-                    : aiModel === "sora-2"
+                  {aiModel === "sora-2"
                     ? `${MODEL_COSTS_PER_SECOND["sora-2-720p"]} tokens/sec`
                     : aiModel === "sora-2-pro"
                     ? `${
@@ -1884,6 +1830,8 @@ function ModalCreateScene({
                 (aiModel !== "runway-aleph" &&
                   aiModel !== "sora-2" &&
                   aiModel !== "sora-2-pro" &&
+                  aiModel !== "veo-3.1-generate-preview" &&
+                  aiModel !== "veo-3.1-fast-generate-preview" &&
                   !promptImageUrl)
               }
               className="px-6 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543]"
