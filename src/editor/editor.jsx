@@ -17,11 +17,16 @@ import {
   Plus,
   ChevronRight,
   ChevronDown,
+  ChevronLeft,
   ZoomIn,
   ZoomOut,
   Scissors,
   Undo,
   Headphones,
+  ArrowLeft,
+  SquarePlusIcon,
+  Video,
+  ChevronDown as CaretDown,
 } from "lucide-react";
 import { useLoaderData } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -57,6 +62,8 @@ function Editor() {
   const [expandedProjects, setExpandedProjects] = useState({});
   // Collapsible voice groups state (collapsed by default)
   const [expandedVoiceGroups, setExpandedVoiceGroups] = useState({});
+  // Sidebar visibility state
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
 
   // Extract projects and scenes from loader data
   const projects = data?.projects || [];
@@ -80,6 +87,7 @@ function Editor() {
   const imageRefs = useRef({});
   const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
   const timelineRef = useRef(null);
+  const timelineContainerRef = useRef(null); // Ref para el contenedor del timeline con los canales
   const hasInitializedTimelineRef = useRef(false); // Track if timeline has been initialized
   const [hoveredElement, setHoveredElement] = useState(null);
 
@@ -108,6 +116,8 @@ function Editor() {
   const [timelineScrollOffset, setTimelineScrollOffset] = useState(0); // Horizontal scroll offset
   const [showCutButton, setShowCutButton] = useState(false); // Show cut button when element is selected and playhead is over it
   const [visibleDuration, setVisibleDuration] = useState(120); // Duration visible in timeline (affected by zoom)
+  const [isDraggingZoom, setIsDraggingZoom] = useState(false); // State for zoom slider dragging
+  const zoomSliderRef = useRef(null);
 
   // State for aspect ratio
   const [aspectRatio, setAspectRatio] = useState("16:9"); // Default to 16:9
@@ -169,9 +179,6 @@ function Editor() {
     } else if (ratio === "9:16") {
       width = 1080;
       height = 1920;
-    } else if (ratio === "4:3") {
-      width = 1440;
-      height = 1080;
     } else if (ratio === "1:1") {
       width = 1080;
       height = 1080;
@@ -264,6 +271,14 @@ function Editor() {
   const [soundToDelete, setSoundToDelete] = useState(null);
   const [isDeletingSound, setIsDeletingSound] = useState(false);
 
+  // State for editor videos uploads and deletion
+  const [isUploadingEditorVideo, setIsUploadingEditorVideo] = useState(false);
+  const [editorVideosList, setEditorVideosList] = useState(data?.videos || []);
+  const [showDeleteEditorVideoModal, setShowDeleteEditorVideoModal] =
+    useState(false);
+  const [editorVideoToDelete, setEditorVideoToDelete] = useState(null);
+  const [isDeletingEditorVideo, setIsDeletingEditorVideo] = useState(false);
+
   // State for scene video hover
   const [hoveredScene, setHoveredScene] = useState(null);
   const [sceneVideosLoaded, setSceneVideosLoaded] = useState({});
@@ -323,6 +338,7 @@ function Editor() {
       type,
       url:
         item.url ||
+        item.video_url ||
         item.image_url ||
         item.audio_url ||
         item.music_url ||
@@ -1048,47 +1064,71 @@ function Editor() {
     currentTime,
   ]);
 
+  // Auto-save timeline to localStorage when it changes
+  useEffect(() => {
+    if (arrayVideoMake.length > 0) {
+      const timelineData = {
+        arrayVideoMake,
+        currentEditName,
+        currentEditId,
+        aspectRatio,
+        projectSettings,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem("timeline_autosave", JSON.stringify(timelineData));
+      console.log("Timeline auto-saved to localStorage");
+    }
+  }, [arrayVideoMake, aspectRatio, projectSettings]);
+
+  // Load timeline from localStorage on mount
+  useEffect(() => {
+    const savedTimeline = localStorage.getItem("timeline_autosave");
+    if (savedTimeline && !currentEditId) {
+      try {
+        const timelineData = JSON.parse(savedTimeline);
+        // Only restore if the save is less than 24 hours old
+        const hoursSinceSave =
+          (Date.now() - timelineData.timestamp) / (1000 * 60 * 60);
+        if (hoursSinceSave < 24) {
+          setArrayVideoMake(timelineData.arrayVideoMake || []);
+          setCurrentEditName(timelineData.currentEditName || "");
+          setAspectRatio(timelineData.aspectRatio || "16:9");
+          if (timelineData.projectSettings) {
+            setProjectSettings(timelineData.projectSettings);
+          }
+          console.log("Timeline restored from localStorage");
+        } else {
+          // Clear old save
+          localStorage.removeItem("timeline_autosave");
+        }
+      } catch (error) {
+        console.error("Error loading timeline from localStorage:", error);
+        localStorage.removeItem("timeline_autosave");
+      }
+    }
+  }, []); // Run only once on mount
+
   const handleDrop = async (e, channel) => {
     e.preventDefault();
     if (!draggedItem) return;
 
-    // Determine correct channel based on element type and enforce channel restrictions
-    let targetChannel = channel;
-    if (draggedItem.type === "video" && channel !== "video") {
-      console.warn("Video elements can only be dropped in video channel");
-      return;
-    } else if (draggedItem.type === "image" && channel !== "image") {
-      console.warn("Image elements can only be dropped in image channel");
-      return;
-    } else if (
-      draggedItem.type === "music" &&
-      channel !== "music" &&
-      channel !== "sound"
-    ) {
-      console.warn(
-        "Music elements can only be dropped in music or sound channel"
-      );
-      return;
-    } else if (draggedItem.type === "voice" && channel !== "voice") {
-      console.warn("Voice elements can only be dropped in voice channel");
-      return;
-    } else if (draggedItem.type === "sound" && channel !== "sound") {
-      console.warn("Sound elements can only be dropped in sound channel");
-      return;
-    }
+    // Determine correct channel based ONLY on element type (ignore the channel parameter)
+    let targetChannel;
 
     if (draggedItem.type === "video") {
       targetChannel = "video";
     } else if (draggedItem.type === "image") {
       targetChannel = "image";
-    } else if (draggedItem.type === "music" && channel === "sound") {
-      targetChannel = "sound";
     } else if (draggedItem.type === "music") {
-      targetChannel = "music";
+      // Music can go to music or sound channel, use the drop target
+      targetChannel = channel === "sound" ? "sound" : "music";
     } else if (draggedItem.type === "voice") {
       targetChannel = "voice";
     } else if (draggedItem.type === "sound") {
       targetChannel = "sound";
+    } else {
+      // Default fallback
+      targetChannel = channel;
     }
 
     // Get real element duration
@@ -1218,6 +1258,7 @@ function Editor() {
       // === ARCHIVO FUENTE Y METADATA ===
       url:
         draggedItem.url ||
+        draggedItem.video_url ||
         draggedItem.image_url ||
         draggedItem.audio_url ||
         draggedItem.music_url ||
@@ -1225,6 +1266,7 @@ function Editor() {
       title: draggedItem.title || draggedItem.name,
       filename: extractFilename(
         draggedItem.url ||
+          draggedItem.video_url ||
           draggedItem.image_url ||
           draggedItem.audio_url ||
           draggedItem.music_url ||
@@ -1446,6 +1488,7 @@ function Editor() {
       type,
       url:
         rawItem.url ||
+        rawItem.video_url ||
         rawItem.image_url ||
         rawItem.audio_url ||
         rawItem.music_url ||
@@ -2012,8 +2055,8 @@ function Editor() {
     // Don't process if we're dragging an element
     if (draggingElement) return;
 
-    if (timelineRef.current) {
-      const rect = timelineRef.current.getBoundingClientRect();
+    if (timelineContainerRef.current) {
+      const rect = timelineContainerRef.current.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const percentage = clickX / rect.width;
 
@@ -2113,8 +2156,8 @@ function Editor() {
   // Effect to handle global mouse events
   useEffect(() => {
     const handleMouseMove = (e) => {
-      if (isDraggingTimeline && timelineRef.current) {
-        const rect = timelineRef.current.getBoundingClientRect();
+      if (isDraggingTimeline && timelineContainerRef.current) {
+        const rect = timelineContainerRef.current.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const percentage = Math.max(0, Math.min(clickX / rect.width, 1));
 
@@ -2141,10 +2184,21 @@ function Editor() {
         updateAllVolumes(percentage);
       }
 
+      // Handle zoom drag
+      if (isDraggingZoom && zoomSliderRef.current) {
+        const rect = zoomSliderRef.current.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const percentage = Math.max(0, Math.min(clickX / rect.width, 1));
+
+        // Map percentage to zoom range (1 to 3.37)
+        const newZoom = 1 + percentage * (3.37 - 1);
+        applyZoom(newZoom);
+      }
+
       // Handle timeline element drag
-      if (draggingElement && timelineRef.current) {
+      if (draggingElement && timelineContainerRef.current) {
         setCurrentDragX(e.clientX); // Save current mouse position
-        const rect = timelineRef.current.getBoundingClientRect();
+        const rect = timelineContainerRef.current.getBoundingClientRect();
         const newStartTime = calculateNewPosition(e.clientX, rect);
 
         // Update preview position in real time
@@ -2269,8 +2323,8 @@ function Editor() {
       }
 
       // Handle element resizing
-      if (isResizing && timelineRef.current) {
-        const rect = timelineRef.current.getBoundingClientRect();
+      if (isResizing && timelineContainerRef.current) {
+        const rect = timelineContainerRef.current.getBoundingClientRect();
         const newTime = calculateResizePosition(e.clientX, rect);
 
         // Apply resizing in real time
@@ -2299,6 +2353,11 @@ function Editor() {
         setIsDraggingVolume(false);
       }
 
+      // Handle end of zoom drag
+      if (isDraggingZoom) {
+        setIsDraggingZoom(false);
+      }
+
       // Handle end of image drag
       if (isDraggingImage) {
         // Save to history when drag ends
@@ -2323,8 +2382,8 @@ function Editor() {
       }
 
       // Handle end of element drag
-      if (draggingElement && timelineRef.current) {
-        const rect = timelineRef.current.getBoundingClientRect();
+      if (draggingElement && timelineContainerRef.current) {
+        const rect = timelineContainerRef.current.getBoundingClientRect();
         // Use currentDragX if available, otherwise use e.clientX
         const dragEndX = currentDragX || e.clientX;
         const newStartTime = calculateNewPosition(dragEndX, rect);
@@ -2370,6 +2429,7 @@ function Editor() {
       isDraggingTimeline ||
       draggingElement ||
       isDraggingVolume ||
+      isDraggingZoom ||
       isDraggingImage ||
       isResizingImage ||
       isResizing
@@ -2392,6 +2452,8 @@ function Editor() {
     dragPreviewPosition,
     isDraggingVolume,
     masterVolume,
+    isDraggingZoom,
+    timelineZoom,
     isDraggingImage,
     draggingImageElement,
     imageDragStart,
@@ -2407,13 +2469,28 @@ function Editor() {
   // Keyboard event listeners
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Prevent action if user is typing in an input field
-      if (
+      // Check if user is typing in an input field
+      const isInInputField =
         e.target.tagName === "INPUT" ||
         e.target.tagName === "TEXTAREA" ||
-        e.target.tagName === "SELECT"
-      ) {
-        return;
+        e.target.tagName === "SELECT";
+
+      // Check if Ctrl (Windows/Linux) or Cmd (Mac) is pressed
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+
+      // Allow Ctrl+Z, Ctrl+S, + and - even in input fields for undo/save/zoom functionality
+      if (isInInputField) {
+        // Only allow Ctrl+Z, Ctrl+S, + and - in input fields, block other shortcuts
+        if (
+          !(
+            (isCtrlOrCmd && (e.key === "z" || e.key === "s")) ||
+            e.key === "+" ||
+            e.key === "=" ||
+            e.key === "-"
+          )
+        ) {
+          return;
+        }
       }
 
       // Delete selected element with Backspace or Delete
@@ -2423,10 +2500,28 @@ function Editor() {
         handleDeleteElement(selectedElement.id);
       }
 
-      // Undo with Ctrl+Z
-      if (e.ctrlKey && e.key === "z" && !e.shiftKey) {
+      // Undo with Ctrl+Z or Cmd+Z
+      if (isCtrlOrCmd && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
         undo();
+      }
+
+      // Save with Ctrl+S or Cmd+S
+      if (isCtrlOrCmd && e.key === "s") {
+        e.preventDefault();
+        setShowSaveModal(true);
+      }
+
+      // Zoom in with + or =
+      if (e.key === "+" || e.key === "=") {
+        e.preventDefault();
+        handleZoomIn();
+      }
+
+      // Zoom out with -
+      if (e.key === "-") {
+        e.preventDefault();
+        handleZoomOut();
       }
     };
 
@@ -2435,10 +2530,30 @@ function Editor() {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [selectedElement, arrayVideoMake, canUndo]);
+  }, [
+    selectedElement,
+    arrayVideoMake,
+    canUndo,
+    timelineScrollOffset,
+    visibleDuration,
+    timelineZoom,
+  ]);
 
   // Function to get unique color for each element
-  const getElementColor = (elementId, index) => {
+  const getElementColor = (elementId, index, channel) => {
+    // Fixed colors per channel
+    const channelColors = {
+      music: "#9B59B6", // Purple for Music
+      voice: "#3498DB", // Blue for Voice
+      sound: "#F39C12", // Orange for Sound
+    };
+
+    // Return fixed color if channel is provided
+    if (channel && channelColors[channel]) {
+      return channelColors[channel];
+    }
+
+    // Fallback to varied colors for video/image channels
     const colors = [
       "#4A90E2", // Blue
       "#FF6B6B", // Coral red
@@ -2490,7 +2605,7 @@ function Editor() {
 
     setVisibleDuration(newVisibleDuration);
     setTimelineScrollOffset(newScrollOffset);
-    setTimelineZoom((prev) => Math.min(prev * 1.5, 5.06)); // Max zoom 5.06x (506%)
+    setTimelineZoom((prev) => Math.min(prev * 1.5, 3.37)); // Max zoom 3.37x (337%)
   };
 
   const handleZoomOut = () => {
@@ -2518,65 +2633,97 @@ function Editor() {
     setTimelineZoom((prev) => Math.max(prev / 1.5, 1)); // Min zoom 1x (100%)
   };
 
+  // Handle zoom slider interaction
+  const handleZoomSliderClick = (e) => {
+    if (zoomSliderRef.current) {
+      const rect = zoomSliderRef.current.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const percentage = Math.max(0, Math.min(clickX / rect.width, 1));
+
+      // Map percentage to zoom range (1 to 3.37)
+      const newZoom = 1 + percentage * (3.37 - 1);
+      applyZoom(newZoom);
+    }
+  };
+
+  const handleZoomSliderMouseDown = (e) => {
+    setIsDraggingZoom(true);
+    handleZoomSliderClick(e);
+  };
+
+  const applyZoom = (newZoom) => {
+    const totalDuration = getTimelineDuration();
+
+    // Calculate new visible duration based on zoom level
+    const baseVisibleDuration = Math.max(totalDuration, 120);
+    const newVisibleDuration = Math.max(baseVisibleDuration / newZoom, 30);
+
+    // Keep the current center point of the view
+    const currentVisibleDuration = getVisualTimelineDuration();
+    const currentCenter = timelineScrollOffset + currentVisibleDuration / 2;
+
+    // Calculate new scroll offset to keep center point
+    let newScrollOffset = currentCenter - newVisibleDuration / 2;
+
+    // Ensure the new scroll offset is within valid bounds
+    const maxScrollOffset = Math.max(0, totalDuration - newVisibleDuration);
+    newScrollOffset = Math.max(0, Math.min(newScrollOffset, maxScrollOffset));
+
+    // If we're at the beginning, keep it there
+    if (timelineScrollOffset <= 0) {
+      newScrollOffset = 0;
+    }
+
+    setVisibleDuration(newVisibleDuration);
+    setTimelineScrollOffset(newScrollOffset);
+    setTimelineZoom(newZoom);
+  };
+
   // Cut function - splits an element at the current time
   const handleCutElement = () => {
     if (!selectedElement || !showCutButton) return;
 
-    // Calculate the actual cut time based on the timeline position
-    // The issue: the progress line position != dot center position when zoomed
-    const rawCutTime = currentTime;
-
-    // Get timeline dimensions for accurate calculation
-    const timelineElement = timelineRef.current;
-    if (!timelineElement) {
-      console.warn("Timeline element not found, using raw cut time");
-      return;
-    }
-
-    const timelineRect = timelineElement.getBoundingClientRect();
-    const timelineWidth = timelineRect.width;
-    const visibleDuration = getVisualTimelineDuration();
-
-    // Calculate the pixel offset of the dot (16px width, centered with translate(-50%))
-    // The dot center is at the correct position, but the progress line starts from left edge
-    // At high zoom, this difference becomes significant
-    const dotWidth = 16; // w-4 = 16px
-    const dotCenterOffset = dotWidth / 2; // 8px
-
-    // Calculate how much time this pixel difference represents
-    const pixelsPerSecond = timelineWidth / visibleDuration;
-    const timeOffsetFromDotToLine = dotCenterOffset / pixelsPerSecond;
-
-    // Adjust the cut time to match where the progress line visually appears
-    // Since the progress line extends from left edge, we need to subtract the offset
-    const cutTime = rawCutTime - timeOffsetFromDotToLine;
+    // Use currentTime directly as the cut point
+    const cutTime = currentTime;
 
     const element = selectedElement;
 
-    console.log("🔪 Cut Element Debug:");
-    console.log("Raw Cut Time:", rawCutTime);
-    console.log("Timeline Width:", timelineWidth);
-    console.log("Visible Duration:", visibleDuration);
-    console.log("Pixels per Second:", pixelsPerSecond);
-    console.log("Dot Center Offset (px):", dotCenterOffset);
-    console.log("Time Offset (s):", timeOffsetFromDotToLine);
-    console.log("Adjusted Cut Time:", cutTime);
-    console.log("Timeline Zoom:", timelineZoom);
+    // Validate cut is within element bounds
+    if (cutTime <= element.startTime || cutTime >= element.endTime) {
+      console.warn("Cut time is outside element bounds");
+      return;
+    }
+
+    console.log("🔪 Cut Element:");
+    console.log("Cut Time:", cutTime);
+    console.log("Element Start:", element.startTime);
+    console.log("Element End:", element.endTime);
+
+    // Calculate trim for the second part based on original duration
+    const timeIntoElement = cutTime - element.startTime;
+    const trimStartForSecondPart = (element.trimStart || 0) + timeIntoElement;
 
     // Create two new elements from the cut
     const firstPart = {
       ...element,
       id: `${element.id}_cut1_${Date.now()}`,
       endTime: cutTime,
+      endTimeSeconds: cutTime,
       duration: cutTime - element.startTime,
+      durationSeconds: cutTime - element.startTime,
+      trimEnd: (element.originalDuration || element.duration) - timeIntoElement,
+      endTimestamp: formatTimestamp(cutTime),
     };
 
     const secondPart = {
       ...element,
       id: `${element.id}_cut2_${Date.now()}`,
       startTime: cutTime,
-      trimStart: (element.trimStart || 0) + (cutTime - element.startTime),
+      startTimeSeconds: cutTime,
+      trimStart: trimStartForSecondPart,
       duration: element.endTime - cutTime,
+      durationSeconds: element.endTime - cutTime,
+      startTimestamp: formatTimestamp(cutTime),
     };
 
     // Replace the original element with the two new parts
@@ -2584,8 +2731,8 @@ function Editor() {
     const newElements = [...filtered, firstPart, secondPart];
     updateTimelineWithHistory(newElements);
 
-    // Clear selection
-    setSelectedElement(null);
+    // Select the first part after cutting
+    setSelectedElement(firstPart);
   };
 
   // Function to get thumbnail/frame for video elements
@@ -2641,29 +2788,38 @@ function Editor() {
   };
 
   // Function to update selected element properties
-  const updateSelectedElement = (property, value) => {
+  const updateSelectedElement = (
+    property,
+    value,
+    shouldSaveHistory = false
+  ) => {
     if (!selectedElement) return;
 
-    setArrayVideoMake((prev) =>
-      prev.map((item) => {
-        if (item.id === selectedElement.id) {
-          // Handle nested properties like colorCorrection
-          if (property.includes(".")) {
-            const [parentProp, childProp] = property.split(".");
-            return {
-              ...item,
-              [parentProp]: {
-                ...(item[parentProp] || {}),
-                [childProp]: value,
-              },
-            };
-          } else {
-            return { ...item, [property]: value };
-          }
+    const updatedArray = arrayVideoMake.map((item) => {
+      if (item.id === selectedElement.id) {
+        // Handle nested properties like colorCorrection
+        if (property.includes(".")) {
+          const [parentProp, childProp] = property.split(".");
+          return {
+            ...item,
+            [parentProp]: {
+              ...(item[parentProp] || {}),
+              [childProp]: value,
+            },
+          };
+        } else {
+          return { ...item, [property]: value };
         }
-        return item;
-      })
-    );
+      }
+      return item;
+    });
+
+    setArrayVideoMake(updatedArray);
+
+    // Save to history if requested
+    if (shouldSaveHistory) {
+      saveToHistory(updatedArray);
+    }
 
     // Also update selected element state
     setSelectedElement((prev) => {
@@ -2681,6 +2837,14 @@ function Editor() {
       }
     });
   };
+
+  // Helper function for slider change with history
+  const handleSliderChange = (property, parseFunction = parseFloat) => ({
+    onChange: (e) =>
+      updateSelectedElement(property, parseFunction(e.target.value), false),
+    onChangeEnd: (e) =>
+      updateSelectedElement(property, parseFunction(e.target.value), true),
+  });
 
   // Function to delete element from timeline
   const handleDeleteElement = (elementId) => {
@@ -3647,12 +3811,22 @@ function Editor() {
 
   // Helper function to remove elements from timeline when library item is deleted
   const removeElementsFromTimeline = (deletedElement) => {
-    const { id, url, audio_url, music_url, voice_url, image_url, name, title } =
-      deletedElement;
+    const {
+      id,
+      url,
+      video_url,
+      audio_url,
+      music_url,
+      voice_url,
+      image_url,
+      name,
+      title,
+    } = deletedElement;
 
     // Create a list of possible URLs that could match this element
     const possibleUrls = [
       url,
+      video_url,
       audio_url,
       music_url,
       voice_url,
@@ -4058,6 +4232,131 @@ function Editor() {
     }
   };
 
+  // Functions for editor videos upload and deletion
+  const handleEditorVideoInputChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    const file = files[0]; // Solo uno por ahora
+    if (!file.type.startsWith("video/")) {
+      console.error("Invalid file type. Please select a video file.");
+      return;
+    }
+
+    setIsUploadingEditorVideo(true);
+    try {
+      // Convert video to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+
+      await new Promise((resolve, reject) => {
+        reader.onload = async () => {
+          try {
+            const base64Video = reader.result;
+
+            // Get video title (without extension)
+            const title = file.name.replace(/\.[^/.]+$/, "");
+
+            // Upload to backend
+            const response = await fetch(
+              `${import.meta.env.VITE_APP_BACKEND_URL}editor/create-videos`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: "Bearer " + Cookies.get("token"),
+                },
+                body: JSON.stringify({
+                  title: title,
+                  category_id: "general",
+                  base_64_video: base64Video,
+                }),
+              }
+            );
+
+            const data = await response.json();
+
+            if (response.ok && data.code === 200) {
+              // Add to list
+              setEditorVideosList((prev) => [...prev, data.video]);
+              console.log("Video uploaded successfully:", data.video);
+              resolve();
+            } else {
+              console.error("Error uploading video:", data.message);
+              reject(new Error(data.message));
+            }
+          } catch (error) {
+            console.error("Error uploading video:", error);
+            reject(error);
+          }
+        };
+
+        reader.onerror = () => {
+          console.error("Error reading file");
+          reject(new Error("Error reading file"));
+        };
+      });
+    } catch (error) {
+      console.error("Error in video upload:", error);
+    } finally {
+      setIsUploadingEditorVideo(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleDeleteEditorVideoClick = (e, video) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setEditorVideoToDelete(video);
+    setShowDeleteEditorVideoModal(true);
+  };
+
+  const handleConfirmDeleteEditorVideo = async () => {
+    if (!editorVideoToDelete) return;
+
+    setIsDeletingEditorVideo(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}editor/delete-videos`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: JSON.stringify({ id: editorVideoToDelete.id }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.code === 200) {
+        // Remove from library
+        setEditorVideosList((prev) =>
+          prev.filter((v) => v.id !== editorVideoToDelete.id)
+        );
+        // Remove from timeline
+        removeElementsFromTimeline(editorVideoToDelete);
+        setShowDeleteEditorVideoModal(false);
+        setEditorVideoToDelete(null);
+        console.log("Video deleted successfully");
+      } else {
+        console.error("Error deleting video:", data.message);
+      }
+    } catch (error) {
+      console.error("Error deleting video:", error);
+    } finally {
+      setIsDeletingEditorVideo(false);
+    }
+  };
+
+  const handleCloseDeleteEditorVideoModal = () => {
+    if (!isDeletingEditorVideo) {
+      setShowDeleteEditorVideoModal(false);
+      setEditorVideoToDelete(null);
+    }
+  };
+
   // Helper function to get preview container styles based on aspect ratio
   const getPreviewStyles = () => {
     if (aspectRatio === "9:16") {
@@ -4078,6 +4377,25 @@ function Editor() {
           width: `${videoWidth}px`,
           height: `${videoHeight}px`,
           aspectRatio: "9/16",
+        },
+      };
+    } else if (aspectRatio === "1:1") {
+      // Square mode - medidas fijas para 1:1
+      const videoSize = 325; // píxeles fijos (cuadrado)
+
+      return {
+        container: {
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: `${videoSize}px`,
+        },
+        video: {
+          width: `${videoSize}px`,
+          height: `${videoSize}px`,
+          aspectRatio: "1/1",
         },
       };
     } else {
@@ -4137,2536 +4455,2815 @@ function Editor() {
   }, [arrayVideoMake, projectSettings, currentEditName, currentEditId]);
 
   return (
-    <div className="bg-primarioDark w-full h-[100vh] scroll-auto px-6 py-4">
-      {/* ACTION BAR */}
-      <div className="flex gap-1 mt-2 h-[45vh]">
-        <div className="bg-darkBox w-1/4 rounded-4xl flex">
-          <div className="w-1/5">
-            <div
-              onClick={() => setMenuActive(1)}
-              className={
-                menuActive == 1
-                  ? "bg-darkBoxSub text-primarioLogo text-center flex items-center justify-center h-16 cursor-pointer rounded-tl-4xl"
-                  : "text-white text-center flex items-center justify-center h-16 cursor-pointer rounded-tl-4xl"
-              }
-            >
-              <ClapperboardIcon />
-            </div>
-            <div
-              onClick={() => setMenuActive(2)}
-              className={
-                menuActive == 2
-                  ? "bg-darkBoxSub text-primarioLogo text-center flex items-center justify-center h-16 cursor-pointer"
-                  : "text-white text-center flex items-center justify-center h-16 cursor-pointer"
-              }
-            >
-              <Music />
-            </div>
-            <div
-              onClick={() => setMenuActive(3)}
-              className={
-                menuActive == 3
-                  ? "bg-darkBoxSub text-primarioLogo text-center flex items-center justify-center h-16 cursor-pointer"
-                  : "text-white text-center flex items-center justify-center h-16 cursor-pointer"
-              }
-            >
-              <Mic />
-            </div>
-            <div
-              onClick={() => setMenuActive(4)}
-              className={
-                menuActive == 4
-                  ? "bg-darkBoxSub text-primarioLogo text-center flex items-center justify-center h-16 cursor-pointer"
-                  : "text-white text-center flex items-center justify-center h-16 cursor-pointer"
-              }
-            >
-              <Headphones />
-            </div>
-            <div
-              onClick={() => setMenuActive(5)}
-              className={
-                menuActive == 5
-                  ? "bg-darkBoxSub text-primarioLogo text-center flex items-center justify-center h-16 cursor-pointer"
-                  : "text-white text-center flex items-center justify-center h-16 cursor-pointer"
-              }
-            >
-              <Image />
-            </div>
-          </div>
-          <div className="w-4/5 overflow-none bg-darkBoxSub rounded-tr-4xl rounded-br-4xl">
-            {menuActive == 1 ? (
-              <div className="p-4 w-full h-full overflow-auto">
-                {projects.length > 0 ? (
-                  <div className="space-y-6">
-                    {projects.map((project) => (
-                      <div key={project.id} className="space-y-3">
-                        {/* Project Header - collapsible */}
-                        <button
-                          type="button"
-                          onClick={() => toggleProject(project.id)}
-                          className="w-full flex items-center justify-between border-b border-gray-600 pb-2 hover:bg-darkBox rounded-md px-2 py-1"
-                          title="Toggle project"
-                        >
-                          <div className="flex items-center gap-2">
-                            {expandedProjects[project.id] ? (
-                              <ChevronDown
-                                size={16}
-                                className="text-gray-300"
-                              />
-                            ) : (
-                              <ChevronRight
-                                size={16}
-                                className="text-gray-300"
-                              />
-                            )}
-                            <h3 className="text-white font-medium text-base line-clamp-1 text-left">
-                              {project.name}
-                            </h3>
-                          </div>
-                          <p className="text-gray-400 text-xs">
-                            {project.scenes?.length || 0}
-                          </p>
-                        </button>
+    <div className="bg-primarioDark w-full h-[100vh] overflow-scroll scroll-auto">
+      {/* Sidebar */}
+      <div className="flex">
+        {/* Toggle Button - Fixed at sidebar edge */}
+        <button
+          onClick={() => setIsSidebarVisible(!isSidebarVisible)}
+          className={`fixed top-1/2 -translate-y-1/2 z-50 bg-primarioLogo hover:bg-primarioLogo/90 text-white p-1 rounded-r-md transition-all duration-300 shadow-md ${
+            isSidebarVisible ? "left-[20%]" : "left-[64px]"
+          }`}
+          title={isSidebarVisible ? "Ocultar panel" : "Mostrar panel"}
+        >
+          <ChevronRight
+            className={`w-3 h-3 transition-transform duration-300 ${
+              isSidebarVisible ? "rotate-180" : ""
+            }`}
+          />
+        </button>
 
-                        {/* Project Videos Grid */}
-                        {expandedProjects[project.id] &&
-                        project.scenes &&
-                        project.scenes.length > 0 ? (
-                          <div className="grid grid-cols-1 gap-4">
-                            {project.scenes.map((scene) => (
-                              <div
-                                key={scene.id}
-                                draggable
-                                onDragStart={(e) =>
-                                  handleDragStart(
-                                    e,
-                                    {
-                                      id: scene.id,
-                                      url: scene.video_url,
-                                      title: scene.name,
-                                      projectName: project.name,
-                                    },
-                                    "video"
-                                  )
-                                }
-                                onClick={() =>
-                                  addItemToTimeline(
-                                    {
-                                      id: scene.id,
-                                      url: scene.video_url,
-                                      title: scene.name,
-                                      projectName: project.name,
-                                    },
-                                    "video"
-                                  )
-                                }
-                                className="bg-darkBox cursor-pointer hover:bg-opacity-80 rounded-2xl transition-all duration-200 hover:scale-105"
-                                onMouseEnter={() => setHoveredScene(scene.id)}
-                                onMouseLeave={() => setHoveredScene(null)}
-                              >
-                                <div className="relative">
-                                  {/* Video element for hover preview */}
-                                  {scene.video_url && (
-                                    <video
-                                      key={`scene-video-${scene.id}`}
-                                      src={scene.video_url}
-                                      className={`rounded-t-2xl w-full h-16 object-cover transition-opacity duration-300 ${
-                                        sceneVideosLoaded[scene.id]
-                                          ? "opacity-100"
-                                          : "opacity-0"
-                                      }`}
-                                      onLoadedMetadata={() =>
-                                        setSceneVideosLoaded((prev) => ({
-                                          ...prev,
-                                          [scene.id]: true,
-                                        }))
-                                      }
-                                      muted
-                                      loop
-                                      playsInline
-                                      preload="metadata"
-                                      style={{
-                                        display: sceneVideosLoaded[scene.id]
-                                          ? "block"
-                                          : "none",
-                                      }}
-                                      onMouseEnter={(e) => {
-                                        e.target.play().catch(() => {});
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.target.pause();
-                                        e.target.currentTime = 0;
-                                      }}
-                                    />
-                                  )}
-
-                                  {/* Fallback image while video loads or if no video */}
-                                  {(!sceneVideosLoaded[scene.id] ||
-                                    !scene.video_url) && (
-                                    <img
-                                      src={
-                                        scene.image_url ||
-                                        scene.prompt_image_url
-                                      }
-                                      alt={scene.name}
-                                      className="rounded-t-2xl w-full h-16 object-cover"
-                                    />
-                                  )}
-
-                                  {/* Loading indicator */}
-                                  {scene.video_url &&
-                                    !sceneVideosLoaded[scene.id] && (
-                                      <div className="absolute inset-0 bg-darkBoxSub animate-pulse flex items-center justify-center rounded-t-2xl">
-                                        <div className="w-4 h-4 border-2 border-gray-600 border-t-primarioLogo rounded-full animate-spin"></div>
-                                      </div>
-                                    )}
-                                </div>
-                                <div className="pb-4 pt-1 px-3 relative">
-                                  <span
-                                    className="text-[#E7E7E7] text-xs line-clamp-2 mt-2"
-                                    title={scene.name}
-                                  >
-                                    {scene.name}
-                                  </span>
-                                  <span className="text-gray-500 text-xs block mt-1">
-                                    {project.name}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : expandedProjects[project.id] ? (
-                          <div className="text-gray-400 text-sm italic">
-                            No scenes available in this project
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center text-gray-400">
-                      <p className="text-lg">No projects available</p>
-                      <p className="text-sm mt-2">
-                        Create some projects with scenes to start editing
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : menuActive == 2 ? (
+        <div
+          className={`overflow-auto scroll-auto h-[100vh] bg-darkboxSub transition-all duration-300 ${
+            isSidebarVisible ? "w-1/5" : "w-[64px]"
+          }`}
+        >
+          <div className="bg-darkBox w-full h-full flex">
+            {/* Menu Icons - Always Visible */}
+            <div className="w-[64px] min-w-[64px]">
               <div
-                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative overflow-hidden"
-                onDragOver={handleMusicContainerDragOver}
-                onDrop={handleMusicContainerDrop}
+                onClick={() => {
+                  setMenuActive(1);
+                  setIsSidebarVisible(true);
+                }}
+                className={
+                  menuActive == 1
+                    ? "bg-darkBoxSub text-primarioLogo text-center flex items-center justify-center h-16 cursor-pointer"
+                    : "text-white text-center flex items-center justify-center h-16 cursor-pointer"
+                }
               >
-                {/* Add Music Button - always visible */}
-                <button
-                  onClick={() =>
-                    (musicList.length > 0
-                      ? document.getElementById("music-upload-hidden")
-                      : document.getElementById("music-upload")
-                    )?.click()
-                  }
-                  className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                  title="Add Music"
-                  disabled={isUploadingMusic}
-                >
-                  <Plus size={20} />
-                </button>
+                <ClapperboardIcon />
+              </div>
+              <div
+                onClick={() => {
+                  setMenuActive(6);
+                  setIsSidebarVisible(true);
+                }}
+                className={
+                  menuActive == 6
+                    ? "bg-darkBoxSub text-primarioLogo text-center flex items-center justify-center h-16 cursor-pointer"
+                    : "text-white text-center flex items-center justify-center h-16 cursor-pointer"
+                }
+              >
+                <Video />
+              </div>
+              <div
+                onClick={() => {
+                  setMenuActive(2);
+                  setIsSidebarVisible(true);
+                }}
+                className={
+                  menuActive == 2
+                    ? "bg-darkBoxSub text-primarioLogo text-center flex items-center justify-center h-16 cursor-pointer"
+                    : "text-white text-center flex items-center justify-center h-16 cursor-pointer"
+                }
+              >
+                <Music />
+              </div>
+              <div
+                onClick={() => {
+                  setMenuActive(3);
+                  setIsSidebarVisible(true);
+                }}
+                className={
+                  menuActive == 3
+                    ? "bg-darkBoxSub text-primarioLogo text-center flex items-center justify-center h-16 cursor-pointer"
+                    : "text-white text-center flex items-center justify-center h-16 cursor-pointer"
+                }
+              >
+                <Mic />
+              </div>
+              <div
+                onClick={() => {
+                  setMenuActive(4);
+                  setIsSidebarVisible(true);
+                }}
+                className={
+                  menuActive == 4
+                    ? "bg-darkBoxSub text-primarioLogo text-center flex items-center justify-center h-16 cursor-pointer"
+                    : "text-white text-center flex items-center justify-center h-16 cursor-pointer"
+                }
+              >
+                <Headphones />
+              </div>
+              <div
+                onClick={() => {
+                  setMenuActive(5);
+                  setIsSidebarVisible(true);
+                }}
+                className={
+                  menuActive == 5
+                    ? "bg-darkBoxSub text-primarioLogo text-center flex items-center justify-center h-16 cursor-pointer"
+                    : "text-white text-center flex items-center justify-center h-16 cursor-pointer"
+                }
+              >
+                <Image />
+              </div>
+            </div>
 
-                {/* Upload area when empty */}
-                {musicList.length === 0 && (
-                  <div className="mb-4 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-primarioLogo transition-colors duration-200">
+            {/* Content Panel - Collapsible */}
+            <div
+              className={`overflow-none bg-darkBoxSub transition-all duration-300 ${
+                isSidebarVisible
+                  ? "w-[calc(100%-64px)] opacity-100"
+                  : "w-0 opacity-0 overflow-hidden"
+              }`}
+            >
+              {menuActive == 1 ? (
+                <div className="p-4 w-full h-full overflow-auto">
+                  {projects.length > 0 ? (
+                    <div className="space-y-6">
+                      {projects.map((project) => (
+                        <div key={project.id} className="space-y-3">
+                          {/* Project Header - collapsible */}
+                          <button
+                            type="button"
+                            onClick={() => toggleProject(project.id)}
+                            className="w-full flex items-center justify-between border-b border-gray-600 pb-2 hover:bg-darkBox rounded-md px-2 py-1"
+                            title="Toggle project"
+                          >
+                            <div className="flex items-center gap-2">
+                              {expandedProjects[project.id] ? (
+                                <ChevronDown
+                                  size={16}
+                                  className="text-gray-300"
+                                />
+                              ) : (
+                                <ChevronRight
+                                  size={16}
+                                  className="text-gray-300"
+                                />
+                              )}
+                              <h3 className="text-white font-medium text-base line-clamp-1 text-left">
+                                {project.name}
+                              </h3>
+                            </div>
+                            <p className="text-gray-400 text-xs">
+                              {project.scenes?.length || 0}
+                            </p>
+                          </button>
+
+                          {/* Project Videos Grid */}
+                          {expandedProjects[project.id] &&
+                          project.scenes &&
+                          project.scenes.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-4">
+                              {project.scenes.map((scene) => (
+                                <div
+                                  key={scene.id}
+                                  draggable
+                                  onDragStart={(e) =>
+                                    handleDragStart(
+                                      e,
+                                      {
+                                        id: scene.id,
+                                        url: scene.video_url,
+                                        title: scene.name,
+                                        projectName: project.name,
+                                      },
+                                      "video"
+                                    )
+                                  }
+                                  onClick={() =>
+                                    addItemToTimeline(
+                                      {
+                                        id: scene.id,
+                                        url: scene.video_url,
+                                        title: scene.name,
+                                        projectName: project.name,
+                                      },
+                                      "video"
+                                    )
+                                  }
+                                  className="bg-darkBox cursor-pointer hover:bg-opacity-80 rounded-2xl transition-all duration-200 hover:scale-105"
+                                  onMouseEnter={() => setHoveredScene(scene.id)}
+                                  onMouseLeave={() => setHoveredScene(null)}
+                                >
+                                  <div className="relative">
+                                    {/* Video element for hover preview */}
+                                    {scene.video_url && (
+                                      <video
+                                        key={`scene-video-${scene.id}`}
+                                        src={scene.video_url}
+                                        className={`rounded-t-2xl w-full h-16 object-cover transition-opacity duration-300 ${
+                                          sceneVideosLoaded[scene.id]
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        }`}
+                                        onLoadedMetadata={() =>
+                                          setSceneVideosLoaded((prev) => ({
+                                            ...prev,
+                                            [scene.id]: true,
+                                          }))
+                                        }
+                                        muted
+                                        loop
+                                        playsInline
+                                        preload="metadata"
+                                        style={{
+                                          display: sceneVideosLoaded[scene.id]
+                                            ? "block"
+                                            : "none",
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.target.play().catch(() => {});
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.target.pause();
+                                          e.target.currentTime = 0;
+                                        }}
+                                      />
+                                    )}
+
+                                    {/* Fallback image while video loads or if no video */}
+                                    {(!sceneVideosLoaded[scene.id] ||
+                                      !scene.video_url) && (
+                                      <img
+                                        src={
+                                          scene.image_url ||
+                                          scene.prompt_image_url
+                                        }
+                                        alt={scene.name}
+                                        className="rounded-t-2xl w-full h-16 object-cover"
+                                      />
+                                    )}
+
+                                    {/* Loading indicator */}
+                                    {scene.video_url &&
+                                      !sceneVideosLoaded[scene.id] && (
+                                        <div className="absolute inset-0 bg-darkBoxSub animate-pulse flex items-center justify-center rounded-t-2xl">
+                                          <div className="w-4 h-4 border-2 border-gray-600 border-t-primarioLogo rounded-full animate-spin"></div>
+                                        </div>
+                                      )}
+                                  </div>
+                                  <div className="pb-4 pt-1 px-3 relative">
+                                    <span
+                                      className="text-[#E7E7E7] text-xs line-clamp-2 mt-2"
+                                      title={scene.name}
+                                    >
+                                      {scene.name}
+                                    </span>
+                                    <span className="text-gray-500 text-xs block mt-1">
+                                      {project.name}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : expandedProjects[project.id] ? (
+                            <div className="text-gray-400 text-sm italic">
+                              No scenes available in this project
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center text-gray-400">
+                        <p className="text-lg">No projects available</p>
+                        <p className="text-sm mt-2">
+                          Create some projects with scenes to start editing
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : menuActive == 2 ? (
+                <div
+                  className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative overflow-hidden"
+                  onDragOver={handleMusicContainerDragOver}
+                  onDrop={handleMusicContainerDrop}
+                >
+                  {/* Add Music Button - always visible */}
+                  <button
+                    onClick={() =>
+                      (musicList.length > 0
+                        ? document.getElementById("music-upload-hidden")
+                        : document.getElementById("music-upload")
+                      )?.click()
+                    }
+                    className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                    title="Add Music"
+                    disabled={isUploadingMusic}
+                  >
+                    <Plus size={20} />
+                  </button>
+
+                  {/* Upload area when empty */}
+                  {musicList.length === 0 && (
+                    <div className="mb-4 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-primarioLogo transition-colors duration-200">
+                      <input
+                        type="file"
+                        multiple
+                        accept="audio/*"
+                        onChange={handleMusicInputChange}
+                        className="hidden"
+                        id="music-upload"
+                        disabled={isUploadingMusic}
+                      />
+                      <label
+                        htmlFor="music-upload"
+                        className="cursor-pointer flex flex-col items-center gap-2"
+                      >
+                        <Upload size={32} className="text-gray-400" />
+                        <span className="text-gray-400 text-sm">
+                          {isUploadingMusic
+                            ? "Uploading music..."
+                            : "Drag audio files here or click to select"}
+                        </span>
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Hidden input when list exists */}
+                  {musicList.length > 0 && (
                     <input
                       type="file"
                       multiple
                       accept="audio/*"
                       onChange={handleMusicInputChange}
                       className="hidden"
-                      id="music-upload"
+                      id="music-upload-hidden"
                       disabled={isUploadingMusic}
                     />
-                    <label
-                      htmlFor="music-upload"
-                      className="cursor-pointer flex flex-col items-center gap-2"
-                    >
-                      <Upload size={32} className="text-gray-400" />
-                      <span className="text-gray-400 text-sm">
-                        {isUploadingMusic
-                          ? "Uploading music..."
-                          : "Drag audio files here or click to select"}
-                      </span>
-                    </label>
-                  </div>
-                )}
+                  )}
 
-                {/* Hidden input when list exists */}
-                {musicList.length > 0 && (
-                  <input
-                    type="file"
-                    multiple
-                    accept="audio/*"
-                    onChange={handleMusicInputChange}
-                    className="hidden"
-                    id="music-upload-hidden"
-                    disabled={isUploadingMusic}
-                  />
-                )}
-
-                {/* Music list */}
-                <div className="overflow-y-auto h-full space-y-3 pb-14 mt-11">
-                  {musicList.map((music, index) => (
-                    <div
-                      key={music.id || index}
-                      draggable={!isUploadingMusic}
-                      onDragStart={(e) => handleDragStart(e, music, "music")}
-                      onClick={() => addItemToTimeline(music, "music")}
-                      onMouseEnter={() =>
-                        setHoveredMusicItem(music.id || index)
-                      }
-                      onMouseLeave={() => setHoveredMusicItem(null)}
-                      className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
-                    >
-                      {/* Delete Button */}
-                      <button
-                        onClick={(e) => handleDeleteMusicClick(e, music)}
-                        className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                        title="Eliminar música"
+                  {/* Music list */}
+                  <div className="overflow-y-auto h-full space-y-3 pb-14 mt-11">
+                    {musicList.map((music, index) => (
+                      <div
+                        key={music.id || index}
+                        draggable={!isUploadingMusic}
+                        onDragStart={(e) => handleDragStart(e, music, "music")}
+                        onClick={() => addItemToTimeline(music, "music")}
+                        onMouseEnter={() =>
+                          setHoveredMusicItem(music.id || index)
+                        }
+                        onMouseLeave={() => setHoveredMusicItem(null)}
+                        className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
                       >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                        {/* Delete Button */}
+                        <button
+                          onClick={(e) => handleDeleteMusicClick(e, music)}
+                          className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                          title="Eliminar música"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
 
-                      <div className="flex items-center gap-3">
-                        <Music size={24} className="text-primarioLogo" />
-                        <div className="w-3/4">
-                          <div className="w-full line-clamp-1">
-                            <span className="text-[#E7E7E7] text-sm font-medium line-clamp-1">
-                              {music.name}
+                        <div className="flex items-center gap-3">
+                          <Music size={24} className="text-primarioLogo" />
+                          <div className="w-3/4">
+                            <div className="w-full line-clamp-1">
+                              <span className="text-[#E7E7E7] text-sm font-medium line-clamp-1">
+                                {music.name}
+                              </span>
+                            </div>
+                            <span className="text-gray-400 text-xs">
+                              {music.duration || 30}s
                             </span>
                           </div>
-                          <span className="text-gray-400 text-xs">
-                            {music.duration || 30}s
+                        </div>
+                      </div>
+                    ))}
+
+                    {musicList.length === 0 && !isUploadingMusic && (
+                      <div className="text-center py-8">
+                        <Music
+                          size={48}
+                          className="text-gray-400 mx-auto mb-2"
+                        />
+                        <span className="text-gray-400">
+                          No music files available
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : menuActive == 3 ? (
+                <div
+                  className="bg-darkBoxSub p-4 w-full rounded-tr-4xl pb-14 rounded-br-4xl h-full relative overflow-hidden"
+                  onDragOver={handleVoiceContainerDragOver}
+                  onDrop={handleVoiceContainerDrop}
+                >
+                  {/* Voice list organized by groups */}
+                  <div className="space-y-3 overflow-y-auto h-full">
+                    {voiceList.map((group, groupIndex) => (
+                      <div key={group.id || groupIndex} className="space-y-2">
+                        {/* Group header */}
+                        <div
+                          className="flex items-center gap-2 cursor-pointer py-2"
+                          onClick={() =>
+                            setExpandedVoiceGroups((prev) => ({
+                              ...prev,
+                              [group.id]: !prev[group.id],
+                            }))
+                          }
+                        >
+                          {expandedVoiceGroups[group.id] ? (
+                            <ChevronDown size={16} className="text-gray-400" />
+                          ) : (
+                            <ChevronRight size={16} className="text-gray-400" />
+                          )}
+                          <span className="text-sm font-medium text-white">
+                            {group.name}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            ({group.voices.length})
                           </span>
                         </div>
-                      </div>
-                    </div>
-                  ))}
 
-                  {musicList.length === 0 && !isUploadingMusic && (
-                    <div className="text-center py-8">
-                      <Music size={48} className="text-gray-400 mx-auto mb-2" />
-                      <span className="text-gray-400">
-                        No music files available
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : menuActive == 3 ? (
-              <div
-                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl pb-14 rounded-br-4xl h-full relative overflow-hidden"
-                onDragOver={handleVoiceContainerDragOver}
-                onDrop={handleVoiceContainerDrop}
-              >
-                {/* Voice list organized by groups */}
-                <div className="space-y-3 overflow-y-auto h-full">
-                  {voiceList.map((group, groupIndex) => (
-                    <div key={group.id || groupIndex} className="space-y-2">
-                      {/* Group header */}
-                      <div
-                        className="flex items-center gap-2 cursor-pointer py-2"
-                        onClick={() =>
-                          setExpandedVoiceGroups((prev) => ({
-                            ...prev,
-                            [group.id]: !prev[group.id],
-                          }))
-                        }
-                      >
-                        {expandedVoiceGroups[group.id] ? (
-                          <ChevronDown size={16} className="text-gray-400" />
-                        ) : (
-                          <ChevronRight size={16} className="text-gray-400" />
-                        )}
-                        <span className="text-sm font-medium text-white">
-                          {group.name}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          ({group.voices.length})
-                        </span>
-                      </div>
-
-                      {/* Group voices */}
-                      {expandedVoiceGroups[group.id] && (
-                        <div className="ml-6 space-y-2">
-                          {group.voices.map((voice, voiceIndex) => (
-                            <div
-                              key={voice.id || voiceIndex}
-                              draggable={!isUploadingVoice}
-                              onDragStart={(e) =>
-                                handleDragStart(e, voice, "voice")
-                              }
-                              onClick={() => addItemToTimeline(voice, "voice")}
-                              onMouseEnter={() =>
-                                setHoveredVoiceItem(voice.id || voiceIndex)
-                              }
-                              onMouseLeave={() => setHoveredVoiceItem(null)}
-                              className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
-                            >
-                              <div className="flex items-center gap-3">
-                                <Mic size={24} className="text-primarioLogo" />
-                                <div className="w-3/4">
-                                  <div className="w-full line-clamp-1">
-                                    <span className="text-[#E7E7E7] text-sm font-medium block">
-                                      {voice.name}
+                        {/* Group voices */}
+                        {expandedVoiceGroups[group.id] && (
+                          <div className="ml-6 space-y-2">
+                            {group.voices.map((voice, voiceIndex) => (
+                              <div
+                                key={voice.id || voiceIndex}
+                                draggable={!isUploadingVoice}
+                                onDragStart={(e) =>
+                                  handleDragStart(e, voice, "voice")
+                                }
+                                onClick={() =>
+                                  addItemToTimeline(voice, "voice")
+                                }
+                                onMouseEnter={() =>
+                                  setHoveredVoiceItem(voice.id || voiceIndex)
+                                }
+                                onMouseLeave={() => setHoveredVoiceItem(null)}
+                                className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <Mic
+                                    size={24}
+                                    className="text-primarioLogo"
+                                  />
+                                  <div className="w-3/4">
+                                    <div className="w-full line-clamp-1">
+                                      <span className="text-[#E7E7E7] text-sm font-medium block">
+                                        {voice.name}
+                                      </span>
+                                    </div>
+                                    <span className="text-gray-400 text-xs">
+                                      {voice.duration ||
+                                        (audioDurations[voice.url] ?? null) ||
+                                        15}
+                                      s
                                     </span>
                                   </div>
-                                  <span className="text-gray-400 text-xs">
-                                    {voice.duration ||
-                                      (audioDurations[voice.url] ?? null) ||
-                                      15}
-                                    s
-                                  </span>
                                 </div>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
 
-                  {!hasVoices() && !isUploadingVoice && (
-                    <div className="text-center py-8">
-                      <Mic size={48} className="text-gray-400 mx-auto mb-2" />
-                      <span className="text-gray-400">
-                        No voice files available
-                      </span>
+                    {!hasVoices() && !isUploadingVoice && (
+                      <div className="text-center py-8">
+                        <Mic size={48} className="text-gray-400 mx-auto mb-2" />
+                        <span className="text-gray-400">
+                          No voice files available
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : menuActive == 4 ? (
+                <div
+                  className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative overflow-hidden"
+                  onDragOver={handleSoundContainerDragOver}
+                  onDrop={handleSoundContainerDrop}
+                >
+                  {/* Add Sound Button - always visible */}
+                  <button
+                    onClick={() => {
+                      const input =
+                        soundList.length > 0
+                          ? document.getElementById("sound-upload-hidden")
+                          : document.getElementById("sound-upload");
+                      input?.click();
+                    }}
+                    className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                    title="Add sound"
+                    disabled={isUploadingSound}
+                  >
+                    <Plus size={20} />
+                  </button>
+
+                  {/* Upload area - only show when no sounds */}
+                  {soundList.length === 0 && (
+                    <div className="mb-4 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-primarioLogo transition-colors duration-200">
+                      <input
+                        type="file"
+                        multiple
+                        accept="audio/*"
+                        onChange={handleSoundInputChange}
+                        className="hidden"
+                        id="sound-upload"
+                        disabled={isUploadingSound}
+                      />
+                      <label
+                        htmlFor="sound-upload"
+                        className="cursor-pointer flex flex-col items-center gap-2"
+                      >
+                        <Upload size={32} className="text-gray-400" />
+                        <span className="text-gray-400 text-sm">
+                          {isUploadingSound
+                            ? "Uploading sounds..."
+                            : "Drag sound files here or click to select"}
+                        </span>
+                      </label>
                     </div>
                   )}
-                </div>
-              </div>
-            ) : menuActive == 4 ? (
-              <div
-                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative overflow-hidden"
-                onDragOver={handleSoundContainerDragOver}
-                onDrop={handleSoundContainerDrop}
-              >
-                {/* Add Sound Button - always visible */}
-                <button
-                  onClick={() => {
-                    const input =
-                      soundList.length > 0
-                        ? document.getElementById("sound-upload-hidden")
-                        : document.getElementById("sound-upload");
-                    input?.click();
-                  }}
-                  className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                  title="Add sound"
-                  disabled={isUploadingSound}
-                >
-                  <Plus size={20} />
-                </button>
 
-                {/* Upload area - only show when no sounds */}
-                {soundList.length === 0 && (
-                  <div className="mb-4 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-primarioLogo transition-colors duration-200">
+                  {/* Hidden input for drag & drop when sounds exist */}
+                  {soundList.length > 0 && (
                     <input
                       type="file"
                       multiple
                       accept="audio/*"
                       onChange={handleSoundInputChange}
                       className="hidden"
-                      id="sound-upload"
+                      id="sound-upload-hidden"
                       disabled={isUploadingSound}
                     />
-                    <label
-                      htmlFor="sound-upload"
-                      className="cursor-pointer flex flex-col items-center gap-2"
-                    >
-                      <Upload size={32} className="text-gray-400" />
-                      <span className="text-gray-400 text-sm">
-                        {isUploadingSound
-                          ? "Uploading sounds..."
-                          : "Drag sound files here or click to select"}
-                      </span>
-                    </label>
-                  </div>
-                )}
+                  )}
 
-                {/* Hidden input for drag & drop when sounds exist */}
-                {soundList.length > 0 && (
-                  <input
-                    type="file"
-                    multiple
-                    accept="audio/*"
-                    onChange={handleSoundInputChange}
-                    className="hidden"
-                    id="sound-upload-hidden"
-                    disabled={isUploadingSound}
-                  />
-                )}
-
-                {/* Sound list */}
-                <div
-                  className={`grid mt-11 grid-cols-1 pb-14 gap-4 overflow-y-auto ${
-                    soundList.length === 0
-                      ? "max-h-[calc(100%-140px)]"
-                      : "h-full"
-                  }`}
-                >
-                  {soundList.map((sound, index) => (
-                    <div
-                      key={index}
-                      draggable={!isUploadingSound}
-                      onDragStart={(e) => handleDragStart(e, sound, "sound")}
-                      onClick={() => addItemToTimeline(sound, "sound")}
-                      onMouseEnter={() =>
-                        setHoveredSoundItem(sound.id || index)
-                      }
-                      onMouseLeave={() => setHoveredSoundItem(null)}
-                      className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
-                    >
-                      {/* Delete Button - Only visible on hover */}
-                      <button
-                        onClick={(e) => handleDeleteSoundClick(e, sound)}
-                        className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                        title="Delete sound"
+                  {/* Sound list */}
+                  <div
+                    className={`grid mt-11 grid-cols-1 pb-14 gap-4 overflow-y-auto ${
+                      soundList.length === 0
+                        ? "max-h-[calc(100%-140px)]"
+                        : "h-full"
+                    }`}
+                  >
+                    {soundList.map((sound, index) => (
+                      <div
+                        key={index}
+                        draggable={!isUploadingSound}
+                        onDragStart={(e) => handleDragStart(e, sound, "sound")}
+                        onClick={() => addItemToTimeline(sound, "sound")}
+                        onMouseEnter={() =>
+                          setHoveredSoundItem(sound.id || index)
+                        }
+                        onMouseLeave={() => setHoveredSoundItem(null)}
+                        className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-4 transition-all duration-200 hover:bg-darkBoxSub relative group"
                       >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                        {/* Delete Button - Only visible on hover */}
+                        <button
+                          onClick={(e) => handleDeleteSoundClick(e, sound)}
+                          className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                          title="Delete sound"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
 
-                      <div className="flex items-center gap-3">
-                        <Headphones size={24} className="text-primarioLogo" />
-                        <div className="w-3/4">
-                          <div className="w-full line-clamp-1">
-                            <span className="text-[#E7E7E7] text-sm font-medium block">
-                              {sound.name}
+                        <div className="flex items-center gap-3">
+                          <Headphones size={24} className="text-primarioLogo" />
+                          <div className="w-3/4">
+                            <div className="w-full line-clamp-1">
+                              <span className="text-[#E7E7E7] text-sm font-medium block">
+                                {sound.name}
+                              </span>
+                            </div>
+                            <span className="text-gray-400 text-xs">
+                              {formatDuration(sound.duration || 30)}s
                             </span>
                           </div>
-                          <span className="text-gray-400 text-xs">
-                            {formatDuration(sound.duration || 30)}s
-                          </span>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
 
-                  {soundList.length === 0 && !isUploadingSound && (
-                    <div className="text-center py-8">
-                      <Headphones
-                        size={48}
-                        className="text-gray-400 mx-auto mb-2"
+                    {soundList.length === 0 && !isUploadingSound && (
+                      <div className="text-center py-8">
+                        <Headphones
+                          size={48}
+                          className="text-gray-400 mx-auto mb-2"
+                        />
+                        <span className="text-gray-400">
+                          No sound files available
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : menuActive == 5 ? (
+                <div
+                  className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative overflow-hidden"
+                  onDragOver={handleImageContainerDragOver}
+                  onDrop={handleImageContainerDrop}
+                >
+                  {/* Add Image Button - always visible */}
+                  <button
+                    onClick={() => {
+                      const input =
+                        images.length > 0
+                          ? document.getElementById("image-upload-hidden")
+                          : document.getElementById("image-upload");
+                      input?.click();
+                    }}
+                    className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                    title="Add images"
+                    disabled={isUploadingImages}
+                  >
+                    <Plus size={20} />
+                  </button>
+
+                  {/* Upload area - only show when no images */}
+                  {images.length === 0 && (
+                    <div className="mb-4 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-primarioLogo transition-colors duration-200">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleImageInputChange}
+                        className="hidden"
+                        id="image-upload"
+                        disabled={isUploadingImages}
                       />
-                      <span className="text-gray-400">
-                        No sound files available
-                      </span>
+                      <label
+                        htmlFor="image-upload"
+                        className="cursor-pointer flex flex-col items-center gap-2"
+                      >
+                        <Upload size={32} className="text-gray-400" />
+                        <span className="text-gray-400 text-sm">
+                          {isUploadingImages
+                            ? "Uploading images..."
+                            : "Drag images here or click to select"}
+                        </span>
+                      </label>
                     </div>
                   )}
-                </div>
-              </div>
-            ) : menuActive == 5 ? (
-              <div
-                className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative overflow-hidden"
-                onDragOver={handleImageContainerDragOver}
-                onDrop={handleImageContainerDrop}
-              >
-                {/* Add Image Button - always visible */}
-                <button
-                  onClick={() => {
-                    const input =
-                      images.length > 0
-                        ? document.getElementById("image-upload-hidden")
-                        : document.getElementById("image-upload");
-                    input?.click();
-                  }}
-                  className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                  title="Add images"
-                  disabled={isUploadingImages}
-                >
-                  <Plus size={20} />
-                </button>
 
-                {/* Upload area - only show when no images */}
-                {images.length === 0 && (
-                  <div className="mb-4 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-primarioLogo transition-colors duration-200">
+                  {/* Hidden input for drag & drop when images exist */}
+                  {images.length > 0 && (
                     <input
                       type="file"
                       multiple
                       accept="image/*"
                       onChange={handleImageInputChange}
                       className="hidden"
-                      id="image-upload"
+                      id="image-upload-hidden"
                       disabled={isUploadingImages}
                     />
-                    <label
-                      htmlFor="image-upload"
-                      className="cursor-pointer flex flex-col items-center gap-2"
-                    >
-                      <Upload size={32} className="text-gray-400" />
-                      <span className="text-gray-400 text-sm">
-                        {isUploadingImages
-                          ? "Uploading images..."
-                          : "Drag images here or click to select"}
-                      </span>
-                    </label>
-                  </div>
-                )}
+                  )}
 
-                {/* Hidden input for drag & drop when images exist */}
-                {images.length > 0 && (
+                  {/* Images grid */}
+                  <div
+                    className={`grid mt-11 grid-cols-1 gap-4 pb-14 overflow-y-auto ${
+                      images.length === 0
+                        ? "max-h-[calc(100%-140px)]"
+                        : "h-full"
+                    }`}
+                  >
+                    {images.map((image, index) => (
+                      <div
+                        key={index}
+                        draggable={!isUploadingImages}
+                        onDragStart={(e) => handleDragStart(e, image, "image")}
+                        onClick={() => addItemToTimeline(image, "image")}
+                        onMouseEnter={() =>
+                          setHoveredImageItem(image.id || index)
+                        }
+                        onMouseLeave={() => setHoveredImageItem(null)}
+                        className="bg-darkBox cursor-pointer overflow-x-hidden h-32 hover:bg-opacity-80 rounded-2xl transition-all duration-200 hover:scale-105 relative group"
+                      >
+                        {/* Delete Button - Only visible on hover */}
+                        <button
+                          onClick={(e) => handleDeleteImageClick(e, image)}
+                          className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                          title="Delete image"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+
+                        <img
+                          src={image.image_url}
+                          className="rounded-t-2xl w-full max-h-18 object-cover"
+                          alt={image.name}
+                        />
+                        <div className="pb-4 pt-1 px-1">
+                          <span
+                            className="text-[#E7E7E7] text-xs line-clamp-1 mt-2"
+                            title={image.name}
+                          >
+                            {image.name}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+
+                    {images.length === 0 && !isUploadingImages && (
+                      <div className="col-span-2 text-center py-8">
+                        <span className="text-gray-400">
+                          No images available
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : menuActive == 6 ? (
+                <div className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative overflow-hidden">
+                  {/* Add Video Button - always visible, top right */}
+                  <button
+                    onClick={() => {
+                      document.getElementById("editor-video-upload")?.click();
+                    }}
+                    className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                    title="Add video"
+                    disabled={isUploadingEditorVideo}
+                  >
+                    <Plus size={20} />
+                  </button>
+
+                  {/* Hidden input for video upload */}
                   <input
                     type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageInputChange}
+                    accept="video/*"
+                    onChange={handleEditorVideoInputChange}
                     className="hidden"
-                    id="image-upload-hidden"
-                    disabled={isUploadingImages}
+                    id="editor-video-upload"
+                    disabled={isUploadingEditorVideo}
                   />
-                )}
 
-                {/* Images grid */}
-                <div
-                  className={`grid mt-11 grid-cols-1 gap-4 pb-14 overflow-y-auto ${
-                    images.length === 0 ? "max-h-[calc(100%-140px)]" : "h-full"
-                  }`}
-                >
-                  {images.map((image, index) => (
-                    <div
-                      key={index}
-                      draggable={!isUploadingImages}
-                      onDragStart={(e) => handleDragStart(e, image, "image")}
-                      onClick={() => addItemToTimeline(image, "image")}
-                      onMouseEnter={() =>
-                        setHoveredImageItem(image.id || index)
-                      }
-                      onMouseLeave={() => setHoveredImageItem(null)}
-                      className="bg-darkBox cursor-pointer overflow-x-hidden h-32 hover:bg-opacity-80 rounded-2xl transition-all duration-200 hover:scale-105 relative group"
-                    >
-                      {/* Delete Button - Only visible on hover */}
-                      <button
-                        onClick={(e) => handleDeleteImageClick(e, image)}
-                        className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                        title="Delete image"
+                  {/* Videos grid */}
+                  <div className="grid mt-11 grid-cols-1 gap-4 pb-14 overflow-y-auto h-full">
+                    {editorVideosList.map((video) => (
+                      <div
+                        key={video.id}
+                        draggable={!isUploadingEditorVideo}
+                        onDragStart={(e) => handleDragStart(e, video, "video")}
+                        onClick={() => addItemToTimeline(video, "video")}
+                        className="bg-darkBox cursor-pointer overflow-hidden h-32 hover:bg-opacity-80 rounded-2xl transition-all duration-200 hover:scale-105 relative group"
                       >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-
-                      <img
-                        src={image.image_url}
-                        className="rounded-t-2xl w-full max-h-18 object-cover"
-                        alt={image.name}
-                      />
-                      <div className="pb-4 pt-1 px-1">
-                        <span
-                          className="text-[#E7E7E7] text-xs line-clamp-1 mt-2"
-                          title={image.name}
+                        {/* Delete Button - Only visible on hover */}
+                        <button
+                          onClick={(e) =>
+                            handleDeleteEditorVideoClick(e, video)
+                          }
+                          className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                          title="Delete video"
                         >
-                          {image.name}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                          <Trash2 className="w-3 h-3" />
+                        </button>
 
-                  {images.length === 0 && !isUploadingImages && (
-                    <div className="col-span-2 text-center py-8">
-                      <span className="text-gray-400">No images available</span>
-                    </div>
-                  )}
+                        <video
+                          src={video.video_url}
+                          className="rounded-t-2xl w-full h-20 object-cover"
+                          muted
+                          preload="metadata"
+                        />
+                        <div className="pb-4 pt-1 px-2">
+                          <span
+                            className="text-[#E7E7E7] text-xs line-clamp-1"
+                            title={video.title}
+                          >
+                            {video.title}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+
+                    {editorVideosList.length === 0 &&
+                      !isUploadingEditorVideo && (
+                        <div className="text-center py-8">
+                          <span className="text-gray-400">
+                            No videos available
+                          </span>
+                        </div>
+                      )}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <span>Otros</span>
-            )}
+              ) : (
+                <span>Otros</span>
+              )}
+            </div>
           </div>
         </div>
         <div
-          ref={previewContainerRef}
-          className="w-2/4 rounded-4xl relative overflow-hidden"
-          style={previewStyles.container}
+          className={`pl-6 transition-all duration-300 ${
+            isSidebarVisible ? "w-4/5" : "w-[calc(100%-64px)]"
+          }`}
         >
-          <div
-            className="relative rounded-4xl bg-gray-900"
-            style={previewStyles.video}
-          >
-            {/* Video principal - siempre en el DOM */}
-            <video
-              ref={mainVideoRef}
-              data-element-id={
-                getActiveElements(currentTime).find(
-                  (el) => el.channel === "video"
-                )?.id || "main-video"
-              }
-              className="rounded-4xl bg-gray-900 w-full h-full object-cover absolute inset-0"
-              muted={false}
-              style={{
-                transition: "opacity 0.15s ease-in-out",
-                opacity: 1,
-                zIndex: 2,
-              }}
+          <div className="flex justify-between items-center gap-3 mb-2 h-12">
+            <img
+              src="/logos/logo_reelmotion.webp"
+              alt="Reelmotion AI"
+              className="h-7 w-auto"
             />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => window.history.back()}
+                className="flex items-center gap-2 px-4 py-2 bg-darkBoxSub hover:bg-darkBoxSub text-white rounded-lg transition-all duration-200 montserrat-medium text-sm"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Return
+              </button>
+              {currentEditName && (
+                <button
+                  onClick={handleNewProject}
+                  className="flex items-center gap-2 px-4 py-2 bg-darkBoxSub hover:bg-darkBoxSub text-white rounded-lg transition-all duration-200 montserrat-medium text-sm"
+                >
+                  <SquarePlusIcon className="w-4 h-4" />
+                  New
+                </button>
+              )}
 
-            {/* Video secundario para transiciones suaves */}
-            <video
-              ref={secondaryVideoRef}
-              className="rounded-4xl bg-gray-900 w-full h-full object-cover absolute inset-0"
-              muted={false}
-              style={{
-                transition: "opacity 0.15s ease-in-out",
-                opacity: 0,
-                zIndex: 1,
-                display: "none",
-              }}
-            />
+              <button
+                onClick={handleSaveProject}
+                className="flex items-center gap-2 px-4 py-2 bg-darkBoxSub hover:bg-darkBoxSub text-white rounded-lg transition-all duration-200 montserrat-medium text-sm"
+              >
+                <Save className="w-4 h-4" />
+                Save
+              </button>
 
-            {/* Placeholder cuando no hay videos o cuando no está reproduciendo */}
+              <button
+                onClick={handleLoadProject}
+                className="flex items-center gap-2 px-4 py-2 bg-darkBoxSub hover:bg-darkBoxSub text-white rounded-lg transition-all duration-200 montserrat-medium text-sm"
+              >
+                <FolderOpen className="w-4 h-4" />
+                Load
+              </button>
 
+              <button
+                onClick={handleExportVideo}
+                className="flex items-center gap-2 px-4 py-2 bg-darkBoxSub hover:bg-darkBoxSub text-white rounded-lg transition-all duration-200 montserrat-medium text-sm"
+              >
+                <Download className="w-4 h-4" />
+                Export
+              </button>
+            </div>
+          </div>
+          {/* ACTION BAR */}
+
+          <div className="flex gap-1 mt-0 h-[45vh]">
             <div
-              className="rounded-4xl w-full h-full bg-darkBox flex items-center justify-center absolute inset-0"
-              style={{
-                display:
-                  arrayVideoMake.some((item) => item.channel === "video") &&
-                  getActiveElements(currentTime).some(
-                    (el) => el.channel === "video"
-                  )
-                    ? "none"
-                    : "flex",
-                zIndex: 0,
-              }}
+              ref={previewContainerRef}
+              className="w-2/4 rounded-4xl relative overflow-hidden"
+              style={previewStyles.container}
             >
-              <div className="text-center">
-                <ClapperboardIcon
-                  size={64}
-                  className="text-gray-400 mx-auto mb-4"
+              <div
+                className="relative rounded-4xl bg-gray-900"
+                style={previewStyles.video}
+              >
+                {/* Video principal - siempre en el DOM */}
+                <video
+                  ref={mainVideoRef}
+                  data-element-id={
+                    getActiveElements(currentTime).find(
+                      (el) => el.channel === "video"
+                    )?.id || "main-video"
+                  }
+                  className="rounded-4xl bg-gray-900 w-full h-full object-cover absolute inset-0"
+                  muted={false}
+                  style={{
+                    transition: "opacity 0.15s ease-in-out",
+                    opacity: 1,
+                    zIndex: 2,
+                  }}
                 />
-                <p className="text-gray-500 text-sm mt-2">
-                  Your video will appear in this area
-                </p>
+
+                {/* Video secundario para transiciones suaves */}
+                <video
+                  ref={secondaryVideoRef}
+                  className="rounded-4xl bg-gray-900 w-full h-full object-cover absolute inset-0"
+                  muted={false}
+                  style={{
+                    transition: "opacity 0.15s ease-in-out",
+                    opacity: 0,
+                    zIndex: 1,
+                    display: "none",
+                  }}
+                />
+
+                {/* Placeholder cuando no hay videos o cuando no está reproduciendo */}
+
+                <div
+                  className="rounded-4xl w-full h-full bg-darkBox flex items-center justify-center absolute inset-0"
+                  style={{
+                    display:
+                      arrayVideoMake.some((item) => item.channel === "video") &&
+                      getActiveElements(currentTime).some(
+                        (el) => el.channel === "video"
+                      )
+                        ? "none"
+                        : "flex",
+                    zIndex: 0,
+                  }}
+                >
+                  <div className="text-center">
+                    <ClapperboardIcon
+                      size={64}
+                      className="text-gray-400 mx-auto mb-4"
+                    />
+                    <p className="text-gray-500 text-sm mt-2">
+                      Your video will appear in this area
+                    </p>
+                  </div>
+                </div>
+                {/* Overlay for images and text */}
+                {arrayVideoMake
+                  .filter(
+                    (item) =>
+                      item.channel === "image" &&
+                      currentTime >= item.startTime &&
+                      currentTime < item.endTime
+                  )
+                  .sort((a, b) => (a.zIndex || 1) - (b.zIndex || 1))
+                  .map((item) => {
+                    const scale = item.scale || 1;
+
+                    // Convert normalized position (0-1) to CSS positioning
+                    // FFmpeg coordinates: (0,0) = top-left, (1,1) = bottom-right
+                    const posX = item.position?.x || 0.5;
+                    const posY = item.position?.y || 0.5;
+
+                    // Calculate actual position as percentage
+                    const leftPercent = posX * 100;
+                    const topPercent = posY * 100; // Direct mapping - no inversion needed for FFmpeg compatibility
+
+                    // Apply color correction using FFmpeg-accurate formulas
+                    const filters = [];
+                    if (item.colorCorrection) {
+                      const cc = item.colorCorrection;
+
+                      // Brightness: FFmpeg -1.0 to 1.0 -> CSS brightness()
+                      // FFmpeg eq filter uses additive brightness, CSS uses multiplicative
+                      if (cc.brightness !== 0) {
+                        // Convert FFmpeg additive brightness to CSS multiplicative brightness
+                        const cssValue = 1 + cc.brightness * 0.6; // Reduced factor for better match
+                        filters.push(`brightness(${Math.max(0.1, cssValue)})`);
+                      }
+
+                      // Contrast: FFmpeg 0.0 to 4.0 -> CSS contrast()
+                      // FFmpeg eq filter: (input - 0.5) * contrast + 0.5
+                      // CSS contrast: input * contrast
+                      if (cc.contrast !== 1) {
+                        // Convert FFmpeg contrast to CSS contrast
+                        let cssContrast;
+                        if (cc.contrast < 1) {
+                          // For reduced contrast, the difference is more pronounced
+                          cssContrast = 0.3 + cc.contrast * 0.7; // Maps 0->0.3, 1->1.0
+                        } else {
+                          // For increased contrast, closer mapping
+                          cssContrast = cc.contrast * 0.85 + 0.15; // Slightly reduce high contrast
+                        }
+                        filters.push(`contrast(${Math.max(0.1, cssContrast)})`);
+                      }
+
+                      // Saturation: FFmpeg 0.0 to 3.0 -> CSS saturate()
+                      if (cc.saturation !== 1) {
+                        // FFmpeg saturation tends to be more intense than CSS
+                        let cssSaturation;
+                        if (cc.saturation < 1) {
+                          cssSaturation = cc.saturation * 0.85 + 0.15; // Less desaturation
+                        } else {
+                          cssSaturation = 1 + (cc.saturation - 1) * 0.75; // Reduce oversaturation
+                        }
+                        filters.push(`saturate(${Math.max(0, cssSaturation)})`);
+                      }
+
+                      // Gamma: No direct CSS equivalent, approximate with brightness
+                      if (cc.gamma !== 1) {
+                        // Improved gamma approximation
+                        const gammaEffect = Math.pow(0.5, 1 / cc.gamma) * 2;
+                        const adjustedGamma = 1 + (gammaEffect - 1) * 0.7; // Reduce intensity
+                        filters.push(
+                          `brightness(${Math.max(0.1, adjustedGamma)})`
+                        );
+                      }
+
+                      // Hue: FFmpeg -180 to 180 -> CSS hue-rotate()
+                      if (cc.hue !== 0) {
+                        filters.push(`hue-rotate(${cc.hue}deg)`);
+                      }
+
+                      // Vibrance: More conservative approximation
+                      if (cc.vibrance !== 0) {
+                        // Even more conservative vibrance to avoid over-saturation
+                        const vibranceEffect = 1 + cc.vibrance * 0.2;
+                        filters.push(
+                          `saturate(${Math.max(0, vibranceEffect)})`
+                        );
+                      }
+                    }
+
+                    return (
+                      <div
+                        key={item.id}
+                        className={`absolute rounded-0 overflow-visible pointer-events-none group ${
+                          selectedElement?.id === item.id && !isPlaying
+                            ? "ring-2 ring-primarioLogo ring-opacity-80"
+                            : ""
+                        }`}
+                        style={{
+                          zIndex: (item.zIndex || 1) + 10,
+                          left: `${leftPercent}%`,
+                          top: `${topPercent}%`,
+                          width: `${scale * 100}%`,
+                          height: `${scale * 100}%`,
+                          transform: `translate(-50%, -50%)`, // Center the image on the position
+                        }}
+                      >
+                        <img
+                          data-element-id={item.id}
+                          src={item.url}
+                          alt={item.title}
+                          className="cursor-move rounded-0"
+                          style={{
+                            opacity: item.opacity || 1,
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "contain",
+                            pointerEvents: "auto",
+                            filter:
+                              filters.length > 0 ? filters.join(" ") : "none",
+                            backgroundColor: "transparent", // Ensure transparent background for PNGs
+                          }}
+                          onMouseDown={(e) => handleImageDragStart(e, item)}
+                          onClick={(e) => handleSelectElement(item, e)}
+                        />
+
+                        {/* Resize handles - only show when selected and not playing */}
+                        {selectedElement?.id === item.id && !isPlaying && (
+                          <>
+                            {/* Top-left corner */}
+                            <div
+                              className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-nw-resize pointer-events-auto"
+                              style={{ top: "-6px", left: "-6px" }}
+                              onMouseDown={(e) =>
+                                handleImageResizeStart(e, item, "top-left")
+                              }
+                            />
+                            {/* Top-right corner */}
+                            <div
+                              className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-ne-resize pointer-events-auto"
+                              style={{ top: "-6px", right: "-6px" }}
+                              onMouseDown={(e) =>
+                                handleImageResizeStart(e, item, "top-right")
+                              }
+                            />
+                            {/* Bottom-left corner */}
+                            <div
+                              className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-sw-resize pointer-events-auto"
+                              style={{ bottom: "-6px", left: "-6px" }}
+                              onMouseDown={(e) =>
+                                handleImageResizeStart(e, item, "bottom-left")
+                              }
+                            />
+                            {/* Bottom-right corner */}
+                            <div
+                              className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-se-resize pointer-events-auto"
+                              style={{ bottom: "-6px", right: "-6px" }}
+                              onMouseDown={(e) =>
+                                handleImageResizeStart(e, item, "bottom-right")
+                              }
+                            />
+                            {/* Top side */}
+                            <div
+                              className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-n-resize pointer-events-auto"
+                              style={{
+                                top: "-6px",
+                                left: "50%",
+                                transform: "translateX(-50%)",
+                              }}
+                              onMouseDown={(e) =>
+                                handleImageResizeStart(e, item, "top")
+                              }
+                            />
+                            {/* Bottom side */}
+                            <div
+                              className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-s-resize pointer-events-auto"
+                              style={{
+                                bottom: "-6px",
+                                left: "50%",
+                                transform: "translateX(-50%)",
+                              }}
+                              onMouseDown={(e) =>
+                                handleImageResizeStart(e, item, "bottom")
+                              }
+                            />
+                            {/* Left side */}
+                            <div
+                              className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-w-resize pointer-events-auto"
+                              style={{
+                                left: "-6px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                              }}
+                              onMouseDown={(e) =>
+                                handleImageResizeStart(e, item, "left")
+                              }
+                            />
+                            {/* Right side */}
+                            <div
+                              className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-e-resize pointer-events-auto"
+                              style={{
+                                right: "-6px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                              }}
+                              onMouseDown={(e) =>
+                                handleImageResizeStart(e, item, "right")
+                              }
+                            />
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
               </div>
             </div>
-            {/* Overlay for images and text */}
-            {arrayVideoMake
-              .filter(
-                (item) =>
-                  item.channel === "image" &&
-                  currentTime >= item.startTime &&
-                  currentTime < item.endTime
-              )
-              .sort((a, b) => (a.zIndex || 1) - (b.zIndex || 1))
-              .map((item) => {
-                const scale = item.scale || 1;
-
-                // Convert normalized position (0-1) to CSS positioning
-                // FFmpeg coordinates: (0,0) = top-left, (1,1) = bottom-right
-                const posX = item.position?.x || 0.5;
-                const posY = item.position?.y || 0.5;
-
-                // Calculate actual position as percentage
-                const leftPercent = posX * 100;
-                const topPercent = posY * 100; // Direct mapping - no inversion needed for FFmpeg compatibility
-
-                // Apply color correction using FFmpeg-accurate formulas
-                const filters = [];
-                if (item.colorCorrection) {
-                  const cc = item.colorCorrection;
-
-                  // Brightness: FFmpeg -1.0 to 1.0 -> CSS brightness()
-                  // FFmpeg eq filter uses additive brightness, CSS uses multiplicative
-                  if (cc.brightness !== 0) {
-                    // Convert FFmpeg additive brightness to CSS multiplicative brightness
-                    const cssValue = 1 + cc.brightness * 0.6; // Reduced factor for better match
-                    filters.push(`brightness(${Math.max(0.1, cssValue)})`);
+            <div className="w-1/4 bg-darkBox rounded-4xl p-6 overflow-y-scroll">
+              <div className="text-white mb-4">
+                <h3
+                  className="text-lg font-medium mb-2 line-clamp-1"
+                  title={
+                    selectedElement && selectedElement.type === "image"
+                      ? `Edit Image: ${selectedElement.title}`
+                      : selectedElement && selectedElement.type === "video"
+                      ? `Edit Video: ${selectedElement.title}`
+                      : selectedElement && selectedElement.type === "music"
+                      ? `Edit Music: ${selectedElement.title}`
+                      : selectedElement && selectedElement.type === "voice"
+                      ? `Edit Voice: ${selectedElement.title}`
+                      : "Editor Controls"
                   }
+                >
+                  {selectedElement && selectedElement.type === "image"
+                    ? `Edit Image: ${selectedElement.title}`
+                    : selectedElement && selectedElement.type === "video"
+                    ? `Edit Video: ${selectedElement.title}`
+                    : selectedElement && selectedElement.type === "music"
+                    ? `Edit Music: ${selectedElement.title}`
+                    : selectedElement && selectedElement.type === "voice"
+                    ? `Edit Voice: ${selectedElement.title}`
+                    : "Editor Controls"}
+                </h3>
 
-                  // Contrast: FFmpeg 0.0 to 4.0 -> CSS contrast()
-                  // FFmpeg eq filter: (input - 0.5) * contrast + 0.5
-                  // CSS contrast: input * contrast
-                  if (cc.contrast !== 1) {
-                    // Convert FFmpeg contrast to CSS contrast
-                    let cssContrast;
-                    if (cc.contrast < 1) {
-                      // For reduced contrast, the difference is more pronounced
-                      cssContrast = 0.3 + cc.contrast * 0.7; // Maps 0->0.3, 1->1.0
-                    } else {
-                      // For increased contrast, closer mapping
-                      cssContrast = cc.contrast * 0.85 + 0.15; // Slightly reduce high contrast
-                    }
-                    filters.push(`contrast(${Math.max(0.1, cssContrast)})`);
-                  }
+                {selectedElement && selectedElement.type === "video" ? (
+                  <div className="space-y-4">
+                    <div className="text-sm text-gray-300 mb-4">
+                      <p>
+                        Duration: {formatDuration(selectedElement.duration)}s
+                      </p>
+                      <p className="text-xs mt-1">Click again to deselect</p>
+                    </div>
 
-                  // Saturation: FFmpeg 0.0 to 3.0 -> CSS saturate()
-                  if (cc.saturation !== 1) {
-                    // FFmpeg saturation tends to be more intense than CSS
-                    let cssSaturation;
-                    if (cc.saturation < 1) {
-                      cssSaturation = cc.saturation * 0.85 + 0.15; // Less desaturation
-                    } else {
-                      cssSaturation = 1 + (cc.saturation - 1) * 0.75; // Reduce oversaturation
-                    }
-                    filters.push(`saturate(${Math.max(0, cssSaturation)})`);
-                  }
+                    {/* Volume Control for Videos */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-300 block mb-2">
+                        Volume:{" "}
+                        {Math.round(
+                          (selectedElement.volume !== undefined
+                            ? selectedElement.volume
+                            : 1) * 100
+                        )}
+                        %
+                      </label>
+                      <CustomSlider
+                        value={Math.round(
+                          (selectedElement.volume !== undefined
+                            ? selectedElement.volume
+                            : 1) * 100
+                        )}
+                        min={0}
+                        max={100}
+                        step={1}
+                        onChange={(e) =>
+                          updateSelectedElement(
+                            "volume",
+                            parseInt(e.target.value) / 100
+                          )
+                        }
+                      />
+                    </div>
 
-                  // Gamma: No direct CSS equivalent, approximate with brightness
-                  if (cc.gamma !== 1) {
-                    // Improved gamma approximation
-                    const gammaEffect = Math.pow(0.5, 1 / cc.gamma) * 2;
-                    const adjustedGamma = 1 + (gammaEffect - 1) * 0.7; // Reduce intensity
-                    filters.push(`brightness(${Math.max(0.1, adjustedGamma)})`);
-                  }
+                    {/* FFmpeg Compatible Color Correction */}
+                    <div className="border-t border-gray-600 pt-4">
+                      <h4 className="text-sm font-medium text-gray-300 mb-3">
+                        Color Correction (FFmpeg Compatible)
+                      </h4>
 
-                  // Hue: FFmpeg -180 to 180 -> CSS hue-rotate()
-                  if (cc.hue !== 0) {
-                    filters.push(`hue-rotate(${cc.hue}deg)`);
-                  }
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Brightness:{" "}
+                          {(
+                            selectedElement.colorCorrection?.brightness || 0
+                          ).toFixed(2)}
+                        </label>
+                        <CustomSlider
+                          value={
+                            selectedElement.colorCorrection?.brightness || 0
+                          }
+                          min={-1}
+                          max={1}
+                          step={0.01}
+                          {...handleSliderChange("colorCorrection.brightness")}
+                        />
+                      </div>
 
-                  // Vibrance: More conservative approximation
-                  if (cc.vibrance !== 0) {
-                    // Even more conservative vibrance to avoid over-saturation
-                    const vibranceEffect = 1 + cc.vibrance * 0.2;
-                    filters.push(`saturate(${Math.max(0, vibranceEffect)})`);
-                  }
-                }
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Contrast:{" "}
+                          {(
+                            selectedElement.colorCorrection?.contrast || 1
+                          ).toFixed(2)}
+                        </label>
+                        <CustomSlider
+                          value={selectedElement.colorCorrection?.contrast || 1}
+                          min={0}
+                          max={4}
+                          step={0.01}
+                          {...handleSliderChange("colorCorrection.contrast")}
+                        />
+                      </div>
 
-                return (
-                  <div
-                    key={item.id}
-                    className={`absolute rounded-0 overflow-visible pointer-events-none group ${
-                      selectedElement?.id === item.id && !isPlaying
-                        ? "ring-2 ring-primarioLogo ring-opacity-80"
-                        : ""
-                    }`}
-                    style={{
-                      zIndex: (item.zIndex || 1) + 10,
-                      left: `${leftPercent}%`,
-                      top: `${topPercent}%`,
-                      width: `${scale * 100}%`,
-                      height: `${scale * 100}%`,
-                      transform: `translate(-50%, -50%)`, // Center the image on the position
-                    }}
-                  >
-                    <img
-                      data-element-id={item.id}
-                      src={item.url}
-                      alt={item.title}
-                      className="cursor-move rounded-0"
-                      style={{
-                        opacity: item.opacity || 1,
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "contain",
-                        pointerEvents: "auto",
-                        filter: filters.length > 0 ? filters.join(" ") : "none",
-                        backgroundColor: "transparent", // Ensure transparent background for PNGs
-                      }}
-                      onMouseDown={(e) => handleImageDragStart(e, item)}
-                      onClick={(e) => handleSelectElement(item, e)}
-                    />
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Saturation:{" "}
+                          {(
+                            selectedElement.colorCorrection?.saturation || 1
+                          ).toFixed(2)}
+                        </label>
+                        <CustomSlider
+                          value={
+                            selectedElement.colorCorrection?.saturation || 1
+                          }
+                          min={0}
+                          max={3}
+                          step={0.01}
+                          {...handleSliderChange("colorCorrection.saturation")}
+                        />
+                      </div>
 
-                    {/* Resize handles - only show when selected and not playing */}
-                    {selectedElement?.id === item.id && !isPlaying && (
-                      <>
-                        {/* Top-left corner */}
-                        <div
-                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-nw-resize pointer-events-auto"
-                          style={{ top: "-6px", left: "-6px" }}
-                          onMouseDown={(e) =>
-                            handleImageResizeStart(e, item, "top-left")
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Gamma:{" "}
+                          {(
+                            selectedElement.colorCorrection?.gamma || 1
+                          ).toFixed(2)}
+                        </label>
+                        <CustomSlider
+                          value={selectedElement.colorCorrection?.gamma || 1}
+                          min={0.1}
+                          max={10}
+                          step={0.01}
+                          {...handleSliderChange("colorCorrection.gamma")}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Hue: {selectedElement.colorCorrection?.hue || 0}°
+                        </label>
+                        <CustomSlider
+                          value={selectedElement.colorCorrection?.hue || 0}
+                          min={-180}
+                          max={180}
+                          step={1}
+                          {...handleSliderChange(
+                            "colorCorrection.hue",
+                            parseInt
+                          )}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Vibrance:{" "}
+                          {(
+                            selectedElement.colorCorrection?.vibrance || 0
+                          ).toFixed(2)}
+                        </label>
+                        <CustomSlider
+                          value={selectedElement.colorCorrection?.vibrance || 0}
+                          min={-2}
+                          max={2}
+                          step={0.01}
+                          {...handleSliderChange("colorCorrection.vibrance")}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex gap-2 mt-6">
+                      <button
+                        onClick={() => {
+                          updateSelectedElement("volume", 1);
+                          updateSelectedElement("zIndex", 1);
+                          updateSelectedElement(
+                            "colorCorrection.brightness",
+                            0
+                          );
+                          updateSelectedElement("colorCorrection.contrast", 1);
+                          updateSelectedElement(
+                            "colorCorrection.saturation",
+                            1
+                          );
+                          updateSelectedElement("colorCorrection.gamma", 1);
+                          updateSelectedElement("colorCorrection.hue", 0);
+                          updateSelectedElement("colorCorrection.vibrance", 0);
+                        }}
+                        className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        onClick={() => setSelectedElement(null)}
+                        className="flex-1 bg-primarioLogo text-black px-3 py-2 rounded-lg text-sm hover:bg-opacity-80 transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                ) : selectedElement && selectedElement.type === "image" ? (
+                  <div className="space-y-4">
+                    <div className="text-sm text-gray-300 mb-4">
+                      <p>
+                        Duration: {formatDuration(selectedElement.duration)}s
+                      </p>
+                      <p className="text-xs mt-1">
+                        Click again to deselect. Drag image to reposition.
+                      </p>
+                    </div>
+
+                    {/* Position Controls - FFmpeg compatible (0-1 normalized) */}
+                    <div className="border-b border-gray-600 pb-4">
+                      <h4 className="text-sm font-medium text-gray-300 mb-3">
+                        Position
+                      </h4>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          X Position:{" "}
+                          {((selectedElement.position?.x || 0.5) * 100).toFixed(
+                            1
+                          )}
+                          %
+                        </label>
+                        <CustomSlider
+                          value={selectedElement.position?.x || 0.5}
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          onChange={(e) =>
+                            updateSelectedElement("position", {
+                              ...selectedElement.position,
+                              x: parseFloat(e.target.value),
+                            })
                           }
                         />
-                        {/* Top-right corner */}
-                        <div
-                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-ne-resize pointer-events-auto"
-                          style={{ top: "-6px", right: "-6px" }}
-                          onMouseDown={(e) =>
-                            handleImageResizeStart(e, item, "top-right")
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Y Position:{" "}
+                          {((selectedElement.position?.y || 0.5) * 100).toFixed(
+                            1
+                          )}
+                          %
+                        </label>
+                        <CustomSlider
+                          value={selectedElement.position?.y || 0.5}
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          onChange={(e) =>
+                            updateSelectedElement("position", {
+                              ...selectedElement.position,
+                              y: parseFloat(e.target.value),
+                            })
                           }
                         />
-                        {/* Bottom-left corner */}
-                        <div
-                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-sw-resize pointer-events-auto"
-                          style={{ bottom: "-6px", left: "-6px" }}
-                          onMouseDown={(e) =>
-                            handleImageResizeStart(e, item, "bottom-left")
+                      </div>
+                    </div>
+
+                    {/* Opacity Control */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-300 block mb-2">
+                        Opacity:{" "}
+                        {Math.round((selectedElement.opacity || 1) * 100)}%
+                      </label>
+                      <CustomSlider
+                        value={selectedElement.opacity || 1}
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        onChange={(e) =>
+                          updateSelectedElement(
+                            "opacity",
+                            parseFloat(e.target.value)
+                          )
+                        }
+                      />
+                    </div>
+
+                    {/* Size Control */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-300 block mb-2">
+                        Scale: {((selectedElement.scale || 1) * 100).toFixed(0)}
+                        %
+                      </label>
+                      <CustomSlider
+                        value={selectedElement.scale || 1}
+                        min={0.1}
+                        max={3.0}
+                        step={0.1}
+                        onChange={(e) =>
+                          updateSelectedElement(
+                            "scale",
+                            parseFloat(e.target.value)
+                          )
+                        }
+                      />
+                    </div>
+
+                    {/* FFmpeg Compatible Color Correction */}
+                    <div className="border-t border-gray-600 pt-4">
+                      <h4 className="text-sm font-medium text-gray-300 mb-3">
+                        Color Correction (FFmpeg Compatible)
+                      </h4>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Brightness:{" "}
+                          {(
+                            selectedElement.colorCorrection?.brightness || 0
+                          ).toFixed(2)}
+                        </label>
+                        <CustomSlider
+                          value={
+                            selectedElement.colorCorrection?.brightness || 0
                           }
+                          min={-1}
+                          max={1}
+                          step={0.01}
+                          {...handleSliderChange("colorCorrection.brightness")}
                         />
-                        {/* Bottom-right corner */}
-                        <div
-                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-se-resize pointer-events-auto"
-                          style={{ bottom: "-6px", right: "-6px" }}
-                          onMouseDown={(e) =>
-                            handleImageResizeStart(e, item, "bottom-right")
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Contrast:{" "}
+                          {(
+                            selectedElement.colorCorrection?.contrast || 1
+                          ).toFixed(2)}
+                        </label>
+                        <CustomSlider
+                          value={selectedElement.colorCorrection?.contrast || 1}
+                          min={0}
+                          max={4}
+                          step={0.01}
+                          {...handleSliderChange("colorCorrection.contrast")}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Saturation:{" "}
+                          {(
+                            selectedElement.colorCorrection?.saturation || 1
+                          ).toFixed(2)}
+                        </label>
+                        <CustomSlider
+                          value={
+                            selectedElement.colorCorrection?.saturation || 1
                           }
+                          min={0}
+                          max={3}
+                          step={0.01}
+                          {...handleSliderChange("colorCorrection.saturation")}
                         />
-                        {/* Top side */}
-                        <div
-                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-n-resize pointer-events-auto"
-                          style={{
-                            top: "-6px",
-                            left: "50%",
-                            transform: "translateX(-50%)",
-                          }}
-                          onMouseDown={(e) =>
-                            handleImageResizeStart(e, item, "top")
-                          }
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Gamma:{" "}
+                          {(
+                            selectedElement.colorCorrection?.gamma || 1
+                          ).toFixed(2)}
+                        </label>
+                        <CustomSlider
+                          value={selectedElement.colorCorrection?.gamma || 1}
+                          min={0.1}
+                          max={10}
+                          step={0.01}
+                          {...handleSliderChange("colorCorrection.gamma")}
                         />
-                        {/* Bottom side */}
-                        <div
-                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-s-resize pointer-events-auto"
-                          style={{
-                            bottom: "-6px",
-                            left: "50%",
-                            transform: "translateX(-50%)",
-                          }}
-                          onMouseDown={(e) =>
-                            handleImageResizeStart(e, item, "bottom")
-                          }
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Hue: {selectedElement.colorCorrection?.hue || 0}°
+                        </label>
+                        <CustomSlider
+                          value={selectedElement.colorCorrection?.hue || 0}
+                          min={-180}
+                          max={180}
+                          step={1}
+                          {...handleSliderChange(
+                            "colorCorrection.hue",
+                            parseInt
+                          )}
                         />
-                        {/* Left side */}
-                        <div
-                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-w-resize pointer-events-auto"
-                          style={{
-                            left: "-6px",
-                            top: "50%",
-                            transform: "translateY(-50%)",
-                          }}
-                          onMouseDown={(e) =>
-                            handleImageResizeStart(e, item, "left")
-                          }
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Vibrance:{" "}
+                          {(
+                            selectedElement.colorCorrection?.vibrance || 0
+                          ).toFixed(2)}
+                        </label>
+                        <CustomSlider
+                          value={selectedElement.colorCorrection?.vibrance || 0}
+                          min={-2}
+                          max={2}
+                          step={0.01}
+                          {...handleSliderChange("colorCorrection.vibrance")}
                         />
-                        {/* Right side */}
-                        <div
-                          className="absolute w-3 h-3 bg-primarioLogo border border-white rounded-full cursor-e-resize pointer-events-auto"
-                          style={{
-                            right: "-6px",
-                            top: "50%",
-                            transform: "translateY(-50%)",
-                          }}
-                          onMouseDown={(e) =>
-                            handleImageResizeStart(e, item, "right")
-                          }
-                        />
-                      </>
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex gap-2 mt-6">
+                      <button
+                        onClick={() => {
+                          updateSelectedElement("opacity", 1);
+                          updateSelectedElement("scale", 1);
+                          updateSelectedElement("position", { x: 0.5, y: 0.5 });
+                          updateSelectedElement("zIndex", 1);
+                          updateSelectedElement(
+                            "colorCorrection.brightness",
+                            0
+                          );
+                          updateSelectedElement("colorCorrection.contrast", 1);
+                          updateSelectedElement(
+                            "colorCorrection.saturation",
+                            1
+                          );
+                          updateSelectedElement("colorCorrection.gamma", 1);
+                          updateSelectedElement("colorCorrection.hue", 0);
+                          updateSelectedElement("colorCorrection.vibrance", 0);
+                        }}
+                        className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        onClick={() => setSelectedElement(null)}
+                        className="flex-1 bg-primarioLogo text-black px-3 py-2 rounded-lg text-sm hover:bg-opacity-80 transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                ) : selectedElement && selectedElement.type === "music" ? (
+                  <div className="space-y-4">
+                    <div className="text-sm text-gray-300 mb-4">
+                      <p>
+                        Duration: {formatDuration(selectedElement.duration)}s
+                      </p>
+                      {selectedElement.originalDuration && (
+                        <p>
+                          Original:{" "}
+                          {formatDuration(selectedElement.originalDuration)}s
+                        </p>
+                      )}
+                      <p className="text-xs mt-1">Click again to deselect</p>
+                    </div>
+
+                    {/* Volume Control for Music */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-300 block mb-2">
+                        Volume:{" "}
+                        {Math.round(
+                          (selectedElement.volume !== undefined
+                            ? selectedElement.volume
+                            : 0.5) * 100
+                        )}
+                        %
+                      </label>
+                      <CustomSlider
+                        value={Math.round(
+                          (selectedElement.volume !== undefined
+                            ? selectedElement.volume
+                            : 0.5) * 100
+                        )}
+                        min={0}
+                        max={100}
+                        step={1}
+                        onChange={(e) =>
+                          updateSelectedElement(
+                            "volume",
+                            parseInt(e.target.value) / 100
+                          )
+                        }
+                      />
+                    </div>
+
+                    {/* Trim Controls for Music */}
+                    <div className="border-t border-gray-600 pt-4">
+                      <h4 className="text-sm font-medium text-gray-300 mb-3">
+                        Trim Controls
+                      </h4>
+                      <div className="text-xs text-gray-400 mb-2">
+                        Trim Start:{" "}
+                        {(selectedElement.trimStart || 0).toFixed(2)}s
+                      </div>
+                      <div className="text-xs text-gray-400 mb-2">
+                        Trim End: {(selectedElement.trimEnd || 0).toFixed(2)}s
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Use the handles on the timeline element to trim
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex gap-2 mt-6">
+                      <button
+                        onClick={() => {
+                          updateSelectedElement("volume", 0.5);
+                        }}
+                        className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        onClick={() => setSelectedElement(null)}
+                        className="flex-1 bg-primarioLogo text-black px-3 py-2 rounded-lg text-sm hover:bg-opacity-80 transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                ) : selectedElement && selectedElement.type === "voice" ? (
+                  <div className="space-y-4">
+                    <div className="text-sm text-gray-300 mb-4">
+                      <p>
+                        Duration: {formatDuration(selectedElement.duration)}s
+                      </p>
+                      {selectedElement.originalDuration && (
+                        <p>
+                          Original:{" "}
+                          {formatDuration(selectedElement.originalDuration)}s
+                        </p>
+                      )}
+                      <p className="text-xs mt-1">Click again to deselect</p>
+                    </div>
+
+                    {/* Volume Control for Voice */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-300 block mb-2">
+                        Volume:{" "}
+                        {Math.round(
+                          (selectedElement.volume !== undefined
+                            ? selectedElement.volume
+                            : 0.5) * 100
+                        )}
+                        %
+                      </label>
+                      <CustomSlider
+                        value={Math.round(
+                          (selectedElement.volume !== undefined
+                            ? selectedElement.volume
+                            : 0.5) * 100
+                        )}
+                        min={0}
+                        max={100}
+                        step={1}
+                        onChange={(e) =>
+                          updateSelectedElement(
+                            "volume",
+                            parseInt(e.target.value) / 100
+                          )
+                        }
+                      />
+                    </div>
+
+                    {/* Trim Controls for Voice */}
+                    <div className="border-t border-gray-600 pt-4">
+                      <h4 className="text-sm font-medium text-gray-300 mb-3">
+                        Trim Controls
+                      </h4>
+                      <div className="text-xs text-gray-400 mb-2">
+                        Trim Start:{" "}
+                        {(selectedElement.trimStart || 0).toFixed(2)}s
+                      </div>
+                      <div className="text-xs text-gray-400 mb-2">
+                        Trim End: {(selectedElement.trimEnd || 0).toFixed(2)}s
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Use the handles on the timeline element to trim
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex gap-2 mt-6">
+                      <button
+                        onClick={() => {
+                          updateSelectedElement("volume", 0.5);
+                        }}
+                        className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        onClick={() => setSelectedElement(null)}
+                        className="flex-1 bg-primarioLogo text-black px-3 py-2 rounded-lg text-sm hover:bg-opacity-80 transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                ) : selectedElement && selectedElement.type === "sound" ? (
+                  <div className="space-y-4">
+                    <div className="text-sm text-gray-300 mb-4">
+                      <p>
+                        Duration: {formatDuration(selectedElement.duration)}s
+                      </p>
+                      {selectedElement.originalDuration && (
+                        <p>
+                          Original:{" "}
+                          {formatDuration(selectedElement.originalDuration)}s
+                        </p>
+                      )}
+                      <p className="text-xs mt-1">Click again to deselect</p>
+                    </div>
+
+                    {/* Volume Control for Sound */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-300 block mb-2">
+                        Volume:{" "}
+                        {Math.round(
+                          (selectedElement.volume !== undefined
+                            ? selectedElement.volume
+                            : 0.5) * 100
+                        )}
+                        %
+                      </label>
+                      <CustomSlider
+                        value={Math.round(
+                          (selectedElement.volume !== undefined
+                            ? selectedElement.volume
+                            : 0.5) * 100
+                        )}
+                        min={0}
+                        max={100}
+                        step={1}
+                        onChange={(e) =>
+                          updateSelectedElement(
+                            "volume",
+                            parseInt(e.target.value) / 100
+                          )
+                        }
+                      />
+                    </div>
+
+                    {/* Trim Controls for Sound */}
+                    <div className="border-t border-gray-600 pt-4">
+                      <h4 className="text-sm font-medium text-gray-300 mb-3">
+                        Trim Controls
+                      </h4>
+                      <div className="text-xs text-gray-400 mb-2">
+                        Trim Start:{" "}
+                        {(selectedElement.trimStart || 0).toFixed(2)}s
+                      </div>
+                      <div className="text-xs text-gray-400 mb-2">
+                        Trim End: {(selectedElement.trimEnd || 0).toFixed(2)}s
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Use the handles on the timeline element to trim
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex gap-2 mt-6">
+                      <button
+                        onClick={() => {
+                          updateSelectedElement("volume", 0.5);
+                        }}
+                        className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        onClick={() => setSelectedElement(null)}
+                        className="flex-1 bg-primarioLogo text-black px-3 py-2 rounded-lg text-sm hover:bg-opacity-80 transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                ) : arrayVideoMake.length === 0 ? (
+                  <div className="text-sm text-gray-300 space-y-2">
+                    <p>• Drag videos, images, music or voice to the timeline</p>
+                    <p>• Use the tabs on the left to navigate</p>
+                    <p>• Elements are automatically placed</p>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-300 space-y-2">
+                    <p>• Drag elements to move them</p>
+                    <p>• Drag the edges to trim</p>
+                    <p>• Click on the timeline to navigate</p>
+                    <p>• Use the master volume control</p>
+                    <p>• Click on videos/images to edit them</p>
+                    {(isResizing || draggingElement) && (
+                      <div className="mt-3 p-2 bg-yellow-500 bg-opacity-20 rounded text-yellow-200">
+                        {isResizing && "✂️ Trimming element"}
+                        {draggingElement && "📦 Moving element"}
+                      </div>
+                    )}
+                    {selectedElement && (
+                      <div className="mt-3 p-2 bg-primarioLogo bg-opacity-20 rounded text-yellow-200">
+                        {selectedElement.type === "video" &&
+                          `🎬 Video selected: ${
+                            selectedElement.title
+                          } (Vol: ${Math.round(
+                            (selectedElement.volume !== undefined
+                              ? selectedElement.volume
+                              : 1) * 100
+                          )}%)`}
+                        {selectedElement.type === "image" &&
+                          `🎨 Image selected: ${selectedElement.title}`}
+                        {selectedElement.type === "music" &&
+                          `🎵 Music selected: ${
+                            selectedElement.title
+                          } (Vol: ${Math.round(
+                            (selectedElement.volume !== undefined
+                              ? selectedElement.volume
+                              : 0.5) * 100
+                          )}%)`}
+                        {selectedElement.type === "voice" &&
+                          `🎤 Voice selected: ${
+                            selectedElement.title
+                          } (Vol: ${Math.round(
+                            (selectedElement.volume !== undefined
+                              ? selectedElement.volume
+                              : 0.5) * 100
+                          )}%)`}
+                        {selectedElement.type === "sound" &&
+                          `🔊 Sound selected: ${
+                            selectedElement.title
+                          } (Vol: ${Math.round(
+                            (selectedElement.volume !== undefined
+                              ? selectedElement.volume
+                              : 0.5) * 100
+                          )}%)`}
+                      </div>
                     )}
                   </div>
-                );
-              })}
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="w-1/4 bg-darkBox rounded-4xl p-6 overflow-y-scroll">
-          <div className="text-white mb-4">
-            <h3
-              className="text-lg font-medium mb-2 line-clamp-1"
-              title={
-                selectedElement && selectedElement.type === "image"
-                  ? `Edit Image: ${selectedElement.title}`
-                  : selectedElement && selectedElement.type === "video"
-                  ? `Edit Video: ${selectedElement.title}`
-                  : selectedElement && selectedElement.type === "music"
-                  ? `Edit Music: ${selectedElement.title}`
-                  : selectedElement && selectedElement.type === "voice"
-                  ? `Edit Voice: ${selectedElement.title}`
-                  : "Editor Controls"
+          {/* OPTIONS BAR */}
+          <div className="flex justify-between mt-1">
+            {/* Timeline Header */}
+            <div
+              className={
+                arrayVideoMake.length > 0
+                  ? "flex justify-between items-center gap-8 my-2"
+                  : "hidden"
               }
             >
-              {selectedElement && selectedElement.type === "image"
-                ? `Edit Image: ${selectedElement.title}`
-                : selectedElement && selectedElement.type === "video"
-                ? `Edit Video: ${selectedElement.title}`
-                : selectedElement && selectedElement.type === "music"
-                ? `Edit Music: ${selectedElement.title}`
-                : selectedElement && selectedElement.type === "voice"
-                ? `Edit Voice: ${selectedElement.title}`
-                : "Editor Controls"}
-            </h3>
-
-            {selectedElement && selectedElement.type === "video" ? (
-              <div className="space-y-4">
-                <div className="text-sm text-gray-300 mb-4">
-                  <p>Duration: {formatDuration(selectedElement.duration)}s</p>
-                  <p className="text-xs mt-1">Click again to deselect</p>
-                </div>
-
-                {/* Volume Control for Videos */}
-                <div>
-                  <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Volume:{" "}
-                    {Math.round(
-                      (selectedElement.volume !== undefined
-                        ? selectedElement.volume
-                        : 1) * 100
-                    )}
-                    %
-                  </label>
-                  <CustomSlider
-                    value={Math.round(
-                      (selectedElement.volume !== undefined
-                        ? selectedElement.volume
-                        : 1) * 100
-                    )}
-                    min={0}
-                    max={100}
-                    step={1}
-                    onChange={(e) =>
-                      updateSelectedElement(
-                        "volume",
-                        parseInt(e.target.value) / 100
-                      )
-                    }
-                  />
-                </div>
-
-                {/* Z-Index Control for Videos */}
-                <div>
-                  <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Layer (Z-Index): {selectedElement.zIndex || 1}
-                  </label>
-                  <CustomSlider
-                    value={selectedElement.zIndex || 1}
-                    min={1}
-                    max={10}
-                    step={1}
-                    onChange={(e) =>
-                      updateSelectedElement("zIndex", parseInt(e.target.value))
-                    }
-                  />
-                </div>
-
-                {/* FFmpeg Compatible Color Correction */}
-                <div className="border-t border-gray-600 pt-4">
-                  <h4 className="text-sm font-medium text-gray-300 mb-3">
-                    Color Correction (FFmpeg Compatible)
-                  </h4>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Brightness:{" "}
-                      {(
-                        selectedElement.colorCorrection?.brightness || 0
-                      ).toFixed(2)}
-                    </label>
-                    <CustomSlider
-                      value={selectedElement.colorCorrection?.brightness || 0}
-                      min={-1}
-                      max={1}
-                      step={0.01}
-                      onChange={(e) =>
-                        updateSelectedElement(
-                          "colorCorrection.brightness",
-                          parseFloat(e.target.value)
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Contrast:{" "}
-                      {(selectedElement.colorCorrection?.contrast || 1).toFixed(
-                        2
-                      )}
-                    </label>
-                    <CustomSlider
-                      value={selectedElement.colorCorrection?.contrast || 1}
-                      min={0}
-                      max={4}
-                      step={0.01}
-                      onChange={(e) =>
-                        updateSelectedElement(
-                          "colorCorrection.contrast",
-                          parseFloat(e.target.value)
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Saturation:{" "}
-                      {(
-                        selectedElement.colorCorrection?.saturation || 1
-                      ).toFixed(2)}
-                    </label>
-                    <CustomSlider
-                      value={selectedElement.colorCorrection?.saturation || 1}
-                      min={0}
-                      max={3}
-                      step={0.01}
-                      onChange={(e) =>
-                        updateSelectedElement(
-                          "colorCorrection.saturation",
-                          parseFloat(e.target.value)
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Gamma:{" "}
-                      {(selectedElement.colorCorrection?.gamma || 1).toFixed(2)}
-                    </label>
-                    <CustomSlider
-                      value={selectedElement.colorCorrection?.gamma || 1}
-                      min={0.1}
-                      max={10}
-                      step={0.01}
-                      onChange={(e) =>
-                        updateSelectedElement(
-                          "colorCorrection.gamma",
-                          parseFloat(e.target.value)
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Hue: {selectedElement.colorCorrection?.hue || 0}°
-                    </label>
-                    <CustomSlider
-                      value={selectedElement.colorCorrection?.hue || 0}
-                      min={-180}
-                      max={180}
-                      step={1}
-                      onChange={(e) =>
-                        updateSelectedElement(
-                          "colorCorrection.hue",
-                          parseInt(e.target.value)
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Vibrance:{" "}
-                      {(selectedElement.colorCorrection?.vibrance || 0).toFixed(
-                        2
-                      )}
-                    </label>
-                    <CustomSlider
-                      value={selectedElement.colorCorrection?.vibrance || 0}
-                      min={-2}
-                      max={2}
-                      step={0.01}
-                      onChange={(e) =>
-                        updateSelectedElement(
-                          "colorCorrection.vibrance",
-                          parseFloat(e.target.value)
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex gap-2 mt-6">
-                  <button
-                    onClick={() => {
-                      updateSelectedElement("volume", 1);
-                      updateSelectedElement("zIndex", 1);
-                      updateSelectedElement("colorCorrection.brightness", 0);
-                      updateSelectedElement("colorCorrection.contrast", 1);
-                      updateSelectedElement("colorCorrection.saturation", 1);
-                      updateSelectedElement("colorCorrection.gamma", 1);
-                      updateSelectedElement("colorCorrection.hue", 0);
-                      updateSelectedElement("colorCorrection.vibrance", 0);
-                    }}
-                    className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
-                  >
-                    Reset
-                  </button>
-                  <button
-                    onClick={() => setSelectedElement(null)}
-                    className="flex-1 bg-primarioLogo text-black px-3 py-2 rounded-lg text-sm hover:bg-opacity-80 transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            ) : selectedElement && selectedElement.type === "image" ? (
-              <div className="space-y-4">
-                <div className="text-sm text-gray-300 mb-4">
-                  <p>Duration: {formatDuration(selectedElement.duration)}s</p>
-                  <p className="text-xs mt-1">
-                    Click again to deselect. Drag image to reposition.
-                  </p>
-                </div>
-
-                {/* Position Controls - FFmpeg compatible (0-1 normalized) */}
-                <div className="border-b border-gray-600 pb-4">
-                  <h4 className="text-sm font-medium text-gray-300 mb-3">
-                    Position
-                  </h4>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 block mb-2">
-                      X Position:{" "}
-                      {((selectedElement.position?.x || 0.5) * 100).toFixed(1)}%
-                    </label>
-                    <CustomSlider
-                      value={selectedElement.position?.x || 0.5}
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      onChange={(e) =>
-                        updateSelectedElement("position", {
-                          ...selectedElement.position,
-                          x: parseFloat(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Y Position:{" "}
-                      {((selectedElement.position?.y || 0.5) * 100).toFixed(1)}%
-                    </label>
-                    <CustomSlider
-                      value={selectedElement.position?.y || 0.5}
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      onChange={(e) =>
-                        updateSelectedElement("position", {
-                          ...selectedElement.position,
-                          y: parseFloat(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-
-                {/* Opacity Control */}
-                <div>
-                  <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Opacity: {Math.round((selectedElement.opacity || 1) * 100)}%
-                  </label>
-                  <CustomSlider
-                    value={selectedElement.opacity || 1}
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    onChange={(e) =>
-                      updateSelectedElement(
-                        "opacity",
-                        parseFloat(e.target.value)
-                      )
-                    }
-                  />
-                </div>
-
-                {/* Size Control */}
-                <div>
-                  <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Scale: {((selectedElement.scale || 1) * 100).toFixed(0)}%
-                  </label>
-                  <CustomSlider
-                    value={selectedElement.scale || 1}
-                    min={0.1}
-                    max={3.0}
-                    step={0.1}
-                    onChange={(e) =>
-                      updateSelectedElement("scale", parseFloat(e.target.value))
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Layer (Z-Index): {selectedElement.zIndex || 1}
-                  </label>
-                  <CustomSlider
-                    value={selectedElement.zIndex || 1}
-                    min={1}
-                    max={10}
-                    step={1}
-                    onChange={(e) =>
-                      updateSelectedElement("zIndex", parseInt(e.target.value))
-                    }
-                  />
-                </div>
-
-                {/* FFmpeg Compatible Color Correction */}
-                <div className="border-t border-gray-600 pt-4">
-                  <h4 className="text-sm font-medium text-gray-300 mb-3">
-                    Color Correction (FFmpeg Compatible)
-                  </h4>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Brightness:{" "}
-                      {(
-                        selectedElement.colorCorrection?.brightness || 0
-                      ).toFixed(2)}
-                    </label>
-                    <CustomSlider
-                      value={selectedElement.colorCorrection?.brightness || 0}
-                      min={-1}
-                      max={1}
-                      step={0.01}
-                      onChange={(e) =>
-                        updateSelectedElement(
-                          "colorCorrection.brightness",
-                          parseFloat(e.target.value)
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Contrast:{" "}
-                      {(selectedElement.colorCorrection?.contrast || 1).toFixed(
-                        2
-                      )}
-                    </label>
-                    <CustomSlider
-                      value={selectedElement.colorCorrection?.contrast || 1}
-                      min={0}
-                      max={4}
-                      step={0.01}
-                      onChange={(e) =>
-                        updateSelectedElement(
-                          "colorCorrection.contrast",
-                          parseFloat(e.target.value)
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Saturation:{" "}
-                      {(
-                        selectedElement.colorCorrection?.saturation || 1
-                      ).toFixed(2)}
-                    </label>
-                    <CustomSlider
-                      value={selectedElement.colorCorrection?.saturation || 1}
-                      min={0}
-                      max={3}
-                      step={0.01}
-                      onChange={(e) =>
-                        updateSelectedElement(
-                          "colorCorrection.saturation",
-                          parseFloat(e.target.value)
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Gamma:{" "}
-                      {(selectedElement.colorCorrection?.gamma || 1).toFixed(2)}
-                    </label>
-                    <CustomSlider
-                      value={selectedElement.colorCorrection?.gamma || 1}
-                      min={0.1}
-                      max={10}
-                      step={0.01}
-                      onChange={(e) =>
-                        updateSelectedElement(
-                          "colorCorrection.gamma",
-                          parseFloat(e.target.value)
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Hue: {selectedElement.colorCorrection?.hue || 0}°
-                    </label>
-                    <CustomSlider
-                      value={selectedElement.colorCorrection?.hue || 0}
-                      min={-180}
-                      max={180}
-                      step={1}
-                      onChange={(e) =>
-                        updateSelectedElement(
-                          "colorCorrection.hue",
-                          parseInt(e.target.value)
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 block mb-2">
-                      Vibrance:{" "}
-                      {(selectedElement.colorCorrection?.vibrance || 0).toFixed(
-                        2
-                      )}
-                    </label>
-                    <CustomSlider
-                      value={selectedElement.colorCorrection?.vibrance || 0}
-                      min={-2}
-                      max={2}
-                      step={0.01}
-                      onChange={(e) =>
-                        updateSelectedElement(
-                          "colorCorrection.vibrance",
-                          parseFloat(e.target.value)
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex gap-2 mt-6">
-                  <button
-                    onClick={() => {
-                      updateSelectedElement("opacity", 1);
-                      updateSelectedElement("scale", 1);
-                      updateSelectedElement("position", { x: 0.5, y: 0.5 });
-                      updateSelectedElement("zIndex", 1);
-                      updateSelectedElement("colorCorrection.brightness", 0);
-                      updateSelectedElement("colorCorrection.contrast", 1);
-                      updateSelectedElement("colorCorrection.saturation", 1);
-                      updateSelectedElement("colorCorrection.gamma", 1);
-                      updateSelectedElement("colorCorrection.hue", 0);
-                      updateSelectedElement("colorCorrection.vibrance", 0);
-                    }}
-                    className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
-                  >
-                    Reset
-                  </button>
-                  <button
-                    onClick={() => setSelectedElement(null)}
-                    className="flex-1 bg-primarioLogo text-black px-3 py-2 rounded-lg text-sm hover:bg-opacity-80 transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            ) : selectedElement && selectedElement.type === "music" ? (
-              <div className="space-y-4">
-                <div className="text-sm text-gray-300 mb-4">
-                  <p>Duration: {formatDuration(selectedElement.duration)}s</p>
-                  {selectedElement.originalDuration && (
-                    <p>
-                      Original:{" "}
-                      {formatDuration(selectedElement.originalDuration)}s
-                    </p>
-                  )}
-                  <p className="text-xs mt-1">Click again to deselect</p>
-                </div>
-
-                {/* Volume Control for Music */}
-                <div>
-                  <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Volume:{" "}
-                    {Math.round(
-                      (selectedElement.volume !== undefined
-                        ? selectedElement.volume
-                        : 0.5) * 100
-                    )}
-                    %
-                  </label>
-                  <CustomSlider
-                    value={Math.round(
-                      (selectedElement.volume !== undefined
-                        ? selectedElement.volume
-                        : 0.5) * 100
-                    )}
-                    min={0}
-                    max={100}
-                    step={1}
-                    onChange={(e) =>
-                      updateSelectedElement(
-                        "volume",
-                        parseInt(e.target.value) / 100
-                      )
-                    }
-                  />
-                </div>
-
-                {/* Trim Controls for Music */}
-                <div className="border-t border-gray-600 pt-4">
-                  <h4 className="text-sm font-medium text-gray-300 mb-3">
-                    Trim Controls
-                  </h4>
-                  <div className="text-xs text-gray-400 mb-2">
-                    Trim Start: {(selectedElement.trimStart || 0).toFixed(2)}s
-                  </div>
-                  <div className="text-xs text-gray-400 mb-2">
-                    Trim End: {(selectedElement.trimEnd || 0).toFixed(2)}s
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    Use the handles on the timeline element to trim
-                  </div>
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex gap-2 mt-6">
-                  <button
-                    onClick={() => {
-                      updateSelectedElement("volume", 0.5);
-                    }}
-                    className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
-                  >
-                    Reset
-                  </button>
-                  <button
-                    onClick={() => setSelectedElement(null)}
-                    className="flex-1 bg-primarioLogo text-black px-3 py-2 rounded-lg text-sm hover:bg-opacity-80 transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            ) : selectedElement && selectedElement.type === "voice" ? (
-              <div className="space-y-4">
-                <div className="text-sm text-gray-300 mb-4">
-                  <p>Duration: {formatDuration(selectedElement.duration)}s</p>
-                  {selectedElement.originalDuration && (
-                    <p>
-                      Original:{" "}
-                      {formatDuration(selectedElement.originalDuration)}s
-                    </p>
-                  )}
-                  <p className="text-xs mt-1">Click again to deselect</p>
-                </div>
-
-                {/* Volume Control for Voice */}
-                <div>
-                  <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Volume:{" "}
-                    {Math.round(
-                      (selectedElement.volume !== undefined
-                        ? selectedElement.volume
-                        : 0.5) * 100
-                    )}
-                    %
-                  </label>
-                  <CustomSlider
-                    value={Math.round(
-                      (selectedElement.volume !== undefined
-                        ? selectedElement.volume
-                        : 0.5) * 100
-                    )}
-                    min={0}
-                    max={100}
-                    step={1}
-                    onChange={(e) =>
-                      updateSelectedElement(
-                        "volume",
-                        parseInt(e.target.value) / 100
-                      )
-                    }
-                  />
-                </div>
-
-                {/* Trim Controls for Voice */}
-                <div className="border-t border-gray-600 pt-4">
-                  <h4 className="text-sm font-medium text-gray-300 mb-3">
-                    Trim Controls
-                  </h4>
-                  <div className="text-xs text-gray-400 mb-2">
-                    Trim Start: {(selectedElement.trimStart || 0).toFixed(2)}s
-                  </div>
-                  <div className="text-xs text-gray-400 mb-2">
-                    Trim End: {(selectedElement.trimEnd || 0).toFixed(2)}s
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    Use the handles on the timeline element to trim
-                  </div>
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex gap-2 mt-6">
-                  <button
-                    onClick={() => {
-                      updateSelectedElement("volume", 0.5);
-                    }}
-                    className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
-                  >
-                    Reset
-                  </button>
-                  <button
-                    onClick={() => setSelectedElement(null)}
-                    className="flex-1 bg-primarioLogo text-black px-3 py-2 rounded-lg text-sm hover:bg-opacity-80 transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            ) : selectedElement && selectedElement.type === "sound" ? (
-              <div className="space-y-4">
-                <div className="text-sm text-gray-300 mb-4">
-                  <p>Duration: {formatDuration(selectedElement.duration)}s</p>
-                  {selectedElement.originalDuration && (
-                    <p>
-                      Original:{" "}
-                      {formatDuration(selectedElement.originalDuration)}s
-                    </p>
-                  )}
-                  <p className="text-xs mt-1">Click again to deselect</p>
-                </div>
-
-                {/* Volume Control for Sound */}
-                <div>
-                  <label className="text-sm font-medium text-gray-300 block mb-2">
-                    Volume:{" "}
-                    {Math.round(
-                      (selectedElement.volume !== undefined
-                        ? selectedElement.volume
-                        : 0.5) * 100
-                    )}
-                    %
-                  </label>
-                  <CustomSlider
-                    value={Math.round(
-                      (selectedElement.volume !== undefined
-                        ? selectedElement.volume
-                        : 0.5) * 100
-                    )}
-                    min={0}
-                    max={100}
-                    step={1}
-                    onChange={(e) =>
-                      updateSelectedElement(
-                        "volume",
-                        parseInt(e.target.value) / 100
-                      )
-                    }
-                  />
-                </div>
-
-                {/* Trim Controls for Sound */}
-                <div className="border-t border-gray-600 pt-4">
-                  <h4 className="text-sm font-medium text-gray-300 mb-3">
-                    Trim Controls
-                  </h4>
-                  <div className="text-xs text-gray-400 mb-2">
-                    Trim Start: {(selectedElement.trimStart || 0).toFixed(2)}s
-                  </div>
-                  <div className="text-xs text-gray-400 mb-2">
-                    Trim End: {(selectedElement.trimEnd || 0).toFixed(2)}s
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    Use the handles on the timeline element to trim
-                  </div>
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex gap-2 mt-6">
-                  <button
-                    onClick={() => {
-                      updateSelectedElement("volume", 0.5);
-                    }}
-                    className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-500 transition-colors"
-                  >
-                    Reset
-                  </button>
-                  <button
-                    onClick={() => setSelectedElement(null)}
-                    className="flex-1 bg-primarioLogo text-black px-3 py-2 rounded-lg text-sm hover:bg-opacity-80 transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            ) : arrayVideoMake.length === 0 ? (
-              <div className="text-sm text-gray-300 space-y-2">
-                <p>• Drag videos, images, music or voice to the timeline</p>
-                <p>• Use the tabs on the left to navigate</p>
-                <p>• Elements are automatically placed</p>
-              </div>
-            ) : (
-              <div className="text-sm text-gray-300 space-y-2">
-                <p>• Drag elements to move them</p>
-                <p>• Drag the edges to trim</p>
-                <p>• Click on the timeline to navigate</p>
-                <p>• Use the master volume control</p>
-                <p>• Click on videos/images to edit them</p>
-                {(isResizing || draggingElement) && (
-                  <div className="mt-3 p-2 bg-yellow-500 bg-opacity-20 rounded text-yellow-200">
-                    {isResizing && "✂️ Trimming element"}
-                    {draggingElement && "📦 Moving element"}
-                  </div>
-                )}
-                {selectedElement && (
-                  <div className="mt-3 p-2 bg-primarioLogo bg-opacity-20 rounded text-yellow-200">
-                    {selectedElement.type === "video" &&
-                      `🎬 Video selected: ${
-                        selectedElement.title
-                      } (Vol: ${Math.round(
-                        (selectedElement.volume !== undefined
-                          ? selectedElement.volume
-                          : 1) * 100
-                      )}%)`}
-                    {selectedElement.type === "image" &&
-                      `🎨 Image selected: ${selectedElement.title}`}
-                    {selectedElement.type === "music" &&
-                      `🎵 Music selected: ${
-                        selectedElement.title
-                      } (Vol: ${Math.round(
-                        (selectedElement.volume !== undefined
-                          ? selectedElement.volume
-                          : 0.5) * 100
-                      )}%)`}
-                    {selectedElement.type === "voice" &&
-                      `🎤 Voice selected: ${
-                        selectedElement.title
-                      } (Vol: ${Math.round(
-                        (selectedElement.volume !== undefined
-                          ? selectedElement.volume
-                          : 0.5) * 100
-                      )}%)`}
-                    {selectedElement.type === "sound" &&
-                      `🔊 Sound selected: ${
-                        selectedElement.title
-                      } (Vol: ${Math.round(
-                        (selectedElement.volume !== undefined
-                          ? selectedElement.volume
-                          : 0.5) * 100
-                      )}%)`}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-      {/* OPTIONS BAR */}
-      <div className="flex justify-between mt-4">
-        {/* Timeline Header */}
-        <div
-          className={
-            arrayVideoMake.length > 0
-              ? "flex justify-between items-center gap-8 my-2"
-              : "hidden"
-          }
-        >
-          <div className="flex items-center gap-6">
-            {isPlaying ? (
-              <button
-                className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80"
-                onClick={handlePlayPause}
-              >
-                <Pause size={20} />
-              </button>
-            ) : (
-              <button
-                className="bg-darkBoxSub p-2 rounded-lg text-primarioLogo hover:bg-opacity-80"
-                onClick={handlePlayPause}
-              >
-                <Play size={20} />
-              </button>
-            )}
-
-            {/* Zoom Controls */}
-            <div className="flex items-center gap-2">
-              <button
-                className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80 hover:text-primarioLogo"
-                onClick={handleZoomOut}
-                title="Zoom Out"
-              >
-                <ZoomOut size={16} />
-              </button>
-              <span className="text-white text-xs min-w-[40px] text-center">
-                {(timelineZoom * 100).toFixed(0)}%
-              </span>
-              <button
-                className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80 hover:text-primarioLogo"
-                onClick={handleZoomIn}
-                title="Zoom In"
-              >
-                <ZoomIn size={16} />
-              </button>
-            </div>
-
-            {/* Cut Button - Only show when element is selected and playhead is over it */}
-            {showCutButton && (
-              <button
-                className="bg-primarioLogo p-2 rounded-lg text-primarioDark hover:bg-opacity-80 animate-pulse"
-                onClick={handleCutElement}
-                title="Cut selected element"
-              >
-                <Scissors size={16} />
-              </button>
-            )}
-          </div>{" "}
-          <div className="flex items-center gap-2 line-clamp-1">
-            <Volume2 size={20} className="text-white" />
-            <div
-              ref={volumeRef}
-              className="w-20 h-1 bg-darkBoxSub rounded-full cursor-pointer relative group"
-              onMouseDown={handleVolumeMouseDown}
-              onClick={handleVolumeClick}
-            >
-              {/* Volume progress bar */}
-              <div
-                className="h-full bg-primarioLogo rounded-full transition-all duration-100"
-                style={{ width: `${masterVolume * 100}%` }}
-              ></div>
-
-              {/* Volume indicator */}
-              <div
-                className={`absolute top-2 transform -translate-y-1/2 w-3 h-3 bg-white rounded-full border-2 border-primarioLogo cursor-grab transition-all duration-100 shadow-lg ${
-                  isDraggingVolume
-                    ? "scale-125 cursor-grabbing"
-                    : "hover:scale-110"
-                }`}
-                style={{
-                  left: `${masterVolume * 100}%`,
-                  transform: "translate(-50%, -50%)",
-                }}
-              ></div>
-
-              {/* Visual indicator on hover */}
-              <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 opacity-0 group-hover:opacity-20 bg-primarioLogo rounded-full transition-opacity duration-200"></div>
-            </div>
-
-            {/* Show volume percentage */}
-            <span className="text-xs text-gray-400 w-8">
-              {Math.round(masterVolume * 100)}%
-            </span>
-
-            {/* Debug: Show number of elements in timeline */}
-            <span className="text-xs text-gray-400 ml-4">
-              Elements: {arrayVideoMake.length}
-              {arrayVideoMake.length > 0 && (
-                <span>
-                  {" "}
-                  | Duration:{" "}
-                  {Math.max(...arrayVideoMake.map((item) => item.endTime), 0)}s
-                </span>
-              )}
-              {isResizing && resizingElement && (
-                <span className="text-yellow-400">
-                  {" "}
-                  | Trimming: {resizingElement.title}
-                </span>
-              )}
-              {draggingElement && (
-                <span className="text-blue-400 line-clamp-1">
-                  {" "}
-                  | Moving: {draggingElement.title}
-                </span>
-              )}
-            </span>
-          </div>
-        </div>
-        <div className="gap-4 flex pb-4 items-center">
-          {/* Undo Button */}
-          <button
-            type="button"
-            onClick={undo}
-            disabled={!canUndo}
-            className={`px-3 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${
-              canUndo
-                ? "bg-gray-600 text-white hover:bg-gray-500 cursor-pointer"
-                : "bg-gray-800 text-gray-500 cursor-not-allowed"
-            }`}
-            title="Undo (Ctrl+Z)"
-          >
-            <Undo size={16} />
-          </button>
-
-          {/* Aspect Ratio Selector */}
-          <div className="flex items-center gap-2">
-            <label className="text-white text-sm font-medium">Aspect:</label>
-            <select
-              value={aspectRatio}
-              onChange={(e) => setAspectRatio(e.target.value)}
-              className="bg-darkBox text-white border border-gray-600 rounded-lg px-3 py-1 text-sm focus:outline-none focus:border-primarioLogo"
-            >
-              <option value="16:9">16:9</option>
-              <option value="9:16">9:16</option>
-            </select>
-          </div>
-
-          {currentEditName && (
-            <button
-              type="button"
-              onClick={handleNewProject}
-              className="bg-gray-600 text-white px-6 py-2 rounded-3xl font-medium hover:bg-gray-500 flex items-center gap-2"
-            >
-              <Plus size={18} />
-              New
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={handleSaveProject}
-            className="bg-[#F2D543] text-primarioDark px-6 py-2 rounded-3xl font-medium hover:bg-[#f2f243] flex items-center gap-2"
-          >
-            <Save size={18} />
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={handleLoadProject}
-            className="bg-[#F2D54310] text-[#F2D543] border-[#F2D543] border px-6 py-2 rounded-3xl font-medium hover:bg-[#F2D543] hover:text-black flex items-center gap-2"
-          >
-            <FolderOpen size={18} />
-            Load
-          </button>
-          <button
-            type="button"
-            onClick={handleExportVideo}
-            className="bg-[#F2D54310] text-[#F2D543] border-[#F2D543] border px-6 py-2 rounded-3xl font-medium hover:bg-[#F2D543] hover:text-black flex items-center gap-2"
-          >
-            <Download size={18} />
-            Export
-          </button>
-        </div>
-      </div>
-      {/* TIMELINE */}
-      <div className="mt-1 relative pb-0">
-        {/* Timeline Tracks Container with Scroll */}
-        <div
-          className="overflow-x-auto overflow-y-hidden pb-2"
-          style={{
-            scrollbarWidth: "thin",
-            scrollbarColor: "#DC569D #2a2a2a",
-          }}
-          onScroll={(e) => {
-            const scrollLeft = e.target.scrollLeft;
-            const scrollWidth = e.target.scrollWidth;
-            const clientWidth = e.target.clientWidth;
-            const maxScroll = scrollWidth - clientWidth;
-
-            if (maxScroll > 0) {
-              const scrollPercentage = scrollLeft / maxScroll;
-              const totalDuration = getTimelineDuration();
-              const visibleDuration = getVisualTimelineDuration();
-              const hiddenDuration = totalDuration - visibleDuration;
-              setTimelineScrollOffset(scrollPercentage * hiddenDuration);
-            } else {
-              setTimelineScrollOffset(0);
-            }
-          }}
-        >
-          <style jsx>{`
-            div::-webkit-scrollbar {
-              height: 8px;
-            }
-            div::-webkit-scrollbar-track {
-              background: #2a2a2a;
-              border-radius: 4px;
-            }
-            div::-webkit-scrollbar-thumb {
-              background: #dc569d;
-              border-radius: 4px;
-            }
-            div::-webkit-scrollbar-thumb:hover {
-              background: #b84a85;
-            }
-          `}</style>
-          <div
-            className="space-y-3 relative"
-            style={{
-              minWidth:
-                visibleDuration < getTimelineDuration()
-                  ? `${(getTimelineDuration() / visibleDuration) * 100}%`
-                  : "100%",
-            }}
-          >
-            {/* Video Track */}
-            <div className="flex items-center gap-3">
-              <div className="w-16 text-white text-sm font-medium">Video</div>
-              <div
-                className="flex-1 bg-darkBoxSub rounded-lg h-12 relative transition-all duration-200 hover:bg-opacity-80"
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, "video")}
-              >
-                {/* Render timeline elements for video channel */}
-                {arrayVideoMake
-                  .filter((item) => item.channel === "video")
-                  .map((item, index) => {
-                    return (
-                      <div
-                        key={item.id}
-                        className={`absolute rounded-md h-10 cursor-move group hover:scale-105 hover:z-10 overflow-hidden ${
-                          draggingElement?.id === item.id
-                            ? "opacity-50 scale-105 transition-none"
-                            : "transition-all duration-200"
-                        } ${
-                          selectedElement?.id === item.id
-                            ? "ring-2 ring-[#DC569D] ring-opacity-80"
-                            : ""
-                        }`}
-                        style={{
-                          left: `${getElementPositionPercentage(item)}%`,
-                          width: `${getElementWidthPercentage(item)}%`,
-                          top: "4px",
-                        }}
-                        onMouseEnter={() => setHoveredElement(item.id)}
-                        onMouseLeave={() => setHoveredElement(null)}
-                        onClick={(e) => handleSelectElement(item, e)}
-                        onMouseDown={(e) => {
-                          // Only start drag if not delete button or handles
-                          if (
-                            !e.target.closest("button") &&
-                            !e.target.classList.contains("resize-handle")
-                          ) {
-                            handleElementDragStart(e, item);
-                          }
-                        }}
-                      >
-                        {/* Video thumbnail */}
-                        {getElementThumbnail(item) ? (
-                          <video
-                            src={getElementThumbnail(item)}
-                            className="w-full h-full object-cover rounded-md pointer-events-none"
-                            muted
-                            preload="metadata"
-                          />
-                        ) : (
-                          <div
-                            className="w-full h-full rounded-md flex items-center justify-center"
-                            style={{
-                              backgroundColor: getElementColor(item.id, index),
-                            }}
-                          >
-                            <span className="text-white text-xs">Video</span>
-                          </div>
-                        )}
-
-                        {/* Overlay with text */}
-                        <div className="absolute inset-0 bg-black bg-opacity-40 rounded-md flex items-center justify-center pointer-events-none">
-                          <span className="text-white text-xs truncate px-2 select-none">
-                            {item.title} ({item.duration}s)
-                            {item.channel === "video" && (
-                              <span className="opacity-80">
-                                {" "}
-                                Vol:{" "}
-                                {Math.round(
-                                  (item.volume !== undefined
-                                    ? item.volume
-                                    : 1) * 100
-                                )}
-                                %
-                              </span>
-                            )}
-                            {item.originalDuration &&
-                              item.originalDuration !== item.duration && (
-                                <span className="opacity-70">
-                                  {" "}
-                                  - Orig: {item.originalDuration}s
-                                </span>
-                              )}
-                          </span>
-                        </div>
-
-                        {/* Left resize handle */}
-                        <div
-                          className="resize-handle absolute left-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-r border-gray-400"
-                          onMouseDown={(e) =>
-                            handleResizeStart(e, item, "start")
-                          }
-                          title="Trim start"
-                        ></div>
-
-                        {/* Right resize handle */}
-                        <div
-                          className="resize-handle absolute right-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-l border-gray-400"
-                          onMouseDown={(e) => handleResizeStart(e, item, "end")}
-                          title="Trim end"
-                        ></div>
-
-                        <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
-                          {item.title} ({item.duration}s)
-                          {item.channel === "video" && (
-                            <span className="opacity-80">
-                              {" "}
-                              Vol:{" "}
-                              {Math.round(
-                                (item.volume !== undefined ? item.volume : 1) *
-                                  100
-                              )}
-                              %
-                            </span>
-                          )}
-                          {item.originalDuration &&
-                            item.originalDuration !== item.duration && (
-                              <span className="opacity-70">
-                                {" "}
-                                - Orig: {item.originalDuration}s
-                              </span>
-                            )}
-                        </span>
-
-                        {/* Opciones de hover */}
-                        {hoveredElement === item.id && !draggingElement && (
-                          <div className="absolute -top-2 right-0 flex gap-1 z-10">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteElement(item.id);
-                                setHoveredElement(null);
-                              }}
-                              className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
-                              title="Eliminar escena"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-16 text-white text-sm font-medium">Image</div>
-              <div
-                className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, "image")}
-              >
-                {/* Render timeline elements for image/text channel */}
-                {arrayVideoMake
-                  .filter((item) => item.channel === "image")
-                  .map((item, index) => {
-                    return (
-                      <div
-                        key={item.id}
-                        className={`absolute rounded-md h-6 cursor-move group hover:scale-105 hover:z-10 overflow-hidden ${
-                          draggingElement?.id === item.id
-                            ? "opacity-50 scale-105 transition-none"
-                            : "transition-all duration-200"
-                        } ${
-                          selectedElement?.id === item.id
-                            ? "ring-2 ring-[#DC569D] ring-opacity-80"
-                            : ""
-                        }`}
-                        style={{
-                          left: `${getElementPositionPercentage(item)}%`,
-                          width: `${getElementWidthPercentage(item)}%`,
-                          top: "4px",
-                        }}
-                        onMouseEnter={() => setHoveredElement(item.id)}
-                        onMouseLeave={() => setHoveredElement(null)}
-                        onClick={(e) => handleSelectElement(item, e)}
-                        onMouseDown={(e) => {
-                          if (
-                            !e.target.closest("button") &&
-                            !e.target.classList.contains("resize-handle")
-                          ) {
-                            handleElementDragStart(e, item);
-                          }
-                        }}
-                      >
-                        {/* Image thumbnail */}
-                        {getElementThumbnail(item) ? (
-                          <img
-                            src={getElementThumbnail(item)}
-                            className="w-full h-full object-cover rounded-md pointer-events-none"
-                            alt={item.title}
-                          />
-                        ) : (
-                          <div
-                            className="w-full h-full rounded-md flex items-center justify-center"
-                            style={{
-                              backgroundColor: getElementColor(item.id, index),
-                            }}
-                          >
-                            <span className="text-white text-xs">Image</span>
-                          </div>
-                        )}
-
-                        {/* Overlay with text */}
-                        <div className="absolute inset-0 bg-black bg-opacity-40 rounded-md flex items-center justify-center pointer-events-none">
-                          <span className="text-white text-xs truncate px-2 select-none">
-                            {item.title} ({item.duration}s)
-                          </span>
-                        </div>
-
-                        {/* Manija de redimensionamiento izquierda */}
-                        <div
-                          className="resize-handle absolute left-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-r border-gray-400"
-                          onMouseDown={(e) =>
-                            handleResizeStart(e, item, "start")
-                          }
-                          title="Cambiar inicio"
-                        ></div>
-
-                        {/* Manija de redimensionamiento derecha */}
-                        <div
-                          className="resize-handle absolute right-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-l border-gray-400"
-                          onMouseDown={(e) => handleResizeStart(e, item, "end")}
-                          title="Cambiar duración"
-                        ></div>
-
-                        {/* Opciones de hover */}
-                        {hoveredElement === item.id && !draggingElement && (
-                          <div className="absolute -top-2 right-0 flex gap-1 z-20">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteElement(item.id);
-                                setHoveredElement(null);
-                              }}
-                              className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
-                              title="Eliminar elemento"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-
-            {/* Music Track */}
-            <div className="flex items-center gap-3">
-              <div className="w-16 text-white text-sm font-medium">Music</div>
-              <div
-                className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, "music")}
-              >
-                {/* Renderizar elementos del timeline para el canal de música */}
-                {arrayVideoMake
-                  .filter((item) => item.channel === "music")
-                  .map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`absolute rounded-md h-6 flex items-center justify-center cursor-move group hover:scale-105 hover:z-10 ${
-                        draggingElement?.id === item.id
-                          ? "opacity-50 scale-105 transition-none"
-                          : "transition-all duration-200"
-                      } ${
-                        selectedElement?.id === item.id
-                          ? "ring-2 ring-[#DC569D] ring-opacity-80"
-                          : ""
-                      }`}
-                      style={{
-                        left: `${getElementPositionPercentage(item)}%`,
-                        width: `${getElementWidthPercentage(item)}%`,
-                        top: "4px",
-                        backgroundColor: getElementColor(item.id, index),
-                      }}
-                      onMouseEnter={() => setHoveredElement(item.id)}
-                      onMouseLeave={() => setHoveredElement(null)}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectElement(item, e);
-                      }}
-                      onMouseDown={(e) => {
-                        // Only start drag if not clicking on resize handles or buttons
-                        if (
-                          !e.target.closest("button") &&
-                          !e.target.classList.contains("resize-handle")
-                        ) {
-                          // Don't start drag immediately, wait for mouse move
-                          const startDrag = () => {
-                            handleElementDragStart(e, item);
-                          };
-                          // Add a small delay to allow click selection first
-                          setTimeout(startDrag, 50);
-                        }
-                      }}
-                    >
-                      {/* Manija de redimensionamiento izquierda */}
-                      <div
-                        className="resize-handle absolute left-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-r border-gray-400"
-                        onMouseDown={(e) => handleResizeStart(e, item, "start")}
-                        title="Recortar inicio"
-                      ></div>
-
-                      {/* Manija de redimensionamiento derecha */}
-                      <div
-                        className="resize-handle absolute right-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-l border-gray-400"
-                        onMouseDown={(e) => handleResizeStart(e, item, "end")}
-                        title="Recortar final"
-                      ></div>
-
-                      <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
-                        {item.title} ({item.duration}s)
-                      </span>
-
-                      {/* Opciones de hover */}
-                      {hoveredElement === item.id && !draggingElement && (
-                        <div className="absolute -top-2 right-0 flex gap-1 z-20">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteElement(item.id);
-                              setHoveredElement(null);
-                            }}
-                            className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
-                            title="Eliminar música"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            {/* Voice Track */}
-            <div className="flex items-center gap-3">
-              <div className="w-16 text-white text-sm font-medium">Voice</div>
-              <div
-                className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, "voice")}
-              >
-                {/* Renderizar elementos del timeline para el canal de voz */}
-                {arrayVideoMake
-                  .filter((item) => item.channel === "voice")
-                  .map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`absolute rounded-md h-6 flex items-center justify-center cursor-move group hover:scale-105 hover:z-10 ${
-                        draggingElement?.id === item.id
-                          ? "opacity-50 scale-105 transition-none"
-                          : "transition-all duration-200"
-                      } ${
-                        selectedElement?.id === item.id
-                          ? "ring-2 ring-[#DC569D] ring-opacity-80"
-                          : ""
-                      }`}
-                      style={{
-                        left: `${getElementPositionPercentage(item)}%`,
-                        width: `${getElementWidthPercentage(item)}%`,
-                        top: "4px",
-                        backgroundColor: getElementColor(item.id, index),
-                      }}
-                      onMouseEnter={() => setHoveredElement(item.id)}
-                      onMouseLeave={() => setHoveredElement(null)}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectElement(item, e);
-                      }}
-                      onMouseDown={(e) => {
-                        // Only start drag if not clicking on resize handles or buttons
-                        if (
-                          !e.target.closest("button") &&
-                          !e.target.classList.contains("resize-handle")
-                        ) {
-                          // Don't start drag immediately, wait for mouse move
-                          const startDrag = () => {
-                            handleElementDragStart(e, item);
-                          };
-                          // Add a small delay to allow click selection first
-                          setTimeout(startDrag, 50);
-                        }
-                      }}
-                    >
-                      {/* Manija de redimensionamiento izquierda */}
-                      <div
-                        className="resize-handle absolute left-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-r border-gray-400"
-                        onMouseDown={(e) => handleResizeStart(e, item, "start")}
-                        title="Recortar inicio"
-                      ></div>
-
-                      {/* Manija de redimensionamiento derecha */}
-                      <div
-                        className="resize-handle absolute right-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-l border-gray-400"
-                        onMouseDown={(e) => handleResizeStart(e, item, "end")}
-                        title="Recortar final"
-                      ></div>
-
-                      <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
-                        {item.title} ({item.duration}s)
-                      </span>
-
-                      {/* Opciones de hover */}
-                      {hoveredElement === item.id && !draggingElement && (
-                        <div className="absolute -top-2 right-0 flex gap-1 z-20">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteElement(item.id);
-                              setHoveredElement(null);
-                            }}
-                            className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
-                            title="Eliminar voz"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            {/* Sound Track */}
-            <div className="flex items-center gap-3">
-              <div className="w-16 text-white text-sm font-medium">Sound</div>
-              <div
-                className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, "sound")}
-              >
-                {/* Renderizar elementos del timeline para el canal de sonido */}
-                {arrayVideoMake
-                  .filter((item) => item.channel === "sound")
-                  .map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`absolute rounded-md h-6 flex items-center justify-center cursor-move group hover:scale-105 hover:z-10 ${
-                        draggingElement?.id === item.id
-                          ? "opacity-50 scale-105 transition-none"
-                          : "transition-all duration-200"
-                      } ${
-                        selectedElement?.id === item.id
-                          ? "ring-2 ring-[#DC569D] ring-opacity-80"
-                          : ""
-                      }`}
-                      style={{
-                        left: `${getElementPositionPercentage(item)}%`,
-                        width: `${getElementWidthPercentage(item)}%`,
-                        top: "4px",
-                        backgroundColor: getElementColor(item.id, index),
-                      }}
-                      onMouseEnter={() => setHoveredElement(item.id)}
-                      onMouseLeave={() => setHoveredElement(null)}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectElement(item, e);
-                      }}
-                      onMouseDown={(e) => {
-                        // Only start drag if not clicking on resize handles or buttons
-                        if (
-                          !e.target.closest("button") &&
-                          !e.target.classList.contains("resize-handle")
-                        ) {
-                          // Don't start drag immediately, wait for mouse move
-                          const startDrag = () => {
-                            handleElementDragStart(e, item);
-                          };
-                          // Add a small delay to allow click selection first
-                          setTimeout(startDrag, 50);
-                        }
-                      }}
-                    >
-                      {/* Manija de redimensionamiento izquierda */}
-                      <div
-                        className="resize-handle absolute left-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-r border-gray-400"
-                        onMouseDown={(e) => handleResizeStart(e, item, "start")}
-                        title="Recortar inicio"
-                      ></div>
-
-                      {/* Manija de redimensionamiento derecha */}
-                      <div
-                        className="resize-handle absolute right-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-l border-gray-400"
-                        onMouseDown={(e) => handleResizeStart(e, item, "end")}
-                        title="Recortar final"
-                      ></div>
-
-                      <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
-                        {item.title} ({item.duration}s)
-                      </span>
-
-                      {/* Opciones de hover */}
-                      {hoveredElement === item.id && !draggingElement && (
-                        <div className="absolute -top-2 right-0 flex gap-1 z-20">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteElement(item.id);
-                              setHoveredElement(null);
-                            }}
-                            className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
-                            title="Eliminar sonido"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            {/* Timeline Ruler */}
-            <div className="flex items-center gap-3">
-              <div className="w-16">
-                {/* Indicador de tiempo currente */}
-                <div className="text-xs text-primarioLogo font-medium">
+              <div className="flex items-center gap-6">
+                {/* Indicador de tiempo actual - más grande y a la izquierda del play */}
+                <div className="text-lg text-primarioLogo font-bold min-w-[60px]">
                   {Math.floor(currentTime / 60)}:
                   {String(Math.floor(currentTime) % 60).padStart(2, "0")}
                 </div>
-              </div>
-              <div className="flex-1 relative">
-                <div
-                  ref={timelineRef}
-                  className="w-full h-4 bg-darkBoxSub rounded-full cursor-pointer relative group"
-                  onMouseDown={handleTimelineMouseDown}
-                  onClick={handleTimelineClick}
-                >
-                  {/* Barra de fondo más alta para mejor interacción */}
-                  <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-1 bg-darkBoxSub rounded-full"></div>
 
-                  {/* Barra de progreso */}
+                {isPlaying ? (
+                  <button
+                    className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80"
+                    onClick={handlePlayPause}
+                  >
+                    <Pause size={20} />
+                  </button>
+                ) : (
+                  <button
+                    className="bg-darkBoxSub p-2 rounded-lg text-primarioLogo hover:bg-opacity-80"
+                    onClick={handlePlayPause}
+                  >
+                    <Play size={20} />
+                  </button>
+                )}
+
+                {/* Zoom Controls */}
+                <div className="flex items-center gap-3">
+                  <button
+                    className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80 hover:text-primarioLogo"
+                    onClick={handleZoomOut}
+                    title="Zoom Out"
+                  >
+                    <ZoomOut size={16} />
+                  </button>
+
+                  {/* Zoom Slider */}
+                  <div className="flex items-center gap-2">
+                    <div
+                      ref={zoomSliderRef}
+                      className="w-24 h-1 bg-darkBoxSub rounded-full cursor-pointer relative group"
+                      onMouseDown={handleZoomSliderMouseDown}
+                      onClick={handleZoomSliderClick}
+                      title="Adjust zoom level"
+                    >
+                      {/* Zoom progress bar */}
+                      <div
+                        className="h-full bg-primarioLogo rounded-full transition-all duration-100"
+                        style={{
+                          width: `${((timelineZoom - 1) / (3.37 - 1)) * 100}%`,
+                        }}
+                      ></div>
+
+                      {/* Zoom indicator */}
+                      <div
+                        className={`absolute top-2 transform -translate-y-1/2 w-3 h-3 bg-white rounded-full border-2 border-primarioLogo cursor-grab transition-all duration-100 shadow-lg ${
+                          isDraggingZoom
+                            ? "scale-125 cursor-grabbing"
+                            : "hover:scale-110"
+                        }`}
+                        style={{
+                          left: `${((timelineZoom - 1) / (3.37 - 1)) * 100}%`,
+                          transform: "translate(-50%, -50%)",
+                        }}
+                      ></div>
+
+                      {/* Visual indicator on hover */}
+                      <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 opacity-0 group-hover:opacity-20 bg-primarioLogo rounded-full transition-opacity duration-200"></div>
+                    </div>
+
+                    <span className="text-white text-xs min-w-[45px] text-center font-medium">
+                      {(timelineZoom * 100).toFixed(0)}%
+                    </span>
+                  </div>
+
+                  <button
+                    className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80 hover:text-primarioLogo"
+                    onClick={handleZoomIn}
+                    title="Zoom In"
+                  >
+                    <ZoomIn size={16} />
+                  </button>
+                </div>
+
+                {/* Cut Button - Only show when element is selected and playhead is over it */}
+                {showCutButton && (
+                  <button
+                    className="bg-primarioLogo p-2 rounded-lg text-primarioDark hover:bg-opacity-80 animate-pulse"
+                    onClick={handleCutElement}
+                    title="Cut selected element"
+                  >
+                    <Scissors size={16} />
+                  </button>
+                )}
+              </div>{" "}
+              <div className="flex items-center gap-2 line-clamp-1">
+                <Volume2 size={20} className="text-white" />
+                <div
+                  ref={volumeRef}
+                  className="w-20 h-1 bg-darkBoxSub rounded-full cursor-pointer relative group"
+                  onMouseDown={handleVolumeMouseDown}
+                  onClick={handleVolumeClick}
+                >
+                  {/* Volume progress bar */}
                   <div
-                    className="absolute top-1/2 transform -translate-y-1/2 h-1 bg-primarioLogo rounded-full transition-all duration-100"
-                    style={{
-                      width: `${getPlayheadPosition()}%`,
-                      display: getPlayheadPosition() < 0 ? "none" : "block",
-                    }}
+                    className="h-full bg-primarioLogo rounded-full transition-all duration-100"
+                    style={{ width: `${masterVolume * 100}%` }}
                   ></div>
 
-                  {/* Indicador (bolita) - más grande y con mejor hover */}
+                  {/* Volume indicator */}
                   <div
-                    className={`absolute top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-primarioLogo cursor-grab transition-all duration-100 shadow-lg ${
-                      isDraggingTimeline
+                    className={`absolute top-2 transform -translate-y-1/2 w-3 h-3 bg-white rounded-full border-2 border-primarioLogo cursor-grab transition-all duration-100 shadow-lg ${
+                      isDraggingVolume
                         ? "scale-125 cursor-grabbing"
                         : "hover:scale-110"
                     }`}
                     style={{
-                      left: `${getPlayheadPosition()}%`,
+                      left: `${masterVolume * 100}%`,
                       transform: "translate(-50%, -50%)",
-                      display: getPlayheadPosition() < 0 ? "none" : "block",
                     }}
+                  ></div>
+
+                  {/* Visual indicator on hover */}
+                  <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 opacity-0 group-hover:opacity-20 bg-primarioLogo rounded-full transition-opacity duration-200"></div>
+                </div>
+
+                {/* Show volume percentage */}
+                <span className="text-xs text-gray-400 w-8">
+                  {Math.round(masterVolume * 100)}%
+                </span>
+
+                {/* Debug: Show number of elements in timeline */}
+                <span className="text-xs text-gray-400 ml-4">
+                  Elements: {arrayVideoMake.length}
+                  {arrayVideoMake.length > 0 && (
+                    <span>
+                      {" "}
+                      | Duration:{" "}
+                      {Math.max(
+                        ...arrayVideoMake.map((item) => item.endTime),
+                        0
+                      )}
+                      s
+                    </span>
+                  )}
+                  {isResizing && resizingElement && (
+                    <span className="text-yellow-400">
+                      {" "}
+                      | Trimming: {resizingElement.title}
+                    </span>
+                  )}
+                  {draggingElement && (
+                    <span className="text-blue-400 line-clamp-1">
+                      {" "}
+                      | Moving: {draggingElement.title}
+                    </span>
+                  )}
+                </span>
+              </div>
+            </div>
+            <div className="gap-4 flex pb-2 items-center">
+              {/* Undo Button */}
+              <button
+                type="button"
+                onClick={undo}
+                disabled={!canUndo}
+                className={`px-3 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${
+                  canUndo
+                    ? "bg-gray-600 text-white hover:bg-gray-500 cursor-pointer"
+                    : "bg-gray-800 text-gray-500 cursor-not-allowed"
+                }`}
+                title="Undo (Ctrl+Z)"
+              >
+                <Undo size={16} />
+              </button>
+
+              {/* Aspect Ratio Selector */}
+              <div className="flex items-center gap-2">
+                <label className="text-white text-sm font-medium">
+                  Aspect:
+                </label>
+                <select
+                  value={aspectRatio}
+                  onChange={(e) => setAspectRatio(e.target.value)}
+                  className="bg-darkBox text-white border border-gray-600 rounded-lg px-3 py-1 text-sm focus:outline-none focus:border-primarioLogo"
+                >
+                  <option value="16:9">16:9</option>
+                  <option value="9:16">9:16</option>
+                  <option value="1:1">1:1</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          {/* TIMELINE */}
+          <div className="mt-0 relative pb-0">
+            {/* Timeline Tracks Container with Scroll */}
+            <div
+              className="overflow-x-auto overflow-y-hidden pb-1"
+              style={{
+                scrollbarWidth: "thin",
+                scrollbarColor: "#DC569D #2a2a2a",
+              }}
+              onScroll={(e) => {
+                const scrollLeft = e.target.scrollLeft;
+                const scrollWidth = e.target.scrollWidth;
+                const clientWidth = e.target.clientWidth;
+                const maxScroll = scrollWidth - clientWidth;
+
+                if (maxScroll > 0) {
+                  const scrollPercentage = scrollLeft / maxScroll;
+                  const totalDuration = getTimelineDuration();
+                  const visibleDuration = getVisualTimelineDuration();
+                  const hiddenDuration = totalDuration - visibleDuration;
+                  setTimelineScrollOffset(scrollPercentage * hiddenDuration);
+                } else {
+                  setTimelineScrollOffset(0);
+                }
+              }}
+            >
+              <style jsx>{`
+                div::-webkit-scrollbar {
+                  height: 8px;
+                }
+                div::-webkit-scrollbar-track {
+                  background: #2a2a2a;
+                  border-radius: 4px;
+                }
+                div::-webkit-scrollbar-thumb {
+                  background: #dc569d;
+                  border-radius: 4px;
+                }
+                div::-webkit-scrollbar-thumb:hover {
+                  background: #b84a85;
+                }
+              `}</style>
+              <div
+                ref={timelineContainerRef}
+                className="space-y-3 relative mt-6"
+                style={{
+                  minWidth:
+                    visibleDuration < getTimelineDuration()
+                      ? `${(getTimelineDuration() / visibleDuration) * 100}%`
+                      : "100%",
+                }}
+                onMouseDown={(e) => {
+                  // Si hacemos click en el timeline (pero no en un elemento), permitir drag
+                  if (
+                    e.target === e.currentTarget ||
+                    e.target.closest(".playhead-line")
+                  ) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const percentage = Math.max(
+                      0,
+                      Math.min(clickX / rect.width, 1)
+                    );
+
+                    // Calculate time considering zoom and scroll offset
+                    const visibleDuration = getVisualTimelineDuration();
+                    const timeInVisibleArea = percentage * visibleDuration;
+                    const newTime = Math.max(
+                      0,
+                      Math.min(
+                        timeInVisibleArea + timelineScrollOffset,
+                        getTimelineDuration()
+                      )
+                    );
+
+                    setCurrentTime(newTime);
+                    setIsDraggingTimeline(true);
+                  }
+                }}
+              >
+                {/* Línea vertical del playhead sobre todo el timeline */}
+                <div
+                  className="playhead-line absolute top-0 bottom-0 w-1 bg-primarioLogo cursor-grab z-50"
+                  style={{
+                    left: `${(() => {
+                      const visibleDuration = getVisualTimelineDuration();
+                      const timeInVisibleArea =
+                        currentTime - timelineScrollOffset;
+
+                      // Si está fuera del área visible, esconder
+                      if (
+                        timeInVisibleArea < 0 ||
+                        timeInVisibleArea > visibleDuration
+                      ) {
+                        return "-100px";
+                      }
+
+                      // Calcular porcentaje exacto (igual que los elementos)
+                      const percentage =
+                        (timeInVisibleArea / visibleDuration) * 100;
+                      return `${percentage}%`;
+                    })()}`,
+                    transform: "translateX(-50%)",
+                    display: getPlayheadPosition() < 0 ? "none" : "block",
+                  }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDraggingTimeline(true);
+                  }}
+                >
+                  {/* Icono CaretDown en la parte superior de la línea - DRAGGABLE */}
+                  <div
+                    className={`absolute -top-1 left-1/2 transform -translate-x-1/2 -translate-y-full cursor-grab transition-all duration-100 ${
+                      isDraggingTimeline
+                        ? "scale-125 cursor-grabbing"
+                        : "hover:scale-110"
+                    }`}
                     onMouseDown={(e) => {
                       e.preventDefault();
+                      e.stopPropagation();
                       setIsDraggingTimeline(true);
                     }}
                   >
-                    {/* Línea vertical hacia arriba desde la bolita */}
-                    <div
-                      className="absolute  -translate-x-1/2 bottom-full w-0.5 bg-primarioLogo"
-                      style={{ height: "250px", zIndex: 60 }}
+                    <CaretDown
+                      size={24}
+                      className="text-primarioLogo drop-shadow-lg"
+                      strokeWidth={3}
                     />
                   </div>
-                  {/* Indicador visual cuando se hace hover */}
-                  <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-3 opacity-0 group-hover:opacity-20 bg-primarioLogo rounded-full transition-opacity duration-200"></div>
                 </div>
-                {/* Vertical playhead line under the ruler */}
-                <div className="relative h-3 mt-1">
+
+                {/* Video Track */}
+                <div className="flex items-center gap-3">
                   <div
-                    className="absolute top-0 bottom-0 w-0.5 bg-primarioLogo/60"
-                    style={{
-                      left: `${getPlayheadPosition()}%`,
-                      transform: "translateX(-50%)",
-                      display: getPlayheadPosition() < 0 ? "none" : "block",
-                    }}
-                  />
+                    className="flex-1 bg-darkBoxSub rounded-lg h-12 relative transition-all duration-200 hover:bg-opacity-80"
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, "video")}
+                  >
+                    {/* Icono del canal - solo visible cuando está vacío */}
+                    {arrayVideoMake.filter((item) => item.channel === "video")
+                      .length === 0 && (
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
+                        <Video size={20} className="text-gray-400" />
+                      </div>
+                    )}
+
+                    {/* Render timeline elements for video channel */}
+                    {arrayVideoMake
+                      .filter((item) => item.channel === "video")
+                      .map((item, index) => {
+                        return (
+                          <div
+                            key={item.id}
+                            className={`absolute rounded-md h-10 cursor-move group hover:scale-105 hover:z-10 overflow-hidden ${
+                              draggingElement?.id === item.id
+                                ? "opacity-50 scale-105 transition-none"
+                                : "transition-all duration-200"
+                            } ${
+                              selectedElement?.id === item.id
+                                ? "ring-2 ring-[#DC569D] ring-opacity-80"
+                                : ""
+                            }`}
+                            style={{
+                              left: `${getElementPositionPercentage(item)}%`,
+                              width: `${getElementWidthPercentage(item)}%`,
+                              top: "4px",
+                            }}
+                            onMouseEnter={() => setHoveredElement(item.id)}
+                            onMouseLeave={() => setHoveredElement(null)}
+                            onClick={(e) => handleSelectElement(item, e)}
+                            onMouseDown={(e) => {
+                              // Only start drag if not delete button or handles
+                              if (
+                                !e.target.closest("button") &&
+                                !e.target.classList.contains("resize-handle")
+                              ) {
+                                handleElementDragStart(e, item);
+                              }
+                            }}
+                          >
+                            {/* Video thumbnail */}
+                            {item.url ? (
+                              <video
+                                src={item.url}
+                                className="w-full h-full object-cover rounded-md pointer-events-none"
+                                muted
+                                preload="metadata"
+                                style={{ objectFit: "cover" }}
+                              />
+                            ) : (
+                              <div
+                                className="w-full h-full rounded-md flex items-center justify-center"
+                                style={{
+                                  backgroundColor: getElementColor(
+                                    item.id,
+                                    index
+                                  ),
+                                }}
+                              >
+                                <span className="text-white text-xs">
+                                  Video
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Overlay with text */}
+                            <div className="absolute inset-0 bg-black bg-opacity-20 rounded-md flex items-center justify-center pointer-events-none">
+                              <span className="text-white text-xs truncate px-2 select-none drop-shadow-lg font-medium">
+                                {item.title} ({item.duration}s)
+                                {item.channel === "video" && (
+                                  <span className="opacity-80">
+                                    {" "}
+                                    Vol:{" "}
+                                    {Math.round(
+                                      (item.volume !== undefined
+                                        ? item.volume
+                                        : 1) * 100
+                                    )}
+                                    %
+                                  </span>
+                                )}
+                                {item.originalDuration &&
+                                  item.originalDuration !== item.duration && (
+                                    <span className="opacity-70">
+                                      {" "}
+                                      - Orig: {item.originalDuration}s
+                                    </span>
+                                  )}
+                              </span>
+                            </div>
+
+                            {/* Left resize handle */}
+                            <div
+                              className="resize-handle absolute left-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-r border-gray-400"
+                              onMouseDown={(e) =>
+                                handleResizeStart(e, item, "start")
+                              }
+                              title="Trim start"
+                            ></div>
+
+                            {/* Right resize handle */}
+                            <div
+                              className="resize-handle absolute right-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-l border-gray-400"
+                              onMouseDown={(e) =>
+                                handleResizeStart(e, item, "end")
+                              }
+                              title="Trim end"
+                            ></div>
+
+                            <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
+                              {item.title} ({item.duration}s)
+                              {item.channel === "video" && (
+                                <span className="opacity-80">
+                                  {" "}
+                                  Vol:{" "}
+                                  {Math.round(
+                                    (item.volume !== undefined
+                                      ? item.volume
+                                      : 1) * 100
+                                  )}
+                                  %
+                                </span>
+                              )}
+                              {item.originalDuration &&
+                                item.originalDuration !== item.duration && (
+                                  <span className="opacity-70">
+                                    {" "}
+                                    - Orig: {item.originalDuration}s
+                                  </span>
+                                )}
+                            </span>
+
+                            {/* Opciones de hover */}
+                            {hoveredElement === item.id && !draggingElement && (
+                              <div className="absolute -top-2 right-0 flex gap-1 z-10">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteElement(item.id);
+                                    setHoveredElement(null);
+                                  }}
+                                  className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
+                                  title="Eliminar escena"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
                 </div>
-                <div
-                  className="relative text-xs text-gray-400 mt-1"
-                  style={{ height: "16px" }}
-                >
-                  {getTimeMarkers().map((marker, index) => (
-                    <span
-                      key={index}
-                      className="absolute whitespace-nowrap"
-                      style={{
-                        left: `${marker.position}%`,
-                        transform: "translateX(-50%)",
-                      }}
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, "image")}
+                  >
+                    {/* Icono del canal - solo visible cuando está vacío */}
+                    {arrayVideoMake.filter((item) => item.channel === "image")
+                      .length === 0 && (
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
+                        <Image size={16} className="text-gray-400" />
+                      </div>
+                    )}
+
+                    {/* Render timeline elements for image/text channel */}
+                    {arrayVideoMake
+                      .filter((item) => item.channel === "image")
+                      .map((item, index) => {
+                        return (
+                          <div
+                            key={item.id}
+                            className={`absolute rounded-md h-6 cursor-move group hover:scale-105 hover:z-10 overflow-hidden ${
+                              draggingElement?.id === item.id
+                                ? "opacity-50 scale-105 transition-none"
+                                : "transition-all duration-200"
+                            } ${
+                              selectedElement?.id === item.id
+                                ? "ring-2 ring-[#DC569D] ring-opacity-80"
+                                : ""
+                            }`}
+                            style={{
+                              left: `${getElementPositionPercentage(item)}%`,
+                              width: `${getElementWidthPercentage(item)}%`,
+                              top: "4px",
+                            }}
+                            onMouseEnter={() => setHoveredElement(item.id)}
+                            onMouseLeave={() => setHoveredElement(null)}
+                            onClick={(e) => handleSelectElement(item, e)}
+                            onMouseDown={(e) => {
+                              if (
+                                !e.target.closest("button") &&
+                                !e.target.classList.contains("resize-handle")
+                              ) {
+                                handleElementDragStart(e, item);
+                              }
+                            }}
+                          >
+                            {/* Image thumbnail */}
+                            {item.url ? (
+                              <img
+                                src={item.url}
+                                className="w-full h-full object-cover rounded-md pointer-events-none"
+                                alt={item.title}
+                              />
+                            ) : (
+                              <div
+                                className="w-full h-full rounded-md flex items-center justify-center"
+                                style={{
+                                  backgroundColor: getElementColor(
+                                    item.id,
+                                    index
+                                  ),
+                                }}
+                              >
+                                <span className="text-white text-xs">
+                                  Image
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Overlay with text */}
+                            <div className="absolute inset-0 bg-black bg-opacity-20 rounded-md flex items-center justify-center pointer-events-none">
+                              <span className="text-white text-xs truncate px-2 select-none drop-shadow-lg font-medium">
+                                {item.title} ({item.duration}s)
+                              </span>
+                            </div>
+
+                            {/* Manija de redimensionamiento izquierda */}
+                            <div
+                              className="resize-handle absolute left-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-r border-gray-400"
+                              onMouseDown={(e) =>
+                                handleResizeStart(e, item, "start")
+                              }
+                              title="Cambiar inicio"
+                            ></div>
+
+                            {/* Manija de redimensionamiento derecha */}
+                            <div
+                              className="resize-handle absolute right-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-l border-gray-400"
+                              onMouseDown={(e) =>
+                                handleResizeStart(e, item, "end")
+                              }
+                              title="Cambiar duración"
+                            ></div>
+
+                            {/* Opciones de hover */}
+                            {hoveredElement === item.id && !draggingElement && (
+                              <div className="absolute -top-2 right-0 flex gap-1 z-20">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteElement(item.id);
+                                    setHoveredElement(null);
+                                  }}
+                                  className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
+                                  title="Eliminar elemento"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {/* Music Track */}
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, "music")}
+                  >
+                    {/* Icono del canal - solo visible cuando está vacío */}
+                    {arrayVideoMake.filter((item) => item.channel === "music")
+                      .length === 0 && (
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
+                        <Music size={16} className="text-gray-400" />
+                      </div>
+                    )}
+
+                    {/* Renderizar elementos del timeline para el canal de música */}
+                    {arrayVideoMake
+                      .filter((item) => item.channel === "music")
+                      .map((item, index) => (
+                        <div
+                          key={item.id}
+                          className={`absolute rounded-md h-6 flex items-center justify-center cursor-move group hover:scale-105 hover:z-10 ${
+                            draggingElement?.id === item.id
+                              ? "opacity-50 scale-105 transition-none"
+                              : "transition-all duration-200"
+                          } ${
+                            selectedElement?.id === item.id
+                              ? "ring-2 ring-[#DC569D] ring-opacity-80"
+                              : ""
+                          }`}
+                          style={{
+                            left: `${getElementPositionPercentage(item)}%`,
+                            width: `${getElementWidthPercentage(item)}%`,
+                            top: "4px",
+                            backgroundColor: getElementColor(
+                              item.id,
+                              index,
+                              "music"
+                            ),
+                          }}
+                          onMouseEnter={() => setHoveredElement(item.id)}
+                          onMouseLeave={() => setHoveredElement(null)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectElement(item, e);
+                          }}
+                          onMouseDown={(e) => {
+                            // Only start drag if not clicking on resize handles or buttons
+                            if (
+                              !e.target.closest("button") &&
+                              !e.target.classList.contains("resize-handle")
+                            ) {
+                              // Don't start drag immediately, wait for mouse move
+                              const startDrag = () => {
+                                handleElementDragStart(e, item);
+                              };
+                              // Add a small delay to allow click selection first
+                              setTimeout(startDrag, 50);
+                            }
+                          }}
+                        >
+                          {/* Manija de redimensionamiento izquierda */}
+                          <div
+                            className="resize-handle absolute left-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-r border-gray-400"
+                            onMouseDown={(e) =>
+                              handleResizeStart(e, item, "start")
+                            }
+                            title="Recortar inicio"
+                          ></div>
+
+                          {/* Manija de redimensionamiento derecha */}
+                          <div
+                            className="resize-handle absolute right-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-l border-gray-400"
+                            onMouseDown={(e) =>
+                              handleResizeStart(e, item, "end")
+                            }
+                            title="Recortar final"
+                          ></div>
+
+                          <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
+                            {item.title} ({item.duration}s)
+                          </span>
+
+                          {/* Opciones de hover */}
+                          {hoveredElement === item.id && !draggingElement && (
+                            <div className="absolute -top-2 right-0 flex gap-1 z-20">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteElement(item.id);
+                                  setHoveredElement(null);
+                                }}
+                                className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
+                                title="Eliminar música"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                {/* Voice Track */}
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, "voice")}
+                  >
+                    {/* Icono del canal - solo visible cuando está vacío */}
+                    {arrayVideoMake.filter((item) => item.channel === "voice")
+                      .length === 0 && (
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
+                        <Mic size={16} className="text-gray-400" />
+                      </div>
+                    )}
+
+                    {/* Renderizar elementos del timeline para el canal de voz */}
+                    {arrayVideoMake
+                      .filter((item) => item.channel === "voice")
+                      .map((item, index) => (
+                        <div
+                          key={item.id}
+                          className={`absolute rounded-md h-6 flex items-center justify-center cursor-move group hover:scale-105 hover:z-10 ${
+                            draggingElement?.id === item.id
+                              ? "opacity-50 scale-105 transition-none"
+                              : "transition-all duration-200"
+                          } ${
+                            selectedElement?.id === item.id
+                              ? "ring-2 ring-[#DC569D] ring-opacity-80"
+                              : ""
+                          }`}
+                          style={{
+                            left: `${getElementPositionPercentage(item)}%`,
+                            width: `${getElementWidthPercentage(item)}%`,
+                            top: "4px",
+                            backgroundColor: getElementColor(
+                              item.id,
+                              index,
+                              "voice"
+                            ),
+                          }}
+                          onMouseEnter={() => setHoveredElement(item.id)}
+                          onMouseLeave={() => setHoveredElement(null)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectElement(item, e);
+                          }}
+                          onMouseDown={(e) => {
+                            // Only start drag if not clicking on resize handles or buttons
+                            if (
+                              !e.target.closest("button") &&
+                              !e.target.classList.contains("resize-handle")
+                            ) {
+                              // Don't start drag immediately, wait for mouse move
+                              const startDrag = () => {
+                                handleElementDragStart(e, item);
+                              };
+                              // Add a small delay to allow click selection first
+                              setTimeout(startDrag, 50);
+                            }
+                          }}
+                        >
+                          {/* Manija de redimensionamiento izquierda */}
+                          <div
+                            className="resize-handle absolute left-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-r border-gray-400"
+                            onMouseDown={(e) =>
+                              handleResizeStart(e, item, "start")
+                            }
+                            title="Recortar inicio"
+                          ></div>
+
+                          {/* Manija de redimensionamiento derecha */}
+                          <div
+                            className="resize-handle absolute right-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-l border-gray-400"
+                            onMouseDown={(e) =>
+                              handleResizeStart(e, item, "end")
+                            }
+                            title="Recortar final"
+                          ></div>
+
+                          <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
+                            {item.title} ({item.duration}s)
+                          </span>
+
+                          {/* Opciones de hover */}
+                          {hoveredElement === item.id && !draggingElement && (
+                            <div className="absolute -top-2 right-0 flex gap-1 z-20">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteElement(item.id);
+                                  setHoveredElement(null);
+                                }}
+                                className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
+                                title="Eliminar voz"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                {/* Sound Track */}
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex-1 bg-darkBoxSub rounded-lg h-8 relative transition-all duration-200 hover:bg-opacity-80"
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, "sound")}
+                  >
+                    {/* Icono del canal - solo visible cuando está vacío */}
+                    {arrayVideoMake.filter((item) => item.channel === "sound")
+                      .length === 0 && (
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
+                        <Headphones size={16} className="text-gray-400" />
+                      </div>
+                    )}
+
+                    {/* Renderizar elementos del timeline para el canal de sonido */}
+                    {arrayVideoMake
+                      .filter((item) => item.channel === "sound")
+                      .map((item, index) => (
+                        <div
+                          key={item.id}
+                          className={`absolute rounded-md h-6 flex items-center justify-center cursor-move group hover:scale-105 hover:z-10 ${
+                            draggingElement?.id === item.id
+                              ? "opacity-50 scale-105 transition-none"
+                              : "transition-all duration-200"
+                          } ${
+                            selectedElement?.id === item.id
+                              ? "ring-2 ring-[#DC569D] ring-opacity-80"
+                              : ""
+                          }`}
+                          style={{
+                            left: `${getElementPositionPercentage(item)}%`,
+                            width: `${getElementWidthPercentage(item)}%`,
+                            top: "4px",
+                            backgroundColor: getElementColor(
+                              item.id,
+                              index,
+                              "sound"
+                            ),
+                          }}
+                          onMouseEnter={() => setHoveredElement(item.id)}
+                          onMouseLeave={() => setHoveredElement(null)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectElement(item, e);
+                          }}
+                          onMouseDown={(e) => {
+                            // Only start drag if not clicking on resize handles or buttons
+                            if (
+                              !e.target.closest("button") &&
+                              !e.target.classList.contains("resize-handle")
+                            ) {
+                              // Don't start drag immediately, wait for mouse move
+                              const startDrag = () => {
+                                handleElementDragStart(e, item);
+                              };
+                              // Add a small delay to allow click selection first
+                              setTimeout(startDrag, 50);
+                            }
+                          }}
+                        >
+                          {/* Manija de redimensionamiento izquierda */}
+                          <div
+                            className="resize-handle absolute left-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-r border-gray-400"
+                            onMouseDown={(e) =>
+                              handleResizeStart(e, item, "start")
+                            }
+                            title="Recortar inicio"
+                          ></div>
+
+                          {/* Manija de redimensionamiento derecha */}
+                          <div
+                            className="resize-handle absolute right-0 top-0 w-2 h-full bg-white opacity-30 hover:opacity-100 cursor-ew-resize z-30 border-l border-gray-400"
+                            onMouseDown={(e) =>
+                              handleResizeStart(e, item, "end")
+                            }
+                            title="Recortar final"
+                          ></div>
+
+                          <span className="text-white text-xs truncate px-2 select-none pointer-events-none">
+                            {item.title} ({item.duration}s)
+                          </span>
+
+                          {/* Opciones de hover */}
+                          {hoveredElement === item.id && !draggingElement && (
+                            <div className="absolute -top-2 right-0 flex gap-1 z-20">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteElement(item.id);
+                                  setHoveredElement(null);
+                                }}
+                                className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
+                                title="Eliminar sonido"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                {/* Timeline Ruler */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 relative">
+                    {/* Time markers ARRIBA del timeline */}
+                    <div
+                      className="relative text-xs text-gray-400 mb-2"
+                      style={{ height: "16px" }}
                     >
-                      {marker.text}
-                    </span>
-                  ))}
+                      {getTimeMarkers().map((marker, index) => (
+                        <span
+                          key={index}
+                          className="absolute whitespace-nowrap"
+                          style={{
+                            left: `${marker.position}%`,
+                            transform: "translateX(-50%)",
+                          }}
+                        >
+                          {marker.text}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -6757,6 +7354,17 @@ function Editor() {
         message="Are you sure you want to delete this sound file?"
         itemName={soundToDelete?.name}
         isLoading={isDeletingSound}
+      />
+
+      {/* Delete Editor Video Confirmation Modal */}
+      <ModalConfirmDelete
+        isOpen={showDeleteEditorVideoModal}
+        onClose={handleCloseDeleteEditorVideoModal}
+        onConfirm={handleConfirmDeleteEditorVideo}
+        title="Delete Video"
+        message="Are you sure you want to delete this video?"
+        itemName={editorVideoToDelete?.title}
+        isLoading={isDeletingEditorVideo}
       />
     </div>
   );

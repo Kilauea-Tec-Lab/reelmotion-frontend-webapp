@@ -49,11 +49,6 @@ const router = createBrowserRouter([
         loader: multiloaderGet,
       },
       {
-        path: "editor",
-        element: <Editor />,
-        loader: getInfoToEdit,
-      },
-      {
         path: "profile",
         element: <Profile />,
         loader: userInfoLoader,
@@ -72,6 +67,11 @@ const router = createBrowserRouter([
         },
       },
     ],
+  },
+  {
+    path: "editor",
+    element: <Editor />,
+    loader: getInfoToEdit,
   },
 ]);
 
