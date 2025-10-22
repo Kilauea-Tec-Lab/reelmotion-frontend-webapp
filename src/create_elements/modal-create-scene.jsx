@@ -7,6 +7,8 @@ import {
   Image as ImageIcon,
   Sparkles,
   CreditCard,
+  Upload,
+  XCircle,
 } from "lucide-react";
 import Cookies from "js-cookie";
 
@@ -21,9 +23,15 @@ function ModalCreateScene({
   const [sceneName, setSceneName] = useState("");
   const [sceneDescription, setSceneDescription] = useState("");
   const [selectedFrame, setSelectedFrame] = useState("");
-  const [selectedType, setSelectedType] = useState("image"); // "image" o "video"
+  const [selectedType, setSelectedType] = useState("image"); // "image", "video", o "upload"
   const [hoveredVideo, setHoveredVideo] = useState(null); // Para manejar hover en videos
   const [aiModel, setAiModel] = useState("runway");
+
+  // Estados para upload de video
+  const [uploadedVideo, setUploadedVideo] = useState(null);
+  const [uploadedVideoUrl, setUploadedVideoUrl] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [videoDuration, setVideoDuration] = useState(5);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -624,7 +632,88 @@ function ModalCreateScene({
     return proPrompt;
   };
 
+  // Función para validar duración del video
+  const validateVideoDuration = (file) => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+
+      video.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(video.src);
+        const duration = video.duration;
+
+        if (duration > 120) {
+          // 2 minutos = 120 segundos
+          reject(
+            new Error(
+              `Video duration is ${Math.round(
+                duration
+              )}s. Maximum allowed is 2 minutes (120s).`
+            )
+          );
+        } else {
+          resolve(duration);
+        }
+      };
+
+      video.onerror = () => {
+        reject(new Error("Error loading video file"));
+      };
+
+      video.src = URL.createObjectURL(file);
+    });
+  };
+
+  // Función para manejar el upload de video
+  const handleVideoUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validar tipo de archivo
+    if (!file.type.startsWith("video/")) {
+      setUploadError("Please select a valid video file");
+      return;
+    }
+
+    setIsUploadingVideo(true);
+    setUploadError(null);
+
+    try {
+      // Validar duración
+      const duration = await validateVideoDuration(file);
+      console.log(`Video duration: ${duration}s`);
+
+      // Crear preview URL
+      const videoUrl = URL.createObjectURL(file);
+      setUploadedVideo(file);
+      setUploadedVideoUrl(videoUrl);
+      setUploadError(null);
+    } catch (error) {
+      console.error("Error validating video:", error);
+      setUploadError(error.message);
+      setUploadedVideo(null);
+      setUploadedVideoUrl(null);
+    } finally {
+      setIsUploadingVideo(false);
+    }
+  };
+
+  // Función para remover video uploaded
+  const handleRemoveUploadedVideo = () => {
+    if (uploadedVideoUrl) {
+      URL.revokeObjectURL(uploadedVideoUrl);
+    }
+    setUploadedVideo(null);
+    setUploadedVideoUrl(null);
+    setUploadError(null);
+  };
+
   const handleClose = () => {
+    // Limpiar URL del video uploaded
+    if (uploadedVideoUrl) {
+      URL.revokeObjectURL(uploadedVideoUrl);
+    }
+
     setSceneName("");
     setSceneDescription("");
     setSelectedFrame("");
@@ -640,6 +729,11 @@ function ModalCreateScene({
     setVideoGenerationError(null);
     setSelectedAspectRatio("");
     setWithAudio(false);
+    // Limpiar estados de upload
+    setUploadedVideo(null);
+    setUploadedVideoUrl(null);
+    setUploadError(null);
+    setIsUploadingVideo(false);
     // Limpiar estados del prompt profesional
     setIsProPromptMode(true); // Mantener Pro Prompt activado por defecto
     setShotType("");
@@ -692,9 +786,20 @@ function ModalCreateScene({
         : aiPrompt.trim(); // Modo simple requiere el textarea
     }
 
-    if (!selectedFrame || !selectedAspectRatio || !hasValidPrompt) {
+    // Validación especial para upload
+    if (selectedType === "upload" && !uploadedVideo) {
+      setVideoGenerationError("Please upload a video first.");
+      return;
+    }
+
+    if (selectedType !== "upload" && !selectedFrame) {
+      setVideoGenerationError("Please select a frame.");
+      return;
+    }
+
+    if (!selectedAspectRatio || !hasValidPrompt) {
       setVideoGenerationError(
-        "Por favor, selecciona un frame, aspect ratio y completa el prompt."
+        "Please select aspect ratio and complete the prompt."
       );
       return;
     }
@@ -735,30 +840,54 @@ function ModalCreateScene({
       // Obtener el elemento seleccionado (frame o escena)
       const selectedData = getSelectedData();
 
-      const videoPayload = {
-        prompt: finalVideoPrompt, // Video Motion/Animation Description (profesional o simple)
-        ai_model: aiModel, // id del modelo seleccionado (deepseek, runway, etc)
-        video_duration: videoDuration, // Duración del video
-        aspect_ratio: selectedAspectRatio, // Aspect ratio seleccionado
-        media_url:
-          selectedData?.media_url ||
-          selectedData?.video_url ||
-          selectedData?.url, // URL de la imagen/video del frame/escena
-        project_id: projectId, // ID del proyecto
-      };
+      let response;
 
-      // Llamar a la API para generar el video
-      const response = await fetch(
-        `${import.meta.env.VITE_APP_BACKEND_URL}ai/generate-video`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + Cookies.get("token"),
-          },
-          body: JSON.stringify(videoPayload),
-        }
-      );
+      // Si es un video uploaded, usar FormData para enviar el archivo
+      if (selectedType === "upload" && uploadedVideo) {
+        const formData = new FormData();
+        formData.append("video", uploadedVideo);
+        formData.append("prompt", finalVideoPrompt);
+        formData.append("ai_model", aiModel);
+        formData.append("video_duration", videoDuration);
+        formData.append("aspect_ratio", selectedAspectRatio);
+        formData.append("project_id", projectId);
+
+        response = await fetch(
+          `${import.meta.env.VITE_APP_BACKEND_URL}ai/generate-video`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: "Bearer " + Cookies.get("token"),
+            },
+            body: formData,
+          }
+        );
+      } else {
+        // Para frames/escenas existentes, usar JSON
+        const videoPayload = {
+          prompt: finalVideoPrompt,
+          ai_model: aiModel,
+          video_duration: videoDuration,
+          aspect_ratio: selectedAspectRatio,
+          media_url:
+            selectedData?.media_url ||
+            selectedData?.video_url ||
+            selectedData?.url,
+          project_id: projectId,
+        };
+
+        response = await fetch(
+          `${import.meta.env.VITE_APP_BACKEND_URL}ai/generate-video`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + Cookies.get("token"),
+            },
+            body: JSON.stringify(videoPayload),
+          }
+        );
+      }
 
       const responseData = await response.json();
 
@@ -843,43 +972,72 @@ function ModalCreateScene({
   };
 
   const handleSubmit = async () => {
-    if (
-      !sceneName.trim() ||
-      !sceneDescription.trim() ||
-      !selectedFrame ||
-      !generatedVideoUrl ||
-      (aiModel !== "runway-aleph" &&
-        aiModel !== "sora-2" &&
-        aiModel !== "sora-2-pro" &&
-        aiModel !== "veo-3.1-generate-preview" &&
-        aiModel !== "veo-3.1-fast-generate-preview" &&
-        !promptImageUrl)
-    )
-      return;
+    // Validación para upload vs generado
+    if (selectedType === "upload") {
+      if (!sceneName.trim() || !sceneDescription.trim() || !uploadedVideo) {
+        return;
+      }
+    } else {
+      if (
+        !sceneName.trim() ||
+        !sceneDescription.trim() ||
+        !selectedFrame ||
+        !generatedVideoUrl ||
+        (aiModel !== "runway-aleph" &&
+          aiModel !== "sora-2" &&
+          aiModel !== "sora-2-pro" &&
+          aiModel !== "veo-3.1-generate-preview" &&
+          aiModel !== "veo-3.1-fast-generate-preview" &&
+          !promptImageUrl)
+      ) {
+        return;
+      }
+    }
 
     try {
-      // Crear el payload con los datos requeridos para crear la escena
-      const sceneData = {
-        name: sceneName,
-        description: sceneDescription,
-        project_id: projectId,
-        frame_id: selectedFrame,
-        video_url: generatedVideoUrl,
-        ...(promptImageUrl && { prompt_image_url: promptImageUrl }), // Solo incluir si existe
-      };
+      let response;
 
-      // Aquí puedes llamar a tu API para crear la escena
-      const response = await fetch(
-        `${import.meta.env.VITE_APP_BACKEND_URL}projects/create-scene`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + Cookies.get("token"),
-          },
-          body: JSON.stringify(sceneData),
-        }
-      );
+      // Si es upload, usar FormData para subir el video
+      if (selectedType === "upload" && uploadedVideo) {
+        const formData = new FormData();
+        formData.append("video", uploadedVideo);
+        formData.append("name", sceneName);
+        formData.append("description", sceneDescription);
+        formData.append("project_id", projectId);
+
+        response = await fetch(
+          `${import.meta.env.VITE_APP_BACKEND_URL}projects/create-scene`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: "Bearer " + Cookies.get("token"),
+            },
+            body: formData,
+          }
+        );
+      } else {
+        // Para escenas generadas con AI, usar JSON
+        const sceneData = {
+          name: sceneName,
+          description: sceneDescription,
+          project_id: projectId,
+          frame_id: selectedFrame,
+          video_url: generatedVideoUrl,
+          ...(promptImageUrl && { prompt_image_url: promptImageUrl }),
+        };
+
+        response = await fetch(
+          `${import.meta.env.VITE_APP_BACKEND_URL}projects/create-scene`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + Cookies.get("token"),
+            },
+            body: JSON.stringify(sceneData),
+          }
+        );
+      }
 
       const responseData = await response.json();
 
@@ -900,6 +1058,18 @@ function ModalCreateScene({
 
   // Función para obtener el elemento seleccionado (frame o escena)
   const getSelectedData = () => {
+    // Si es upload, devolver info del video uploaded
+    if (selectedType === "upload" && uploadedVideo) {
+      return {
+        id: "uploaded",
+        name: uploadedVideo.name,
+        media_url: uploadedVideoUrl,
+        video_url: uploadedVideoUrl,
+        type: "uploaded-video",
+        isUploaded: true,
+      };
+    }
+
     if (!selectedFrame) return null;
 
     if (selectedType === "image") {
@@ -941,14 +1111,15 @@ function ModalCreateScene({
               Choose a key frame from your project to create a video scene
             </p>
 
-            {/* Tabs for Image/Video */}
+            {/* Tabs for Image/Video/Upload */}
             <div className="flex space-x-1 mb-4 bg-gray-800 p-1 rounded-lg">
               <button
                 onClick={() => {
                   setSelectedType("image");
                   setSelectedFrame("");
+                  handleRemoveUploadedVideo();
                 }}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
                   selectedType === "image"
                     ? "bg-[#F2D543] text-black"
                     : "text-gray-400 hover:text-white"
@@ -961,8 +1132,9 @@ function ModalCreateScene({
                 onClick={() => {
                   setSelectedType("video");
                   setSelectedFrame("");
+                  handleRemoveUploadedVideo();
                 }}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
                   selectedType === "video"
                     ? "bg-[#F2D543] text-black"
                     : "text-gray-400 hover:text-white"
@@ -971,10 +1143,95 @@ function ModalCreateScene({
                 <Video className="w-4 h-4" />
                 Videos
               </button>
+              <button
+                onClick={() => {
+                  setSelectedType("upload");
+                  setSelectedFrame("");
+                }}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                  selectedType === "upload"
+                    ? "bg-[#F2D543] text-black"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                <Upload className="w-4 h-4" />
+                Upload
+              </button>
             </div>
 
             {/* Content based on selected type */}
-            {selectedType === "image" ? (
+            {selectedType === "upload" ? (
+              // Upload Video Section
+              <div className="space-y-4">
+                {!uploadedVideoUrl ? (
+                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center hover:border-gray-500 transition-all">
+                    <input
+                      type="file"
+                      accept="video/*"
+                      onChange={handleVideoUpload}
+                      className="hidden"
+                      id="video-upload"
+                      disabled={isUploadingVideo}
+                    />
+                    <label
+                      htmlFor="video-upload"
+                      className="cursor-pointer flex flex-col items-center gap-3"
+                    >
+                      <Upload className="w-12 h-12 text-gray-400" />
+                      <div>
+                        <p className="text-white montserrat-medium mb-1">
+                          {isUploadingVideo
+                            ? "Validating video..."
+                            : "Upload Video"}
+                        </p>
+                        <p className="text-gray-400 text-sm montserrat-regular">
+                          Maximum duration: 2 minutes
+                        </p>
+                        <p className="text-gray-500 text-xs mt-1">
+                          Supported formats: MP4, WebM, MOV, AVI
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="border-2 border-[#F2D543] bg-[#F2D54315] rounded-lg p-4">
+                    <div className="flex items-start gap-4">
+                      <div className="flex-1">
+                        <div className="aspect-video bg-gray-800 rounded-lg mb-3 overflow-hidden">
+                          <video
+                            src={uploadedVideoUrl}
+                            controls
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Video className="w-4 h-4 text-[#F2D543]" />
+                            <p className="text-white text-sm montserrat-medium">
+                              {uploadedVideo?.name}
+                            </p>
+                          </div>
+                          <button
+                            onClick={handleRemoveUploadedVideo}
+                            className="text-red-400 hover:text-red-300 transition-colors"
+                          >
+                            <XCircle className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {uploadError && (
+                  <div className="p-3 bg-red-900 bg-opacity-20 border border-red-600 rounded-lg">
+                    <p className="text-red-400 text-sm montserrat-regular">
+                      {uploadError}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : selectedType === "image" ? (
               // Image Frames
               getImageFrames().length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1087,12 +1344,21 @@ function ModalCreateScene({
               </div>
             )}
 
-            {selectedFrame && (
+            {(selectedFrame ||
+              (selectedType === "upload" && uploadedVideo)) && (
               <div className="mt-4 p-3 bg-[#F2D54315] border border-[#F2D543] rounded-lg">
                 <p className="text-[#F2D543] text-sm montserrat-regular">
-                  ✓ Selected {selectedType === "image" ? "Image" : "Video"}:{" "}
+                  ✓ Selected{" "}
+                  {selectedType === "upload"
+                    ? "Uploaded Video"
+                    : selectedType === "image"
+                    ? "Image"
+                    : "Video"}
+                  :{" "}
                   <span className="font-medium">
-                    {selectedType === "image"
+                    {selectedType === "upload"
+                      ? uploadedVideo?.name
+                      : selectedType === "image"
                       ? getImageFrames().find(
                           (f) => f.id.toString() === selectedFrame
                         )?.name
@@ -1105,47 +1371,49 @@ function ModalCreateScene({
             )}
           </div>
 
-          {/* Aspect Ratio Selection - REQUIRED */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-white mb-4 montserrat-regular">
-              Select Aspect Ratio *
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {getAspectRatioOptions().map((option) => (
-                <div
-                  key={option.id}
-                  onClick={() => setSelectedAspectRatio(option.id)}
-                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    selectedAspectRatio === option.id
-                      ? "border-[#F2D543] bg-[#F2D54315]"
-                      : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
-                  }`}
-                >
-                  <div className="text-center">
-                    <h3 className="font-medium text-white montserrat-medium text-sm mb-1">
-                      {option.name}
-                    </h3>
-                    <p className="text-xs text-gray-400">
-                      {option.description}
-                    </p>
+          {/* Aspect Ratio Selection - REQUIRED - Oculto para upload */}
+          {selectedType !== "upload" && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-white mb-4 montserrat-regular">
+                Select Aspect Ratio *
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {getAspectRatioOptions().map((option) => (
+                  <div
+                    key={option.id}
+                    onClick={() => setSelectedAspectRatio(option.id)}
+                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      selectedAspectRatio === option.id
+                        ? "border-[#F2D543] bg-[#F2D54315]"
+                        : "border-gray-600 hover:border-gray-500 hover:bg-darkBoxSub"
+                    }`}
+                  >
+                    <div className="text-center">
+                      <h3 className="font-medium text-white montserrat-medium text-sm mb-1">
+                        {option.name}
+                      </h3>
+                      <p className="text-xs text-gray-400">
+                        {option.description}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              {selectedAspectRatio && (
+                <p className="mt-2 text-sm text-[#F2D543] montserrat-regular">
+                  Selected:{" "}
+                  {
+                    getAspectRatioOptions().find(
+                      (opt) => opt.id === selectedAspectRatio
+                    )?.name
+                  }
+                </p>
+              )}
             </div>
-            {selectedAspectRatio && (
-              <p className="mt-2 text-sm text-[#F2D543] montserrat-regular">
-                Selected:{" "}
-                {
-                  getAspectRatioOptions().find(
-                    (opt) => opt.id === selectedAspectRatio
-                  )?.name
-                }
-              </p>
-            )}
-          </div>
+          )}
 
           {/* Video Configuration Section - Only show after frame is selected and before video is generated */}
-          {selectedFrame && !generatedVideoUrl && (
+          {selectedType !== "upload" && selectedFrame && !generatedVideoUrl && (
             <div className="mb-6 p-4 bg-darkBoxSub rounded-lg border border-gray-600">
               <div className="flex items-center gap-2 mb-4">
                 <Video className="w-4 h-4 text-[#F2D543]" />
@@ -1587,8 +1855,8 @@ function ModalCreateScene({
             </div>
           )}
 
-          {/* Token Information */}
-          {!generatedVideoUrl && (
+          {/* Token Information - Oculto para upload */}
+          {selectedType !== "upload" && !generatedVideoUrl && (
             <div className="mb-4 bg-darkBoxSub p-4 rounded-lg border border-gray-600">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -1654,14 +1922,16 @@ function ModalCreateScene({
             </div>
           )}
 
-          {/* Generate Video Button - Solo mostrar si no hay video generado */}
-          {!generatedVideoUrl && (
+          {/* Generate Video Button - Solo mostrar si no hay video generado y no es upload */}
+          {selectedType !== "upload" && !generatedVideoUrl && (
             <div className="mb-6">
               <button
                 type="button"
                 onClick={handleGenerateScene}
                 disabled={
-                  !selectedFrame ||
+                  (selectedType === "upload"
+                    ? !uploadedVideo
+                    : !selectedFrame) ||
                   !selectedAspectRatio ||
                   (aiModel === "runway-aleph"
                     ? alephTaskType.trim() && !alephDetails.trim() // Si hay task type, requiere detalles
@@ -1825,14 +2095,16 @@ function ModalCreateScene({
               disabled={
                 !sceneName.trim() ||
                 !sceneDescription.trim() ||
-                !selectedFrame ||
-                !generatedVideoUrl ||
-                (aiModel !== "runway-aleph" &&
-                  aiModel !== "sora-2" &&
-                  aiModel !== "sora-2-pro" &&
-                  aiModel !== "veo-3.1-generate-preview" &&
-                  aiModel !== "veo-3.1-fast-generate-preview" &&
-                  !promptImageUrl)
+                (selectedType === "upload"
+                  ? !uploadedVideo
+                  : !selectedFrame ||
+                    !generatedVideoUrl ||
+                    (aiModel !== "runway-aleph" &&
+                      aiModel !== "sora-2" &&
+                      aiModel !== "sora-2-pro" &&
+                      aiModel !== "veo-3.1-generate-preview" &&
+                      aiModel !== "veo-3.1-fast-generate-preview" &&
+                      !promptImageUrl))
               }
               className="px-6 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543]"
             >

@@ -1,8 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
-const CustomSlider = ({ value, min, max, step, onChange, className = "" }) => {
+const CustomSlider = ({
+  value,
+  min,
+  max,
+  step,
+  onChange,
+  onChangeEnd,
+  className = "",
+}) => {
   const sliderRef = useRef(null);
   const onChangeRef = useRef(onChange);
+  const onChangeEndRef = useRef(onChangeEnd);
   const isDraggingRef = useRef(false);
   const minRef = useRef(min);
   const maxRef = useRef(max);
@@ -13,6 +22,7 @@ const CustomSlider = ({ value, min, max, step, onChange, className = "" }) => {
   // Actualizar refs
   useEffect(() => {
     onChangeRef.current = onChange;
+    onChangeEndRef.current = onChangeEnd;
     minRef.current = min;
     maxRef.current = max;
   });
@@ -48,6 +58,11 @@ const CustomSlider = ({ value, min, max, step, onChange, className = "" }) => {
       const finalValue = currentDragValueRef.current;
       const syntheticEvent = { target: { value: finalValue.toString() } };
       onChangeRef.current(syntheticEvent);
+
+      // Call onChangeEnd if provided
+      if (onChangeEndRef.current) {
+        onChangeEndRef.current(syntheticEvent);
+      }
     }
 
     // Reset todo
@@ -91,6 +106,11 @@ const CustomSlider = ({ value, min, max, step, onChange, className = "" }) => {
               (percentage / 100) * (maxRef.current - minRef.current);
             const syntheticEvent = { target: { value: newValue.toString() } };
             onChangeRef.current(syntheticEvent);
+
+            // Call onChangeEnd for direct clicks too
+            if (onChangeEndRef.current) {
+              onChangeEndRef.current(syntheticEvent);
+            }
           }
         }}
       ></div>
