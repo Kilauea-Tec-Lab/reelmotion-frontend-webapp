@@ -28,7 +28,7 @@ import {
   Video,
   ChevronDown as CaretDown,
 } from "lucide-react";
-import { useLoaderData } from "react-router-dom";
+import { useLoaderData, Link } from "react-router-dom";
 import Cookies from "js-cookie";
 import ModalSaveEdit from "./modals/modal-save-edit";
 import ModalLoadEdit from "./modals/modal-load-edit";
@@ -36,6 +36,8 @@ import ModalExportEdit from "./modals/modal-export-edit";
 import ModalConfirmDelete from "./modals/modal-confirm-delete";
 import { handleImageDrop, handleAudioDrop } from "./functions";
 import CustomSlider from "../components/CustomSlider";
+
+const MAX_HISTORY_LENGTH = 50;
 
 // Editor - Advanced Timeline Video Editor
 //
@@ -88,6 +90,7 @@ function Editor() {
   const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
   const timelineRef = useRef(null);
   const timelineContainerRef = useRef(null); // Ref para el contenedor del timeline con los canales
+  const timelineScrollContainerRef = useRef(null); // Ref para el contenedor con scroll
   const hasInitializedTimelineRef = useRef(false); // Track if timeline has been initialized
   const [hoveredElement, setHoveredElement] = useState(null);
 
@@ -110,6 +113,7 @@ function Editor() {
 
   // State for selected element
   const [selectedElement, setSelectedElement] = useState(null);
+  const [selectedElements, setSelectedElements] = useState([]); // Array de IDs de elementos seleccionados
 
   // Timeline zoom and cut functionality
   const [timelineZoom, setTimelineZoom] = useState(1); // Zoom level (1 = normal, 2 = 2x zoom, etc.)
@@ -202,8 +206,11 @@ function Editor() {
   }, [aspectRatio]);
 
   // States for undo functionality
-  const [history, setHistory] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [history, setHistory] = useState([[]]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const historyRef = useRef(history);
+  const historyIndexRef = useRef(historyIndex);
+  const isUndoingRef = useRef(false); // Flag to prevent saving to history during undo
 
   // States for modals
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -211,6 +218,14 @@ function Editor() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [currentEditName, setCurrentEditName] = useState("");
   const [currentEditId, setCurrentEditId] = useState(null); // Track current edit ID
+
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+
+  useEffect(() => {
+    historyIndexRef.current = historyIndex;
+  }, [historyIndex]);
 
   // States for library item hover (to hide add buttons when delete buttons are visible)
   const [hoveredImageItem, setHoveredImageItem] = useState(null);
@@ -404,7 +419,7 @@ function Editor() {
 
   // Calculate total timeline duration (base duration, zoom affects the visual scale)
   const getTimelineDuration = () => {
-    if (arrayVideoMake.length === 0) return 120; // default 2 minutes
+    if (!arrayVideoMake || arrayVideoMake.length === 0) return 120; // default 2 minutes
 
     const endTimes = arrayVideoMake.map((item) => item.endTime);
     const maxEndTime = endTimes.length > 0 ? Math.max(...endTimes) : 0;
@@ -420,22 +435,24 @@ function Editor() {
   useEffect(() => {
     // Solo resetear el zoom cuando es realmente el primer elemento agregado desde cero
     // No resetear cuando queda un elemento después de eliminar otros
-    if (arrayVideoMake.length === 1 && !hasInitializedTimelineRef.current) {
+    if (
+      arrayVideoMake &&
+      arrayVideoMake.length === 1 &&
+      !hasInitializedTimelineRef.current
+    ) {
       const totalDuration = getTimelineDuration();
       setVisibleDuration(totalDuration);
       setTimelineZoom(1); // También resetear el zoom visual
       hasInitializedTimelineRef.current = true;
-      console.log("🎬 Timeline initialized with first element");
-    } else if (arrayVideoMake.length === 0) {
+    } else if (arrayVideoMake && arrayVideoMake.length === 0) {
       // Resetear la bandera cuando no hay elementos
       hasInitializedTimelineRef.current = false;
-      console.log("🗑️ Timeline reset - no elements");
     }
-  }, [arrayVideoMake.length]);
+  }, [arrayVideoMake?.length]);
 
   // Calculate the end of actual content (last element end time)
   const getContentEndTime = () => {
-    if (arrayVideoMake.length === 0) return 0;
+    if (!arrayVideoMake || arrayVideoMake.length === 0) return 0;
     const endTimes = arrayVideoMake.map((item) => item.endTime);
     return endTimes.length > 0 ? Math.max(...endTimes) : 0;
   };
@@ -455,16 +472,6 @@ function Editor() {
 
     // Calculate percentage within the visible area
     const percentage = (timeInVisibleArea / visibleDuration) * 100;
-
-    // Debug log only when cutting (to avoid spam)
-    if (showCutButton && selectedElement) {
-      console.log("📍 Playhead Position Debug:");
-      console.log("Current Time:", currentTime);
-      console.log("Timeline Scroll Offset:", timelineScrollOffset);
-      console.log("Time in Visible Area:", timeInVisibleArea);
-      console.log("Visible Duration:", visibleDuration);
-      console.log("Percentage:", percentage);
-    }
 
     return percentage;
   };
@@ -513,6 +520,7 @@ function Editor() {
 
   // Function to get active element at a given time
   const getActiveElements = (time) => {
+    if (!arrayVideoMake) return [];
     return arrayVideoMake.filter(
       (item) => time >= item.startTime && time < item.endTime
     );
@@ -887,18 +895,6 @@ function Editor() {
             element.volume !== undefined ? element.volume : 0.5;
           audio.volume = elementVolume * masterVolume;
           audioRefs.current[element.id] = audio;
-
-          // Debug logging for voice elements
-          if (element.channel === "voice") {
-            console.log(`Voice audio created:`, {
-              id: element.id,
-              url: element.url,
-              elementVolume,
-              masterVolume,
-              finalVolume: audio.volume,
-              title: element.title,
-            });
-          }
         }
 
         const audio = audioRefs.current[element.id];
@@ -991,7 +987,7 @@ function Editor() {
 
   // Auto-pause when timeline becomes empty or when scrubbing past last element
   useEffect(() => {
-    if (isPlaying && arrayVideoMake.length === 0) {
+    if (isPlaying && arrayVideoMake && arrayVideoMake.length === 0) {
       setIsPlaying(false);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -1001,7 +997,7 @@ function Editor() {
       pauseAllMedia();
       setCurrentTime(0);
     }
-  }, [arrayVideoMake.length, isPlaying]);
+  }, [arrayVideoMake?.length, isPlaying]);
 
   useEffect(() => {
     const contentEnd = getContentEndTime();
@@ -1073,12 +1069,13 @@ function Editor() {
         currentEditId,
         aspectRatio,
         projectSettings,
+        history,
+        historyIndex,
         timestamp: Date.now(),
       };
       localStorage.setItem("timeline_autosave", JSON.stringify(timelineData));
-      console.log("Timeline auto-saved to localStorage");
     }
-  }, [arrayVideoMake, aspectRatio, projectSettings]);
+  }, [arrayVideoMake, aspectRatio, projectSettings, history, historyIndex]);
 
   // Load timeline from localStorage on mount
   useEffect(() => {
@@ -1086,19 +1083,74 @@ function Editor() {
     if (savedTimeline && !currentEditId) {
       try {
         const timelineData = JSON.parse(savedTimeline);
-        // Only restore if the save is less than 24 hours old
         const hoursSinceSave =
           (Date.now() - timelineData.timestamp) / (1000 * 60 * 60);
+
         if (hoursSinceSave < 24) {
-          setArrayVideoMake(timelineData.arrayVideoMake || []);
+          const savedSettings = timelineData.projectSettings;
+          const effectiveSettings = savedSettings || projectSettings;
+
           setCurrentEditName(timelineData.currentEditName || "");
-          setAspectRatio(timelineData.aspectRatio || "16:9");
-          if (timelineData.projectSettings) {
-            setProjectSettings(timelineData.projectSettings);
+          setAspectRatio(
+            timelineData.aspectRatio || savedSettings?.aspectRatio || "16:9"
+          );
+
+          if (savedSettings) {
+            setProjectSettings(savedSettings);
           }
-          console.log("Timeline restored from localStorage");
+
+          const rawTimeline = Array.isArray(timelineData.arrayVideoMake)
+            ? timelineData.arrayVideoMake
+            : [];
+          const recalculatedTimeline = rawTimeline.map((element) =>
+            calculateElementProperties(element, effectiveSettings)
+          );
+
+          const historySnapshots = Array.isArray(timelineData.history)
+            ? timelineData.history
+            : [];
+          const sanitizedHistory = historySnapshots
+            .filter(Array.isArray)
+            .map((snapshot) =>
+              cloneTimelineState(
+                snapshot.map((element) =>
+                  calculateElementProperties(element, effectiveSettings)
+                )
+              )
+            );
+
+          if (sanitizedHistory.length > 0) {
+            setHistory(sanitizedHistory);
+            historyRef.current = sanitizedHistory;
+
+            const storedIndex =
+              typeof timelineData.historyIndex === "number"
+                ? timelineData.historyIndex
+                : sanitizedHistory.length - 1;
+            const clampedIndex = Math.min(
+              Math.max(storedIndex, 0),
+              sanitizedHistory.length - 1
+            );
+
+            setHistoryIndex(clampedIndex);
+            historyIndexRef.current = clampedIndex;
+
+            const timelineToRestore = cloneTimelineState(
+              sanitizedHistory[clampedIndex]
+            );
+            setArrayVideoMake(timelineToRestore);
+          } else {
+            const fallbackTimeline = cloneTimelineState(recalculatedTimeline);
+            setArrayVideoMake(fallbackTimeline);
+
+            const fallbackSnapshot = cloneTimelineState(fallbackTimeline);
+            const fallbackHistory = [fallbackSnapshot];
+            setHistory(fallbackHistory);
+            historyRef.current = fallbackHistory;
+            setHistoryIndex(0);
+            historyIndexRef.current = 0;
+          }
         } else {
-          // Clear old save
           localStorage.removeItem("timeline_autosave");
         }
       } catch (error) {
@@ -1208,9 +1260,9 @@ function Editor() {
     }
 
     // Find last element in target channel to avoid overlaps
-    const elementsInChannel = arrayVideoMake.filter(
-      (item) => item.channel === targetChannel
-    );
+    const elementsInChannel = arrayVideoMake
+      ? arrayVideoMake.filter((item) => item.channel === targetChannel)
+      : [];
     let startTime = 0;
 
     if (elementsInChannel.length > 0) {
@@ -1568,9 +1620,9 @@ function Editor() {
     }
 
     // Find start time after last in channel
-    const elementsInChannel = arrayVideoMake.filter(
-      (it) => it.channel === targetChannel
-    );
+    const elementsInChannel = arrayVideoMake
+      ? arrayVideoMake.filter((it) => it.channel === targetChannel)
+      : [];
     let startTime = 0;
     if (elementsInChannel.length > 0) {
       startTime = Math.max(...elementsInChannel.map((it) => it.endTime));
@@ -1809,108 +1861,173 @@ function Editor() {
     }));
   };
 
-  // History management functions
-  const saveToHistory = (newState) => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(JSON.parse(JSON.stringify(newState)));
-
-    // Keep only last 50 states to prevent memory issues
-    if (newHistory.length > 50) {
-      newHistory.shift();
-    } else {
-      setHistoryIndex((prev) => prev + 1);
+  const cloneTimelineState = useCallback((state) => {
+    try {
+      return JSON.parse(JSON.stringify(state || []));
+    } catch (error) {
+      console.error("Failed to clone timeline state", error);
+      return [];
     }
+  }, []);
 
-    setHistory(newHistory);
-  };
+  // History management functions - cada cambio se guarda individualmente
+  const pushHistoryState = useCallback(
+    (state) => {
+      if (isUndoingRef.current) {
+        return;
+      }
+
+      const clonedState = cloneTimelineState(state);
+      const newStateSnapshot = JSON.stringify(clonedState);
+
+      setHistory((prevHistory) => {
+        const currentIndex = historyIndexRef.current;
+        const truncatedHistory = prevHistory.slice(0, currentIndex + 1);
+        const lastState = truncatedHistory[truncatedHistory.length - 1];
+        const lastStateSnapshot = lastState ? JSON.stringify(lastState) : null;
+
+        if (lastStateSnapshot === newStateSnapshot) {
+          return truncatedHistory;
+        }
+
+        let nextHistory = [...truncatedHistory, clonedState];
+
+        if (nextHistory.length > MAX_HISTORY_LENGTH) {
+          nextHistory = nextHistory.slice(
+            nextHistory.length - MAX_HISTORY_LENGTH
+          );
+        }
+
+        const updatedIndex = nextHistory.length - 1;
+        historyRef.current = nextHistory;
+        historyIndexRef.current = updatedIndex;
+        setHistoryIndex(updatedIndex);
+
+        return nextHistory;
+      });
+    },
+    [cloneTimelineState]
+  );
 
   const undo = () => {
-    if (historyIndex > 0) {
-      const previousState = history[historyIndex - 1];
-      setArrayVideoMake(previousState);
-      setHistoryIndex((prev) => prev - 1);
+    const currentIndex = historyIndexRef.current;
+    const currentHistory = historyRef.current;
+
+    if (currentIndex > 0) {
+      const targetIndex = currentIndex - 1;
+      const previousState = currentHistory[targetIndex];
+
+      if (Array.isArray(previousState)) {
+        isUndoingRef.current = true;
+
+        const restoredState = cloneTimelineState(previousState);
+        historyIndexRef.current = targetIndex;
+        setHistoryIndex(targetIndex);
+        setArrayVideoMake(restoredState);
+
+        setTimeout(() => {
+          isUndoingRef.current = false;
+        }, 0);
+      } else {
+        console.warn("⚠️ Invalid history state, skipping undo");
+      }
     }
   };
 
   const canUndo = historyIndex > 0;
 
   // Function to calculate absolute and final properties for FFmpeg
-  const calculateElementProperties = (element) => {
-    const outputWidth = projectSettings.outputWidth;
-    const outputHeight = projectSettings.outputHeight;
+  const calculateElementProperties = useCallback(
+    (element, settingsOverride) => {
+      const settings = settingsOverride || projectSettings;
+      const outputWidth = settings?.outputWidth ?? 1920;
+      const outputHeight = settings?.outputHeight ?? 1080;
 
-    // Ensure element has position (could be element.x/y or element.position.x/y)
-    const positionX = element.position?.x ?? element.x ?? 0;
-    const positionY = element.position?.y ?? element.y ?? 0;
+      // Ensure element has position (could be element.x/y or element.position.x/y)
+      const positionX = element.position?.x ?? element.x ?? 0;
+      const positionY = element.position?.y ?? element.y ?? 0;
 
-    // Calculate absolute position
-    const absoluteX = Math.round(positionX * outputWidth);
-    const absoluteY = Math.round(positionY * outputHeight);
+      // Calculate absolute position
+      const absoluteX = Math.round(positionX * outputWidth);
+      const absoluteY = Math.round(positionY * outputHeight);
 
-    // Ensure element has dimensions
-    const originalWidth = element.originalWidth ?? element.width ?? 1920;
-    const originalHeight = element.originalHeight ?? element.height ?? 1080;
-    const scale = element.scale ?? 1;
-    const scaleX = element.scaleX ?? 1;
-    const scaleY = element.scaleY ?? 1;
+      // Ensure element has dimensions
+      const originalWidth = element.originalWidth ?? element.width ?? 1920;
+      const originalHeight = element.originalHeight ?? element.height ?? 1080;
+      const scale = element.scale ?? 1;
+      const scaleX = element.scaleX ?? 1;
+      const scaleY = element.scaleY ?? 1;
 
-    // Calculate final dimensions
-    const finalWidth = Math.round(originalWidth * scale * scaleX);
-    const finalHeight = Math.round(originalHeight * scale * scaleY);
+      // Calculate final dimensions
+      const finalWidth = Math.round(originalWidth * scale * scaleX);
+      const finalHeight = Math.round(originalHeight * scale * scaleY);
 
-    // Calculate frame numbers
-    const framerate = projectSettings.framerate;
-    const startTimeSeconds = element.startTimeSeconds ?? element.startTime ?? 0;
-    const endTimeSeconds =
-      element.endTimeSeconds ?? element.endTime ?? startTimeSeconds + 1;
-    const startFrame = Math.round(startTimeSeconds * framerate);
-    const endFrame = Math.round(endTimeSeconds * framerate);
+      // Calculate frame numbers
+      const framerate = settings?.framerate ?? 30;
+      const startTimeSeconds =
+        element.startTimeSeconds ?? element.startTime ?? 0;
+      const endTimeSeconds =
+        element.endTimeSeconds ?? element.endTime ?? startTimeSeconds + 1;
+      const startFrame = Math.round(startTimeSeconds * framerate);
+      const endFrame = Math.round(endTimeSeconds * framerate);
 
-    return {
-      ...element,
-      // Normalize position format
-      position: {
+      return {
+        ...element,
+        // Normalize position format
+        position: {
+          x: positionX,
+          y: positionY,
+        },
+        // Add normalized properties
         x: positionX,
         y: positionY,
-      },
-      // Add normalized properties
-      x: positionX,
-      y: positionY,
-      startTimeSeconds,
-      endTimeSeconds,
-      durationSeconds: endTimeSeconds - startTimeSeconds,
-      originalWidth,
-      originalHeight,
-      scale,
-      scaleX,
-      scaleY,
-      // Add calculated properties
-      absolutePosition: {
-        x: absoluteX,
-        y: absoluteY,
-      },
-      finalWidth,
-      finalHeight,
-      startFrame,
-      endFrame,
-      // Update timestamps
-      startTimestamp: formatTimestamp(startTimeSeconds),
-      endTimestamp: formatTimestamp(endTimeSeconds),
-    };
-  };
+        startTimeSeconds,
+        endTimeSeconds,
+        durationSeconds: endTimeSeconds - startTimeSeconds,
+        originalWidth,
+        originalHeight,
+        scale,
+        scaleX,
+        scaleY,
+        // Add calculated properties
+        absolutePosition: {
+          x: absoluteX,
+          y: absoluteY,
+        },
+        finalWidth,
+        finalHeight,
+        startFrame,
+        endFrame,
+        // Update timestamps
+        startTimestamp: formatTimestamp(startTimeSeconds),
+        endTimestamp: formatTimestamp(endTimeSeconds),
+      };
+    },
+    [projectSettings]
+  );
 
-  // Function to update timeline and save to history
-  const updateTimelineWithHistory = (newArrayVideoMake) => {
-    // Save current state to history before making changes
-    saveToHistory(arrayVideoMake);
+  // Function to update timeline and optionally push to history
+  const updateTimelineWithHistory = useCallback(
+    (newArrayVideoMake, { recordHistory = true } = {}) => {
+      if (!Array.isArray(newArrayVideoMake)) {
+        console.warn("updateTimelineWithHistory expects an array");
+        return;
+      }
 
-    // Calculate absolute properties for all elements
-    const elementsWithCalculatedProps = newArrayVideoMake.map(
-      calculateElementProperties
-    );
+      const elementsWithCalculatedProps = newArrayVideoMake.map(
+        calculateElementProperties
+      );
 
-    setArrayVideoMake(elementsWithCalculatedProps);
-  };
+      setArrayVideoMake(elementsWithCalculatedProps);
+
+      if (recordHistory) {
+        pushHistoryState(elementsWithCalculatedProps);
+      }
+
+      return elementsWithCalculatedProps;
+    },
+    [calculateElementProperties, pushHistoryState]
+  );
 
   // Effect to clean up audio references when timeline changes
   useEffect(() => {
@@ -2070,16 +2187,6 @@ function Editor() {
           getTimelineDuration()
         )
       );
-
-      console.log("⏰ Timeline Click Debug:");
-      console.log("Click X:", clickX);
-      console.log("Timeline Width:", rect.width);
-      console.log("Percentage:", percentage);
-      console.log("Visible Duration:", visibleDuration);
-      console.log("Time in Visible Area:", timeInVisibleArea);
-      console.log("Timeline Scroll Offset:", timelineScrollOffset);
-      console.log("New Time:", newTime);
-      console.log("Timeline Zoom:", timelineZoom);
 
       setCurrentTime(newTime);
       // Immediately sync media positions on seek (won't auto-play when paused)
@@ -2361,7 +2468,7 @@ function Editor() {
       // Handle end of image drag
       if (isDraggingImage) {
         // Save to history when drag ends
-        saveToHistory(arrayVideoMake);
+        pushHistoryState(arrayVideoMake);
 
         setIsDraggingImage(false);
         setDraggingImageElement(null);
@@ -2372,7 +2479,7 @@ function Editor() {
       // Handle end of image resize
       if (isResizingImage) {
         // Save to history when resize ends
-        saveToHistory(arrayVideoMake);
+        pushHistoryState(arrayVideoMake);
 
         setIsResizingImage(false);
         setResizingImageElement(null);
@@ -2413,7 +2520,7 @@ function Editor() {
         if (updatedElement) {
           // For resize, don't call resolveCollisions as it's designed for dragging
           // Just save to history with the updated elements
-          saveToHistory(arrayVideoMake);
+          pushHistoryState(arrayVideoMake);
         }
 
         setIsResizing(false);
@@ -2694,11 +2801,6 @@ function Editor() {
       return;
     }
 
-    console.log("🔪 Cut Element:");
-    console.log("Cut Time:", cutTime);
-    console.log("Element Start:", element.startTime);
-    console.log("Element End:", element.endTime);
-
     // Calculate trim for the second part based on original duration
     const timeIntoElement = cutTime - element.startTime;
     const trimStartForSecondPart = (element.trimStart || 0) + timeIntoElement;
@@ -2727,7 +2829,9 @@ function Editor() {
     };
 
     // Replace the original element with the two new parts
-    const filtered = arrayVideoMake.filter((item) => item.id !== element.id);
+    const filtered = arrayVideoMake
+      ? arrayVideoMake.filter((item) => item.id !== element.id)
+      : [];
     const newElements = [...filtered, firstPart, secondPart];
     updateTimelineWithHistory(newElements);
 
@@ -2778,12 +2882,47 @@ function Editor() {
   // Function to select/deselect an element
   const handleSelectElement = (element, e) => {
     e.stopPropagation();
-    if (selectedElement && selectedElement.id === element.id) {
-      // If already selected, deselect
-      setSelectedElement(null);
+
+    // Check if Ctrl (Windows/Linux) or Cmd (Mac) is pressed for multi-selection
+    const isMultiSelect = e.ctrlKey || e.metaKey;
+
+    if (isMultiSelect) {
+      // Multi-selection mode
+      setSelectedElements((prev) => {
+        if (prev.includes(element.id)) {
+          // Deselect if already selected
+          const newSelection = prev.filter((id) => id !== element.id);
+
+          // If we removed the last element, clear selectedElement too
+          if (newSelection.length === 0) {
+            setSelectedElement(null);
+          } else if (selectedElement?.id === element.id) {
+            // If we removed the active element, set the last remaining as active
+            const lastId = newSelection[newSelection.length - 1];
+            const lastElement = arrayVideoMake.find(
+              (item) => item.id === lastId
+            );
+            if (lastElement) setSelectedElement(lastElement);
+          }
+
+          return newSelection;
+        } else {
+          // Add to selection
+          setSelectedElement(element);
+          return [...prev, element.id];
+        }
+      });
     } else {
-      // Select element
-      setSelectedElement(element);
+      // Single selection mode
+      if (selectedElement && selectedElement.id === element.id) {
+        // If clicking on the already selected element, deselect it
+        setSelectedElement(null);
+        setSelectedElements([]);
+      } else {
+        // Select element
+        setSelectedElement(element);
+        setSelectedElements([element.id]);
+      }
     }
   };
 
@@ -2793,7 +2932,7 @@ function Editor() {
     value,
     shouldSaveHistory = false
   ) => {
-    if (!selectedElement) return;
+    if (!selectedElement || !arrayVideoMake) return;
 
     const updatedArray = arrayVideoMake.map((item) => {
       if (item.id === selectedElement.id) {
@@ -2814,12 +2953,9 @@ function Editor() {
       return item;
     });
 
-    setArrayVideoMake(updatedArray);
-
-    // Save to history if requested
-    if (shouldSaveHistory) {
-      saveToHistory(updatedArray);
-    }
+    updateTimelineWithHistory(updatedArray, {
+      recordHistory: shouldSaveHistory,
+    });
 
     // Also update selected element state
     setSelectedElement((prev) => {
@@ -2869,13 +3005,35 @@ function Editor() {
       }
     }
 
-    const newElements = arrayVideoMake.filter((item) => item.id !== elementId);
+    // Clean up video references
+    if (elementToDelete && elementToDelete.channel === "video") {
+      // Force re-render by pausing and clearing video elements
+      if (mainVideoRef.current) {
+        mainVideoRef.current.pause();
+        mainVideoRef.current.src = "";
+        mainVideoRef.current.load();
+      }
+      if (secondaryVideoRef.current) {
+        secondaryVideoRef.current.pause();
+        secondaryVideoRef.current.src = "";
+        secondaryVideoRef.current.load();
+      }
+    }
+
+    const newElements = arrayVideoMake
+      ? arrayVideoMake.filter((item) => item.id !== elementId)
+      : [];
     updateTimelineWithHistory(newElements);
 
     // If deleted element was selected, deselect
     if (selectedElement && selectedElement.id === elementId) {
       setSelectedElement(null);
     }
+
+    // Force immediate sync to update preview
+    setTimeout(() => {
+      syncMediaWithTime(currentTime);
+    }, 0);
   };
 
   // Functions for element resizing/trimming
@@ -3041,9 +3199,9 @@ function Editor() {
     const formattedNewStartTime = formatDuration(newStartTime);
 
     // Crear una copia del array actual sin el elemento que se está moviendo
-    const otherElements = arrayVideoMake.filter(
-      (item) => item.id !== movedElement.id
-    );
+    const otherElements = arrayVideoMake
+      ? arrayVideoMake.filter((item) => item.id !== movedElement.id)
+      : [];
 
     // Buscar colisiones en el mismo canal
     const sameChannelElements = otherElements.filter(
@@ -3135,9 +3293,22 @@ function Editor() {
   };
 
   // ===== FUNCIÓN PARA GENERAR ESTRUCTURA COMPLETA PARA FFMPEG =====
-  const generateFFmpegTimeline = () => {
+  const generateFFmpegTimeline = (useSelectedOnly = false) => {
+    // Filtrar elementos según si se debe exportar solo los seleccionados
+    const elementsToExport =
+      useSelectedOnly && selectedElements.length > 0
+        ? arrayVideoMake.filter((item) => selectedElements.includes(item.id))
+        : arrayVideoMake;
+
     // Calcular duración total del contenido
-    const contentEndTime = getContentEndTime();
+    const contentEndTime =
+      useSelectedOnly && selectedElements.length > 0
+        ? Math.max(
+            ...elementsToExport.map(
+              (item) => item.endTime || item.endTimeSeconds || 0
+            )
+          )
+        : getContentEndTime();
     const totalDuration = Math.max(contentEndTime, 1); // Mínimo 1 segundo
 
     // Calcular total de frames
@@ -3158,6 +3329,10 @@ function Editor() {
         id: currentEditId,
         created: new Date().toISOString(),
         version: "1.0.0",
+        exportMode: useSelectedOnly ? "selected" : "full",
+        selectedElementsCount: useSelectedOnly
+          ? selectedElements.length
+          : elementsToExport.length,
       },
 
       // === CONFIGURACIÓN DEL CANVAS ===
@@ -3189,7 +3364,7 @@ function Editor() {
       globalFilters: projectSettings.globalFilters,
 
       // === ELEMENTOS DEL TIMELINE ===
-      elements: arrayVideoMake.map((element) => {
+      elements: elementsToExport.map((element) => {
         // Primero calculamos las propiedades absolutas del elemento
         const calculatedElement = calculateElementProperties(element);
 
@@ -3481,7 +3656,6 @@ function Editor() {
           if (MediaRecorder.isTypeSupported(options.mimeType || "")) {
             recorder = new MediaRecorder(screenStream, options);
             selectedMimeType = options.mimeType || "video/webm";
-            console.log("Using codec for screen capture:", selectedMimeType);
             break;
           }
         } catch (e) {
@@ -3840,25 +4014,18 @@ function Editor() {
       const filteredTimeline = prevTimeline.filter((timelineElement) => {
         // Remove by originalId match (most reliable, for new elements)
         if (timelineElement.originalId && timelineElement.originalId === id) {
-          console.log(`🗑️ Removing timeline element with originalId: ${id}`);
           return false;
         }
 
         // Fallback: Remove by URL match (for all elements)
         const timelineUrl = timelineElement.url;
         if (timelineUrl && possibleUrls.includes(timelineUrl)) {
-          console.log(
-            `🗑️ Removing timeline element with matching URL: ${timelineUrl}`
-          );
           return false;
         }
 
         // Additional fallback: Remove by title/name match (for older elements)
         const timelineTitle = timelineElement.title;
         if (timelineTitle && possibleNames.includes(timelineTitle)) {
-          console.log(
-            `🗑️ Removing timeline element with matching title: ${timelineTitle}`
-          );
           return false;
         }
 
@@ -3866,11 +4033,6 @@ function Editor() {
       });
 
       const removedCount = prevTimeline.length - filteredTimeline.length;
-      if (removedCount > 0) {
-        console.log(
-          `🗑️ Removed ${removedCount} timeline element(s) after deleting library item: ${id}`
-        );
-      }
       return filteredTimeline;
     });
   };
@@ -4279,7 +4441,6 @@ function Editor() {
             if (response.ok && data.code === 200) {
               // Add to list
               setEditorVideosList((prev) => [...prev, data.video]);
-              console.log("Video uploaded successfully:", data.video);
               resolve();
             } else {
               console.error("Error uploading video:", data.message);
@@ -4339,7 +4500,6 @@ function Editor() {
         removeElementsFromTimeline(editorVideoToDelete);
         setShowDeleteEditorVideoModal(false);
         setEditorVideoToDelete(null);
-        console.log("Video deleted successfully");
       } else {
         console.error("Error deleting video:", data.message);
       }
@@ -4424,25 +4584,27 @@ function Editor() {
   const previewStyles = getPreviewStyles();
 
   // ===== FUNCIÓN PARA EXPORTAR TIMELINE COMPLETO PARA BACKEND =====
-  const exportTimelineForFFmpeg = () => {
-    const ffmpegData = generateFFmpegTimeline();
+  const exportTimelineForFFmpeg = (useSelectedOnly = false) => {
+    const ffmpegData = generateFFmpegTimeline(useSelectedOnly);
 
     // Agregar información adicional que el backend necesita
     const exportData = {
       ...ffmpegData,
       // Información para compatibilidad con modal de exportación existente
-      arrayVideoMake: arrayVideoMake, // Timeline original para compatibilidad
+      arrayVideoMake: useSelectedOnly
+        ? arrayVideoMake.filter((item) => selectedElements.includes(item.id))
+        : arrayVideoMake, // Timeline original para compatibilidad
       aspectRatio: aspectRatio,
       duration: getContentEndTime(),
-      totalElements: arrayVideoMake.length,
+      totalElements: useSelectedOnly
+        ? selectedElements.length
+        : arrayVideoMake.length,
       editName: currentEditName,
       project_id: currentEditId,
 
       // Timestamp de exportación
       exportedAt: new Date().toISOString(),
     };
-
-    console.log("Complete Timeline for FFmpeg:", exportData);
     return exportData;
   };
 
@@ -4481,6 +4643,14 @@ function Editor() {
           <div className="bg-darkBox w-full h-full flex">
             {/* Menu Icons - Always Visible */}
             <div className="w-[64px] min-w-[64px]">
+              <Link
+                to="/"
+                className={
+                  "text-white text-center flex items-center justify-center h-16 cursor-pointer hover:bg-primarioLogo"
+                }
+              >
+                <ArrowLeft />
+              </Link>
               <div
                 onClick={() => {
                   setMenuActive(1);
@@ -4573,7 +4743,7 @@ function Editor() {
                 <div className="p-4 w-full h-full overflow-auto">
                   {projects.length > 0 ? (
                     <div className="space-y-6">
-                      {projects.map((project) => (
+                      {[...projects].reverse().map((project) => (
                         <div key={project.id} className="space-y-3">
                           {/* Project Header - collapsible */}
                           <button
@@ -4991,13 +5161,7 @@ function Editor() {
                   )}
 
                   {/* Sound list */}
-                  <div
-                    className={`grid mt-11 grid-cols-1 pb-14 gap-4 overflow-y-auto ${
-                      soundList.length === 0
-                        ? "max-h-[calc(100%-140px)]"
-                        : "h-full"
-                    }`}
-                  >
+                  <div className="overflow-y-auto h-full space-y-3 pb-14 mt-11">
                     {soundList.map((sound, index) => (
                       <div
                         key={index}
@@ -5023,12 +5187,12 @@ function Editor() {
                           <Headphones size={24} className="text-primarioLogo" />
                           <div className="w-3/4">
                             <div className="w-full line-clamp-1">
-                              <span className="text-[#E7E7E7] text-sm font-medium block">
+                              <span className="text-[#E7E7E7] text-sm font-medium line-clamp-1">
                                 {sound.name}
                               </span>
                             </div>
                             <span className="text-gray-400 text-xs">
-                              {formatDuration(sound.duration || 30)}s
+                              {sound.duration || 30}s
                             </span>
                           </div>
                         </div>
@@ -5109,14 +5273,8 @@ function Editor() {
                     />
                   )}
 
-                  {/* Images grid */}
-                  <div
-                    className={`grid mt-11 grid-cols-1 gap-4 pb-14 overflow-y-auto ${
-                      images.length === 0
-                        ? "max-h-[calc(100%-140px)]"
-                        : "h-full"
-                    }`}
-                  >
+                  {/* Images list */}
+                  <div className="overflow-y-auto h-full space-y-3 pb-14 mt-11">
                     {images.map((image, index) => (
                       <div
                         key={index}
@@ -5127,7 +5285,7 @@ function Editor() {
                           setHoveredImageItem(image.id || index)
                         }
                         onMouseLeave={() => setHoveredImageItem(null)}
-                        className="bg-darkBox cursor-pointer overflow-x-hidden h-32 hover:bg-opacity-80 rounded-2xl transition-all duration-200 hover:scale-105 relative group"
+                        className="bg-darkBox h-20 cursor-pointer hover:bg-opacity-80 rounded-2xl p-2 transition-all duration-200 hover:bg-darkBoxSub relative group flex items-center gap-3"
                       >
                         {/* Delete Button - Only visible on hover */}
                         <button
@@ -5138,14 +5296,19 @@ function Editor() {
                           <Trash2 className="w-3 h-3" />
                         </button>
 
-                        <img
-                          src={image.image_url}
-                          className="rounded-t-2xl w-full max-h-18 object-cover"
-                          alt={image.name}
-                        />
-                        <div className="pb-4 pt-1 px-1">
+                        {/* Image thumbnail - mantiene aspect ratio */}
+                        <div className="w-16 h-16 flex-shrink-0 bg-darkBoxSub rounded-lg overflow-hidden">
+                          <img
+                            src={image.image_url}
+                            className="w-full h-full object-contain"
+                            alt={image.name}
+                          />
+                        </div>
+
+                        {/* Image info */}
+                        <div className="flex-1 min-w-0">
                           <span
-                            className="text-[#E7E7E7] text-xs line-clamp-1 mt-2"
+                            className="text-[#E7E7E7] text-sm font-medium line-clamp-1 block"
                             title={image.name}
                           >
                             {image.name}
@@ -5155,7 +5318,11 @@ function Editor() {
                     ))}
 
                     {images.length === 0 && !isUploadingImages && (
-                      <div className="col-span-2 text-center py-8">
+                      <div className="text-center py-8">
+                        <Image
+                          size={48}
+                          className="text-gray-400 mx-auto mb-2"
+                        />
                         <span className="text-gray-400">
                           No images available
                         </span>
@@ -5165,17 +5332,35 @@ function Editor() {
                 </div>
               ) : menuActive == 6 ? (
                 <div className="bg-darkBoxSub p-4 w-full rounded-tr-4xl rounded-br-4xl h-full relative overflow-hidden">
-                  {/* Add Video Button - always visible, top right */}
-                  <button
-                    onClick={() => {
-                      document.getElementById("editor-video-upload")?.click();
-                    }}
-                    className="absolute top-4 right-4 z-10 p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                    title="Add video"
-                    disabled={isUploadingEditorVideo}
-                  >
-                    <Plus size={20} />
-                  </button>
+                  {/* Header with Add Video Button and Info */}
+                  <div className="absolute top-3 right-4 left-4 z-10 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-xs text-gray-400 px-3 py-2 rounded-lg">
+                      <svg
+                        className="w-4 h-4 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <span>Max video duration: 1:30 min</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        document.getElementById("editor-video-upload")?.click();
+                      }}
+                      className="p-2 bg-primarioLogo hover:bg-primarioLogo/80 text-white rounded-lg transition-all duration-200 hover:scale-105 flex-shrink-0"
+                      title="Add video"
+                      disabled={isUploadingEditorVideo}
+                    >
+                      <Plus size={20} />
+                    </button>
+                  </div>
 
                   {/* Hidden input for video upload */}
                   <input
@@ -5247,19 +5432,14 @@ function Editor() {
           }`}
         >
           <div className="flex justify-between items-center gap-3 mb-2 h-12">
-            <img
-              src="/logos/logo_reelmotion.webp"
-              alt="Reelmotion AI"
-              className="h-7 w-auto"
-            />
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => window.history.back()}
-                className="flex items-center gap-2 px-4 py-2 bg-darkBoxSub hover:bg-darkBoxSub text-white rounded-lg transition-all duration-200 montserrat-medium text-sm"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Return
-              </button>
+              <img
+                src="/logos/logo_reelmotion.webp"
+                alt="Reelmotion AI"
+                className="h-7 w-auto"
+              />
+            </div>
+            <div className="flex items-center gap-3">
               {currentEditName && (
                 <button
                   onClick={handleNewProject}
@@ -5300,34 +5480,195 @@ function Editor() {
           <div className="flex gap-1 mt-0 h-[45vh]">
             <div
               ref={previewContainerRef}
-              className="w-2/4 rounded-4xl relative overflow-hidden"
+              className="w-2/4 relative overflow-hidden"
               style={previewStyles.container}
             >
               <div
-                className="relative rounded-4xl bg-gray-900"
+                className="relative bg-gray-900 overflow-hidden"
                 style={previewStyles.video}
               >
-                {/* Video principal - siempre en el DOM */}
-                <video
-                  ref={mainVideoRef}
-                  data-element-id={
-                    getActiveElements(currentTime).find(
-                      (el) => el.channel === "video"
-                    )?.id || "main-video"
+                {/* Video principal - siempre en el DOM para reproducción */}
+                {(() => {
+                  const activeVideo = getActiveElements(currentTime).find(
+                    (el) => el.channel === "video"
+                  );
+
+                  if (!activeVideo) {
+                    return null;
                   }
-                  className="rounded-4xl bg-gray-900 w-full h-full object-cover absolute inset-0"
-                  muted={false}
-                  style={{
-                    transition: "opacity 0.15s ease-in-out",
-                    opacity: 1,
-                    zIndex: 2,
-                  }}
-                />
+
+                  const scale = activeVideo?.scale || 1;
+                  const posX = activeVideo?.position?.x ?? 0.5;
+                  const posY = activeVideo?.position?.y ?? 0.5;
+                  const isSelected =
+                    selectedElement?.id === activeVideo.id && !isPlaying;
+
+                  // Calculate position in percentage
+                  const leftPercent = posX * 100;
+                  const topPercent = posY * 100;
+
+                  return (
+                    <div
+                      className={`absolute ${
+                        isSelected
+                          ? "ring-2 ring-primarioLogo ring-opacity-80"
+                          : ""
+                      }`}
+                      style={{
+                        left: `${leftPercent}%`,
+                        top: `${topPercent}%`,
+                        width: `${scale * 100}%`,
+                        height: `${scale * 100}%`,
+                        transform: "translate(-50%, -50%)",
+                        transformOrigin: "center center",
+                        zIndex: 2,
+                        pointerEvents: isSelected ? "auto" : "none",
+                      }}
+                      onMouseDown={(e) => {
+                        if (
+                          isSelected &&
+                          !e.target.classList.contains("resize-handle")
+                        ) {
+                          handleImageDragStart(e, activeVideo);
+                        }
+                      }}
+                      onClick={(e) => {
+                        if (!isSelected) {
+                          handleSelectElement(activeVideo, e);
+                        }
+                      }}
+                    >
+                      <video
+                        ref={mainVideoRef}
+                        data-element-id={activeVideo?.id || "main-video"}
+                        className="w-full h-full"
+                        muted={false}
+                        style={{
+                          opacity: activeVideo?.opacity || 1,
+                          objectFit: "contain",
+                          pointerEvents: "none",
+                        }}
+                      />
+
+                      {/* Resize handles - solo cuando está seleccionado */}
+                      {isSelected && (
+                        <>
+                          {/* Corners */}
+                          <div
+                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-nw-resize"
+                            style={{ top: "-8px", left: "-8px", zIndex: 10 }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              handleImageResizeStart(
+                                e,
+                                activeVideo,
+                                "top-left"
+                              );
+                            }}
+                          />
+                          <div
+                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-ne-resize"
+                            style={{ top: "-8px", right: "-8px", zIndex: 10 }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              handleImageResizeStart(
+                                e,
+                                activeVideo,
+                                "top-right"
+                              );
+                            }}
+                          />
+                          <div
+                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-sw-resize"
+                            style={{ bottom: "-8px", left: "-8px", zIndex: 10 }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              handleImageResizeStart(
+                                e,
+                                activeVideo,
+                                "bottom-left"
+                              );
+                            }}
+                          />
+                          <div
+                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-se-resize"
+                            style={{
+                              bottom: "-8px",
+                              right: "-8px",
+                              zIndex: 10,
+                            }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              handleImageResizeStart(
+                                e,
+                                activeVideo,
+                                "bottom-right"
+                              );
+                            }}
+                          />
+                          {/* Sides */}
+                          <div
+                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-n-resize"
+                            style={{
+                              top: "-8px",
+                              left: "50%",
+                              transform: "translateX(-50%)",
+                              zIndex: 10,
+                            }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              handleImageResizeStart(e, activeVideo, "top");
+                            }}
+                          />
+                          <div
+                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-s-resize"
+                            style={{
+                              bottom: "-8px",
+                              left: "50%",
+                              transform: "translateX(-50%)",
+                              zIndex: 10,
+                            }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              handleImageResizeStart(e, activeVideo, "bottom");
+                            }}
+                          />
+                          <div
+                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-w-resize"
+                            style={{
+                              left: "-8px",
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              zIndex: 10,
+                            }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              handleImageResizeStart(e, activeVideo, "left");
+                            }}
+                          />
+                          <div
+                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-e-resize"
+                            style={{
+                              right: "-8px",
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              zIndex: 10,
+                            }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              handleImageResizeStart(e, activeVideo, "right");
+                            }}
+                          />
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Video secundario para transiciones suaves */}
                 <video
                   ref={secondaryVideoRef}
-                  className="rounded-4xl bg-gray-900 w-full h-full object-cover absolute inset-0"
+                  className="bg-gray-900 w-full h-full object-cover absolute inset-0"
                   muted={false}
                   style={{
                     transition: "opacity 0.15s ease-in-out",
@@ -5337,10 +5678,9 @@ function Editor() {
                   }}
                 />
 
-                {/* Placeholder cuando no hay videos o cuando no está reproduciendo */}
-
+                {/* Placeholder cuando no hay videos */}
                 <div
-                  className="rounded-4xl w-full h-full bg-darkBox flex items-center justify-center absolute inset-0"
+                  className="w-full h-full bg-darkBox flex items-center justify-center absolute inset-0"
                   style={{
                     display:
                       arrayVideoMake.some((item) => item.channel === "video") &&
@@ -5362,6 +5702,7 @@ function Editor() {
                     </p>
                   </div>
                 </div>
+
                 {/* Overlay for images and text */}
                 {arrayVideoMake
                   .filter(
@@ -5575,7 +5916,7 @@ function Editor() {
                   })}
               </div>
             </div>
-            <div className="w-1/4 bg-darkBox rounded-4xl p-6 overflow-y-scroll">
+            <div className="w-1/4 bg-darkBox p-6 overflow-y-scroll">
               <div className="text-white mb-4">
                 <h3
                   className="text-lg font-medium mb-2 line-clamp-1"
@@ -5609,6 +5950,95 @@ function Editor() {
                         Duration: {formatDuration(selectedElement.duration)}s
                       </p>
                       <p className="text-xs mt-1">Click again to deselect</p>
+                    </div>
+
+                    {/* Position Controls */}
+                    <div className="border-b border-gray-600 pb-4">
+                      <h4 className="text-sm font-medium text-gray-300 mb-3">
+                        Position & Scale
+                      </h4>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Position X:{" "}
+                          {((selectedElement.position?.x ?? 0.5) * 100).toFixed(
+                            1
+                          )}
+                          %
+                        </label>
+                        <CustomSlider
+                          value={(selectedElement.position?.x ?? 0.5) * 100}
+                          min={0}
+                          max={100}
+                          step={0.1}
+                          onChange={(e) =>
+                            updateSelectedElement(
+                              "position.x",
+                              parseFloat(e.target.value) / 100
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Position Y:{" "}
+                          {((selectedElement.position?.y ?? 0.5) * 100).toFixed(
+                            1
+                          )}
+                          %
+                        </label>
+                        <CustomSlider
+                          value={(selectedElement.position?.y ?? 0.5) * 100}
+                          min={0}
+                          max={100}
+                          step={0.1}
+                          onChange={(e) =>
+                            updateSelectedElement(
+                              "position.y",
+                              parseFloat(e.target.value) / 100
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Scale:{" "}
+                          {((selectedElement.scale ?? 1) * 100).toFixed(0)}%
+                        </label>
+                        <CustomSlider
+                          value={(selectedElement.scale ?? 1) * 100}
+                          min={10}
+                          max={200}
+                          step={1}
+                          onChange={(e) =>
+                            updateSelectedElement(
+                              "scale",
+                              parseFloat(e.target.value) / 100
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 block mb-2">
+                          Opacity:{" "}
+                          {((selectedElement.opacity ?? 1) * 100).toFixed(0)}%
+                        </label>
+                        <CustomSlider
+                          value={(selectedElement.opacity ?? 1) * 100}
+                          min={0}
+                          max={100}
+                          step={1}
+                          onChange={(e) =>
+                            updateSelectedElement(
+                              "opacity",
+                              parseFloat(e.target.value) / 100
+                            )
+                          }
+                        />
+                      </div>
                     </div>
 
                     {/* Volume Control for Videos */}
@@ -6319,109 +6749,135 @@ function Editor() {
               </div>
             </div>
           </div>
-          {/* OPTIONS BAR */}
-          <div className="flex justify-between mt-1">
-            {/* Timeline Header */}
-            <div
-              className={
-                arrayVideoMake.length > 0
-                  ? "flex justify-between items-center gap-8 my-2"
-                  : "hidden"
-              }
-            >
-              <div className="flex items-center gap-6">
-                {/* Indicador de tiempo actual - más grande y a la izquierda del play */}
-                <div className="text-lg text-primarioLogo font-bold min-w-[60px]">
-                  {Math.floor(currentTime / 60)}:
-                  {String(Math.floor(currentTime) % 60).padStart(2, "0")}
-                </div>
+          {/* OPTIONS BAR - 3 columns layout */}
+          <div className={"grid grid-cols-3 gap-4 items-center my-2"}>
+            {/* LEFT COLUMN - Play button and Zoom controls */}
+            <div className="flex items-center gap-4 justify-start">
+              {/* Indicador de tiempo actual */}
+              <div className="text-lg text-primarioLogo font-bold min-w-[60px]">
+                {Math.floor(currentTime / 60)}:
+                {String(Math.floor(currentTime) % 60).padStart(2, "0")}
+              </div>
 
-                {isPlaying ? (
-                  <button
-                    className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80"
-                    onClick={handlePlayPause}
-                  >
-                    <Pause size={20} />
-                  </button>
-                ) : (
-                  <button
-                    className="bg-darkBoxSub p-2 rounded-lg text-primarioLogo hover:bg-opacity-80"
-                    onClick={handlePlayPause}
-                  >
-                    <Play size={20} />
-                  </button>
-                )}
+              {isPlaying ? (
+                <button
+                  className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80"
+                  onClick={handlePlayPause}
+                >
+                  <Pause size={20} />
+                </button>
+              ) : (
+                <button
+                  className="bg-darkBoxSub p-2 rounded-lg text-primarioLogo hover:bg-opacity-80"
+                  onClick={handlePlayPause}
+                >
+                  <Play size={20} />
+                </button>
+              )}
 
-                {/* Zoom Controls */}
-                <div className="flex items-center gap-3">
-                  <button
-                    className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80 hover:text-primarioLogo"
-                    onClick={handleZoomOut}
-                    title="Zoom Out"
-                  >
-                    <ZoomOut size={16} />
-                  </button>
+              {/* Zoom Controls */}
+              <div className="flex items-center gap-3">
+                <button
+                  className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80 hover:text-primarioLogo"
+                  onClick={handleZoomOut}
+                  title="Zoom Out"
+                >
+                  <ZoomOut size={16} />
+                </button>
 
-                  {/* Zoom Slider */}
-                  <div className="flex items-center gap-2">
+                {/* Zoom Slider */}
+                <div className="flex items-center gap-2">
+                  <div
+                    ref={zoomSliderRef}
+                    className="w-24 h-1 bg-darkBoxSub rounded-full cursor-pointer relative group"
+                    onMouseDown={handleZoomSliderMouseDown}
+                    onClick={handleZoomSliderClick}
+                    title="Adjust zoom level"
+                  >
+                    {/* Zoom progress bar */}
                     <div
-                      ref={zoomSliderRef}
-                      className="w-24 h-1 bg-darkBoxSub rounded-full cursor-pointer relative group"
-                      onMouseDown={handleZoomSliderMouseDown}
-                      onClick={handleZoomSliderClick}
-                      title="Adjust zoom level"
-                    >
-                      {/* Zoom progress bar */}
-                      <div
-                        className="h-full bg-primarioLogo rounded-full transition-all duration-100"
-                        style={{
-                          width: `${((timelineZoom - 1) / (3.37 - 1)) * 100}%`,
-                        }}
-                      ></div>
+                      className="h-full bg-primarioLogo rounded-full transition-all duration-100"
+                      style={{
+                        width: `${((timelineZoom - 1) / (3.37 - 1)) * 100}%`,
+                      }}
+                    ></div>
 
-                      {/* Zoom indicator */}
-                      <div
-                        className={`absolute top-2 transform -translate-y-1/2 w-3 h-3 bg-white rounded-full border-2 border-primarioLogo cursor-grab transition-all duration-100 shadow-lg ${
-                          isDraggingZoom
-                            ? "scale-125 cursor-grabbing"
-                            : "hover:scale-110"
-                        }`}
-                        style={{
-                          left: `${((timelineZoom - 1) / (3.37 - 1)) * 100}%`,
-                          transform: "translate(-50%, -50%)",
-                        }}
-                      ></div>
+                    {/* Zoom indicator */}
+                    <div
+                      className={`absolute top-2 transform -translate-y-1/2 w-3 h-3 bg-white rounded-full border-2 border-primarioLogo cursor-grab transition-all duration-100 shadow-lg ${
+                        isDraggingZoom
+                          ? "scale-125 cursor-grabbing"
+                          : "hover:scale-110"
+                      }`}
+                      style={{
+                        left: `${((timelineZoom - 1) / (3.37 - 1)) * 100}%`,
+                        transform: "translate(-50%, -50%)",
+                      }}
+                    ></div>
 
-                      {/* Visual indicator on hover */}
-                      <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 opacity-0 group-hover:opacity-20 bg-primarioLogo rounded-full transition-opacity duration-200"></div>
-                    </div>
-
-                    <span className="text-white text-xs min-w-[45px] text-center font-medium">
-                      {(timelineZoom * 100).toFixed(0)}%
-                    </span>
+                    {/* Visual indicator on hover */}
+                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 opacity-0 group-hover:opacity-20 bg-primarioLogo rounded-full transition-opacity duration-200"></div>
                   </div>
 
-                  <button
-                    className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80 hover:text-primarioLogo"
-                    onClick={handleZoomIn}
-                    title="Zoom In"
-                  >
-                    <ZoomIn size={16} />
-                  </button>
+                  <span className="text-white text-xs min-w-[45px] text-center font-medium">
+                    {(timelineZoom * 100).toFixed(0)}%
+                  </span>
                 </div>
 
-                {/* Cut Button - Only show when element is selected and playhead is over it */}
-                {showCutButton && (
-                  <button
-                    className="bg-primarioLogo p-2 rounded-lg text-primarioDark hover:bg-opacity-80 animate-pulse"
-                    onClick={handleCutElement}
-                    title="Cut selected element"
-                  >
-                    <Scissors size={16} />
-                  </button>
-                )}
-              </div>{" "}
-              <div className="flex items-center gap-2 line-clamp-1">
+                <button
+                  className="bg-darkBoxSub p-2 rounded-lg text-white hover:bg-opacity-80 hover:text-primarioLogo"
+                  onClick={handleZoomIn}
+                  title="Zoom In"
+                >
+                  <ZoomIn size={16} />
+                </button>
+              </div>
+
+              {/* Cut Button */}
+              {showCutButton && (
+                <button
+                  className="bg-primarioLogo p-2 rounded-lg text-primarioDark hover:bg-opacity-80 animate-pulse"
+                  onClick={handleCutElement}
+                  title="Cut selected element"
+                >
+                  <Scissors size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* CENTER COLUMN - Aspect Ratio */}
+            <div className="flex items-center gap-2 justify-center">
+              <label className="text-white text-sm font-medium">Aspect:</label>
+              <select
+                value={aspectRatio}
+                onChange={(e) => setAspectRatio(e.target.value)}
+                className="bg-darkBox text-white border border-gray-600 rounded-lg px-3 py-1 text-sm focus:outline-none focus:border-primarioLogo"
+              >
+                <option value="16:9">16:9</option>
+                <option value="9:16">9:16</option>
+                <option value="1:1">1:1</option>
+              </select>
+            </div>
+
+            {/* RIGHT COLUMN - Undo, Volume, and Info */}
+            <div className="flex items-center gap-4 justify-end">
+              {/* Undo Button */}
+              <button
+                type="button"
+                onClick={undo}
+                disabled={!canUndo}
+                className={`px-3 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${
+                  canUndo
+                    ? "bg-gray-600 text-white hover:bg-gray-500 cursor-pointer"
+                    : "bg-gray-800 text-gray-500 cursor-not-allowed"
+                }`}
+                title="Undo (Ctrl+Z)"
+              >
+                <Undo size={16} />
+              </button>
+
+              {/* Volume Control */}
+              <div className="flex items-center gap-2">
                 <Volume2 size={20} className="text-white" />
                 <div
                   ref={volumeRef}
@@ -6456,73 +6912,39 @@ function Editor() {
                 <span className="text-xs text-gray-400 w-8">
                   {Math.round(masterVolume * 100)}%
                 </span>
-
-                {/* Debug: Show number of elements in timeline */}
-                <span className="text-xs text-gray-400 ml-4">
-                  Elements: {arrayVideoMake.length}
-                  {arrayVideoMake.length > 0 && (
-                    <span>
-                      {" "}
-                      | Duration:{" "}
-                      {Math.max(
-                        ...arrayVideoMake.map((item) => item.endTime),
-                        0
-                      )}
-                      s
-                    </span>
-                  )}
-                  {isResizing && resizingElement && (
-                    <span className="text-yellow-400">
-                      {" "}
-                      | Trimming: {resizingElement.title}
-                    </span>
-                  )}
-                  {draggingElement && (
-                    <span className="text-blue-400 line-clamp-1">
-                      {" "}
-                      | Moving: {draggingElement.title}
-                    </span>
-                  )}
-                </span>
               </div>
-            </div>
-            <div className="gap-4 flex pb-2 items-center">
-              {/* Undo Button */}
-              <button
-                type="button"
-                onClick={undo}
-                disabled={!canUndo}
-                className={`px-3 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${
-                  canUndo
-                    ? "bg-gray-600 text-white hover:bg-gray-500 cursor-pointer"
-                    : "bg-gray-800 text-gray-500 cursor-not-allowed"
-                }`}
-                title="Undo (Ctrl+Z)"
-              >
-                <Undo size={16} />
-              </button>
 
-              {/* Aspect Ratio Selector */}
-              <div className="flex items-center gap-2">
-                <label className="text-white text-sm font-medium">
-                  Aspect:
-                </label>
-                <select
-                  value={aspectRatio}
-                  onChange={(e) => setAspectRatio(e.target.value)}
-                  className="bg-darkBox text-white border border-gray-600 rounded-lg px-3 py-1 text-sm focus:outline-none focus:border-primarioLogo"
-                >
-                  <option value="16:9">16:9</option>
-                  <option value="9:16">9:16</option>
-                  <option value="1:1">1:1</option>
-                </select>
-              </div>
+              {/* Info: Show number of elements in timeline */}
+              <span className="text-xs text-gray-400">
+                Elements: {arrayVideoMake?.length || 0}
+                {arrayVideoMake && arrayVideoMake.length > 0 && (
+                  <span>
+                    {" "}
+                    | Duration:{" "}
+                    {Math.max(...arrayVideoMake.map((item) => item.endTime), 0)}
+                    s
+                  </span>
+                )}
+                {isResizing && resizingElement && (
+                  <span className="text-yellow-400">
+                    {" "}
+                    | Trimming: {resizingElement.title}
+                  </span>
+                )}
+                {draggingElement && (
+                  <span className="text-blue-400 line-clamp-1">
+                    {" "}
+                    | Moving: {draggingElement.title}
+                  </span>
+                )}
+              </span>
             </div>
           </div>
           {/* TIMELINE */}
           <div className="mt-0 relative pb-0">
             {/* Timeline Tracks Container with Scroll */}
             <div
+              ref={timelineScrollContainerRef}
               className="overflow-x-auto overflow-y-hidden pb-1"
               style={{
                 scrollbarWidth: "thin",
@@ -6542,6 +6964,49 @@ function Editor() {
                   setTimelineScrollOffset(scrollPercentage * hiddenDuration);
                 } else {
                   setTimelineScrollOffset(0);
+                }
+              }}
+              onClick={(e) => {
+                // Mover el playhead y ajustar el scroll cuando se hace click en el timeline
+                if (
+                  timelineContainerRef.current &&
+                  timelineScrollContainerRef.current
+                ) {
+                  const scrollContainer = timelineScrollContainerRef.current;
+                  const timelineContainer = timelineContainerRef.current;
+
+                  // Obtener la posición del click relativa al contenedor con scroll
+                  const scrollRect = scrollContainer.getBoundingClientRect();
+                  const clickX = e.clientX - scrollRect.left;
+
+                  // Calcular el tiempo basado en la posición visible
+                  const visibleDuration = getVisualTimelineDuration();
+                  const percentage = clickX / scrollRect.width;
+                  const timeInVisibleArea = percentage * visibleDuration;
+                  const newTime = Math.max(
+                    0,
+                    Math.min(
+                      timeInVisibleArea + timelineScrollOffset,
+                      getTimelineDuration()
+                    )
+                  );
+
+                  setCurrentTime(newTime);
+                  syncMediaWithTime(newTime);
+
+                  // Ajustar el scroll para centrar el playhead si está cerca de los bordes
+                  const totalDuration = getTimelineDuration();
+                  if (totalDuration > visibleDuration) {
+                    const scrollWidth = scrollContainer.scrollWidth;
+                    const clientWidth = scrollContainer.clientWidth;
+                    const maxScroll = scrollWidth - clientWidth;
+
+                    // Calcular la nueva posición de scroll basada en el tiempo
+                    const timePercentage = newTime / totalDuration;
+                    const targetScroll = timePercentage * maxScroll;
+
+                    scrollContainer.scrollLeft = targetScroll;
+                  }
                 }
               }}
             >
@@ -6571,30 +7036,8 @@ function Editor() {
                       : "100%",
                 }}
                 onMouseDown={(e) => {
-                  // Si hacemos click en el timeline (pero no en un elemento), permitir drag
-                  if (
-                    e.target === e.currentTarget ||
-                    e.target.closest(".playhead-line")
-                  ) {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const clickX = e.clientX - rect.left;
-                    const percentage = Math.max(
-                      0,
-                      Math.min(clickX / rect.width, 1)
-                    );
-
-                    // Calculate time considering zoom and scroll offset
-                    const visibleDuration = getVisualTimelineDuration();
-                    const timeInVisibleArea = percentage * visibleDuration;
-                    const newTime = Math.max(
-                      0,
-                      Math.min(
-                        timeInVisibleArea + timelineScrollOffset,
-                        getTimelineDuration()
-                      )
-                    );
-
-                    setCurrentTime(newTime);
+                  // Si hacemos click en el playhead, permitir drag
+                  if (e.target.closest(".playhead-line")) {
                     setIsDraggingTimeline(true);
                   }
                 }}
@@ -6661,8 +7104,11 @@ function Editor() {
                     {/* Icono del canal - solo visible cuando está vacío */}
                     {arrayVideoMake.filter((item) => item.channel === "video")
                       .length === 0 && (
-                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none flex items-center gap-2">
                         <Video size={20} className="text-gray-400" />
+                        <span className="text-gray-400 text-sm font-medium">
+                          Video
+                        </span>
                       </div>
                     )}
 
@@ -6678,8 +7124,12 @@ function Editor() {
                                 ? "opacity-50 scale-105 transition-none"
                                 : "transition-all duration-200"
                             } ${
-                              selectedElement?.id === item.id
+                              selectedElements.includes(item.id)
                                 ? "ring-2 ring-[#DC569D] ring-opacity-80"
+                                : ""
+                            } ${
+                              selectedElement?.id === item.id
+                                ? "ring-4 ring-[#DC569D]"
                                 : ""
                             }`}
                             style={{
@@ -6822,8 +7272,11 @@ function Editor() {
                     {/* Icono del canal - solo visible cuando está vacío */}
                     {arrayVideoMake.filter((item) => item.channel === "image")
                       .length === 0 && (
-                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none flex items-center gap-2">
                         <Image size={16} className="text-gray-400" />
+                        <span className="text-gray-400 text-sm font-medium">
+                          Image
+                        </span>
                       </div>
                     )}
 
@@ -6940,8 +7393,11 @@ function Editor() {
                     {/* Icono del canal - solo visible cuando está vacío */}
                     {arrayVideoMake.filter((item) => item.channel === "music")
                       .length === 0 && (
-                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none flex items-center gap-2">
                         <Music size={16} className="text-gray-400" />
+                        <span className="text-gray-400 text-sm font-medium">
+                          Music
+                        </span>
                       </div>
                     )}
 
@@ -7044,8 +7500,11 @@ function Editor() {
                     {/* Icono del canal - solo visible cuando está vacío */}
                     {arrayVideoMake.filter((item) => item.channel === "voice")
                       .length === 0 && (
-                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none flex items-center gap-2">
                         <Mic size={16} className="text-gray-400" />
+                        <span className="text-gray-400 text-sm font-medium">
+                          Voice
+                        </span>
                       </div>
                     )}
 
@@ -7148,8 +7607,11 @@ function Editor() {
                     {/* Icono del canal - solo visible cuando está vacío */}
                     {arrayVideoMake.filter((item) => item.channel === "sound")
                       .length === 0 && (
-                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none flex items-center gap-2">
                         <Headphones size={16} className="text-gray-400" />
+                        <span className="text-gray-400 text-sm font-medium">
+                          Sound
+                        </span>
                       </div>
                     )}
 
@@ -7299,9 +7761,12 @@ function Editor() {
           onClose={() => setShowExportModal(false)}
           onExport={handleExportEdit}
           arrayVideoMake={arrayVideoMake}
-          timelineFFmpeg={exportTimelineForFFmpeg()}
+          exportTimelineForFFmpeg={exportTimelineForFFmpeg}
           editName={currentEditName}
           editId={currentEditId}
+          // Selection props
+          selectedElements={selectedElements}
+          hasSelection={selectedElements.length > 0}
           // Pre-rendering props
           isPreRendering={isPreRendering}
           preRenderProgress={preRenderProgress}
