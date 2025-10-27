@@ -11,8 +11,9 @@ function ModalExportEdit({
   editName,
   editId,
   onExported,
-  selectedElements = [],
-  hasSelection = false,
+  maxDuration = 0, // Maximum timeline duration
+  exportTimeRange = { start: 0, end: null }, // I/O markers from timeline
+  showExportMarkers = false, // Whether markers are visible
 }) {
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -22,12 +23,25 @@ function ModalExportEdit({
   const [isSaving, setIsSaving] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState(null);
-  const [exportMode, setExportMode] = useState("full"); // "full" o "selected"
+  const [exportMode, setExportMode] = useState("full"); // "full" or "range"
+  const [startTime, setStartTime] = useState(0);
+  const [endTime, setEndTime] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (isOpen) {
       setError(null); // Clear any previous errors when opening modal
+
+      // If markers are visible, use them; otherwise use full duration
+      if (showExportMarkers && exportTimeRange.end !== null) {
+        setStartTime(exportTimeRange.start || 0);
+        setEndTime(exportTimeRange.end);
+        setExportMode("range");
+      } else {
+        setStartTime(0);
+        setEndTime(maxDuration); // Set end time to max duration when opening
+        setExportMode("full");
+      }
       fetchProjects();
     }
   }, [isOpen]);
@@ -76,13 +90,22 @@ function ModalExportEdit({
     setError(null); // Clear any previous errors
     try {
       // Generate timeline based on export mode
-      const useSelectedOnly = exportMode === "selected" && hasSelection;
-      const timelineFFmpeg = exportTimelineForFFmpeg(useSelectedOnly);
+      const timeRange =
+        exportMode === "range" && startTime < endTime
+          ? { start: startTime, end: endTime }
+          : null;
+      const timelineFFmpeg = exportTimelineForFFmpeg(timeRange);
 
-      // Filter arrayVideoMake if exporting selected only
-      const filteredTimeline = useSelectedOnly
-        ? arrayVideoMake.filter((item) => selectedElements.includes(item.id))
-        : arrayVideoMake;
+      // Filter arrayVideoMake if exporting time range
+      let filteredTimeline = arrayVideoMake;
+      if (timeRange) {
+        filteredTimeline = arrayVideoMake.filter((item) => {
+          const elementStart = item.startTime || 0;
+          const elementEnd =
+            item.endTime || elementStart + (item.duration || 0);
+          return elementEnd > timeRange.start && elementStart < timeRange.end;
+        });
+      }
 
       const exportData = {
         project_id: selectedProjectId,
@@ -99,15 +122,13 @@ function ModalExportEdit({
           totalElements: filteredTimeline?.length || 0,
           hasFFmpegStructure: !!timelineFFmpeg,
           version: timelineFFmpeg ? "2.0" : "1.0",
-          duration:
-            filteredTimeline?.length > 0
-              ? Math.max(
-                  ...filteredTimeline.map((item) => item.endTime || 0),
-                  0
-                )
-              : 0,
+          duration: timeRange
+            ? timeRange.end - timeRange.start
+            : filteredTimeline?.length > 0
+            ? Math.max(...filteredTimeline.map((item) => item.endTime || 0), 0)
+            : 0,
           exportMode: exportMode,
-          selectedCount: useSelectedOnly ? selectedElements.length : null,
+          timeRange: timeRange,
         },
       };
 
@@ -430,53 +451,101 @@ function ModalExportEdit({
             /* Export Configuration Section */
             <div>
               {/* Export Mode Selection */}
-              {hasSelection && (
-                <div className="mb-6 p-4 bg-darkBoxSub rounded-lg border-2 border-primarioLogo">
-                  <h3 className="text-white montserrat-medium text-sm mb-3">
-                    Export Mode
-                  </h3>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-3 cursor-pointer p-3 bg-darkBox rounded-lg hover:bg-opacity-80 transition-all">
+              <div className="mb-6 p-4 bg-darkBoxSub rounded-lg border-2 border-primarioLogo">
+                <h3 className="text-white montserrat-medium text-sm mb-3">
+                  Export Mode
+                </h3>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 cursor-pointer p-3 bg-darkBox rounded-lg hover:bg-opacity-80 transition-all">
+                    <input
+                      type="radio"
+                      name="exportMode"
+                      value="full"
+                      checked={exportMode === "full"}
+                      onChange={(e) => setExportMode(e.target.value)}
+                      className="w-4 h-4 text-primarioLogo focus:ring-primarioLogo"
+                    />
+                    <div className="flex-1">
+                      <span className="text-white text-sm font-medium">
+                        Export Full Timeline
+                      </span>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Export all {arrayVideoMake?.length || 0} elements (0s -{" "}
+                        {maxDuration.toFixed(1)}s)
+                      </p>
+                    </div>
+                  </label>
+                  <label className="flex flex-col gap-3 cursor-pointer p-3 bg-darkBox rounded-lg hover:bg-opacity-80 transition-all">
+                    <div className="flex items-center gap-3">
                       <input
                         type="radio"
                         name="exportMode"
-                        value="full"
-                        checked={exportMode === "full"}
+                        value="range"
+                        checked={exportMode === "range"}
                         onChange={(e) => setExportMode(e.target.value)}
                         className="w-4 h-4 text-primarioLogo focus:ring-primarioLogo"
                       />
                       <div className="flex-1">
                         <span className="text-white text-sm font-medium">
-                          Export Full Timeline
+                          Export Time Range
                         </span>
                         <p className="text-gray-400 text-xs mt-1">
-                          Export all {arrayVideoMake?.length || 0} elements in
-                          the timeline
+                          Export only a specific time range from the timeline
                         </p>
                       </div>
-                    </label>
-                    <label className="flex items-center gap-3 cursor-pointer p-3 bg-darkBox rounded-lg hover:bg-opacity-80 transition-all">
-                      <input
-                        type="radio"
-                        name="exportMode"
-                        value="selected"
-                        checked={exportMode === "selected"}
-                        onChange={(e) => setExportMode(e.target.value)}
-                        className="w-4 h-4 text-primarioLogo focus:ring-primarioLogo"
-                      />
-                      <div className="flex-1">
-                        <span className="text-white text-sm font-medium">
-                          Export Selected Only
-                        </span>
-                        <p className="text-gray-400 text-xs mt-1">
-                          Export only the {selectedElements.length} selected
-                          element{selectedElements.length > 1 ? "s" : ""}
-                        </p>
+                    </div>
+
+                    {/* Time Range Inputs */}
+                    {exportMode === "range" && (
+                      <div className="flex items-center gap-3 ml-7 mt-2">
+                        <div className="flex-1">
+                          <label className="text-xs text-gray-400 mb-1 block">
+                            Start (seconds)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max={endTime}
+                            step="0.1"
+                            value={startTime}
+                            onChange={(e) =>
+                              setStartTime(
+                                Math.max(0, parseFloat(e.target.value) || 0)
+                              )
+                            }
+                            className="w-full px-3 py-2 bg-darkBoxSub text-white rounded-lg border border-gray-600 focus:border-primarioLogo focus:outline-none"
+                          />
+                        </div>
+                        <span className="text-gray-400 mt-5">to</span>
+                        <div className="flex-1">
+                          <label className="text-xs text-gray-400 mb-1 block">
+                            End (seconds)
+                          </label>
+                          <input
+                            type="number"
+                            min={startTime}
+                            max={maxDuration}
+                            step="0.1"
+                            value={endTime}
+                            onChange={(e) =>
+                              setEndTime(
+                                Math.min(
+                                  maxDuration,
+                                  parseFloat(e.target.value) || maxDuration
+                                )
+                              )
+                            }
+                            className="w-full px-3 py-2 bg-darkBoxSub text-white rounded-lg border border-gray-600 focus:border-primarioLogo focus:outline-none"
+                          />
+                        </div>
+                        <div className="text-xs text-gray-400 mt-5">
+                          Duration: {(endTime - startTime).toFixed(1)}s
+                        </div>
                       </div>
-                    </label>
-                  </div>
+                    )}
+                  </label>
                 </div>
-              )}
+              </div>
 
               {/* Edit Summary */}
               <div className="mb-6 p-4 bg-darkBoxSub rounded-lg">
@@ -487,62 +556,83 @@ function ModalExportEdit({
                   <p>• Edit Name: {editName || "Untitled Edit"}</p>
                   <p>
                     • Total Elements:{" "}
-                    {exportMode === "selected" && hasSelection
-                      ? selectedElements.length
+                    {exportMode === "range" && startTime < endTime
+                      ? arrayVideoMake?.filter((item) => {
+                          const elementStart = item.startTime || 0;
+                          const elementEnd =
+                            item.endTime || elementStart + (item.duration || 0);
+                          return (
+                            elementEnd > startTime && elementStart < endTime
+                          );
+                        }).length || 0
                       : arrayVideoMake?.length ?? 0}
                   </p>
                   <p>
                     • Duration:{" "}
-                    {exportMode === "selected" && hasSelection
-                      ? Math.max(
-                          ...arrayVideoMake
-                            .filter((item) =>
-                              selectedElements.includes(item.id)
-                            )
-                            .map((item) => item.endTime || 0),
-                          0
-                        )
+                    {exportMode === "range" && startTime < endTime
+                      ? (endTime - startTime).toFixed(1)
                       : arrayVideoMake?.length > 0
                       ? Math.max(
                           ...arrayVideoMake.map((item) => item.endTime || 0),
                           0
-                        )
+                        ).toFixed(1)
                       : 0}
                     s
                   </p>
                   <p>
+                    • Time Range:{" "}
+                    {exportMode === "range"
+                      ? `${startTime.toFixed(1)}s - ${endTime.toFixed(1)}s`
+                      : `Full timeline (0s - ${maxDuration.toFixed(1)}s)`}
+                  </p>
+                  <p>
                     • Videos:{" "}
-                    {exportMode === "selected" && hasSelection
-                      ? arrayVideoMake?.filter(
-                          (item) =>
+                    {exportMode === "range" && startTime < endTime
+                      ? arrayVideoMake?.filter((item) => {
+                          const elementStart = item.startTime || 0;
+                          const elementEnd =
+                            item.endTime || elementStart + (item.duration || 0);
+                          return (
                             item.channel === "video" &&
-                            selectedElements.includes(item.id)
-                        )?.length || 0
+                            elementEnd > startTime &&
+                            elementStart < endTime
+                          );
+                        })?.length || 0
                       : arrayVideoMake?.filter(
                           (item) => item.channel === "video"
                         )?.length || 0}
                   </p>
                   <p>
                     • Images:{" "}
-                    {exportMode === "selected" && hasSelection
-                      ? arrayVideoMake?.filter(
-                          (item) =>
+                    {exportMode === "range" && startTime < endTime
+                      ? arrayVideoMake?.filter((item) => {
+                          const elementStart = item.startTime || 0;
+                          const elementEnd =
+                            item.endTime || elementStart + (item.duration || 0);
+                          return (
                             item.channel === "image" &&
-                            selectedElements.includes(item.id)
-                        )?.length || 0
+                            elementEnd > startTime &&
+                            elementStart < endTime
+                          );
+                        })?.length || 0
                       : arrayVideoMake?.filter(
                           (item) => item.channel === "image"
                         )?.length || 0}
                   </p>
                   <p>
                     • Audio:{" "}
-                    {exportMode === "selected" && hasSelection
-                      ? arrayVideoMake?.filter(
-                          (item) =>
+                    {exportMode === "range" && startTime < endTime
+                      ? arrayVideoMake?.filter((item) => {
+                          const elementStart = item.startTime || 0;
+                          const elementEnd =
+                            item.endTime || elementStart + (item.duration || 0);
+                          return (
                             (item.channel === "music" ||
                               item.channel === "voice") &&
-                            selectedElements.includes(item.id)
-                        )?.length || 0
+                            elementEnd > startTime &&
+                            elementStart < endTime
+                          );
+                        })?.length || 0
                       : arrayVideoMake?.filter(
                           (item) =>
                             item.channel === "music" || item.channel === "voice"
