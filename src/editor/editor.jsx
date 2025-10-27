@@ -113,7 +113,15 @@ function Editor() {
 
   // State for selected element
   const [selectedElement, setSelectedElement] = useState(null);
-  const [selectedElements, setSelectedElements] = useState([]); // Array de IDs de elementos seleccionados
+
+  // Export time range (in seconds) - I/O markers
+  const [exportTimeRange, setExportTimeRange] = useState({
+    start: 0,
+    end: null,
+  });
+  const [isDraggingInMarker, setIsDraggingInMarker] = useState(false);
+  const [isDraggingOutMarker, setIsDraggingOutMarker] = useState(false);
+  const [showExportMarkers, setShowExportMarkers] = useState(false);
 
   // Timeline zoom and cut functionality
   const [timelineZoom, setTimelineZoom] = useState(1); // Zoom level (1 = normal, 2 = 2x zoom, etc.)
@@ -470,7 +478,7 @@ function Editor() {
       return -100; // Position it off-screen
     }
 
-    // Calculate percentage within the visible area
+    // Calculate percentage within the visible area (for display purposes)
     const percentage = (timeInVisibleArea / visibleDuration) * 100;
 
     return percentage;
@@ -1102,7 +1110,17 @@ function Editor() {
           const rawTimeline = Array.isArray(timelineData.arrayVideoMake)
             ? timelineData.arrayVideoMake
             : [];
-          const recalculatedTimeline = rawTimeline.map((element) =>
+
+          // Normalize all elements to ensure they have required properties
+          const normalizedRawTimeline = rawTimeline.map((element) => ({
+            ...element,
+            scale: element.scale ?? 1,
+            position: element.position ?? { x: 0.5, y: 0.5 },
+            opacity: element.opacity ?? 1,
+            zIndex: element.zIndex ?? 1,
+          }));
+
+          const recalculatedTimeline = normalizedRawTimeline.map((element) =>
             calculateElementProperties(element, effectiveSettings)
           );
 
@@ -1111,13 +1129,22 @@ function Editor() {
             : [];
           const sanitizedHistory = historySnapshots
             .filter(Array.isArray)
-            .map((snapshot) =>
-              cloneTimelineState(
-                snapshot.map((element) =>
+            .map((snapshot) => {
+              // Normalize all elements in the snapshot
+              const normalizedSnapshot = snapshot.map((element) => ({
+                ...element,
+                scale: element.scale ?? 1,
+                position: element.position ?? { x: 0.5, y: 0.5 },
+                opacity: element.opacity ?? 1,
+                zIndex: element.zIndex ?? 1,
+              }));
+
+              return cloneTimelineState(
+                normalizedSnapshot.map((element) =>
                   calculateElementProperties(element, effectiveSettings)
                 )
-              )
-            );
+              );
+            });
 
           if (sanitizedHistory.length > 0) {
             setHistory(sanitizedHistory);
@@ -2172,6 +2199,9 @@ function Editor() {
     // Don't process if we're dragging an element
     if (draggingElement) return;
 
+    e.preventDefault();
+    e.stopPropagation();
+
     if (timelineContainerRef.current) {
       const rect = timelineContainerRef.current.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
@@ -2222,18 +2252,33 @@ function Editor() {
     setResizingImageElement(element);
     setResizeImageType(resizeType);
 
-    // Store initial bounds for proportional scaling
-    const previewContainer = document.querySelector(".w-2\\/4.rounded-4xl");
-    if (previewContainer) {
-      const rect = previewContainer.getBoundingClientRect();
+    // Store initial bounds for proportional scaling using the ref
+    if (previewContainerRef.current) {
+      const rect = previewContainerRef.current.getBoundingClientRect();
+
+      // Get the most current element from arrayVideoMake to ensure we have the latest scale
+      const currentElement =
+        arrayVideoMake.find((item) => item.id === element.id) || element;
+
+      // Calculate initial distance from mouse to center of element (for CapCut-like resize)
+      const elementCenterX =
+        rect.left + rect.width * (currentElement.position?.x || 0.5);
+      const elementCenterY =
+        rect.top + rect.height * (currentElement.position?.y || 0.5);
+      const initialDistance = Math.sqrt(
+        Math.pow(e.clientX - elementCenterX, 2) +
+          Math.pow(e.clientY - elementCenterY, 2)
+      );
+
       setInitialImageBounds({
         containerWidth: rect.width,
         containerHeight: rect.height,
-        initialScale: element.scale || 1,
+        initialScale: currentElement.scale || 1,
         startX: e.clientX,
         startY: e.clientY,
-        centerX: element.position?.x || 0.5,
-        centerY: element.position?.y || 0.5,
+        centerX: elementCenterX,
+        centerY: elementCenterY,
+        initialDistance: initialDistance || 100, // Prevent division by zero
       });
     }
 
@@ -2282,6 +2327,44 @@ function Editor() {
         setCurrentTime(newTime);
       }
 
+      // Handle In marker (I) drag
+      if (isDraggingInMarker && timelineContainerRef.current) {
+        const rect = timelineContainerRef.current.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const percentage = Math.max(0, Math.min(clickX / rect.width, 1));
+
+        const visibleDuration = getVisualTimelineDuration();
+        const timeInVisibleArea = percentage * visibleDuration;
+        const newTime = Math.max(
+          0,
+          Math.min(
+            timeInVisibleArea + timelineScrollOffset,
+            exportTimeRange.end || getTimelineDuration()
+          )
+        );
+
+        setExportTimeRange((prev) => ({ ...prev, start: newTime }));
+      }
+
+      // Handle Out marker (O) drag
+      if (isDraggingOutMarker && timelineContainerRef.current) {
+        const rect = timelineContainerRef.current.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const percentage = Math.max(0, Math.min(clickX / rect.width, 1));
+
+        const visibleDuration = getVisualTimelineDuration();
+        const timeInVisibleArea = percentage * visibleDuration;
+        const newTime = Math.max(
+          exportTimeRange.start || 0,
+          Math.min(
+            timeInVisibleArea + timelineScrollOffset,
+            getTimelineDuration()
+          )
+        );
+
+        setExportTimeRange((prev) => ({ ...prev, end: newTime }));
+      }
+
       // Handle volume drag
       if (isDraggingVolume && volumeRef.current) {
         const rect = volumeRef.current.getBoundingClientRect();
@@ -2316,8 +2399,7 @@ function Editor() {
       if (isDraggingImage && draggingImageElement) {
         e.preventDefault();
 
-        // Get preview container dimensions
-        const previewContainer = document.querySelector(".w-2\\/4.rounded-4xl");
+        const previewContainer = previewContainerRef.current;
         if (previewContainer) {
           const rect = previewContainer.getBoundingClientRect();
           const scale = draggingImageElement.scale || 1;
@@ -2366,52 +2448,28 @@ function Editor() {
       // Handle image resizing in preview area
       if (isResizingImage && resizingImageElement && initialImageBounds) {
         e.preventDefault();
+        e.stopPropagation();
 
-        const deltaX = e.clientX - initialImageBounds.startX;
-        const deltaY = e.clientY - initialImageBounds.startY;
+        // Get the most current element to ensure we're working with the latest data
+        const currentElement =
+          arrayVideoMake.find((item) => item.id === resizingImageElement.id) ||
+          resizingImageElement;
 
-        // Calculate new scale based on resize type
-        let newScale = initialImageBounds.initialScale;
-        const sensitivity = 0.005; // Adjust sensitivity as needed
+        // Calculate current distance from mouse to center (CapCut-style)
+        const currentDistance = Math.sqrt(
+          Math.pow(e.clientX - initialImageBounds.centerX, 2) +
+            Math.pow(e.clientY - initialImageBounds.centerY, 2)
+        );
 
-        switch (resizeImageType) {
-          case "top-left":
-            // Scale up when dragging away from center, down when dragging towards center
-            newScale =
-              initialImageBounds.initialScale +
-              (-deltaX - deltaY) * sensitivity;
-            break;
-          case "top-right":
-            newScale =
-              initialImageBounds.initialScale + (deltaX - deltaY) * sensitivity;
-            break;
-          case "bottom-left":
-            newScale =
-              initialImageBounds.initialScale +
-              (-deltaX + deltaY) * sensitivity;
-            break;
-          case "bottom-right":
-            newScale =
-              initialImageBounds.initialScale + (deltaX + deltaY) * sensitivity;
-            break;
-          case "top":
-          case "bottom":
-            newScale =
-              initialImageBounds.initialScale +
-              Math.abs(deltaY) * sensitivity * (deltaY < 0 ? -1 : 1);
-            break;
-          case "left":
-          case "right":
-            newScale =
-              initialImageBounds.initialScale +
-              Math.abs(deltaX) * sensitivity * (deltaX < 0 ? -1 : 1);
-            break;
-        }
+        // Calculate scale based on distance ratio
+        const distanceRatio =
+          currentDistance / initialImageBounds.initialDistance;
+        let newScale = initialImageBounds.initialScale * distanceRatio;
 
         // Clamp scale between reasonable bounds
-        newScale = Math.max(0.1, Math.min(3.0, newScale));
+        newScale = Math.max(0.1, Math.min(5.0, newScale));
 
-        // Update scale in real time
+        // Update scale in real time - make sure to update the right element
         setArrayVideoMake((prevArray) =>
           prevArray.map((item) =>
             item.id === resizingImageElement.id
@@ -2427,6 +2485,9 @@ function Editor() {
           }
           return prevSelected;
         });
+
+        // Also update the resizingImageElement reference
+        setResizingImageElement((prev) => ({ ...prev, scale: newScale }));
       }
 
       // Handle element resizing
@@ -2453,6 +2514,16 @@ function Editor() {
         setIsDraggingTimeline(false);
         // Immediately sync media when dragging ends
         syncMediaWithTime(currentTime);
+      }
+
+      // Handle end of In marker drag
+      if (isDraggingInMarker) {
+        setIsDraggingInMarker(false);
+      }
+
+      // Handle end of Out marker drag
+      if (isDraggingOutMarker) {
+        setIsDraggingOutMarker(false);
       }
 
       // Handle end of volume drag
@@ -2552,6 +2623,9 @@ function Editor() {
   }, [
     isDraggingTimeline,
     currentTime,
+    isDraggingInMarker,
+    isDraggingOutMarker,
+    exportTimeRange,
     draggingElement,
     dragStartX,
     dragStartTime,
@@ -2883,46 +2957,13 @@ function Editor() {
   const handleSelectElement = (element, e) => {
     e.stopPropagation();
 
-    // Check if Ctrl (Windows/Linux) or Cmd (Mac) is pressed for multi-selection
-    const isMultiSelect = e.ctrlKey || e.metaKey;
-
-    if (isMultiSelect) {
-      // Multi-selection mode
-      setSelectedElements((prev) => {
-        if (prev.includes(element.id)) {
-          // Deselect if already selected
-          const newSelection = prev.filter((id) => id !== element.id);
-
-          // If we removed the last element, clear selectedElement too
-          if (newSelection.length === 0) {
-            setSelectedElement(null);
-          } else if (selectedElement?.id === element.id) {
-            // If we removed the active element, set the last remaining as active
-            const lastId = newSelection[newSelection.length - 1];
-            const lastElement = arrayVideoMake.find(
-              (item) => item.id === lastId
-            );
-            if (lastElement) setSelectedElement(lastElement);
-          }
-
-          return newSelection;
-        } else {
-          // Add to selection
-          setSelectedElement(element);
-          return [...prev, element.id];
-        }
-      });
+    // Simple single selection
+    if (selectedElement && selectedElement.id === element.id) {
+      // If clicking on the already selected element, deselect it
+      setSelectedElement(null);
     } else {
-      // Single selection mode
-      if (selectedElement && selectedElement.id === element.id) {
-        // If clicking on the already selected element, deselect it
-        setSelectedElement(null);
-        setSelectedElements([]);
-      } else {
-        // Select element
-        setSelectedElement(element);
-        setSelectedElements([element.id]);
-      }
+      // Select element
+      setSelectedElement(element);
     }
   };
 
@@ -3034,6 +3075,19 @@ function Editor() {
     setTimeout(() => {
       syncMediaWithTime(currentTime);
     }, 0);
+  };
+
+  // Helper function to get marker position percentage in timeline
+  const getMarkerPositionPercentage = (time) => {
+    const timeInVisibleArea = time - timelineScrollOffset;
+    const visibleDuration = getVisualTimelineDuration();
+
+    // If marker is outside visible area, return -1 to hide it
+    if (timeInVisibleArea < 0 || timeInVisibleArea > visibleDuration) {
+      return -1;
+    }
+
+    return (timeInVisibleArea / visibleDuration) * 100;
   };
 
   // Functions for element resizing/trimming
@@ -3293,22 +3347,67 @@ function Editor() {
   };
 
   // ===== FUNCIÓN PARA GENERAR ESTRUCTURA COMPLETA PARA FFMPEG =====
-  const generateFFmpegTimeline = (useSelectedOnly = false) => {
-    // Filtrar elementos según si se debe exportar solo los seleccionados
-    const elementsToExport =
-      useSelectedOnly && selectedElements.length > 0
-        ? arrayVideoMake.filter((item) => selectedElements.includes(item.id))
-        : arrayVideoMake;
+  const generateFFmpegTimeline = (timeRange = null) => {
+    // timeRange: { start: number, end: number } in seconds, or null for full export
+
+    // Filtrar elementos según el rango de tiempo
+    let elementsToExport = arrayVideoMake;
+    let exportDuration = getContentEndTime();
+    let timeOffset = 0; // Offset to adjust element times
+
+    if (timeRange && timeRange.start !== null && timeRange.end !== null) {
+      // Filter elements that overlap with the time range
+      const filteredElements = arrayVideoMake.filter((item) => {
+        const elementStart = item.startTime || 0;
+        const elementEnd = item.endTime || elementStart + (item.duration || 0);
+        // Include element if it overlaps with the range
+        return elementEnd > timeRange.start && elementStart < timeRange.end;
+      });
+
+      // Adjust element times relative to export start
+      timeOffset = timeRange.start;
+      elementsToExport = filteredElements.map((item) => {
+        const elementStart = item.startTime || 0;
+        const elementEnd = item.endTime || elementStart + (item.duration || 0);
+
+        // Adjust times to start from 0
+        let newStartTime = Math.max(0, elementStart - timeOffset);
+        let newEndTime = Math.min(
+          timeRange.end - timeOffset,
+          elementEnd - timeOffset
+        );
+
+        // Calculate trim adjustments if element is clipped
+        let newTrimStart = item.trimStart || 0;
+        let newTrimEnd = item.trimEnd || 0;
+
+        // If element starts before the range, adjust trim start
+        if (elementStart < timeRange.start) {
+          const clipAmount = timeRange.start - elementStart;
+          newTrimStart = (item.trimStart || 0) + clipAmount;
+        }
+
+        // If element ends after the range, adjust trim end
+        if (elementEnd > timeRange.end) {
+          const clipAmount = elementEnd - timeRange.end;
+          newTrimEnd = (item.trimEnd || 0) + clipAmount;
+        }
+
+        return {
+          ...item,
+          startTime: newStartTime,
+          endTime: newEndTime,
+          duration: newEndTime - newStartTime,
+          trimStart: newTrimStart,
+          trimEnd: newTrimEnd,
+        };
+      });
+
+      exportDuration = timeRange.end - timeRange.start;
+    }
 
     // Calcular duración total del contenido
-    const contentEndTime =
-      useSelectedOnly && selectedElements.length > 0
-        ? Math.max(
-            ...elementsToExport.map(
-              (item) => item.endTime || item.endTimeSeconds || 0
-            )
-          )
-        : getContentEndTime();
+    const contentEndTime = exportDuration;
     const totalDuration = Math.max(contentEndTime, 1); // Mínimo 1 segundo
 
     // Calcular total de frames
@@ -3329,10 +3428,9 @@ function Editor() {
         id: currentEditId,
         created: new Date().toISOString(),
         version: "1.0.0",
-        exportMode: useSelectedOnly ? "selected" : "full",
-        selectedElementsCount: useSelectedOnly
-          ? selectedElements.length
-          : elementsToExport.length,
+        exportMode: timeRange ? "time-range" : "full",
+        timeRange: timeRange,
+        elementsCount: elementsToExport.length,
       },
 
       // === CONFIGURACIÓN DEL CANVAS ===
@@ -3817,9 +3915,18 @@ function Editor() {
             : editData.edition_array;
 
         if (timelineData.timeline) {
-          setArrayVideoMake(timelineData.timeline);
+          // Ensure all elements have required properties (scale, position, opacity, etc)
+          const normalizedTimeline = timelineData.timeline.map((item) => ({
+            ...item,
+            scale: item.scale ?? 1,
+            position: item.position ?? { x: 0.5, y: 0.5 },
+            opacity: item.opacity ?? 1,
+            zIndex: item.zIndex ?? 1,
+          }));
+
+          setArrayVideoMake(normalizedTimeline);
           // Reset history after loading
-          setHistory([JSON.parse(JSON.stringify(timelineData.timeline))]);
+          setHistory([JSON.parse(JSON.stringify(normalizedTimeline))]);
           setHistoryIndex(0);
         }
 
@@ -4407,56 +4514,35 @@ function Editor() {
 
     setIsUploadingEditorVideo(true);
     try {
-      // Convert video to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
+      // Get video title (without extension)
+      const title = file.name.replace(/\.[^/.]+$/, "");
 
-      await new Promise((resolve, reject) => {
-        reader.onload = async () => {
-          try {
-            const base64Video = reader.result;
+      // Create FormData and append file
+      const formData = new FormData();
+      formData.append("video", file);
+      formData.append("title", title);
+      formData.append("category_id", "general");
 
-            // Get video title (without extension)
-            const title = file.name.replace(/\.[^/.]+$/, "");
+      // Upload to backend
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}editor/create-videos`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: formData,
+        }
+      );
 
-            // Upload to backend
-            const response = await fetch(
-              `${import.meta.env.VITE_APP_BACKEND_URL}editor/create-videos`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: "Bearer " + Cookies.get("token"),
-                },
-                body: JSON.stringify({
-                  title: title,
-                  category_id: "general",
-                  base_64_video: base64Video,
-                }),
-              }
-            );
+      const data = await response.json();
 
-            const data = await response.json();
-
-            if (response.ok && data.code === 200) {
-              // Add to list
-              setEditorVideosList((prev) => [...prev, data.video]);
-              resolve();
-            } else {
-              console.error("Error uploading video:", data.message);
-              reject(new Error(data.message));
-            }
-          } catch (error) {
-            console.error("Error uploading video:", error);
-            reject(error);
-          }
-        };
-
-        reader.onerror = () => {
-          console.error("Error reading file");
-          reject(new Error("Error reading file"));
-        };
-      });
+      if (response.ok && data.code === 200) {
+        // Add to list
+        setEditorVideosList((prev) => [...prev, data.video]);
+      } else {
+        console.error("Error uploading video:", data.message);
+      }
     } catch (error) {
       console.error("Error in video upload:", error);
     } finally {
@@ -4584,23 +4670,78 @@ function Editor() {
   const previewStyles = getPreviewStyles();
 
   // ===== FUNCIÓN PARA EXPORTAR TIMELINE COMPLETO PARA BACKEND =====
-  const exportTimelineForFFmpeg = (useSelectedOnly = false) => {
-    const ffmpegData = generateFFmpegTimeline(useSelectedOnly);
+  const exportTimelineForFFmpeg = (timeRange = null) => {
+    // timeRange: { start: number, end: number } in seconds, or null for full export
+    const ffmpegData = generateFFmpegTimeline(timeRange);
+
+    // Filter and adjust elements by time range if specified
+    let filteredTimeline = arrayVideoMake;
+    let exportDuration = getContentEndTime();
+
+    if (timeRange && timeRange.start !== null && timeRange.end !== null) {
+      // Filter elements that overlap with the time range
+      const overlappingElements = arrayVideoMake.filter((item) => {
+        const elementStart = item.startTime || 0;
+        const elementEnd = item.endTime || elementStart + (item.duration || 0);
+        // Include element if it overlaps with the range
+        return elementEnd > timeRange.start && elementStart < timeRange.end;
+      });
+
+      // Adjust element times to start from 0
+      const timeOffset = timeRange.start;
+      filteredTimeline = overlappingElements.map((item) => {
+        const elementStart = item.startTime || 0;
+        const elementEnd = item.endTime || elementStart + (item.duration || 0);
+
+        // Adjust times to start from 0
+        let newStartTime = Math.max(0, elementStart - timeOffset);
+        let newEndTime = Math.min(
+          timeRange.end - timeOffset,
+          elementEnd - timeOffset
+        );
+
+        // Calculate trim adjustments if element is clipped
+        let newTrimStart = item.trimStart || 0;
+        let newTrimEnd = item.trimEnd || 0;
+
+        // If element starts before the range, adjust trim start
+        if (elementStart < timeRange.start) {
+          const clipAmount = timeRange.start - elementStart;
+          newTrimStart = (item.trimStart || 0) + clipAmount;
+        }
+
+        // If element ends after the range, adjust trim end
+        if (elementEnd > timeRange.end) {
+          const clipAmount = elementEnd - timeRange.end;
+          newTrimEnd = (item.trimEnd || 0) + clipAmount;
+        }
+
+        return {
+          ...item,
+          startTime: newStartTime,
+          endTime: newEndTime,
+          duration: newEndTime - newStartTime,
+          trimStart: newTrimStart,
+          trimEnd: newTrimEnd,
+        };
+      });
+
+      exportDuration = timeRange.end - timeRange.start;
+    }
 
     // Agregar información adicional que el backend necesita
     const exportData = {
       ...ffmpegData,
       // Información para compatibilidad con modal de exportación existente
-      arrayVideoMake: useSelectedOnly
-        ? arrayVideoMake.filter((item) => selectedElements.includes(item.id))
-        : arrayVideoMake, // Timeline original para compatibilidad
+      arrayVideoMake: filteredTimeline,
       aspectRatio: aspectRatio,
-      duration: getContentEndTime(),
-      totalElements: useSelectedOnly
-        ? selectedElements.length
-        : arrayVideoMake.length,
+      duration: exportDuration,
+      totalElements: filteredTimeline.length,
       editName: currentEditName,
       project_id: currentEditId,
+
+      // Time range info
+      timeRange: timeRange,
 
       // Timestamp de exportación
       exportedAt: new Date().toISOString(),
@@ -4777,7 +4918,7 @@ function Editor() {
                           {expandedProjects[project.id] &&
                           project.scenes &&
                           project.scenes.length > 0 ? (
-                            <div className="grid grid-cols-1 gap-4">
+                            <div className="grid grid-cols-1 gap-3">
                               {project.scenes.map((scene) => (
                                 <div
                                   key={scene.id}
@@ -4998,6 +5139,19 @@ function Editor() {
                       </div>
                     ))}
 
+                    {/* Loading state */}
+                    {isUploadingMusic && (
+                      <div className="bg-darkBox h-20 rounded-2xl p-4 transition-all duration-200 animate-pulse">
+                        <div className="flex items-center gap-3">
+                          <div className="w-6 h-6 border-2 border-primarioLogo border-t-transparent rounded-full animate-spin"></div>
+                          <div className="flex-1">
+                            <div className="h-4 bg-gray-700 rounded w-3/4 mb-2"></div>
+                            <div className="h-3 bg-gray-700 rounded w-1/4"></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {musicList.length === 0 && !isUploadingMusic && (
                       <div className="text-center py-8">
                         <Music
@@ -5199,6 +5353,19 @@ function Editor() {
                       </div>
                     ))}
 
+                    {/* Loading state */}
+                    {isUploadingSound && (
+                      <div className="bg-darkBox h-20 rounded-2xl p-4 transition-all duration-200 animate-pulse">
+                        <div className="flex items-center gap-3">
+                          <div className="w-6 h-6 border-2 border-primarioLogo border-t-transparent rounded-full animate-spin"></div>
+                          <div className="flex-1">
+                            <div className="h-4 bg-gray-700 rounded w-3/4 mb-2"></div>
+                            <div className="h-3 bg-gray-700 rounded w-1/4"></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {soundList.length === 0 && !isUploadingSound && (
                       <div className="text-center py-8">
                         <Headphones
@@ -5317,6 +5484,18 @@ function Editor() {
                       </div>
                     ))}
 
+                    {/* Loading state */}
+                    {isUploadingImages && (
+                      <div className="bg-darkBox h-20 rounded-2xl p-2 transition-all duration-200 animate-pulse flex items-center gap-3">
+                        <div className="w-16 h-16 flex-shrink-0 bg-darkBoxSub rounded-lg flex items-center justify-center">
+                          <div className="w-6 h-6 border-2 border-primarioLogo border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+                        </div>
+                      </div>
+                    )}
+
                     {images.length === 0 && !isUploadingImages && (
                       <div className="text-center py-8">
                         <Image
@@ -5373,7 +5552,7 @@ function Editor() {
                   />
 
                   {/* Videos grid */}
-                  <div className="grid mt-11 grid-cols-1 gap-4 pb-14 overflow-y-auto h-full">
+                  <div className="mt-11 space-y-2 pb-14 overflow-y-auto h-full">
                     {editorVideosList.map((video) => (
                       <div
                         key={video.id}
@@ -5410,6 +5589,18 @@ function Editor() {
                       </div>
                     ))}
 
+                    {/* Loading state */}
+                    {isUploadingEditorVideo && (
+                      <div className="bg-darkBox cursor-pointer overflow-hidden h-32 rounded-2xl transition-all duration-200 animate-pulse">
+                        <div className="h-20 bg-darkBoxSub flex items-center justify-center">
+                          <div className="w-8 h-8 border-2 border-primarioLogo border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                        <div className="pb-4 pt-1 px-2">
+                          <div className="h-3 bg-gray-700 rounded w-3/4"></div>
+                        </div>
+                      </div>
+                    )}
+
                     {editorVideosList.length === 0 &&
                       !isUploadingEditorVideo && (
                         <div className="text-center py-8">
@@ -5443,7 +5634,7 @@ function Editor() {
               {currentEditName && (
                 <button
                   onClick={handleNewProject}
-                  className="flex items-center gap-2 px-4 py-2 bg-darkBoxSub hover:bg-darkBoxSub text-white rounded-lg transition-all duration-200 montserrat-medium text-sm"
+                  className="flex items-center gap-2 px-4 py-2 bg-darkBoxSub hover:bg-darkBoxSub text-white transition-all duration-200 montserrat-medium text-sm"
                 >
                   <SquarePlusIcon className="w-4 h-4" />
                   New
@@ -5452,7 +5643,7 @@ function Editor() {
 
               <button
                 onClick={handleSaveProject}
-                className="flex items-center gap-2 px-4 py-2 bg-darkBoxSub hover:bg-darkBoxSub text-white rounded-lg transition-all duration-200 montserrat-medium text-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-darkBoxSub hover:bg-darkBoxSub text-white transition-all duration-200 montserrat-medium text-sm"
               >
                 <Save className="w-4 h-4" />
                 Save
@@ -5460,7 +5651,7 @@ function Editor() {
 
               <button
                 onClick={handleLoadProject}
-                className="flex items-center gap-2 px-4 py-2 bg-darkBoxSub hover:bg-darkBoxSub text-white rounded-lg transition-all duration-200 montserrat-medium text-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-darkBoxSub hover:bg-darkBoxSub text-white transition-all duration-200 montserrat-medium text-sm"
               >
                 <FolderOpen className="w-4 h-4" />
                 Load
@@ -5468,7 +5659,7 @@ function Editor() {
 
               <button
                 onClick={handleExportVideo}
-                className="flex items-center gap-2 px-4 py-2 bg-darkBoxSub hover:bg-darkBoxSub text-white rounded-lg transition-all duration-200 montserrat-medium text-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-darkBoxSub hover:bg-darkBoxSub text-white transition-all duration-200 montserrat-medium text-sm"
               >
                 <Download className="w-4 h-4" />
                 Export
@@ -5480,189 +5671,217 @@ function Editor() {
           <div className="flex gap-1 mt-0 h-[45vh]">
             <div
               ref={previewContainerRef}
-              className="w-2/4 relative overflow-hidden"
-              style={previewStyles.container}
+              className="w-2/4 relative overflow-y-auto"
+              style={{
+                ...previewStyles.container,
+              }}
             >
               <div
-                className="relative bg-gray-900 overflow-hidden"
-                style={previewStyles.video}
+                className="relative bg-gray-900"
+                style={{
+                  ...previewStyles.video,
+                  overflow: "hidden", // Keep videos contained within bounds
+                }}
               >
-                {/* Video principal - siempre en el DOM para reproducción */}
+                {/* Active videos - mirror image handling for consistent scaling */}
                 {(() => {
-                  const activeVideo = getActiveElements(currentTime).find(
-                    (el) => el.channel === "video"
-                  );
+                  const activeVideos = arrayVideoMake
+                    .filter(
+                      (item) =>
+                        item.channel === "video" &&
+                        currentTime >= item.startTime &&
+                        currentTime < item.endTime
+                    )
+                    .sort((a, b) => (a.zIndex || 1) - (b.zIndex || 1));
 
-                  if (!activeVideo) {
+                  if (activeVideos.length === 0) {
                     return null;
                   }
 
-                  const scale = activeVideo?.scale || 1;
-                  const posX = activeVideo?.position?.x ?? 0.5;
-                  const posY = activeVideo?.position?.y ?? 0.5;
-                  const isSelected =
-                    selectedElement?.id === activeVideo.id && !isPlaying;
+                  const primaryActiveVideo = getActiveElements(
+                    currentTime
+                  ).find((el) => el.channel === "video");
 
-                  // Calculate position in percentage
-                  const leftPercent = posX * 100;
-                  const topPercent = posY * 100;
+                  return activeVideos.map((videoItem) => {
+                    const scale = videoItem.scale || 1;
+                    const posX = videoItem.position?.x ?? 0.5;
+                    const posY = videoItem.position?.y ?? 0.5;
+                    const opacity = videoItem.opacity ?? 1;
+                    const isSelected =
+                      selectedElement?.id === videoItem.id && !isPlaying;
 
-                  return (
-                    <div
-                      className={`absolute ${
-                        isSelected
-                          ? "ring-2 ring-primarioLogo ring-opacity-80"
-                          : ""
-                      }`}
-                      style={{
-                        left: `${leftPercent}%`,
-                        top: `${topPercent}%`,
-                        width: `${scale * 100}%`,
-                        height: `${scale * 100}%`,
-                        transform: "translate(-50%, -50%)",
-                        transformOrigin: "center center",
-                        zIndex: 2,
-                        pointerEvents: isSelected ? "auto" : "none",
-                      }}
-                      onMouseDown={(e) => {
-                        if (
-                          isSelected &&
-                          !e.target.classList.contains("resize-handle")
-                        ) {
-                          handleImageDragStart(e, activeVideo);
-                        }
-                      }}
-                      onClick={(e) => {
-                        if (!isSelected) {
-                          handleSelectElement(activeVideo, e);
-                        }
-                      }}
-                    >
-                      <video
-                        ref={mainVideoRef}
-                        data-element-id={activeVideo?.id || "main-video"}
-                        className="w-full h-full"
-                        muted={false}
+                    const leftPercent = posX * 100;
+                    const topPercent = posY * 100;
+
+                    return (
+                      <div
+                        key={`video-${videoItem.id}`}
+                        className={`absolute ${
+                          isSelected
+                            ? "ring-2 ring-primarioLogo ring-opacity-80"
+                            : ""
+                        } pointer-events-none`}
                         style={{
-                          opacity: activeVideo?.opacity || 1,
-                          objectFit: "contain",
-                          pointerEvents: "none",
+                          left: `${leftPercent}%`,
+                          top: `${topPercent}%`,
+                          width: `${scale * 100}%`,
+                          height: `${scale * 100}%`,
+                          transform: "translate(-50%, -50%)",
+                          transformOrigin: "center center",
+                          zIndex: (videoItem.zIndex || 1) + 5,
                         }}
-                      />
+                      >
+                        <video
+                          ref={
+                            primaryActiveVideo &&
+                            primaryActiveVideo.id === videoItem.id
+                              ? mainVideoRef
+                              : null
+                          }
+                          data-element-id={videoItem?.id || "main-video"}
+                          className="w-full h-full cursor-move"
+                          muted={false}
+                          style={{
+                            opacity,
+                            objectFit: "contain",
+                            pointerEvents: "auto",
+                          }}
+                          onMouseDown={(e) => {
+                            if (
+                              isSelected &&
+                              !e.target.classList.contains("resize-handle")
+                            ) {
+                              handleImageDragStart(e, videoItem);
+                            }
+                          }}
+                          onClick={(e) => handleSelectElement(videoItem, e)}
+                        />
 
-                      {/* Resize handles - solo cuando está seleccionado */}
-                      {isSelected && (
-                        <>
-                          {/* Corners */}
-                          <div
-                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-nw-resize"
-                            style={{ top: "-8px", left: "-8px", zIndex: 10 }}
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              handleImageResizeStart(
-                                e,
-                                activeVideo,
-                                "top-left"
-                              );
-                            }}
-                          />
-                          <div
-                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-ne-resize"
-                            style={{ top: "-8px", right: "-8px", zIndex: 10 }}
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              handleImageResizeStart(
-                                e,
-                                activeVideo,
-                                "top-right"
-                              );
-                            }}
-                          />
-                          <div
-                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-sw-resize"
-                            style={{ bottom: "-8px", left: "-8px", zIndex: 10 }}
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              handleImageResizeStart(
-                                e,
-                                activeVideo,
-                                "bottom-left"
-                              );
-                            }}
-                          />
-                          <div
-                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-se-resize"
-                            style={{
-                              bottom: "-8px",
-                              right: "-8px",
-                              zIndex: 10,
-                            }}
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              handleImageResizeStart(
-                                e,
-                                activeVideo,
-                                "bottom-right"
-                              );
-                            }}
-                          />
-                          {/* Sides */}
-                          <div
-                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-n-resize"
-                            style={{
-                              top: "-8px",
-                              left: "50%",
-                              transform: "translateX(-50%)",
-                              zIndex: 10,
-                            }}
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              handleImageResizeStart(e, activeVideo, "top");
-                            }}
-                          />
-                          <div
-                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-s-resize"
-                            style={{
-                              bottom: "-8px",
-                              left: "50%",
-                              transform: "translateX(-50%)",
-                              zIndex: 10,
-                            }}
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              handleImageResizeStart(e, activeVideo, "bottom");
-                            }}
-                          />
-                          <div
-                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-w-resize"
-                            style={{
-                              left: "-8px",
-                              top: "50%",
-                              transform: "translateY(-50%)",
-                              zIndex: 10,
-                            }}
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              handleImageResizeStart(e, activeVideo, "left");
-                            }}
-                          />
-                          <div
-                            className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-e-resize"
-                            style={{
-                              right: "-8px",
-                              top: "50%",
-                              transform: "translateY(-50%)",
-                              zIndex: 10,
-                            }}
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              handleImageResizeStart(e, activeVideo, "right");
-                            }}
-                          />
-                        </>
-                      )}
-                    </div>
-                  );
+                        {isSelected && (
+                          <>
+                            {/* Corners */}
+                            <div
+                              className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-nw-resize pointer-events-auto"
+                              style={{
+                                top: "-8px",
+                                left: "-8px",
+                                zIndex: 9999,
+                              }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                handleImageResizeStart(
+                                  e,
+                                  videoItem,
+                                  "top-left"
+                                );
+                              }}
+                            />
+                            <div
+                              className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-ne-resize pointer-events-auto"
+                              style={{
+                                top: "-8px",
+                                right: "-8px",
+                                zIndex: 9999,
+                              }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                handleImageResizeStart(
+                                  e,
+                                  videoItem,
+                                  "top-right"
+                                );
+                              }}
+                            />
+                            <div
+                              className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-sw-resize pointer-events-auto"
+                              style={{
+                                bottom: "-8px",
+                                left: "-8px",
+                                zIndex: 9999,
+                              }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                handleImageResizeStart(
+                                  e,
+                                  videoItem,
+                                  "bottom-left"
+                                );
+                              }}
+                            />
+                            <div
+                              className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-se-resize pointer-events-auto"
+                              style={{
+                                bottom: "-8px",
+                                right: "-8px",
+                                zIndex: 9999,
+                              }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                handleImageResizeStart(
+                                  e,
+                                  videoItem,
+                                  "bottom-right"
+                                );
+                              }}
+                            />
+                            {/* Sides */}
+                            <div
+                              className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-n-resize pointer-events-auto"
+                              style={{
+                                top: "-8px",
+                                left: "50%",
+                                transform: "translateX(-50%)",
+                                zIndex: 9999,
+                              }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                handleImageResizeStart(e, videoItem, "top");
+                              }}
+                            />
+                            <div
+                              className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-s-resize pointer-events-auto"
+                              style={{
+                                bottom: "-8px",
+                                left: "50%",
+                                transform: "translateX(-50%)",
+                                zIndex: 9999,
+                              }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                handleImageResizeStart(e, videoItem, "bottom");
+                              }}
+                            />
+                            <div
+                              className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-w-resize pointer-events-auto"
+                              style={{
+                                left: "-8px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                zIndex: 9999,
+                              }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                handleImageResizeStart(e, videoItem, "left");
+                              }}
+                            />
+                            <div
+                              className="resize-handle absolute w-4 h-4 bg-primarioLogo border-2 border-white rounded-full cursor-e-resize pointer-events-auto"
+                              style={{
+                                right: "-8px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                zIndex: 9999,
+                              }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                handleImageResizeStart(e, videoItem, "right");
+                              }}
+                            />
+                          </>
+                        )}
+                      </div>
+                    );
+                  });
                 })()}
 
                 {/* Video secundario para transiciones suaves */}
@@ -6831,6 +7050,33 @@ function Editor() {
                 >
                   <ZoomIn size={16} />
                 </button>
+
+                {/* Export Range Markers Toggle */}
+                <button
+                  className={`px-3 py-2 rounded-lg ${
+                    showExportMarkers
+                      ? "bg-primarioLogo text-white"
+                      : "bg-darkBoxSub text-white hover:bg-opacity-80 hover:text-primarioLogo"
+                  } transition-colors`}
+                  onClick={() => {
+                    const newShowMarkers = !showExportMarkers;
+                    setShowExportMarkers(newShowMarkers);
+                    if (newShowMarkers) {
+                      // Initialize markers if not set
+                      if (exportTimeRange.end === null) {
+                        setExportTimeRange({
+                          start: 0,
+                          end: getContentEndTime(),
+                        });
+                      }
+                    }
+                  }}
+                  title="Toggle Export Range Markers (I/O)"
+                >
+                  <span className="font-bold text-sm whitespace-nowrap">
+                    I / O
+                  </span>
+                </button>
               </div>
 
               {/* Cut Button */}
@@ -6967,13 +7213,12 @@ function Editor() {
                 }
               }}
               onClick={(e) => {
-                // Mover el playhead y ajustar el scroll cuando se hace click en el timeline
+                // Mover el playhead sin hacer scroll automático
                 if (
                   timelineContainerRef.current &&
                   timelineScrollContainerRef.current
                 ) {
                   const scrollContainer = timelineScrollContainerRef.current;
-                  const timelineContainer = timelineContainerRef.current;
 
                   // Obtener la posición del click relativa al contenedor con scroll
                   const scrollRect = scrollContainer.getBoundingClientRect();
@@ -6993,20 +7238,7 @@ function Editor() {
 
                   setCurrentTime(newTime);
                   syncMediaWithTime(newTime);
-
-                  // Ajustar el scroll para centrar el playhead si está cerca de los bordes
-                  const totalDuration = getTimelineDuration();
-                  if (totalDuration > visibleDuration) {
-                    const scrollWidth = scrollContainer.scrollWidth;
-                    const clientWidth = scrollContainer.clientWidth;
-                    const maxScroll = scrollWidth - clientWidth;
-
-                    // Calcular la nueva posición de scroll basada en el tiempo
-                    const timePercentage = newTime / totalDuration;
-                    const targetScroll = timePercentage * maxScroll;
-
-                    scrollContainer.scrollLeft = targetScroll;
-                  }
+                  // No hacer scroll automático - dejar que el usuario lo haga manualmente
                 }
               }}
             >
@@ -7036,6 +7268,13 @@ function Editor() {
                       : "100%",
                 }}
                 onMouseDown={(e) => {
+                  // Check if clicking on markers first (highest priority)
+                  if (
+                    e.target.closest(".in-marker") ||
+                    e.target.closest(".out-marker")
+                  ) {
+                    return; // Let marker handle it
+                  }
                   // Si hacemos click en el playhead, permitir drag
                   if (e.target.closest(".playhead-line")) {
                     setIsDraggingTimeline(true);
@@ -7047,21 +7286,12 @@ function Editor() {
                   className="playhead-line absolute top-0 bottom-0 w-1 bg-primarioLogo cursor-grab z-50"
                   style={{
                     left: `${(() => {
+                      const totalDuration = getTimelineDuration();
                       const visibleDuration = getVisualTimelineDuration();
-                      const timeInVisibleArea =
-                        currentTime - timelineScrollOffset;
 
-                      // Si está fuera del área visible, esconder
-                      if (
-                        timeInVisibleArea < 0 ||
-                        timeInVisibleArea > visibleDuration
-                      ) {
-                        return "-100px";
-                      }
-
-                      // Calcular porcentaje exacto (igual que los elementos)
-                      const percentage =
-                        (timeInVisibleArea / visibleDuration) * 100;
+                      // Calcular porcentaje del tiempo actual respecto al TOTAL
+                      // No respecto a lo visible
+                      const percentage = (currentTime / totalDuration) * 100;
                       return `${percentage}%`;
                     })()}`,
                     transform: "translateX(-50%)",
@@ -7075,11 +7305,15 @@ function Editor() {
                 >
                   {/* Icono CaretDown en la parte superior de la línea - DRAGGABLE */}
                   <div
-                    className={`absolute -top-1 left-1/2 transform -translate-x-1/2 -translate-y-full cursor-grab transition-all duration-100 ${
+                    className={`absolute left-1/2 transform -translate-x-1/2 cursor-grab transition-all duration-100 ${
                       isDraggingTimeline
                         ? "scale-125 cursor-grabbing"
                         : "hover:scale-110"
                     }`}
+                    style={{
+                      top: "-16px",
+                      zIndex: 50,
+                    }}
                     onMouseDown={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -7088,11 +7322,99 @@ function Editor() {
                   >
                     <CaretDown
                       size={24}
-                      className="text-primarioLogo drop-shadow-lg"
+                      className="text-primarioLogo drop-shadow-lg z-10"
                       strokeWidth={3}
                     />
                   </div>
                 </div>
+
+                {/* In Marker (I) - Export Start */}
+                {showExportMarkers &&
+                  exportTimeRange.start !== null &&
+                  getMarkerPositionPercentage(exportTimeRange.start) >= 0 && (
+                    <div
+                      className="in-marker absolute top-0 bottom-0 z-40"
+                      style={{
+                        left: `${getMarkerPositionPercentage(
+                          exportTimeRange.start
+                        )}%`,
+                        transform: "translateX(-50%)",
+                        width: "40px", // Wider clickable area
+                      }}
+                    >
+                      {/* Clickable overlay - entire area is draggable */}
+                      <div
+                        className="absolute inset-0 cursor-ew-resize"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsDraggingInMarker(true);
+                        }}
+                      />
+
+                      {/* Visual line */}
+                      <div
+                        className={`absolute top-0 bottom-0 left-1/2 transform -translate-x-1/2 bg-green-500 transition-all pointer-events-none ${
+                          isDraggingInMarker ? "w-1.5" : "w-1 hover:w-1.5"
+                        }`}
+                      />
+
+                      {/* I Marker Label */}
+                      <div
+                        className={`absolute -top-1 left-1/2 transform -translate-x-1/2 -translate-y-full transition-all duration-100 pointer-events-none ${
+                          isDraggingInMarker ? "scale-125" : ""
+                        }`}
+                      >
+                        <div className="bg-green-500 text-white px-3 py-1 rounded text-sm font-bold drop-shadow-lg select-none">
+                          I
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                {/* Out Marker (O) - Export End */}
+                {showExportMarkers &&
+                  exportTimeRange.end !== null &&
+                  getMarkerPositionPercentage(exportTimeRange.end) >= 0 && (
+                    <div
+                      className="out-marker absolute top-0 bottom-0 z-40"
+                      style={{
+                        left: `${getMarkerPositionPercentage(
+                          exportTimeRange.end
+                        )}%`,
+                        transform: "translateX(-50%)",
+                        width: "40px", // Wider clickable area
+                      }}
+                    >
+                      {/* Clickable overlay - entire area is draggable */}
+                      <div
+                        className="absolute inset-0 cursor-ew-resize"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsDraggingOutMarker(true);
+                        }}
+                      />
+
+                      {/* Visual line */}
+                      <div
+                        className={`absolute top-0 bottom-0 left-1/2 transform -translate-x-1/2 bg-red-500 transition-all pointer-events-none ${
+                          isDraggingOutMarker ? "w-1.5" : "w-1 hover:w-1.5"
+                        }`}
+                      />
+
+                      {/* O Marker Label */}
+                      <div
+                        className={`absolute -top-1 left-1/2 transform -translate-x-1/2 -translate-y-full transition-all duration-100 pointer-events-none ${
+                          isDraggingOutMarker ? "scale-125" : ""
+                        }`}
+                      >
+                        <div className="bg-red-500 text-white px-3 py-1 rounded text-sm font-bold drop-shadow-lg select-none">
+                          O
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                 {/* Video Track */}
                 <div className="flex items-center gap-3">
@@ -7123,10 +7445,6 @@ function Editor() {
                               draggingElement?.id === item.id
                                 ? "opacity-50 scale-105 transition-none"
                                 : "transition-all duration-200"
-                            } ${
-                              selectedElements.includes(item.id)
-                                ? "ring-2 ring-[#DC569D] ring-opacity-80"
-                                : ""
                             } ${
                               selectedElement?.id === item.id
                                 ? "ring-4 ring-[#DC569D]"
@@ -7705,11 +8023,11 @@ function Editor() {
                 </div>
 
                 {/* Timeline Ruler */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 z-20">
                   <div className="flex-1 relative">
                     {/* Time markers ARRIBA del timeline */}
                     <div
-                      className="relative text-xs text-gray-400 mb-2"
+                      className="relative text-xs text-gray-400 mb-2 z-30"
                       style={{ height: "16px" }}
                     >
                       {getTimeMarkers().map((marker, index) => (
@@ -7764,9 +8082,9 @@ function Editor() {
           exportTimelineForFFmpeg={exportTimelineForFFmpeg}
           editName={currentEditName}
           editId={currentEditId}
-          // Selection props
-          selectedElements={selectedElements}
-          hasSelection={selectedElements.length > 0}
+          maxDuration={getContentEndTime()}
+          exportTimeRange={exportTimeRange}
+          showExportMarkers={showExportMarkers}
           // Pre-rendering props
           isPreRendering={isPreRendering}
           preRenderProgress={preRenderProgress}

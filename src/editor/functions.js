@@ -63,20 +63,20 @@ export function compressImageToBase64(file, maxWidth = 1920, quality = 0.8) {
 }
 
 // Function to create image via API
-export async function createImage(base64Image, imageName) {
+export async function createImage(imageFile, imageName) {
   try {
+    const formData = new FormData();
+    formData.append("image", imageFile);
+    formData.append("name", imageName);
+
     const response = await fetch(
       `${import.meta.env.VITE_APP_BACKEND_URL}editor/create-image`,
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: "Bearer " + Cookies.get("token"),
         },
-        body: JSON.stringify({
-          base_64_image: base64Image,
-          name: imageName,
-        }),
+        body: formData,
       }
     );
 
@@ -113,11 +113,8 @@ export async function handleImageDrop(files) {
         continue;
       }
 
-      // Compress and convert to base64
-      const compressedBase64 = await compressImageToBase64(file);
-
-      // Upload to server
-      const imageData = await createImage(compressedBase64, file.name);
+      // Upload to server directly as file (no base64 conversion or compression)
+      const imageData = await createImage(file, file.name);
 
       // imageData ya viene con todas las propiedades necesarias desde createImage
       uploadedImages.push(imageData);
@@ -130,23 +127,24 @@ export async function handleImageDrop(files) {
 }
 
 // Function to create audio (music/voice) via API
-export async function createAudio(type, base64Audio, audioName, duration = null) {
+export async function createAudio(type, audioFile, audioName, duration = null) {
   // type should be 'music' or 'voice'
   try {
+    const formData = new FormData();
+    formData.append("audio", audioFile);
+    formData.append("name", audioName);
+    if (duration !== null) {
+      formData.append("duration", duration.toString());
+    }
+
     const response = await fetch(
       `${import.meta.env.VITE_APP_BACKEND_URL}editor/create-${type}`,
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: "Bearer " + Cookies.get("token"),
         },
-        body: JSON.stringify({
-          // Use a generic key the backend can map; adjust if needed server-side
-          base_64_audio: base64Audio,
-          name: audioName,
-          duration: duration, // Send the real duration to backend
-        }),
+        body: formData,
       }
     );
 
@@ -192,17 +190,17 @@ function getAudioDuration(file) {
   return new Promise((resolve, reject) => {
     const audio = document.createElement("audio");
     const url = URL.createObjectURL(file);
-    
+
     audio.addEventListener("loadedmetadata", () => {
       URL.revokeObjectURL(url);
       resolve(audio.duration);
     });
-    
+
     audio.addEventListener("error", () => {
       URL.revokeObjectURL(url);
       reject(new Error("Error loading audio file"));
     });
-    
+
     audio.src = url;
   });
 }
@@ -220,11 +218,8 @@ export async function handleAudioDrop(files, type) {
       // Get audio duration
       const duration = await getAudioDuration(file);
 
-      // Convert to base64 (no compression for audio)
-      const base64 = await fileToBase64(file);
-
-      // Upload to server with real duration
-      const audioData = await createAudio(type, base64, file.name, duration);
+      // Upload to server directly as file (no base64 conversion)
+      const audioData = await createAudio(type, file, file.name, duration);
 
       uploaded.push(audioData);
     } catch (error) {
