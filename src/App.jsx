@@ -1,4 +1,5 @@
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import { useEffect } from "react";
 import "./App.css";
 import Editor from "./editor/editor";
 import Login from "./auth/login";
@@ -16,6 +17,36 @@ import MainProject from "./project/main-project";
 import { getProjects } from "./project/functions";
 import { getInfoToEdit } from "./editor/functions";
 import { getDiscoverPosts } from "./discover/functions";
+
+// Component to handle editor redirection
+function EditorRedirect() {
+  useEffect(() => {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    if (!isMobile && import.meta.env.VITE_EDITOR_URL) {
+      // Redirect to external editor URL for non-mobile devices
+      window.location.href = import.meta.env.VITE_EDITOR_URL;
+    }
+  }, []);
+
+  // Check if mobile
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  // If mobile or no VITE_EDITOR_URL, show the local editor
+  if (isMobile || !import.meta.env.VITE_EDITOR_URL) {
+    return <Editor />;
+  }
+
+  // Show loading while redirecting
+  return (
+    <div className="flex items-center justify-center h-screen bg-primarioDark">
+      <div className="text-center">
+        <div className="w-16 h-16 border-4 border-primarioLogo border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-white text-lg">Redirecting to editor...</p>
+      </div>
+    </div>
+  );
+}
 
 const router = createBrowserRouter([
   {
@@ -44,6 +75,11 @@ const router = createBrowserRouter([
     errorElement: <ErrorBoundary />,
     children: [
       {
+        index: true,
+        element: <Discover />,
+        loader: () => getDiscoverPosts(1, 10),
+      },
+      {
         path: "projects",
         element: <Home />,
         loader: multiloaderGet,
@@ -52,11 +88,6 @@ const router = createBrowserRouter([
         path: "profile",
         element: <Profile />,
         loader: userInfoLoader,
-      },
-      {
-        index: true,
-        element: <Discover />,
-        loader: () => getDiscoverPosts(1, 10),
       },
       {
         path: "project/:id",
@@ -70,7 +101,7 @@ const router = createBrowserRouter([
   },
   {
     path: "editor",
-    element: <Editor />,
+    element: <EditorRedirect />,
     loader: getInfoToEdit,
   },
 ]);

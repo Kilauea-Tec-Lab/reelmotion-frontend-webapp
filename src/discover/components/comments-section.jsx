@@ -111,50 +111,6 @@ function CommentsSection({ comments, postId, onCommentsUpdate }) {
             <span className="text-gray-400 montserrat-light text-xs">
               {formatDate(comment.created_at)}
             </span>
-
-            {/* 
-            <button
-              onClick={() =>
-                handleLikeComment(
-                  comment.id,
-                  comment.is_liked,
-                  comment.likes_count || 0
-                )
-              }
-              className={`flex items-center gap-1 text-xs montserrat-medium transition-colors ${
-                comment.is_liked
-                  ? "text-red-500"
-                  : "text-gray-400 hover:text-red-500"
-              }`}
-            >
-              <Heart
-                size={12}
-                className={comment.is_liked ? "fill-current" : ""}
-              />
-              {comment.likes_count > 0 && comment.likes_count}
-            </button>
-
-            {!isReply && (
-              <button
-                onClick={() => setReplyingTo(comment.id)}
-                className="text-gray-400 hover:text-white text-xs montserrat-medium transition-colors"
-              >
-                Reply
-              </button>
-            )}
-
-            {!isReply && comment.replies_count > 0 && (
-              <button
-                onClick={() => toggleReplies(comment.id)}
-                className="text-gray-400 hover:text-white text-xs montserrat-medium transition-colors flex items-center gap-1"
-              >
-                <MessageCircle size={12} />
-                {expandedReplies.has(comment.id) ? "Hide" : "View"}{" "}
-                {comment.replies_count}{" "}
-                {comment.replies_count === 1 ? "reply" : "replies"}
-              </button>
-            )}
-              */}
           </div>
 
           {/* Reply Form */}

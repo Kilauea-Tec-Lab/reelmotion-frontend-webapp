@@ -90,7 +90,14 @@ function Login() {
         const loginResponse = await loginCall.json();
         const token = loginResponse.data.token;
 
+        // Set cookie in current domain
         Cookies.set("token", token);
+
+        // Set cookie in editor domain if different
+        if (import.meta.env.VITE_EDITOR_URL) {
+          const editorUrl = new URL(import.meta.env.VITE_EDITOR_URL);
+          Cookies.set("token", token, { domain: editorUrl.hostname });
+        }
 
         window.location.replace("/");
       } else {
@@ -211,7 +218,14 @@ function Login() {
       const loginResponse = await register.json();
       const token = loginResponse.data.token;
 
+      // Set cookie in current domain
       Cookies.set("token", token);
+
+      // Set cookie in editor domain if different
+      if (import.meta.env.VITE_EDITOR_URL) {
+        const editorUrl = new URL(import.meta.env.VITE_EDITOR_URL);
+        Cookies.set("token", token, { domain: editorUrl.hostname });
+      }
 
       window.location.replace("/");
     } else {
