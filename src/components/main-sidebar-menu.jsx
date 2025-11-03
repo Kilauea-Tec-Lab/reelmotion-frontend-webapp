@@ -19,10 +19,13 @@ import {
 import { div } from "framer-motion/client";
 
 function MainSidebarMenu({ showProjectsTutorial, onProjectsClick }) {
+  // Detect if device is mobile
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
   const menuItems = [
     { id: 1, name: "Discovery", icon: HomeIcon, path: "/" }, //9390  Entrega a Efectivo  1940 Es en tarjeta   4087 egreso de caja    3083   Lo que es 3363   Corte de ayer
     { id: 2, name: "Projects", icon: VideoIcon, path: "/projects" },
-    { id: 3, name: "Editor", icon: Film, path: "/editor" },
+    { id: 3, name: "Editor", icon: Film, path: "/editor", disabled: isMobile },
     { id: 4, name: "Profile", icon: User2, path: "/profile" },
     //{ id: 5, name: "Settings", icon: Settings2Icon, path: "/settings" },
   ];
@@ -69,53 +72,70 @@ function MainSidebarMenu({ showProjectsTutorial, onProjectsClick }) {
             <ul className="space-y-2">
               {menuItems.map((item) => (
                 <li key={item.id}>
-                  <NavLink
-                    to={item.path}
-                    className={({ isActive }) => `space-x-3 py-2`}
-                    onClick={() => handleItemClick(item)}
-                  >
-                    {({ isActive }) => (
-                      <div
-                        className={`flex py-2 gap-5 align-center items-center ${
-                          item.id === 2 && showProjectsTutorial
-                            ? "projects-button-animated relative z-50"
-                            : ""
-                        }`}
-                      >
-                        <div
-                          className={`px-2 py-2 rounded-xl ${
-                            isActive
-                              ? "bg-primarioLogo"
-                              : item.id === 2 && showProjectsTutorial
-                              ? "bg-[#F2D543] relative z-200"
-                              : "bg-darkBoxSub"
-                          }`}
-                        >
-                          <item.icon
-                            size={20}
-                            className={`${
-                              isActive
-                                ? "text-white"
-                                : item.id === 2 && showProjectsTutorial
-                                ? "text-primarioDark"
-                                : "text-[#808191] hover:text-white"
-                            }`}
-                          />
+                  {item.disabled ? (
+                    // Disabled item (no link)
+                    <div
+                      className="space-x-3 py-2 cursor-not-allowed opacity-50"
+                      title="Editor not available on mobile devices"
+                    >
+                      <div className="flex py-2 gap-5 align-center items-center">
+                        <div className="px-2 py-2 rounded-xl bg-darkBoxSub">
+                          <item.icon size={20} className="text-[#808191]" />
                         </div>
-                        <span
-                          className={`font-semibold text-md tracking-widest ${
-                            isActive
-                              ? "text-white"
-                              : item.id === 2 && showProjectsTutorial
-                              ? "text-[#F2D543] relative z-200"
-                              : "text-[#808191] hover:text-white"
-                          }`}
-                        >
+                        <span className="font-semibold text-md tracking-widest text-[#808191]">
                           {item.name}
                         </span>
                       </div>
-                    )}
-                  </NavLink>
+                    </div>
+                  ) : (
+                    <NavLink
+                      to={item.path}
+                      className={({ isActive }) => `space-x-3 py-2`}
+                      onClick={() => handleItemClick(item)}
+                    >
+                      {({ isActive }) => (
+                        <div
+                          className={`flex py-2 gap-5 align-center items-center ${
+                            item.id === 2 && showProjectsTutorial
+                              ? "projects-button-animated relative z-50"
+                              : ""
+                          }`}
+                        >
+                          <div
+                            className={`px-2 py-2 rounded-xl ${
+                              isActive
+                                ? "bg-primarioLogo"
+                                : item.id === 2 && showProjectsTutorial
+                                ? "bg-[#F2D543] relative z-200"
+                                : "bg-darkBoxSub"
+                            }`}
+                          >
+                            <item.icon
+                              size={20}
+                              className={`${
+                                isActive
+                                  ? "text-white"
+                                  : item.id === 2 && showProjectsTutorial
+                                  ? "text-primarioDark"
+                                  : "text-[#808191] hover:text-white"
+                              }`}
+                            />
+                          </div>
+                          <span
+                            className={`font-semibold text-md tracking-widest ${
+                              isActive
+                                ? "text-white"
+                                : item.id === 2 && showProjectsTutorial
+                                ? "text-[#F2D543] relative z-200"
+                                : "text-[#808191] hover:text-white"
+                            }`}
+                          >
+                            {item.name}
+                          </span>
+                        </div>
+                      )}
+                    </NavLink>
+                  )}
                 </li>
               ))}
             </ul>
