@@ -23,32 +23,17 @@ import { getDiscoverPosts } from "./discover/functions";
 function EditorRedirect() {
   useEffect(() => {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    console.log("🔍 EditorRedirect - Device check:", { isMobile });
-    console.log(
-      "🔍 EditorRedirect - VITE_EDITOR_URL:",
-      import.meta.env.VITE_EDITOR_URL
-    );
 
     if (!isMobile && import.meta.env.VITE_EDITOR_URL) {
       // Get token from cookies using js-cookie
       const token = Cookies.get("token");
 
-      console.log("🔍 EditorRedirect - Token found:", token ? "Yes" : "No");
-      console.log("🔍 EditorRedirect - Token length:", token?.length);
-      console.log("🔍 EditorRedirect - All cookies:", document.cookie);
-
-      // Create URL with token parameter
+      // Create URL with token as path parameter
       const editorUrl = new URL(import.meta.env.VITE_EDITOR_URL);
       if (token) {
-        editorUrl.searchParams.set("token", token);
-        console.log("🔍 EditorRedirect - Token added to URL");
-      } else {
-        console.log(
-          "🔍 EditorRedirect - WARNING: No token found, redirecting without authentication"
-        );
+        // Add token directly to path: /editor/{token}
+        editorUrl.pathname = `/editor/${token}`;
       }
-
-      console.log("🔍 EditorRedirect - Final URL:", editorUrl.toString());
 
       // Small delay to ensure logs are visible
       setTimeout(() => {
