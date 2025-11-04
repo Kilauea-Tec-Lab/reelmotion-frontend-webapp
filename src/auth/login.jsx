@@ -107,14 +107,31 @@ function Login() {
           const editorDomain = editorUrl.hostname;
           console.log("🔍 Login - Editor domain:", editorDomain);
 
-          // Try different cookie settings for cross-domain
+          // Extract the parent domain for cross-subdomain cookies
+          const currentDomain = window.location.hostname;
+          console.log("🔍 Login - Current domain:", currentDomain);
+
+          // For reelmotion.ai and editor.reelmotion.ai, use .reelmotion.ai
+          let parentDomain = ".reelmotion.ai";
+
+          // Try to extract parent domain automatically if different
+          if (!currentDomain.includes("reelmotion.ai")) {
+            const domainParts = currentDomain.split(".");
+            if (domainParts.length >= 2) {
+              parentDomain = "." + domainParts.slice(-2).join(".");
+            }
+          }
+
+          console.log("🔍 Login - Using parent domain for cookie:", parentDomain);
+
+          // Set cookie for parent domain to work across subdomains
           Cookies.set("token", token, {
-            domain: editorDomain,
+            domain: parentDomain,
             path: "/",
-            secure: editorUrl.protocol === "https:",
+            secure: true, // Always secure for cross-domain
             sameSite: "None",
           });
-          console.log("🔍 Login - Token set for editor domain with options");
+          console.log("🔍 Login - Token set for parent domain with options");
         }
 
         // Verify cookie was set
@@ -243,14 +260,50 @@ function Login() {
       const loginResponse = await register.json();
       const token = loginResponse.data.token;
 
+      console.log('🔍 Register - Token received:', token ? 'Yes' : 'No');
+      console.log('🔍 Register - Token length:', token?.length);
+      console.log('🔍 Register - VITE_EDITOR_URL:', import.meta.env.VITE_EDITOR_URL);
+
       // Set cookie in current domain
       Cookies.set("token", token);
+      console.log('🔍 Register - Token set in current domain');
 
       // Set cookie in editor domain if different
       if (import.meta.env.VITE_EDITOR_URL) {
         const editorUrl = new URL(import.meta.env.VITE_EDITOR_URL);
-        Cookies.set("token", token, { domain: editorUrl.hostname });
+        const editorDomain = editorUrl.hostname;
+        console.log('🔍 Register - Editor domain:', editorDomain);
+
+        // Extract the parent domain for cross-subdomain cookies
+        const currentDomain = window.location.hostname;
+        console.log('🔍 Register - Current domain:', currentDomain);
+
+        // For reelmotion.ai and editor.reelmotion.ai, use .reelmotion.ai
+        let parentDomain = '.reelmotion.ai';
+
+        // Try to extract parent domain automatically if different
+        if (!currentDomain.includes('reelmotion.ai')) {
+          const domainParts = currentDomain.split('.');
+          if (domainParts.length >= 2) {
+            parentDomain = '.' + domainParts.slice(-2).join('.');
+          }
+        }
+
+        console.log('🔍 Register - Using parent domain for cookie:', parentDomain);
+
+        // Set cookie for parent domain to work across subdomains
+        Cookies.set("token", token, {
+          domain: parentDomain,
+          path: '/',
+          secure: true, // Always secure for cross-domain
+          sameSite: 'None'
+        });
+        console.log('🔍 Register - Token set for parent domain with options');
       }
+
+      // Verify cookie was set
+      const cookieCheck = Cookies.get("token");
+      console.log('🔍 Register - Cookie verification:', cookieCheck ? 'Found' : 'Not found');
 
       window.location.replace("/");
     } else {

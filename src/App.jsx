@@ -1,5 +1,6 @@
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import { useEffect } from "react";
+import Cookies from "js-cookie";
 import "./App.css";
 import Editor from "./editor/editor";
 import Login from "./auth/login";
@@ -22,29 +23,37 @@ import { getDiscoverPosts } from "./discover/functions";
 function EditorRedirect() {
   useEffect(() => {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    console.log('🔍 EditorRedirect - Device check:', { isMobile });
-    console.log('🔍 EditorRedirect - VITE_EDITOR_URL:', import.meta.env.VITE_EDITOR_URL);
+    console.log("🔍 EditorRedirect - Device check:", { isMobile });
+    console.log(
+      "🔍 EditorRedirect - VITE_EDITOR_URL:",
+      import.meta.env.VITE_EDITOR_URL
+    );
 
     if (!isMobile && import.meta.env.VITE_EDITOR_URL) {
-      // Get token from cookies
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('token='))
-        ?.split('=')[1];
-      
-      console.log('🔍 EditorRedirect - Token found:', token ? 'Yes' : 'No');
-      console.log('🔍 EditorRedirect - Token value:', token);
-      
+      // Get token from cookies using js-cookie
+      const token = Cookies.get("token");
+
+      console.log("🔍 EditorRedirect - Token found:", token ? "Yes" : "No");
+      console.log("🔍 EditorRedirect - Token length:", token?.length);
+      console.log("🔍 EditorRedirect - All cookies:", document.cookie);
+
       // Create URL with token parameter
       const editorUrl = new URL(import.meta.env.VITE_EDITOR_URL);
       if (token) {
-        editorUrl.searchParams.set('token', token);
+        editorUrl.searchParams.set("token", token);
+        console.log("🔍 EditorRedirect - Token added to URL");
+      } else {
+        console.log(
+          "🔍 EditorRedirect - WARNING: No token found, redirecting without authentication"
+        );
       }
-      
-      console.log('🔍 EditorRedirect - Final URL:', editorUrl.toString());
-      
-      // Redirect to external editor URL for non-mobile devices
-      window.location.href = editorUrl.toString();
+
+      console.log("🔍 EditorRedirect - Final URL:", editorUrl.toString());
+
+      // Small delay to ensure logs are visible
+      setTimeout(() => {
+        window.location.href = editorUrl.toString();
+      }, 100);
     }
   }, []);
 
@@ -53,7 +62,10 @@ function EditorRedirect() {
 
   // If mobile or no VITE_EDITOR_URL, show the local editor
   if (isMobile || !import.meta.env.VITE_EDITOR_URL) {
-    console.log('🔍 EditorRedirect - Showing local editor:', { isMobile, hasEditorUrl: !!import.meta.env.VITE_EDITOR_URL });
+    console.log("🔍 EditorRedirect - Showing local editor:", {
+      isMobile,
+      hasEditorUrl: !!import.meta.env.VITE_EDITOR_URL,
+    });
     return <Editor />;
   }
 
@@ -63,7 +75,9 @@ function EditorRedirect() {
       <div className="text-center">
         <div className="w-16 h-16 border-4 border-primarioLogo border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
         <p className="text-white text-lg">Redirecting to editor...</p>
-        <p className="text-gray-400 text-sm mt-2">Preparing authentication...</p>
+        <p className="text-gray-400 text-sm mt-2">
+          Preparing authentication...
+        </p>
       </div>
     </div>
   );
