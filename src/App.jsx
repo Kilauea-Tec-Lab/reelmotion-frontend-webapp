@@ -59,10 +59,6 @@ function EditorRedirect() {
     <div className="flex items-center justify-center h-screen bg-primarioDark">
       <div className="text-center">
         <div className="w-16 h-16 border-4 border-primarioLogo border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-white text-lg">Redirecting to editor...</p>
-        <p className="text-gray-400 text-sm mt-2">
-          Preparing authentication...
-        </p>
       </div>
     </div>
   );
