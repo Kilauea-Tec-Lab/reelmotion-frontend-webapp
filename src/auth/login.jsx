@@ -90,14 +90,39 @@ function Login() {
         const loginResponse = await loginCall.json();
         const token = loginResponse.data.token;
 
+        console.log("🔍 Login - Token received:", token ? "Yes" : "No");
+        console.log("🔍 Login - Token length:", token?.length);
+        console.log(
+          "🔍 Login - VITE_EDITOR_URL:",
+          import.meta.env.VITE_EDITOR_URL
+        );
+
         // Set cookie in current domain
         Cookies.set("token", token);
+        console.log("🔍 Login - Token set in current domain");
 
         // Set cookie in editor domain if different
         if (import.meta.env.VITE_EDITOR_URL) {
           const editorUrl = new URL(import.meta.env.VITE_EDITOR_URL);
-          Cookies.set("token", token, { domain: editorUrl.hostname });
+          const editorDomain = editorUrl.hostname;
+          console.log("🔍 Login - Editor domain:", editorDomain);
+
+          // Try different cookie settings for cross-domain
+          Cookies.set("token", token, {
+            domain: editorDomain,
+            path: "/",
+            secure: editorUrl.protocol === "https:",
+            sameSite: "None",
+          });
+          console.log("🔍 Login - Token set for editor domain with options");
         }
+
+        // Verify cookie was set
+        const cookieCheck = Cookies.get("token");
+        console.log(
+          "🔍 Login - Cookie verification:",
+          cookieCheck ? "Found" : "Not found"
+        );
 
         window.location.replace("/");
       } else {
