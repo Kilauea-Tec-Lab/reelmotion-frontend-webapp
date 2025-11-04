@@ -32,7 +32,7 @@ function EditorRedirect() {
       const editorUrl = new URL(import.meta.env.VITE_EDITOR_URL);
       if (token) {
         // Add token directly to path: /editor/{token}
-        editorUrl.pathname = `/editor/${token}`;
+        editorUrl.pathname = `/${token}`;
       }
 
       // Small delay to ensure logs are visible
