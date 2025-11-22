@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, X } from "lucide-react";
 import { createAccount, login } from "./functions";
 import Cookies from "js-cookie";
 
 function Login() {
   const navigate = useNavigate();
   const [typeRecord, setTypeRecord] = useState(1);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  //Login States
+  // Login States
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
@@ -24,7 +25,7 @@ function Login() {
   const [resetSuccess, setResetSuccess] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
-  //Create Account States
+  // Create Account States
   const [username, setUsername] = useState("");
   const [createEmail, setCreateEmail] = useState("");
   const [createPassword, setCreatePassword] = useState("");
@@ -69,17 +70,25 @@ function Login() {
     }
   }, []);
 
+  // Loading states
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+
   async function handleLogin() {
     // Reset error states
     setLoginEmailError(false);
     setLoginPasswordError(false);
+    setIsLoggingIn(true);
 
     try {
       if (!loginEmail || !loginPassword) {
         if (!loginEmail) setLoginEmailError("Email is required");
         if (!loginPassword) setLoginPasswordError("Password is required");
+        setIsLoggingIn(false);
         return;
       }
+
+      // setIsLoggingIn(true); // Removed redundant call
 
       const loginCall = await login({
         email: loginEmail.toLowerCase(),
@@ -116,7 +125,10 @@ function Login() {
           setLoginEmailError("The email or username is incorrect");
         }
       }
-    } catch (error) {}
+    } catch (error) {
+    } finally {
+      setIsLoggingIn(false); // Reset loading state
+    }
   }
 
   async function handleResetPassword() {
@@ -214,6 +226,8 @@ function Login() {
       return;
     }
 
+    setIsRegistering(true); // Set loading state
+
     const register = await createAccount({
       username: username,
       name: createName,
@@ -265,6 +279,8 @@ function Login() {
         }
       }
     }
+
+    setIsRegistering(false); // Reset loading state
   }
 
   return (
@@ -276,109 +292,140 @@ function Login() {
         playsInline
         className="absolute top-0 left-0 w-full h-full object-cover z-0"
       >
-        <source src="/videos/bg_loop.mp4" type="video/mp4" />
+        <source
+          src="/videos/bg_loop_mobile.mp4"
+          type="video/mp4"
+          media="(max-width: 767px)"
+        />
+        <source src="/videos/bg_loop_desktop.mp4" type="video/mp4" />
       </video>
-      {/* Capa difuminada en negro al 50% sobre el video */}
-      <div className="absolute top-0 left-0 w-full h-full bg-[#00000080] z-10">
-        <div className="relative z-20  sm:flex  h-full">
-          <div className="sm:w-1/2 sm:px-6 sm:py-6 px-4 py-4 text-right">
-            <img
-              src="/logos/logo_reelmotion_new.png"
-              alt="Logo Reelmotion IA"
-              className="w-96"
-            />
-            <div className="px-10 pt-20 space-y-6">
-              <h1 className="text-white text-4xl font-semibold tracking-wide montserrat-semibold">
-                Sign in to a new era
-              </h1>
-              <h2 className="text-white text-2xl font-normal tracking-wider montserrat-regular">
-                Create what you imagine
-              </h2>
-            </div>
-            {typeRecord == 1 ? (
-              <div className="px-10 pt-10 space-y-2">
-                <h3 className="text-white montserrat-light tracking-wider text-sm">
-                  If you don't have an account
-                </h3>
-                <span className="text-white montserrat-light tracking-wider text-sm">
-                  you can &nbsp;
-                </span>
-                <button
-                  type="button"
-                  className="montserrat-light tracking-wider text-sm text-[#F2D543] hover:text-[#ffe969] hover:bg-[#F2D543]/10 hover:px-2 hover:py-1 hover:rounded-md transition-all duration-300 cursor-pointer"
-                  onClick={() => setTypeRecord(2)}
-                >
-                  Register here!
-                </button>
-              </div>
-            ) : (
-              <div className="px-10 pt-10 space-y-2">
-                <h3 className="text-white montserrat-light tracking-wider text-sm">
-                  If you have an account
-                </h3>
-                <span className="text-white montserrat-light tracking-wider text-sm">
-                  you can &nbsp;
-                </span>
-                <button
-                  type="button"
-                  className="montserrat-light tracking-wider text-sm text-[#F2D543] hover:text-[#ffe969] hover:bg-[#F2D543]/10 hover:px-2 hover:py-1 hover:rounded-md transition-all duration-300 cursor-pointer"
-                  onClick={() => setTypeRecord(1)}
-                >
-                  Login Here!
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="sm:w-1/2 h-full justify-center">
-            <div class="w-full flex justify-end gap-4 px-6 py-12">
+
+      {/* Overlay */}
+      <div className="absolute top-0 left-0 w-full h-full bg-black/38 z-10" />
+
+      {/* Main Content Layer */}
+      <div className="relative z-20 w-full h-full">
+        <div className="absolute top-6 left-4">
+          <img
+            src="/logos/icon_reelmotion_ai.png"
+            alt="Logo Reelmotion IA"
+            className="w-14 mx-auto mb-8 drop-shadow-2xl"
+          />
+        </div>
+        {/* Top Right Login Button */}
+        <div className="absolute top-8 right-8">
+          <button
+            onClick={() => setShowAuthModal(true)}
+            className="bg-[#DC569D] text-white px-6 py-2 rounded-full font-bold hover:bg-[#c9458b] transition-all shadow-lg hover:shadow-[#DC569D]/20 transform"
+          >
+            Login
+          </button>
+        </div>
+
+        {/* Center Logo & Text */}
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center w-full max-w-4xl px-4">
+          <img
+            src="/logos/logo_reelmotion_new.png"
+            alt="Logo Reelmotion IA"
+            className="w-[70%] mx-auto mb-8 drop-shadow-2xl"
+          />
+        </div>
+
+        {/* Bottom Right Links */}
+        <div className="absolute bottom-8 left-8 flex gap-4">
+          <button
+            onClick={() =>
+              window.open("https://www.reelmeinmedia.com/", "_blank")
+            }
+            className="bg-black/40 backdrop-blur-md border border-white/50 px-6 py-2 rounded-xl text-white hover:bg-white/10 transition-all text-sm font-medium"
+          >
+            Reel Me In Media
+          </button>
+          <button
+            onClick={() =>
+              window.open("/documents/affiliate_program.pdf", "_blank")
+            }
+            className="bg-black/40 backdrop-blur-md border border-white/50 px-6 py-2 rounded-xl text-white hover:bg-white/10 transition-all text-sm font-medium"
+          >
+            Affiliate Program
+          </button>
+        </div>
+      </div>
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-[#161619] border border-gray-700 rounded-3xl w-full max-w-md p-8 relative shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <button
+              onClick={() => setShowAuthModal(false)}
+              className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors"
+            >
+              <X size={24} />
+            </button>
+
+            {/* Tabs */}
+            <div className="flex p-1 bg-black/40 rounded-xl mb-8 mt-4">
               <button
-                onClick={() =>
-                  window.open("https://www.reelmeinmedia.com/", "_blank")
-                }
-                className="bg-primarioLogo px-4 rounded-xl py-1 font-medium hover:bg-primarioLogo text-white flex items-center justify-center cursor-pointer"
+                onClick={() => setTypeRecord(1)}
+                className={`flex-1 py-3 rounded-lg text-sm font-medium transition-all ${
+                  typeRecord === 1
+                    ? "bg-[#DC569D] text-white shadow-lg"
+                    : "text-gray-400 hover:text-white"
+                }`}
               >
-                <span className="flex items-center">Reel Me In Media</span>
+                Sign In
               </button>
               <button
-                onClick={() =>
-                  window.open("/documents/affiliate_program.pdf", "_blank")
-                }
-                className="bg-primarioLogo px-4 rounded-xl font-medium hover:bg-primarioLogo text-white flex items-center justify-center cursor-pointer"
+                onClick={() => setTypeRecord(2)}
+                className={`flex-1 py-3 rounded-lg text-sm font-medium transition-all ${
+                  typeRecord === 2
+                    ? "bg-[#DC569D] text-white shadow-lg"
+                    : "text-gray-400 hover:text-white"
+                }`}
               >
-                <span className="flex items-center">Affiliate Program</span>
+                Register
               </button>
             </div>
-            {typeRecord == 1 ? (
-              <div className="text-left w-full space-y-6 flex flex-col justify-center mt-20">
-                <h1 className="text-white text-2xl montserrat-light">
-                  Sign In
-                </h1>
-                <div className="flex flex-col space-y-5 text-right w-2/5">
+
+            {/* Forms */}
+            {typeRecord === 1 ? (
+              <div className="space-y-6">
+                <div className="text-center mb-2">
+                  <h3 className="text-white text-2xl font-semibold">
+                    Welcome Back
+                  </h3>
+                  <p className="text-gray-400 text-sm mt-1">
+                    Enter your credentials to access your account
+                  </p>
+                </div>
+
+                <div className="space-y-4">
                   <div>
                     {loginEmailError && (
-                      <p className="text-red-400 text-sm mb-1 text-left">
+                      <p className="text-red-400 text-xs mb-1 text-left">
                         {loginEmailError}
                       </p>
                     )}
                     <input
-                      className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0 ${
-                        loginEmailError ? "border-2 border-red-500" : ""
+                      className={`bg-black/30 border border-gray-700 w-full rounded-xl px-4 py-3.5 text-white placeholder-gray-500 outline-none focus:border-[#DC569D] transition-colors ${
+                        loginEmailError ? "border-red-500" : ""
                       }`}
                       type="email"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      placeholder="Enter email or user name"
+                      placeholder="Email or username"
                     />
                   </div>
+
                   <div className="relative">
                     <input
-                      className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 pr-12 text-[#161619] outline-none focus:ring-0 ${
-                        loginPasswordError ? "border-2 border-red-500" : ""
+                      className={`bg-black/30 border border-gray-700 w-full rounded-xl px-4 py-3.5 pr-12 text-white placeholder-gray-500 outline-none focus:border-[#DC569D] transition-colors ${
+                        loginPasswordError ? "border-red-500" : ""
                       }`}
                       type={showLoginPassword ? "text" : "password"}
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Enter your password"
+                      placeholder="Password"
                       onKeyDown={(e) => {
                         if (e.key === "Enter") handleLogin();
                       }}
@@ -386,7 +433,7 @@ function Login() {
                     <button
                       type="button"
                       onClick={() => setShowLoginPassword(!showLoginPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
                     >
                       {showLoginPassword ? (
                         <EyeOff size={20} />
@@ -395,222 +442,208 @@ function Login() {
                       )}
                     </button>
                   </div>
+                </div>
+
+                <div className="flex justify-end">
                   <button
                     type="button"
                     onClick={() => setShowResetPassword(true)}
-                    className="text-white montserrat-light text-xs hover:text-[#F2D543] transition-colors cursor-pointer"
+                    className="text-[#DC569D] text-sm hover:underline"
                   >
-                    Forgot your password?
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleLogin()}
-                    className="bg-[#F2D543] text-primarioDark px-6 py-2 rounded-xl font-medium hover:bg-[#f2f243]"
-                  >
-                    Login
+                    Forgot password?
                   </button>
                 </div>
-                {/* 
-                <div className="items-center text-center w-2/5">
-                  <span className="text-white montserrat-light text-xs">
-                    Or Continue with
-                  </span>
-                  <div className="flex items-center justify-center space-x-4">
-                    \
-                  </div>
-                </div>
-                */}
+
+                <button
+                  type="button"
+                  onClick={() => handleLogin()}
+                  disabled={isLoggingIn}
+                  className="w-full bg-[#DC569D] text-white py-3.5 rounded-xl font-bold hover:bg-[#c9458b] transition-all shadow-lg shadow-[#DC569D]/10 flex justify-center items-center"
+                >
+                  {isLoggingIn ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    "Sign In"
+                  )}
+                </button>
               </div>
             ) : (
-              <div className="text-left w-full space-y-6 flex flex-col justify-center mt-18">
-                <h1 className="text-white text-2xl montserrat-light">
-                  Create Account
-                </h1>
-                <div className="flex flex-col space-y-5 text-right w-2/5">
+              <div className="space-y-5">
+                <div className="text-center mb-2">
+                  <h3 className="text-white text-2xl font-semibold">
+                    Create Account
+                  </h3>
+                  <p className="text-gray-400 text-sm mt-1">
+                    Join the new era of content creation
+                  </p>
+                </div>
+
+                <div className="space-y-4">
                   <div>
                     {usernameError && (
-                      <p className="text-red-400 text-sm mb-1 text-left">
+                      <p className="text-red-400 text-xs mb-1">
                         {usernameError}
                       </p>
                     )}
                     <input
-                      className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0 ${
-                        usernameError ? "border-2 border-red-500" : ""
+                      className={`bg-black/30 border border-gray-700 w-full rounded-xl px-4 py-3.5 text-white placeholder-gray-500 outline-none focus:border-[#DC569D] transition-colors ${
+                        usernameError ? "border-red-500" : ""
                       }`}
                       type="text"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Enter your username"
+                      placeholder="Username"
                     />
                   </div>
+
                   <div>
                     {createNameError && (
-                      <p className="text-red-400 text-sm mb-1 text-left">
+                      <p className="text-red-400 text-xs mb-1">
                         {createNameError}
                       </p>
                     )}
                     <input
-                      className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0 ${
-                        createNameError ? "border-2 border-red-500" : ""
+                      className={`bg-black/30 border border-gray-700 w-full rounded-xl px-4 py-3.5 text-white placeholder-gray-500 outline-none focus:border-[#DC569D] transition-colors ${
+                        createNameError ? "border-red-500" : ""
                       }`}
                       type="text"
                       value={createName}
                       onChange={(e) => setCreateName(e.target.value)}
-                      placeholder="Enter your name"
+                      placeholder="Full Name"
                     />
                   </div>
+
                   <div>
                     {createEmailError && (
-                      <p className="text-red-400 text-sm mb-1 text-left">
+                      <p className="text-red-400 text-xs mb-1">
                         {createEmailError}
                       </p>
                     )}
                     <input
-                      className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 text-[#161619] outline-none focus:ring-0 ${
-                        createEmailError ? "border-2 border-red-500" : ""
+                      className={`bg-black/30 border border-gray-700 w-full rounded-xl px-4 py-3.5 text-white placeholder-gray-500 outline-none focus:border-[#DC569D] transition-colors ${
+                        createEmailError ? "border-red-500" : ""
                       }`}
                       type="email"
                       value={createEmail}
                       onChange={(e) => setCreateEmail(e.target.value)}
-                      placeholder="Enter email"
+                      placeholder="Email Address"
                     />
                   </div>
-                  <div>
+
+                  <div className="relative">
                     {createPasswordError && (
-                      <p className="text-red-400 text-sm mb-1 text-left">
+                      <p className="text-red-400 text-xs mb-1">
                         {createPasswordError}
                       </p>
                     )}
-                    <div className="relative">
-                      <input
-                        className={`bg-white w-full rounded-lg montserrat-light text-sm px-4 py-3 pr-12 text-[#161619] outline-none focus:ring-0 ${
-                          createPasswordError ? "border-2 border-red-500" : ""
-                        }`}
-                        type={showCreatePassword ? "text" : "password"}
-                        value={createPassword}
-                        onChange={(e) => setCreatePassword(e.target.value)}
-                        placeholder="Enter your password"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setShowCreatePassword(!showCreatePassword)
-                        }
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
-                      >
-                        {showCreatePassword ? (
-                          <EyeOff size={20} />
-                        ) : (
-                          <Eye size={20} />
-                        )}
-                      </button>
-                    </div>
+                    <input
+                      className={`bg-black/30 border border-gray-700 w-full rounded-xl px-4 py-3.5 pr-12 text-white placeholder-gray-500 outline-none focus:border-[#DC569D] transition-colors ${
+                        createPasswordError ? "border-red-500" : ""
+                      }`}
+                      type={showCreatePassword ? "text" : "password"}
+                      value={createPassword}
+                      onChange={(e) => setCreatePassword(e.target.value)}
+                      placeholder="Password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCreatePassword(!showCreatePassword)}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                    >
+                      {showCreatePassword ? (
+                        <EyeOff size={20} />
+                      ) : (
+                        <Eye size={20} />
+                      )}
+                    </button>
                   </div>
-                  <div>
+
+                  <div className="relative">
                     {createPasswordConfirmError && (
-                      <p className="text-red-400 text-xs mb-1 text-left">
+                      <p className="text-red-400 text-xs mb-1">
                         {createPasswordConfirmError}
                       </p>
                     )}
-                    <div className="relative">
-                      <input
-                        className={`bg-white rounded-lg w-full montserrat-light text-sm px-4 py-3 pr-12 text-[#161619] outline-none focus:ring-0 ${
-                          createPasswordConfirmError
-                            ? "border-2 border-red-500"
-                            : ""
-                        }`}
-                        type={showCreateConfirmPassword ? "text" : "password"}
-                        value={createPasswordConfirm}
-                        onChange={(e) =>
-                          setCreatePasswordConfirm(e.target.value)
-                        }
-                        placeholder="Confirm your password"
-                      />
+                    <input
+                      className={`bg-black/30 border border-gray-700 w-full rounded-xl px-4 py-3.5 pr-12 text-white placeholder-gray-500 outline-none focus:border-[#DC569D] transition-colors ${
+                        createPasswordConfirmError ? "border-red-500" : ""
+                      }`}
+                      type={showCreateConfirmPassword ? "text" : "password"}
+                      value={createPasswordConfirm}
+                      onChange={(e) => setCreatePasswordConfirm(e.target.value)}
+                      placeholder="Confirm Password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowCreateConfirmPassword(!showCreateConfirmPassword)
+                      }
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                    >
+                      {showCreateConfirmPassword ? (
+                        <EyeOff size={20} />
+                      ) : (
+                        <Eye size={20} />
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="flex gap-3 items-start">
+                    <input
+                      type="checkbox"
+                      id="acceptTerms"
+                      checked={acceptTerms}
+                      onChange={(e) => setAcceptTerms(e.target.checked)}
+                      className="mt-1 w-4 h-4 text-[#DC569D] bg-transparent border-gray-600 rounded focus:ring-[#DC569D] focus:ring-offset-0"
+                    />
+                    <label
+                      htmlFor="acceptTerms"
+                      className="text-gray-400 text-xs leading-relaxed"
+                    >
+                      I accept the{" "}
                       <button
                         type="button"
-                        onClick={() =>
-                          setShowCreateConfirmPassword(
-                            !showCreateConfirmPassword
-                          )
-                        }
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                        onClick={() => setShowTermsConditions(true)}
+                        className="text-[#DC569D] hover:underline"
                       >
-                        {showCreateConfirmPassword ? (
-                          <EyeOff size={20} />
-                        ) : (
-                          <Eye size={20} />
-                        )}
+                        Terms & Conditions
+                      </button>{" "}
+                      and{" "}
+                      <button
+                        type="button"
+                        onClick={() => setShowPrivacyPolicy(true)}
+                        className="text-[#DC569D] hover:underline"
+                      >
+                        Privacy Policy
                       </button>
-                    </div>
+                    </label>
                   </div>
-
-                  {/* Terms and Privacy Policy Checkbox */}
-                  <div className="mb-4">
-                    <div className="flex gap-3">
-                      <input
-                        type="checkbox"
-                        id="acceptTerms"
-                        checked={acceptTerms}
-                        onChange={(e) => setAcceptTerms(e.target.checked)}
-                        className="mt-1 w-4 h-4 text-[#F2D543] bg-white border-gray-300 rounded focus:ring-[#F2D543] focus:ring-2"
-                      />
-                      <label
-                        htmlFor="acceptTerms"
-                        className="text-white text-sm montserrat-light text-left leading-relaxed"
-                      >
-                        I accept the{" "}
-                        <button
-                          type="button"
-                          onClick={() => setShowTermsConditions(true)}
-                          className="text-[#F2D543] hover:text-[#f2f243] underline transition-colors"
-                        >
-                          {" "}
-                          Terms & Conditions{" "}
-                        </button>{" "}
-                        and{" "}
-                        <button
-                          type="button"
-                          onClick={() => setShowPrivacyPolicy(true)}
-                          className="text-[#F2D543] hover:text-[#f2f243] underline transition-colors"
-                        >
-                          Privacy Policy
-                        </button>{" "}
-                      </label>
-                    </div>
-                    {acceptTermsError && (
-                      <p className="text-red-400 text-xs mt-2 text-left">
-                        {acceptTermsError}
-                      </p>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleRegister()}
-                    disabled={!acceptTerms}
-                    className={`px-6 py-2 rounded-xl font-medium transition-all ${
-                      acceptTerms
-                        ? "bg-[#F2D543] text-primarioDark hover:bg-[#f2f243]"
-                        : "bg-gray-600 text-gray-400 cursor-not-allowed"
-                    }`}
-                  >
-                    Register
-                  </button>
+                  {acceptTermsError && (
+                    <p className="text-red-400 text-xs">{acceptTermsError}</p>
+                  )}
                 </div>
-                {/* 
-                <div className="items-center text-center w-2/5">
-                  <span className="text-white montserrat-light text-xs">
-                    Or Continue with
-                  </span>
-                  <div className="flex items-center justify-center space-x-4">
-                    \
-                  </div>
-                </div>*/}
+
+                <button
+                  type="button"
+                  onClick={() => handleRegister()}
+                  disabled={!acceptTerms || isRegistering}
+                  className={`w-full py-3.5 rounded-xl font-bold transition-all flex justify-center items-center ${
+                    acceptTerms
+                      ? "bg-[#DC569D] text-white hover:bg-[#c9458b] shadow-lg shadow-[#DC569D]/10"
+                      : "bg-gray-800 text-gray-500 cursor-not-allowed"
+                  }`}
+                >
+                  {isRegistering ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
               </div>
             )}
           </div>
         </div>
-      </div>
+      )}
 
       {/* Privacy Policy Modal */}
       {showPrivacyPolicy && (
@@ -1336,7 +1369,7 @@ function Login() {
                     placeholder="Enter your email"
                     className={`w-full px-4 py-3 rounded-lg bg-darkBoxSub border ${
                       resetEmailError ? "border-red-500" : "border-gray-600"
-                    } text-white placeholder-gray-400 focus:outline-none focus:border-[#F2D543] transition-colors montserrat-regular`}
+                    } text-white placeholder-gray-400 focus:outline-none focus:border-[#DC569D] transition-colors montserrat-regular`}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleResetPassword();
                     }}
@@ -1360,10 +1393,10 @@ function Login() {
                     type="button"
                     onClick={handleResetPassword}
                     disabled={isResetting}
-                    className="flex-1 px-4 py-3 rounded-lg bg-[#F2D543] text-primarioDark hover:bg-[#f2f243] transition-colors montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    className="flex-1 px-4 py-3 rounded-lg bg-[#DC569D] text-white hover:bg-[#c9458b] transition-colors montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
                     {isResetting ? (
-                      <div className="w-5 h-5 border-2 border-primarioDark border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     ) : (
                       "Send Reset Email"
                     )}
@@ -1402,7 +1435,7 @@ function Login() {
                 <button
                   type="button"
                   onClick={handleBackToLogin}
-                  className="w-full px-4 py-3 rounded-lg bg-[#F2D543] text-primarioDark hover:bg-[#f2f243] transition-colors montserrat-medium"
+                  className="w-full px-4 py-3 rounded-lg bg-[#DC569D] text-white hover:bg-[#c9458b] transition-colors montserrat-medium"
                 >
                   Back to Login
                 </button>
