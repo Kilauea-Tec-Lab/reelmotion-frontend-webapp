@@ -635,7 +635,7 @@ function MainProject() {
           <span className="font-bold text-gray-400">Step 3 (Optional):</span> In
           this section, you can create narrator voices for your video. Please
           note that these voices are for narration only and will not be used for
-          your characters. life to your characters.
+          your characters.
         </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.voices?.length > 0 ? (
@@ -733,9 +733,9 @@ function MainProject() {
         </div>
         <div className="text-gray-400 montserrat-light text-sm mt-3 mb-2">
           <span className="font-bold text-gray-400">Step 4:</span> This is the
-          storyboard section.To help reduce errors with the AI tools, we use
+          storyboard section. To help reduce errors with the AI tools, we use
           frames as visual references. In this section, you’ll need to create
-          frames—pictures of the scenes that you’ll later turn into full scenes.
+          frames pictures of the scenes that you’ll later turn into full scenes.
         </div>
         <div className="bg-darkBox px-8 py-6 rounded-lg mt-4">
           {project?.frames?.length > 0 ? (

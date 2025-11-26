@@ -67,6 +67,9 @@ function ModalCreateScene({
   // Estado para audio (solo para Veo-3)
   const [withAudio, setWithAudio] = useState(false);
 
+  // Estado para crear escena
+  const [isCreatingScene, setIsCreatingScene] = useState(false);
+
   // Camera shots array for professional cinematography
   const cameraShots = [
     // Basic Shots
@@ -994,6 +997,8 @@ function ModalCreateScene({
       }
     }
 
+    setIsCreatingScene(true);
+
     try {
       let response;
 
@@ -1048,9 +1053,11 @@ function ModalCreateScene({
         handleClose();
       } else {
         console.error("Error creating scene:", responseData);
+        setIsCreatingScene(false);
       }
     } catch (error) {
       console.error("Error creating scene:", error);
+      setIsCreatingScene(false);
     }
   };
 
@@ -2093,6 +2100,7 @@ function ModalCreateScene({
               type="button"
               onClick={handleSubmit}
               disabled={
+                isCreatingScene ||
                 !sceneName.trim() ||
                 !sceneDescription.trim() ||
                 (selectedType === "upload"
@@ -2106,9 +2114,16 @@ function ModalCreateScene({
                       aiModel !== "veo-3.1-fast-generate-preview" &&
                       !promptImageUrl))
               }
-              className="px-6 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543]"
+              className="px-6 py-2 bg-[#F2D543] text-primarioDark rounded-lg hover:bg-[#f2f243] transition-colors font-medium montserrat-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#F2D543] flex items-center justify-center gap-2"
             >
-              Create Scene
+              {isCreatingScene ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-primarioDark border-t-transparent rounded-full animate-spin"></div>
+                  <span>Creating...</span>
+                </>
+              ) : (
+                "Create Scene"
+              )}
             </button>
           </div>
         </div>
