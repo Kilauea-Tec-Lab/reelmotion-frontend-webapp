@@ -324,14 +324,14 @@ function Login() {
             onClick={() => setShowAuthModal(true)}
           />
           <h1
-            className="text-white sm:text-4xl text-3xl montserrat-medium"
+            className="text-white sm:text-3xl text-2xl montserrat-medium"
             onClick={() => setShowAuthModal(true)}
           >
             Simple AI Video Creation
           </h1>
           <button
             onClick={() => setShowAuthModal(true)}
-            className="bg-transparent border-2 border-[#DC569D] text-[#DC569D] text-3xl px-8 py-2 mt-6 tracking-wider rounded-xl font-semibold hover:bg-[#DC569D] hover:text-white transition-all shadow-lg hover:shadow-[#DC569D]/20 transform"
+            className="bg-[#DC569D] text-white text-xl px-8 py-2 mt-6 tracking-wider rounded-full font-semibold hover:bg-[#dc569ecc] hover:text-white transition-all shadow-lg hover:shadow-[#DC569D]/20 transform"
           >
             Start
           </button>
