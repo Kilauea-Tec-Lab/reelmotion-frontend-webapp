@@ -310,28 +310,34 @@ function Login() {
             src="/logos/icon_reelmotion_ai.png"
             alt="Logo Reelmotion IA"
             className="w-14 mx-auto mb-8 drop-shadow-2xl"
+            onClick={() => setShowAuthModal(true)}
           />
         </div>
         {/* Top Right Login Button */}
-        <div className="absolute top-8 right-8">
-          <button
-            onClick={() => setShowAuthModal(true)}
-            className="bg-[#DC569D] text-white px-6 py-2 rounded-full font-bold hover:bg-[#c9458b] transition-all shadow-lg hover:shadow-[#DC569D]/20 transform"
-          >
-            Login
-          </button>
-        </div>
 
         {/* Center Logo & Text */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center w-full max-w-4xl px-4">
           <img
             src="/logos/logo_reelmotion_new.png"
             alt="Logo Reelmotion IA"
-            className="w-[70%] mx-auto mb-8 drop-shadow-2xl"
+            className="sm:w-[70%] w-[90%] mx-auto drop-shadow-2xl"
+            onClick={() => setShowAuthModal(true)}
           />
+          <h1
+            className="text-white sm:text-4xl text-3xl montserrat-medium"
+            onClick={() => setShowAuthModal(true)}
+          >
+            Simple AI Video Creation
+          </h1>
+          <button
+            onClick={() => setShowAuthModal(true)}
+            className="bg-transparent border-2 border-[#DC569D] text-[#DC569D] text-3xl px-8 py-2 mt-6 tracking-wider rounded-xl font-semibold hover:bg-[#DC569D] hover:text-white transition-all shadow-lg hover:shadow-[#DC569D]/20 transform"
+          >
+            Start
+          </button>
         </div>
 
-        {/* Bottom Right Links */}
+        {/* Bottom Right Links 
         <div className="absolute bottom-8 left-8 flex gap-4">
           <button
             onClick={() =>
@@ -350,6 +356,7 @@ function Login() {
             Affiliate Program
           </button>
         </div>
+        */}
       </div>
 
       {/* Auth Modal */}
