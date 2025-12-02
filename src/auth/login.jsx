@@ -324,9 +324,9 @@ function Login() {
             <img
               src="/logos/logo_reelmotion_new.png"
               alt="Logo Reelmotion IA"
-              className="sm:w-[70%] w-[97%] mx-auto drop-shadow-2xl"
+              className="sm:w-[600px] w-[345px] mx-auto drop-shadow-2xl"
             />
-            <h1 className="text-white sm:text-4xl text-2xl tracking-wider montserrat-medium">
+            <h1 className="text-white sm:text-[38px] ml-[-8px] sm:ml-[-10px] text-[22px] mt-[-23px] sm:mt-[-40px] tracking-wider montserrat-medium">
               Simple AI Video Creation
             </h1>
           </div>
@@ -334,7 +334,7 @@ function Login() {
             onClick={() => setShowAuthModal(true)}
             className="bg-[#DC569D] text-white text-xl px-8 py-2 mt-6 tracking-wider rounded-full font-semibold hover:bg-[#dc569ecc] hover:text-white transition-all shadow-lg hover:shadow-[#DC569D]/20 transform"
           >
-            Start
+            ENTER
           </button>
         </div>
 
