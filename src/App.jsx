@@ -18,6 +18,10 @@ import MainProject from "./project/main-project";
 import { getProjects } from "./project/functions";
 import { getInfoToEdit } from "./editor/functions";
 import { getDiscoverPosts } from "./discover/functions";
+import Chat from "./chat/chat";
+import ChatView from "./chat/chat-view";
+import ChatLayout from "./chat/chat-layout";
+import { getChatInfo, getChatDetails } from "./chat/functions";
 
 // Component to handle editor redirection
 function EditorRedirect() {
@@ -83,6 +87,26 @@ const router = createBrowserRouter([
   {
     path: "discover/post/:id",
     element: <PostDetail />,
+  },
+  {
+    path: "chat",
+    element: <ChatLayout />,
+    loader: getChatInfo,
+    errorElement: <ErrorBoundary />,
+    children: [
+      {
+        index: true,
+        element: <Chat />,
+      },
+      {
+        path: ":chatId",
+        element: <ChatView />,
+        loader: async ({ params }) => {
+          const { chatId } = params;
+          return await getChatDetails(chatId);
+        },
+      },
+    ],
   },
   {
     path: "/",
