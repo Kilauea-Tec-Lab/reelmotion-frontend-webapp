@@ -140,6 +140,11 @@ const router = createBrowserRouter([
     ],
   },
   {
+    path: "editor-2",
+    element: <Editor />,
+    loader: getInfoToEdit,
+  },
+  {
     path: "editor",
     element: <EditorRedirect />,
     loader: getInfoToEdit,
