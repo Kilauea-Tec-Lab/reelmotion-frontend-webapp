@@ -12,11 +12,10 @@ function ChatMain({
   messages = [],
 }) {
   const messagesEndRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const videoInputRef = useRef(null);
   const [showFileMenu, setShowFileMenu] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [filePreview, setFilePreview] = useState(null);
-  const [fileType, setFileType] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [previewMedia, setPreviewMedia] = useState(null);
 
   const scrollToBottom = () => {
@@ -28,37 +27,64 @@ function ChatMain({
   }, [messages, isTyping]);
 
   const handleFileSelect = (type) => {
-    setFileType(type);
-    fileInputRef.current?.click();
     setShowFileMenu(false);
+    if (type === "image") {
+      imageInputRef.current?.click();
+    } else if (type === "video") {
+      // Check if video already exists
+      const hasVideo = selectedFiles.some((f) => f.type === "video");
+      if (hasVideo) {
+        // Optional: Alert user or just replace. Let's replace for better UX or just ignore.
+        // For now, let's allow clicking, and handle replacement in change handler
+        // or prevent if strict. User said "solo un video".
+        // Let's allow opening dialog, and if they select one, we replace the existing one?
+        // Or maybe just block.
+        // Let's block with a simple alert for now or just don't open.
+        // Actually, replacing is usually better UX.
+      }
+      videoInputRef.current?.click();
+    }
   };
 
-  const handleFileChange = (e) => {
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    const newFiles = files.map((file) => ({
+      file,
+      type: "image",
+      preview: URL.createObjectURL(file),
+    }));
+
+    setSelectedFiles((prev) => [...prev, ...newFiles]);
+    e.target.value = "";
+  };
+
+  const handleVideoChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setSelectedFile(file);
+    if (!file) return;
 
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFilePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
+    const newVideo = {
+      file,
+      type: "video",
+      preview: URL.createObjectURL(file),
+    };
+
+    setSelectedFiles((prev) => {
+      // Remove existing video if any
+      const filtered = prev.filter((f) => f.type !== "video");
+      return [...filtered, newVideo];
+    });
+    e.target.value = "";
   };
 
-  const handleRemoveFile = () => {
-    setSelectedFile(null);
-    setFilePreview(null);
-    setFileType(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+  const handleRemoveFile = (index) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSendWithFile = () => {
-    onSendMessage(selectedFile, fileType);
-    handleRemoveFile();
+  const handleSendWithFiles = () => {
+    onSendMessage(selectedFiles);
+    setSelectedFiles([]);
   };
 
   return (
@@ -198,28 +224,32 @@ function ChatMain({
           {/* Input Area */}
           <div className="border-t border-gray-800 p-4">
             <div className="max-w-3xl mx-auto">
-              {/* File Preview */}
-              {selectedFile && filePreview && (
-                <div className="mb-3 relative inline-block">
-                  <button
-                    onClick={handleRemoveFile}
-                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 rounded-full p-1 z-10"
-                  >
-                    <X size={14} />
-                  </button>
-                  {fileType === "image" ? (
-                    <img
-                      src={filePreview}
-                      alt="Preview"
-                      className="max-h-32 rounded-lg border border-gray-700"
-                    />
-                  ) : (
-                    <video
-                      src={filePreview}
-                      className="max-h-32 rounded-lg border border-gray-700"
-                      controls
-                    />
-                  )}
+              {/* File Previews */}
+              {selectedFiles.length > 0 && (
+                <div className="mb-3 flex gap-3 overflow-x-auto pb-2">
+                  {selectedFiles.map((fileObj, index) => (
+                    <div key={index} className="relative flex-shrink-0">
+                      <button
+                        onClick={() => handleRemoveFile(index)}
+                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 rounded-full p-1 z-10"
+                      >
+                        <X size={14} />
+                      </button>
+                      {fileObj.type === "image" ? (
+                        <img
+                          src={fileObj.preview}
+                          alt="Preview"
+                          className="h-24 w-24 object-cover rounded-lg border border-gray-700"
+                        />
+                      ) : (
+                        <video
+                          src={fileObj.preview}
+                          className="h-24 w-24 object-cover rounded-lg border border-gray-700"
+                          muted
+                        />
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
 
@@ -232,13 +262,13 @@ function ChatMain({
                     <Plus size={20} />
                   </button>
                   {showFileMenu && (
-                    <div className="absolute bottom-full left-0 mb-2 bg-[#2f2f2f] border border-gray-700 rounded-lg shadow-lg overflow-hidden z-20">
+                    <div className="absolute bottom-full left-0 mb-2 bg-[#2f2f2f] border border-gray-700 rounded-lg shadow-lg overflow-hidden z-20 w-40">
                       <button
                         onClick={() => handleFileSelect("image")}
                         className="flex items-center gap-3 px-4 py-3 hover:bg-[#3a3a3a] transition-colors w-full text-left"
                       >
                         <Image size={18} />
-                        <span className="text-sm">Add image</span>
+                        <span className="text-sm">Add images</span>
                       </button>
                       <button
                         onClick={() => handleFileSelect("video")}
@@ -251,10 +281,18 @@ function ChatMain({
                   )}
                 </div>
                 <input
-                  ref={fileInputRef}
+                  ref={imageInputRef}
                   type="file"
-                  accept={fileType === "image" ? "image/*" : "video/*"}
-                  onChange={handleFileChange}
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoChange}
                   className="hidden"
                 />
                 <input
@@ -265,15 +303,23 @@ function ChatMain({
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
-                      selectedFile ? handleSendWithFile() : onSendMessage();
+                      selectedFiles.length > 0
+                        ? handleSendWithFiles()
+                        : onSendMessage();
                     }
                   }}
                   disabled={isSending}
                   className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none disabled:opacity-50"
                 />
                 <button
-                  onClick={selectedFile ? handleSendWithFile : onSendMessage}
-                  disabled={(!message.trim() && !selectedFile) || isSending}
+                  onClick={
+                    selectedFiles.length > 0
+                      ? handleSendWithFiles
+                      : onSendMessage
+                  }
+                  disabled={
+                    (!message.trim() && selectedFiles.length === 0) || isSending
+                  }
                   className="bg-[#DC569D] hover:bg-[#c9458b] p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send size={18} />
@@ -395,32 +441,36 @@ function ChatMain({
               </div>
               <div className="border-t border-gray-800 p-4">
                 <div className="max-w-3xl mx-auto">
-                  {/* File Preview */}
-                  {selectedFile && filePreview && (
-                    <div className="mb-3 relative inline-block">
-                      <button
-                        onClick={handleRemoveFile}
-                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 rounded-full p-1 z-10"
-                      >
-                        <X size={14} />
-                      </button>
-                      {fileType === "image" ? (
-                        <img
-                          src={filePreview}
-                          alt="Preview"
-                          className="max-h-32 rounded-lg border border-gray-700"
-                        />
-                      ) : (
-                        <video
-                          src={filePreview}
-                          className="max-h-32 rounded-lg border border-gray-700"
-                          controls
-                        />
-                      )}
+                  {/* File Previews */}
+                  {selectedFiles.length > 0 && (
+                    <div className="mb-3 flex gap-3 overflow-x-auto pb-2">
+                      {selectedFiles.map((fileObj, index) => (
+                        <div key={index} className="relative flex-shrink-0">
+                          <button
+                            onClick={() => handleRemoveFile(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 rounded-full p-1 z-10"
+                          >
+                            <X size={14} />
+                          </button>
+                          {fileObj.type === "image" ? (
+                            <img
+                              src={fileObj.preview}
+                              alt="Preview"
+                              className="h-24 w-24 object-cover rounded-lg border border-gray-700"
+                            />
+                          ) : (
+                            <video
+                              src={fileObj.preview}
+                              className="h-24 w-24 object-cover rounded-lg border border-gray-700"
+                              muted
+                            />
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
 
-                  <div className="flex items-center gap-3 bg-[#2f2f2f] rounded-2xl px-5 py-4 border border-gray-700 relative">
+                  <div className="flex items-center gap-3 bg-[#2f2f2f] rounded-2xl px-5 py-4 border border-gray-700 hover:border-gray-600 transition-colors relative">
                     <div className="relative">
                       <button
                         onClick={() => setShowFileMenu(!showFileMenu)}
@@ -429,13 +479,13 @@ function ChatMain({
                         <Plus size={20} />
                       </button>
                       {showFileMenu && (
-                        <div className="absolute bottom-full left-0 mb-2 bg-[#2f2f2f] border border-gray-700 rounded-lg shadow-lg overflow-hidden z-20">
+                        <div className="absolute bottom-full left-0 mb-2 bg-[#2f2f2f] border border-gray-700 rounded-lg shadow-lg overflow-hidden z-20 w-40">
                           <button
                             onClick={() => handleFileSelect("image")}
                             className="flex items-center gap-3 px-4 py-3 hover:bg-[#3a3a3a] transition-colors w-full text-left"
                           >
                             <Image size={18} />
-                            <span className="text-sm">Add image</span>
+                            <span className="text-sm">Add images</span>
                           </button>
                           <button
                             onClick={() => handleFileSelect("video")}
@@ -448,10 +498,18 @@ function ChatMain({
                       )}
                     </div>
                     <input
-                      ref={fileInputRef}
+                      ref={imageInputRef}
                       type="file"
-                      accept={fileType === "image" ? "image/*" : "video/*"}
-                      onChange={handleFileChange}
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                    <input
+                      ref={videoInputRef}
+                      type="file"
+                      accept="video/*"
+                      onChange={handleVideoChange}
                       className="hidden"
                     />
                     <input
@@ -462,7 +520,9 @@ function ChatMain({
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
-                          selectedFile ? handleSendWithFile() : onSendMessage();
+                          selectedFiles.length > 0
+                            ? handleSendWithFiles()
+                            : onSendMessage();
                         }
                       }}
                       disabled={isSending}
@@ -470,9 +530,14 @@ function ChatMain({
                     />
                     <button
                       onClick={
-                        selectedFile ? handleSendWithFile : onSendMessage
+                        selectedFiles.length > 0
+                          ? handleSendWithFiles
+                          : onSendMessage
                       }
-                      disabled={(!message.trim() && !selectedFile) || isSending}
+                      disabled={
+                        (!message.trim() && selectedFiles.length === 0) ||
+                        isSending
+                      }
                       className="bg-[#DC569D] hover:bg-[#c9458b] p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Send size={22} />
@@ -489,28 +554,32 @@ function ChatMain({
                   How can I help you?
                 </h1>
                 <div className="relative mt-8">
-                  {/* File Preview */}
-                  {selectedFile && filePreview && (
-                    <div className="mb-3 relative inline-block">
-                      <button
-                        onClick={handleRemoveFile}
-                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 rounded-full p-1 z-10"
-                      >
-                        <X size={14} />
-                      </button>
-                      {fileType === "image" ? (
-                        <img
-                          src={filePreview}
-                          alt="Preview"
-                          className="max-h-32 rounded-lg border border-gray-700"
-                        />
-                      ) : (
-                        <video
-                          src={filePreview}
-                          className="max-h-32 rounded-lg border border-gray-700"
-                          controls
-                        />
-                      )}
+                  {/* File Previews */}
+                  {selectedFiles.length > 0 && (
+                    <div className="mb-3 flex gap-3 overflow-x-auto pb-2">
+                      {selectedFiles.map((fileObj, index) => (
+                        <div key={index} className="relative flex-shrink-0">
+                          <button
+                            onClick={() => handleRemoveFile(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 rounded-full p-1 z-10"
+                          >
+                            <X size={14} />
+                          </button>
+                          {fileObj.type === "image" ? (
+                            <img
+                              src={fileObj.preview}
+                              alt="Preview"
+                              className="h-24 w-24 object-cover rounded-lg border border-gray-700"
+                            />
+                          ) : (
+                            <video
+                              src={fileObj.preview}
+                              className="h-24 w-24 object-cover rounded-lg border border-gray-700"
+                              muted
+                            />
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
 
@@ -523,13 +592,13 @@ function ChatMain({
                         <Plus size={20} />
                       </button>
                       {showFileMenu && (
-                        <div className="absolute bottom-full left-0 mb-2 bg-[#2f2f2f] border border-gray-700 rounded-lg shadow-lg overflow-hidden z-20">
+                        <div className="absolute bottom-full left-0 mb-2 bg-[#2f2f2f] border border-gray-700 rounded-lg shadow-lg overflow-hidden z-20 w-40">
                           <button
                             onClick={() => handleFileSelect("image")}
                             className="flex items-center gap-3 px-4 py-3 hover:bg-[#3a3a3a] transition-colors w-full text-left"
                           >
                             <Image size={18} />
-                            <span className="text-sm">Add image</span>
+                            <span className="text-sm">Add images</span>
                           </button>
                           <button
                             onClick={() => handleFileSelect("video")}
@@ -542,10 +611,18 @@ function ChatMain({
                       )}
                     </div>
                     <input
-                      ref={fileInputRef}
+                      ref={imageInputRef}
                       type="file"
-                      accept={fileType === "image" ? "image/*" : "video/*"}
-                      onChange={handleFileChange}
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                    <input
+                      ref={videoInputRef}
+                      type="file"
+                      accept="video/*"
+                      onChange={handleVideoChange}
                       className="hidden"
                     />
                     <input
@@ -556,7 +633,9 @@ function ChatMain({
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
-                          selectedFile ? handleSendWithFile() : onSendMessage();
+                          selectedFiles.length > 0
+                            ? handleSendWithFiles()
+                            : onSendMessage();
                         }
                       }}
                       disabled={isSending}
@@ -564,9 +643,14 @@ function ChatMain({
                     />
                     <button
                       onClick={
-                        selectedFile ? handleSendWithFile : onSendMessage
+                        selectedFiles.length > 0
+                          ? handleSendWithFiles
+                          : onSendMessage
                       }
-                      disabled={(!message.trim() && !selectedFile) || isSending}
+                      disabled={
+                        (!message.trim() && selectedFiles.length === 0) ||
+                        isSending
+                      }
                       className="bg-[#DC569D] hover:bg-[#c9458b] p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Send size={22} />

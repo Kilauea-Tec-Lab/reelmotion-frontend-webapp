@@ -21,8 +21,8 @@ function ChatView() {
     }
   }, [chatData]);
 
-  const handleSendMessage = async (file = null, fileType = null) => {
-    if ((!message.trim() && !file) || isSending) return;
+  const handleSendMessage = async (files = []) => {
+    if ((!message.trim() && files.length === 0) || isSending) return;
 
     const userMessage = message;
     setMessage("");
@@ -31,15 +31,11 @@ function ChatView() {
     const tempUserMsg = {
       id: Date.now(),
       role: "user",
-      content: userMessage || "[File attached]",
-      attachments: file
-        ? [
-            {
-              url: URL.createObjectURL(file),
-              file_type: fileType,
-            },
-          ]
-        : [],
+      content: userMessage || (files.length > 0 ? "[Files attached]" : ""),
+      attachments: files.map((f) => ({
+        url: f.preview,
+        file_type: f.type,
+      })),
     };
     setMessages((prev) => [...prev, tempUserMsg]);
 
@@ -47,12 +43,7 @@ function ChatView() {
     setIsTyping(true);
 
     try {
-      const response = await postMessage(
-        userMessage,
-        selectedChat?.id,
-        file,
-        fileType
-      );
+      const response = await postMessage(userMessage, selectedChat?.id, files);
 
       if (response.success) {
         if (!selectedChat && response.chat) {

@@ -12,8 +12,8 @@ function Chat() {
   const [previewMessages, setPreviewMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
 
-  const handleSendMessage = async (file = null, fileType = null) => {
-    if ((!message.trim() && !file) || isSending) return;
+  const handleSendMessage = async (files = []) => {
+    if ((!message.trim() && files.length === 0) || isSending) return;
 
     const userMessage = message;
     setMessage("");
@@ -22,15 +22,11 @@ function Chat() {
     const tempUserMsg = {
       id: Date.now(),
       role: "user",
-      content: userMessage || "[File attached]",
-      attachments: file
-        ? [
-            {
-              url: URL.createObjectURL(file),
-              file_type: fileType,
-            },
-          ]
-        : [],
+      content: userMessage || (files.length > 0 ? "[Files attached]" : ""),
+      attachments: files.map((f) => ({
+        url: f.preview,
+        file_type: f.type,
+      })),
     };
     setPreviewMessages([tempUserMsg]);
 
@@ -39,7 +35,7 @@ function Chat() {
     setIsTyping(true);
 
     try {
-      const response = await postMessage(userMessage, null, file, fileType);
+      const response = await postMessage(userMessage, null, files);
 
       if (response.success && response.chat) {
         // Revalidate to refresh chat list in sidebar

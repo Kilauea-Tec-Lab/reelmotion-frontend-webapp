@@ -44,12 +44,7 @@ export async function getChatDetails(chatId) {
   }
 }
 
-export async function postMessage(
-  message,
-  chatId = null,
-  file = null,
-  fileType = null
-) {
+export async function postMessage(message, chatId = null, files = []) {
   try {
     const formData = new FormData();
     formData.append("message", message);
@@ -58,9 +53,11 @@ export async function postMessage(
       formData.append("chat_id", chatId);
     }
 
-    if (file) {
-      formData.append("file", file);
-      formData.append("file_type", fileType);
+    if (files && files.length > 0) {
+      files.forEach((f) => {
+        formData.append("files[]", f.file);
+        formData.append("file_types[]", f.type);
+      });
     }
 
     const response = await fetch(
