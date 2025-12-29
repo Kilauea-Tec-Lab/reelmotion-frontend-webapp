@@ -115,7 +115,7 @@ function Discover() {
   );
 
   return (
-    <div className="min-h-screen bg-primarioDark">
+    <div className="min-h-screen bg-primarioDark overflow-y-auto">
       {/* Header */}
 
       {/* Posts Feed */}

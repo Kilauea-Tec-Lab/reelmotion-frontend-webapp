@@ -324,7 +324,7 @@ function Profile() {
 
   return (
     <div className="min-h-screen bg-primarioDark p-6">
-      <div className="max-w-4xl mx-auto">
+      <div className="w-full mx-auto">
         {/* Rewards Link Widget */}
         <div className="bg-darkBox border border-gray-600 rounded-lg p-4 mb-6">
           <div className="flex items-center justify-between">
