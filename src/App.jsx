@@ -21,7 +21,8 @@ import { getDiscoverPosts } from "./discover/functions";
 import Chat from "./chat/chat";
 import ChatView from "./chat/chat-view";
 import ChatLayout from "./chat/chat-layout";
-import { getChatInfo, getChatDetails } from "./chat/functions";
+import Library from "./chat/library";
+import { getChatInfo, getChatDetails, getLibrary } from "./chat/functions";
 
 // Component to handle editor redirection
 function EditorRedirect() {
@@ -99,12 +100,27 @@ const router = createBrowserRouter([
         element: <Chat />,
       },
       {
+        path: "library",
+        element: <Library />,
+        loader: getLibrary,
+      },
+      {
         path: ":chatId",
         element: <ChatView />,
         loader: async ({ params }) => {
           const { chatId } = params;
           return await getChatDetails(chatId);
         },
+      },
+      {
+        path: "profile",
+        element: <Profile />,
+        loader: userInfoLoader,
+      },
+      {
+        path: "discover",
+        element: <Discover />,
+        loader: () => getDiscoverPosts(1, 10),
       },
     ],
   },

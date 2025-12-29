@@ -21,8 +21,20 @@ function ChatView() {
     }
   }, [chatData]);
 
-  const handleSendMessage = async (files = []) => {
-    if ((!message.trim() && files.length === 0) || isSending) return;
+  const handleSendMessage = async (filesData = []) => {
+    // Normalizar filesData
+    let actualFiles = [];
+    if (
+      filesData &&
+      typeof filesData === "object" &&
+      !Array.isArray(filesData)
+    ) {
+      actualFiles = filesData.files || [];
+    } else if (Array.isArray(filesData)) {
+      actualFiles = filesData;
+    }
+
+    if ((!message.trim() && actualFiles.length === 0) || isSending) return;
 
     const userMessage = message;
     setMessage("");
@@ -31,9 +43,10 @@ function ChatView() {
     const tempUserMsg = {
       id: Date.now(),
       role: "user",
-      content: userMessage || (files.length > 0 ? "[Files attached]" : ""),
-      attachments: files.map((f) => ({
-        url: f.preview,
+      content:
+        userMessage || (actualFiles.length > 0 ? "[Files attached]" : ""),
+      attachments: actualFiles.map((f) => ({
+        url: f.isUrl ? f.url : f.preview,
         file_type: f.type,
       })),
     };
@@ -43,24 +56,26 @@ function ChatView() {
     setIsTyping(true);
 
     try {
-      const response = await postMessage(userMessage, selectedChat?.id, files);
+      const response = await postMessage(
+        userMessage,
+        selectedChat?.id,
+        filesData
+      );
 
       if (response.success) {
-        if (!selectedChat && response.chat) {
-          navigate(`/chat/${response.chat.id}`);
-        } else if (selectedChat) {
-          // Remove temp message and add real messages from backend
-          setMessages((prev) => {
-            const withoutTemp = prev.filter((msg) => msg.id !== tempUserMsg.id);
-            const newMessages = [];
-            if (response.user_message) {
-              newMessages.push(response.user_message);
-            }
-            if (response.assistant_message) {
-              newMessages.push(response.assistant_message);
-            }
-            return [...withoutTemp, ...newMessages];
-          });
+        const chatId = response.chat_id;
+
+        if (!selectedChat && chatId) {
+          navigate(`/chat/${chatId}`);
+        } else {
+          // Add AI response message
+          const aiMessage = {
+            id: Date.now() + 1,
+            role: "assistant",
+            content: response.message,
+            attachments: response.attachments_count || [],
+          };
+          setMessages((prev) => [...prev, aiMessage]);
         }
       }
     } catch (error) {
@@ -83,6 +98,7 @@ function ChatView() {
       isSending={isSending}
       isTyping={isTyping}
       messages={messages}
+      attachments={chatData?.attachments || []}
     />
   );
 }

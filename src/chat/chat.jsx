@@ -12,8 +12,20 @@ function Chat() {
   const [previewMessages, setPreviewMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
 
-  const handleSendMessage = async (files = []) => {
-    if ((!message.trim() && files.length === 0) || isSending) return;
+  const handleSendMessage = async (filesData = []) => {
+    // Normalizar filesData
+    let actualFiles = [];
+    if (
+      filesData &&
+      typeof filesData === "object" &&
+      !Array.isArray(filesData)
+    ) {
+      actualFiles = filesData.files || [];
+    } else if (Array.isArray(filesData)) {
+      actualFiles = filesData;
+    }
+
+    if ((!message.trim() && actualFiles.length === 0) || isSending) return;
 
     const userMessage = message;
     setMessage("");
@@ -22,9 +34,10 @@ function Chat() {
     const tempUserMsg = {
       id: Date.now(),
       role: "user",
-      content: userMessage || (files.length > 0 ? "[Files attached]" : ""),
-      attachments: files.map((f) => ({
-        url: f.preview,
+      content:
+        userMessage || (actualFiles.length > 0 ? "[Files attached]" : ""),
+      attachments: actualFiles.map((f) => ({
+        url: f.isUrl ? f.url : f.preview,
         file_type: f.type,
       })),
     };
@@ -35,13 +48,13 @@ function Chat() {
     setIsTyping(true);
 
     try {
-      const response = await postMessage(userMessage, null, files);
+      const response = await postMessage(userMessage, null, filesData);
 
-      if (response.success && response.chat) {
+      if (response.success && response.chat_id) {
         // Revalidate to refresh chat list in sidebar
         await revalidator.revalidate();
         // Navigate to new chat
-        navigate(`/chat/${response.chat.id}`);
+        navigate(`/chat/${response.chat_id}`);
       }
     } catch (error) {
       console.error("Error sending message:", error);
