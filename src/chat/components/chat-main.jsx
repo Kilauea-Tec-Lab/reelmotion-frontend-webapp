@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Trash2,
   Pencil,
+  Search,
 } from "lucide-react";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router-dom";
@@ -395,6 +396,9 @@ function ChatMain({
   const [showEditChatModal, setShowEditChatModal] = useState(false);
   const [editChatTitle, setEditChatTitle] = useState("");
   const [isSavingChatTitle, setIsSavingChatTitle] = useState(false);
+
+  // Quick Actions Menu State
+  const [quickActionMenu, setQuickActionMenu] = useState("main");
 
   useEffect(() => {
     // Reset optimistic deletions when switching chats
@@ -2058,39 +2062,138 @@ function ChatMain({
                 </h1>
 
                 {/* Quick Actions */}
-                <div className="flex flex-wrap gap-3 justify-center mb-8">
-                  <button
-                    onClick={() =>
-                      handleQuickAction("I want to create an image")
-                    }
-                    disabled={isSending}
-                    className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Image className="h-5 w-5 text-[#DC569D]" />
-                    <span>Create IA Image</span>
-                  </button>
+                <div className="flex flex-col items-center gap-4 mb-8 w-full">
+                  {quickActionMenu !== "main" && (
+                    <button
+                      onClick={() => setQuickActionMenu("main")}
+                      className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-2 self-center"
+                    >
+                      <ChevronLeft size={20} />
+                      <span>Back</span>
+                    </button>
+                  )}
 
-                  <button
-                    onClick={() =>
-                      handleQuickAction("I want to create a video")
-                    }
-                    disabled={isSending}
-                    className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Video className="h-5 w-5 text-[#DC569D]" />
-                    <span>Create IA Video</span>
-                  </button>
+                  <div className="flex flex-wrap gap-3 justify-center">
+                    {quickActionMenu === "main" && (
+                      <>
+                        <button
+                          onClick={() => setQuickActionMenu("create")}
+                          disabled={isSending}
+                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Plus className="h-5 w-5 text-[#DC569D]" />
+                          <span>Create</span>
+                        </button>
 
-                  <button
-                    onClick={() =>
-                      handleQuickAction("I want to create a project")
-                    }
-                    disabled={isSending}
-                    className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Plus className="h-5 w-5 text-[#DC569D]" />
-                    <span>Create Project</span>
-                  </button>
+                        <button
+                          onClick={() => setQuickActionMenu("edit")}
+                          disabled={isSending}
+                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Pencil className="h-5 w-5 text-[#DC569D]" />
+                          <span>Edit</span>
+                        </button>
+
+                        <button
+                          onClick={() => setQuickActionMenu("analyze")}
+                          disabled={isSending}
+                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Search className="h-5 w-5 text-[#DC569D]" />
+                          <span>Analyze</span>
+                        </button>
+                      </>
+                    )}
+
+                    {quickActionMenu === "create" && (
+                      <>
+                        <button
+                          onClick={() =>
+                            handleQuickAction("I want to create an image")
+                          }
+                          disabled={isSending}
+                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Image className="h-5 w-5 text-[#DC569D]" />
+                          <span>Create IA Image</span>
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            handleQuickAction("I want to create a video")
+                          }
+                          disabled={isSending}
+                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Video className="h-5 w-5 text-[#DC569D]" />
+                          <span>Create IA Video</span>
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            handleQuickAction("I want to create a project")
+                          }
+                          disabled={isSending}
+                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Plus className="h-5 w-5 text-[#DC569D]" />
+                          <span>Create Project</span>
+                        </button>
+                      </>
+                    )}
+
+                    {quickActionMenu === "edit" && (
+                      <>
+                        <button
+                          onClick={() =>
+                            handleQuickAction("I want to edit an image")
+                          }
+                          disabled={isSending}
+                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Image className="h-5 w-5 text-[#DC569D]" />
+                          <span>Edit Image</span>
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            handleQuickAction("I want to edit a video")
+                          }
+                          disabled={isSending}
+                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Video className="h-5 w-5 text-[#DC569D]" />
+                          <span>Edit Video</span>
+                        </button>
+                      </>
+                    )}
+
+                    {quickActionMenu === "analyze" && (
+                      <>
+                        <button
+                          onClick={() =>
+                            handleQuickAction("I want to analyze an image")
+                          }
+                          disabled={isSending}
+                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Image className="h-5 w-5 text-[#DC569D]" />
+                          <span>Analyze Image</span>
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            handleQuickAction("I want to analyze a video")
+                          }
+                          disabled={isSending}
+                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Video className="h-5 w-5 text-[#DC569D]" />
+                          <span>Analyze Video</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 <div className="relative mt-8">
