@@ -90,7 +90,7 @@ const router = createBrowserRouter([
     element: <PostDetail />,
   },
   {
-    path: "chat",
+    path: "/",
     element: <ChatLayout />,
     loader: getChatInfo,
     errorElement: <ErrorBoundary />,
@@ -125,7 +125,7 @@ const router = createBrowserRouter([
     ],
   },
   {
-    path: "/",
+    path: "/v2",
     element: <MainLayout />,
     loader: userInfoLoader,
     errorElement: <ErrorBoundary />,
