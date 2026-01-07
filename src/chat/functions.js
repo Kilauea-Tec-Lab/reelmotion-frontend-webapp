@@ -1,24 +1,57 @@
 import Cookies from "js-cookie";
 
 export async function getChatInfo() {
+  const token = Cookies.get("token");
+
+  // Si no hay token, redirigir inmediatamente al login
+  if (!token) {
+    throw new Response("No token found", {
+      status: 401,
+      statusText: "Authentication required",
+    });
+  }
+
   try {
     const response = await fetch(
       `${import.meta.env.VITE_APP_BACKEND_URL}chat/get-info`,
       {
         headers: {
-          Authorization: "Bearer " + Cookies.get("token"),
+          Authorization: "Bearer " + token,
         },
       }
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch chat info");
+    // Si el token es inválido o expiró
+    if (response.status === 401) {
+      Cookies.remove("token");
+      throw new Response("Token expired", {
+        status: 401,
+        statusText: "Token expired or invalid",
+      });
     }
 
-    return response.json();
+    if (!response.ok) {
+      throw new Response(`Server error: ${response.status}`, {
+        status: response.status,
+        statusText: `Server responded with ${response.status}`,
+      });
+    }
+
+    const data = await response.json();
+    return data;
   } catch (error) {
+    // Si es un Response ya creado, lo devolvemos tal como está
+    if (error instanceof Response) {
+      throw error;
+    }
+
     console.error("Error fetching chat info:", error);
-    throw error;
+
+    // Para errores de red, JSON parse, etc.
+    throw new Response("Network error", {
+      status: 500,
+      statusText: "Failed to connect to server",
+    });
   }
 }
 
