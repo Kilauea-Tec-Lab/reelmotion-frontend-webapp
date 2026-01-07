@@ -491,7 +491,7 @@ function ChatMain({
       setDeleteConfirmGallery(null);
 
       revalidator.revalidate();
-      navigate("/chat");
+      navigate("/");
     } catch (error) {
       console.error("Error deleting chat:", error);
     } finally {

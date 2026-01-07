@@ -151,7 +151,7 @@ function ChatSidebar({ chats, searchQuery, onSearchChange, user }) {
       }
 
       if (chatId === deleteChatId) {
-        navigate("/chat");
+        navigate("/");
       }
 
       closeDeleteModal();
@@ -291,7 +291,7 @@ function ChatSidebar({ chats, searchQuery, onSearchChange, user }) {
       {/* Header */}
       <div className="p-4 border-b border-gray-800">
         <Link
-          to={"/chat"}
+          to={"/"}
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
           <MessageCirclePlus size={20} />
@@ -305,14 +305,14 @@ function ChatSidebar({ chats, searchQuery, onSearchChange, user }) {
           <span className="font-medium">Editor</span>
         </Link>
         <Link
-          to={"/chat/library"}
+          to={"/library"}
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
           <LibraryBig size={20} />
           <span className="font-medium">Library</span>
         </Link>
         <Link
-          to={"/chat/discover"}
+          to={"/discover"}
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
           <Images size={20} />
@@ -349,7 +349,7 @@ function ChatSidebar({ chats, searchQuery, onSearchChange, user }) {
         {filteredChats.map((chat) => (
           <div key={chat.id} className="relative group">
             <Link
-              to={`/chat/${chat.id}`}
+              to={`/${chat.id}`}
               className={`w-full px-4 py-3 hover:bg-[#212121] transition-colors text-left border-l-2 block ${
                 chatId === chat.id
                   ? "border-[#DC569D] bg-[#212121]"
@@ -436,7 +436,7 @@ function ChatSidebar({ chats, searchQuery, onSearchChange, user }) {
         {showUserMenu && (
           <div className="absolute bottom-full left-4 right-4 mb-2 bg-[#2f2f2f] rounded-lg shadow-xl border border-gray-700 overflow-hidden">
             <Link
-              to="/chat/profile"
+              to="/profile"
               className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-[#3a3a3a] transition-colors"
               onClick={() => setShowUserMenu(false)}
             >

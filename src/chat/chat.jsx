@@ -54,7 +54,7 @@ function Chat() {
         // Revalidate to refresh chat list in sidebar
         await revalidator.revalidate();
         // Navigate to new chat
-        navigate(`/chat/${response.chat_id}`);
+        navigate(`/${response.chat_id}`);
       }
     } catch (error) {
       console.error("Error sending message:", error);

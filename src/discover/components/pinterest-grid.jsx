@@ -14,7 +14,8 @@ function PinterestGrid({ posts, onCardClick }) {
       else if (width < 768) setColumns(2); // md
       else if (width < 1024) setColumns(3); // lg
       else if (width < 1280) setColumns(4); // xl
-      else setColumns(4); // 2xl
+      else if (width < 1536) setColumns(5); // 2xl
+      else setColumns(6); // > 2xl
     };
 
     updateColumns();

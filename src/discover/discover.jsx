@@ -119,7 +119,7 @@ function Discover() {
       {/* Header */}
 
       {/* Posts Feed */}
-      <div className="max-w-7xl mx-auto py-6 px-4">
+      <div className="w-full py-6 px-4">
         {posts.length > 0 ? (
           <div className="space-y-8">
             {/* Pinterest Grid */}
