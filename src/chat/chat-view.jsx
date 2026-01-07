@@ -66,7 +66,7 @@ function ChatView() {
         const chatId = response.chat_id;
 
         if (!selectedChat && chatId) {
-          navigate(`/chat/${chatId}`);
+          navigate(`/${chatId}`);
         } else {
           // Add AI response message
           const aiMessage = {
