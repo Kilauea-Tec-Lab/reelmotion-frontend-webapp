@@ -1935,12 +1935,15 @@ function ChatMain({
                   onChange={handleVideoChange}
                   className="hidden"
                 />
-                <input
+                <textarea
                   ref={messageInputRef}
-                  type="text"
                   placeholder="Ask anything..."
                   value={message}
-                  onChange={(e) => onMessageChange(e.target.value)}
+                  onChange={(e) => {
+                    onMessageChange(e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = `${e.target.scrollHeight}px`;
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
@@ -1949,10 +1952,12 @@ function ChatMain({
                       } else {
                         onSendMessage([]);
                       }
+                      e.target.style.height = "auto";
                     }
                   }}
                   disabled={isSending}
-                  className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none disabled:opacity-50"
+                  rows={1}
+                  className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none disabled:opacity-50 resize-none max-h-[200px]"
                 />
                 <button
                   onClick={() => {
@@ -1960,6 +1965,9 @@ function ChatMain({
                       handleSendWithFiles();
                     } else {
                       onSendMessage([]);
+                    }
+                    if (messageInputRef.current) {
+                      messageInputRef.current.style.height = "auto";
                     }
                   }}
                   disabled={
@@ -2248,11 +2256,15 @@ function ChatMain({
                       onChange={handleVideoChange}
                       className="hidden"
                     />
-                    <input
-                      type="text"
+                    <textarea
+                      ref={messageInputRef}
                       placeholder="Ask anything..."
                       value={message}
-                      onChange={(e) => onMessageChange(e.target.value)}
+                      onChange={(e) => {
+                        onMessageChange(e.target.value);
+                        e.target.style.height = "auto";
+                        e.target.style.height = `${e.target.scrollHeight}px`;
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
@@ -2261,10 +2273,12 @@ function ChatMain({
                           } else {
                             onSendMessage([]);
                           }
+                          e.target.style.height = "auto";
                         }
                       }}
                       disabled={isSending}
-                      className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none text-lg disabled:opacity-50"
+                      rows={1}
+                      className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none text-lg disabled:opacity-50 resize-none max-h-[200px]"
                     />
                     <button
                       onClick={() => {
@@ -2272,6 +2286,9 @@ function ChatMain({
                           handleSendWithFiles();
                         } else {
                           onSendMessage([]);
+                        }
+                        if (messageInputRef.current) {
+                          messageInputRef.current.style.height = "auto";
                         }
                       }}
                       disabled={
@@ -2380,6 +2397,17 @@ function ChatMain({
                         >
                           <Plus className="h-5 w-5 text-[#DC569D]" />
                           <span>Create Project</span>
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            handleQuickAction("I want to create a voice")
+                          }
+                          disabled={isSending}
+                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Mic className="h-5 w-5 text-[#DC569D]" />
+                          <span>Create Voice</span>
                         </button>
                       </>
                     )}
@@ -2514,11 +2542,15 @@ function ChatMain({
                       onChange={handleVideoChange}
                       className="hidden"
                     />
-                    <input
-                      type="text"
+                    <textarea
+                      ref={messageInputRef}
                       placeholder="Ask anything..."
                       value={message}
-                      onChange={(e) => onMessageChange(e.target.value)}
+                      onChange={(e) => {
+                        onMessageChange(e.target.value);
+                        e.target.style.height = "auto";
+                        e.target.style.height = `${e.target.scrollHeight}px`;
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
@@ -2527,10 +2559,12 @@ function ChatMain({
                           } else {
                             onSendMessage([]);
                           }
+                          e.target.style.height = "auto";
                         }
                       }}
                       disabled={isSending}
-                      className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none text-lg disabled:opacity-50"
+                      rows={1}
+                      className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none text-lg disabled:opacity-50 resize-none max-h-[200px]"
                     />
                     <button
                       onClick={() => {
@@ -2538,6 +2572,9 @@ function ChatMain({
                           handleSendWithFiles();
                         } else {
                           onSendMessage([]);
+                        }
+                        if (messageInputRef.current) {
+                          messageInputRef.current.style.height = "auto";
                         }
                       }}
                       disabled={
