@@ -21,6 +21,7 @@ import {
   Pencil,
   Search,
   Square,
+  Music,
 } from "lucide-react";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router-dom";
@@ -1294,6 +1295,21 @@ function ChatMain({
                 className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
               />
             </div>
+          ) : previewMedia.type === "audio" ? (
+            <div
+              className="max-w-3xl w-full bg-[#1a1a1a] p-8 rounded-2xl border border-gray-800 flex flex-col items-center gap-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-24 h-24 bg-[#2f2f2f] rounded-full flex items-center justify-center">
+                <Music className="w-12 h-12 text-[#DC569D]" />
+              </div>
+              <audio
+                src={previewMedia.url}
+                className="w-full"
+                controls
+                autoPlay
+              />
+            </div>
           ) : (
             <div
               className="max-w-7xl w-full max-h-[90vh] overflow-hidden flex items-center justify-center bg-black/50 rounded-lg"
@@ -1360,6 +1376,21 @@ function ChatMain({
                 src={currentAttachment.url}
                 alt="Preview"
                 className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
+              />
+            </div>
+          ) : currentAttachment.file_type === "audio" ? (
+            <div
+              className="max-w-3xl w-full bg-[#1a1a1a] p-8 rounded-2xl border border-gray-800 flex flex-col items-center gap-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-24 h-24 bg-[#2f2f2f] rounded-full flex items-center justify-center">
+                <Music className="w-12 h-12 text-[#DC569D]" />
+              </div>
+              <audio
+                src={currentAttachment.url}
+                className="w-full"
+                controls
+                autoPlay
               />
             </div>
           ) : (
@@ -1493,11 +1524,12 @@ function ChatMain({
                         )}
 
                         {/* Loading State */}
-                        {!loadedMedia.has(attachment.id) && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-[#2f2f2f]">
-                            <Loader2 className="h-8 w-8 text-[#DC569D] animate-spin" />
-                          </div>
-                        )}
+                        {!loadedMedia.has(attachment.id) &&
+                          attachment.file_type !== "audio" && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-[#2f2f2f]">
+                              <Loader2 className="h-8 w-8 text-[#DC569D] animate-spin" />
+                            </div>
+                          )}
 
                         {/* Media Content */}
                         <div>
@@ -1534,6 +1566,15 @@ function ChatMain({
                                 );
                               }}
                             />
+                          ) : attachment.file_type === "audio" ? (
+                            <div className="w-full aspect-square flex flex-col items-center justify-center bg-[#1a1a1a] p-4 text-center group-hover:bg-[#252525] transition-colors">
+                              <div className="w-12 h-12 bg-[#2f2f2f] rounded-full flex items-center justify-center mb-3">
+                                <Music className="h-6 w-6 text-[#DC569D]" />
+                              </div>
+                              <span className="text-sm text-gray-400 font-medium truncate w-full px-2">
+                                Audio File
+                              </span>
+                            </div>
                           ) : null}
                         </div>
 
@@ -1542,6 +1583,9 @@ function ChatMain({
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                             {attachment.file_type === "video" && (
                               <Video className="h-8 w-8 text-white" />
+                            )}
+                            {attachment.file_type === "audio" && (
+                              <Music className="h-8 w-8 text-white" />
                             )}
                           </div>
                         </div>

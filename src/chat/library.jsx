@@ -10,6 +10,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
+  Clapperboard,
+  Music,
 } from "lucide-react";
 import Cookies from "js-cookie";
 
@@ -22,22 +24,42 @@ function Library() {
   const [attachmentsData, setAttachmentsData] = useState(
     libraryData?.chats || []
   );
+  const [videoProjects, setVideoProjects] = useState(
+    libraryData?.video_projects || []
+  );
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Extraer todos los attachments de todos los chats con el nombre del chat
-  const allAttachments = attachmentsData.flatMap((chat) =>
+  const chatAttachments = attachmentsData.flatMap((chat) =>
     chat.attachments.map((attachment) => ({
       ...attachment,
       chatName: chat.name,
       chatId: chat.id,
+      sourceType: "chat",
     }))
   );
 
+  const projectAttachments = videoProjects.map((project) => ({
+    id: project.id,
+    file_type: "video",
+    url: project.video_url,
+    created_at: project.created_at,
+    chatName: project.name,
+    sourceType: "project",
+  }));
+
+  const allAttachments = [...chatAttachments, ...projectAttachments];
+
   // Filtrar attachments según el filtro seleccionado y búsqueda
   const filteredAttachments = allAttachments.filter((attachment) => {
-    // Filtro por tipo (AI/Uploads/All)
+    // Filtro por tipo (AI/Uploads/All/Projects)
+    if (galleryFilter === "projects") {
+      return attachment.sourceType === "project";
+    }
+
     if (galleryFilter === "ai") {
+      if (attachment.sourceType === "project") return false;
       const isAI =
         attachment.path?.includes("generated-images") ||
         attachment.path?.includes("ia") ||
@@ -47,6 +69,7 @@ function Library() {
       if (!isAI) return false;
     }
     if (galleryFilter === "uploads") {
+      if (attachment.sourceType === "project") return false;
       const isUpload =
         attachment.path?.includes("user") ||
         attachment.path?.includes("chat_attachments");
@@ -258,6 +281,24 @@ function Library() {
                 className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
               />
             </div>
+          ) : currentAttachment.file_type === "audio" ? (
+            <div
+              className="max-w-xl w-full bg-[#1a1a1a] p-8 rounded-xl flex flex-col items-center gap-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-24 h-24 bg-[#2f2f2f] rounded-full flex items-center justify-center">
+                <Music className="h-12 w-12 text-[#DC569D]" />
+              </div>
+              <h3 className="text-xl font-medium text-white text-center">
+                {currentAttachment.chatName || "Audio File"}
+              </h3>
+              <audio
+                src={currentAttachment.url}
+                className="w-full"
+                controls
+                autoPlay
+              />
+            </div>
           ) : (
             <div
               className="max-w-7xl w-full max-h-[90vh] overflow-hidden flex items-center justify-center bg-black/50 rounded-lg"
@@ -327,6 +368,16 @@ function Library() {
           >
             Uploads
           </button>
+          <button
+            onClick={() => setGalleryFilter("projects")}
+            className={`px-4 py-2 rounded-lg transition-all font-medium ${
+              galleryFilter === "projects"
+                ? "bg-[#DC569D] text-white"
+                : "bg-[#2f2f2f] text-gray-400 hover:bg-[#3a3a3a] hover:text-white"
+            }`}
+          >
+            Projects
+          </button>
         </div>
 
         {/* Search Input */}
@@ -379,15 +430,17 @@ function Library() {
                     }`}
                   >
                     {/* Delete Button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteConfirm(attachment.id);
-                      }}
-                      className="absolute top-2 left-2 z-10 bg-[#DC569D]/90 hover:bg-[#c44a87] backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Trash2 className="h-4 w-4 text-white" />
-                    </button>
+                    {attachment.sourceType !== "project" && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirm(attachment.id);
+                        }}
+                        className="absolute top-2 left-2 z-10 bg-[#DC569D]/90 hover:bg-[#c44a87] backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-4 w-4 text-white" />
+                      </button>
+                    )}
 
                     {/* AI Badge */}
                     {isAIGenerated && (
@@ -396,12 +449,21 @@ function Library() {
                       </div>
                     )}
 
-                    {/* Loading State */}
-                    {!loadedMedia.has(attachment.id) && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-[#2f2f2f]">
-                        <Loader2 className="h-8 w-8 text-[#DC569D] animate-spin" />
+                    {/* Project Badge */}
+                    {attachment.sourceType === "project" && (
+                      <div className="absolute top-2 right-2 z-10 bg-[#8E24AA] rounded-full p-1.5">
+                        <Clapperboard className="h-3 w-3 text-white" />
                       </div>
                     )}
+
+                    {/* Loading State */}
+                    {/* For audio we don't need loading state in the same way, or it's instant */}
+                    {!loadedMedia.has(attachment.id) &&
+                      attachment.file_type !== "audio" && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-[#2f2f2f]">
+                          <Loader2 className="h-8 w-8 text-[#DC569D] animate-spin" />
+                        </div>
+                      )}
 
                     {/* Media Content */}
                     <div>
@@ -438,14 +500,26 @@ function Library() {
                             );
                           }}
                         />
+                      ) : attachment.file_type === "audio" ? (
+                        <div className="w-full h-40 flex flex-col items-center justify-center bg-[#1a1a1a] p-4 text-center group-hover:bg-[#252525] transition-colors">
+                          <div className="w-12 h-12 bg-[#2f2f2f] rounded-full flex items-center justify-center mb-3">
+                            <Music className="h-6 w-6 text-[#DC569D]" />
+                          </div>
+                          <span className="text-sm text-gray-400 font-medium truncate w-full px-2">
+                            {attachment.chatName || "Audio File"}
+                          </span>
+                        </div>
                       ) : null}
                     </div>
 
                     {/* Overlay */}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center pointer-events-none">
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                         {attachment.file_type === "video" && (
                           <Video className="h-8 w-8 text-white" />
+                        )}
+                        {attachment.file_type === "audio" && (
+                          <Music className="h-8 w-8 text-white" />
                         )}
                       </div>
                     </div>
