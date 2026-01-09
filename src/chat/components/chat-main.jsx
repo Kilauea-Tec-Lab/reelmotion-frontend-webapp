@@ -20,6 +20,7 @@ import {
   Trash2,
   Pencil,
   Search,
+  Square,
 } from "lucide-react";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router-dom";
@@ -47,6 +48,7 @@ import {
   createTransferInstruction,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
+import { Channel } from "pusher-js";
 
 // Stripe initialization
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
@@ -341,6 +343,7 @@ function ChatMain({
   message,
   onMessageChange,
   onSendMessage,
+  onCancel,
   isSending,
   isTyping = false,
   isCreating = false,
@@ -399,6 +402,7 @@ function ChatMain({
 
   // Quick Actions Menu State
   const [quickActionMenu, setQuickActionMenu] = useState("main");
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     // Reset optimistic deletions when switching chats
@@ -501,7 +505,7 @@ function ChatMain({
 
   // Filtrar y ordenar attachments para el gallery
   const filteredAttachments = useMemo(() => {
-    if (!showGallery) return [];
+    // if (!showGallery) return []; // Removed to allow finding index before showing gallery
     return (attachments || []).filter((attachment) => {
       if (deletedAttachmentIds.has(attachment.id)) return false;
       if (galleryFilter === "all") return true;
@@ -706,17 +710,17 @@ function ChatMain({
     if (!pusherClient || !selectedChat?.user_owner_id) return;
 
     const channel = pusherClient.subscribe(
-      `private-get-user-notifications.${selectedChat.user_owner_id}`
+      `private-get-notifications.${selectedChat.user_owner_id}`
     );
 
-    channel.bind("fill-user-notifications", () => {
+    channel.bind("fill-notifications", () => {
       getNotifications();
     });
 
     return () => {
-      channel.unbind("fill-user-notifications");
+      channel.unbind("fill-notifications");
       pusherClient.unsubscribe(
-        `private-get-user-notifications.${selectedChat.user_owner_id}`
+        `private-get-notifications.${selectedChat.user_owner_id}`
       );
     };
   }, [pusherClient, selectedChat?.user_owner_id]);
@@ -858,6 +862,76 @@ function ChatMain({
 
   const handleRemoveFile = (index) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Check if the related target is still within the container
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    const newFiles = [];
+    let newVideo = null;
+
+    files.forEach((file) => {
+      if (file.type.startsWith("image/")) {
+        newFiles.push({
+          file,
+          type: "image",
+          preview: URL.createObjectURL(file),
+        });
+      } else if (file.type.startsWith("video/")) {
+        // Just take the last video found if multiple
+        newVideo = {
+          file,
+          type: "video",
+          preview: URL.createObjectURL(file),
+        };
+      }
+    });
+
+    if (newFiles.length === 0 && !newVideo) return;
+
+    setSelectedFiles((prev) => {
+      let updated = [...prev];
+
+      // If we have a new video, replace existing one
+      if (newVideo) {
+        updated = updated.filter((f) => f.type !== "video");
+        updated.push(newVideo);
+      }
+
+      // Add new images
+      if (newFiles.length > 0) {
+        updated = [...updated, ...newFiles];
+      }
+
+      return updated;
+    });
   };
 
   const handleSendWithFiles = () => {
@@ -1011,7 +1085,28 @@ function ChatMain({
   };
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div
+      className="flex-1 flex flex-col relative"
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDragging && (
+        <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-sm border-4 border-dashed border-[#DC569D] m-4 rounded-2xl flex flex-col items-center justify-center pointer-events-none">
+          <div className="bg-[#2f2f2f] p-8 rounded-2xl flex flex-col items-center gap-4 border border-gray-700 shadow-2xl">
+            <div className="bg-[#DC569D]/20 p-4 rounded-full">
+              <Images className="w-12 h-12 text-[#DC569D]" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-xl font-semibold text-white mb-1">
+                Drop files here
+              </h3>
+              <p className="text-gray-400">Upload images or videos</p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Edit Chat Modal */}
       {showEditChatModal && (
         <div
@@ -1178,279 +1273,286 @@ function ChatMain({
       {/* Media Preview Modal */}
       {previewMedia && (
         <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-md z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
           onClick={() => setPreviewMedia(null)}
         >
           <button
             onClick={() => setPreviewMedia(null)}
-            className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 rounded-full p-2 z-10"
+            className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 z-10 transition-colors"
           >
             <X size={24} />
           </button>
-          <div
-            className="max-w-5xl max-h-[90vh] overflow-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {previewMedia.type === "image" ? (
+
+          {previewMedia.type === "image" ? (
+            <div
+              className="relative w-full h-full flex items-center justify-center pointer-events-none select-none"
+              onClick={(e) => e.stopPropagation()}
+            >
               <img
                 src={previewMedia.url}
                 alt="Preview"
-                className="w-full h-auto rounded-lg"
+                className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
               />
-            ) : (
+            </div>
+          ) : (
+            <div
+              className="max-w-7xl w-full max-h-[90vh] overflow-hidden flex items-center justify-center bg-black/50 rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            >
               <video
                 src={previewMedia.url}
-                className="w-full h-auto rounded-lg"
+                className="max-w-full max-h-[85vh] rounded-lg"
                 controls
                 autoPlay
               />
-            )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Gallery Preview Modal - Works independently */}
+      {currentAttachment && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-2xl z-[100] flex items-center justify-center p-4"
+          onClick={() => setCurrentGalleryIndex(null)}
+        >
+          {/* Close Button */}
+          <button
+            onClick={() => setCurrentGalleryIndex(null)}
+            className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 z-20 transition-colors"
+          >
+            <X size={24} />
+          </button>
+
+          {/* Previous Button */}
+          {currentGalleryIndex > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToPrevious();
+              }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full p-3 z-20 transition-all shadow-lg text-white"
+            >
+              <ChevronLeft size={32} />
+            </button>
+          )}
+
+          {/* Next Button */}
+          {currentGalleryIndex < sortedAttachments.length - 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToNext();
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full p-3 z-20 transition-all shadow-lg text-white"
+            >
+              <ChevronRight size={32} />
+            </button>
+          )}
+
+          {/* Media Content */}
+          {currentAttachment.file_type === "image" ? (
+            <div
+              className="relative w-full h-full flex items-center justify-center pointer-events-none select-none"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={currentAttachment.url}
+                alt="Preview"
+                className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
+              />
+            </div>
+          ) : (
+            <div
+              className="max-w-7xl w-full max-h-[90vh] overflow-hidden flex items-center justify-center bg-black/50 rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <video
+                src={currentAttachment.url}
+                className="max-w-full max-h-[85vh] rounded-lg"
+                controls
+                autoPlay
+              />
+            </div>
+          )}
+
+          {/* Counter */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm rounded-full px-4 py-2 z-20 transition-opacity hover:opacity-100">
+            <p className="text-white text-sm font-medium">
+              {currentGalleryIndex + 1} / {sortedAttachments.length}
+            </p>
           </div>
         </div>
       )}
 
-      {/* Gallery Modal */}
+      {/* Gallery Grid Modal */}
       {showGallery && (
-        <>
-          {/* Preview Modal */}
-          {currentAttachment && (
-            <div
-              className="fixed inset-0 bg-black/40 backdrop-blur-xl z-[60] flex items-center justify-center"
-              onClick={() => setCurrentGalleryIndex(null)}
-            >
-              {/* Close Button */}
+        <div
+          className="fixed inset-0 bg-black/30 backdrop-blur-md z-50 flex items-center justify-center p-4"
+          onClick={() => setShowGallery(false)}
+        >
+          <div
+            className="bg-[#1a1a1a] rounded-xl border border-gray-800 w-full max-w-5xl max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Gallery Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-800">
+              <div className="flex items-center gap-3">
+                <Images className="h-6 w-6 text-[#DC569D]" />
+                <h3 className="text-xl font-semibold text-white">
+                  Media Gallery
+                </h3>
+                <span className="text-sm text-gray-400">
+                  ({filteredAttachments.length} items)
+                </span>
+              </div>
               <button
-                onClick={() => setCurrentGalleryIndex(null)}
-                className="absolute top-4 right-4 bg-[#DC569D] hover:bg-[#c44a87] rounded-full p-2 z-10"
+                onClick={() => setShowGallery(false)}
+                className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-[#2f2f2f] rounded-lg"
               >
                 <X size={24} />
               </button>
-
-              {/* Previous Button */}
-              {currentGalleryIndex > 0 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    goToPrevious();
-                  }}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-gradient-to-br from-gray-700 to-gray-900 hover:from-gray-600 hover:to-gray-800 backdrop-blur-md rounded-full p-3 z-10 transition-all shadow-lg"
-                >
-                  <ChevronLeft size={32} className="text-white" />
-                </button>
-              )}
-
-              {/* Next Button */}
-              {currentGalleryIndex < sortedAttachments.length - 1 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    goToNext();
-                  }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-gradient-to-br from-gray-700 to-gray-900 hover:from-gray-600 hover:to-gray-800 backdrop-blur-md rounded-full p-3 z-10 transition-all shadow-lg"
-                >
-                  <ChevronRight size={32} className="text-white" />
-                </button>
-              )}
-
-              {/* Media Content */}
-              <div
-                className="flex items-center justify-center p-4 md:p-8"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {currentAttachment.file_type === "image" ? (
-                  <img
-                    src={currentAttachment.url}
-                    alt="Preview"
-                    className="max-w-[90vw] max-h-[90vh] rounded-lg"
-                  />
-                ) : (
-                  <video
-                    src={currentAttachment.url}
-                    className="max-w-[90vw] max-h-[90vh] rounded-lg"
-                    controls
-                    autoPlay
-                  />
-                )}
-              </div>
-
-              {/* Counter */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm rounded-full px-4 py-2">
-                <p className="text-white text-sm">
-                  {currentGalleryIndex + 1} / {sortedAttachments.length}
-                </p>
-              </div>
             </div>
-          )}
 
-          {/* Gallery Grid Modal */}
-          <div
-            className="fixed inset-0 bg-black/30 backdrop-blur-md z-50 flex items-center justify-center p-4"
-            onClick={() => setShowGallery(false)}
-          >
-            <div
-              className="bg-[#1a1a1a] rounded-xl border border-gray-800 w-full max-w-5xl max-h-[90vh] flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Gallery Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-800">
-                <div className="flex items-center gap-3">
-                  <Images className="h-6 w-6 text-[#DC569D]" />
-                  <h3 className="text-xl font-semibold text-white">
-                    Media Gallery
-                  </h3>
-                  <span className="text-sm text-gray-400">
-                    ({filteredAttachments.length} items)
-                  </span>
+            {/* Filter Buttons */}
+            <div className="flex gap-2 p-4 border-b border-gray-800">
+              <button
+                onClick={() => setGalleryFilter("all")}
+                className={`px-4 py-2 rounded-lg transition-all font-medium ${
+                  galleryFilter === "all"
+                    ? "bg-[#DC569D] text-white"
+                    : "bg-[#2f2f2f] text-gray-400 hover:bg-[#3a3a3a] hover:text-white"
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setGalleryFilter("ai")}
+                className={`px-4 py-2 rounded-lg transition-all font-medium flex items-center gap-2 ${
+                  galleryFilter === "ai"
+                    ? "bg-[#DC569D] text-white"
+                    : "bg-[#2f2f2f] text-gray-400 hover:bg-[#3a3a3a] hover:text-white"
+                }`}
+              >
+                <Sparkles className="h-4 w-4" />
+                Generated by AI
+              </button>
+              <button
+                onClick={() => setGalleryFilter("uploads")}
+                className={`px-4 py-2 rounded-lg transition-all font-medium ${
+                  galleryFilter === "uploads"
+                    ? "bg-[#DC569D] text-white"
+                    : "bg-[#2f2f2f] text-gray-400 hover:bg-[#3a3a3a] hover:text-white"
+                }`}
+              >
+                Uploads
+              </button>
+            </div>
+
+            {/* Gallery Grid */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {sortedAttachments.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <Images className="h-16 w-16 mb-4 opacity-50" />
+                  <p>No media files in this category</p>
                 </div>
-                <button
-                  onClick={() => setShowGallery(false)}
-                  className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-[#2f2f2f] rounded-lg"
-                >
-                  <X size={24} />
-                </button>
-              </div>
+              ) : (
+                <div className="columns-2 md:columns-3 lg:columns-4 gap-4">
+                  {sortedAttachments.map((attachment, idx) => {
+                    const isAIGenerated =
+                      attachment.path?.includes("generated-images") ||
+                      attachment.path?.includes("ia") ||
+                      attachment.path?.includes("veo31-videos") ||
+                      attachment.path?.includes("sora2-videos") ||
+                      attachment.url?.includes("generated-images");
 
-              {/* Filter Buttons */}
-              <div className="flex gap-2 p-4 border-b border-gray-800">
-                <button
-                  onClick={() => setGalleryFilter("all")}
-                  className={`px-4 py-2 rounded-lg transition-all font-medium ${
-                    galleryFilter === "all"
-                      ? "bg-[#DC569D] text-white"
-                      : "bg-[#2f2f2f] text-gray-400 hover:bg-[#3a3a3a] hover:text-white"
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => setGalleryFilter("ai")}
-                  className={`px-4 py-2 rounded-lg transition-all font-medium flex items-center gap-2 ${
-                    galleryFilter === "ai"
-                      ? "bg-[#DC569D] text-white"
-                      : "bg-[#2f2f2f] text-gray-400 hover:bg-[#3a3a3a] hover:text-white"
-                  }`}
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Generated by AI
-                </button>
-                <button
-                  onClick={() => setGalleryFilter("uploads")}
-                  className={`px-4 py-2 rounded-lg transition-all font-medium ${
-                    galleryFilter === "uploads"
-                      ? "bg-[#DC569D] text-white"
-                      : "bg-[#2f2f2f] text-gray-400 hover:bg-[#3a3a3a] hover:text-white"
-                  }`}
-                >
-                  Uploads
-                </button>
-              </div>
-
-              {/* Gallery Grid */}
-              <div className="flex-1 overflow-y-auto p-4">
-                {sortedAttachments.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                    <Images className="h-16 w-16 mb-4 opacity-50" />
-                    <p>No media files in this category</p>
-                  </div>
-                ) : (
-                  <div className="columns-2 md:columns-3 lg:columns-4 gap-4">
-                    {sortedAttachments.map((attachment, idx) => {
-                      const isAIGenerated =
-                        attachment.path?.includes("generated-images") ||
-                        attachment.path?.includes("ia") ||
-                        attachment.path?.includes("veo31-videos") ||
-                        attachment.path?.includes("sora2-videos") ||
-                        attachment.url?.includes("generated-images");
-
-                      return (
-                        <div
-                          key={attachment.id || idx}
-                          className={`relative bg-[#2f2f2f] rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#DC569D] transition-all group break-inside-avoid mb-4 ${
-                            !loadedMedia.has(attachment.id)
-                              ? "min-h-[160px]"
-                              : ""
-                          }`}
+                    return (
+                      <div
+                        key={attachment.id || idx}
+                        onClick={() => setCurrentGalleryIndex(idx)}
+                        className={`relative bg-[#2f2f2f] rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#DC569D] transition-all group break-inside-avoid mb-4 ${
+                          !loadedMedia.has(attachment.id) ? "min-h-[160px]" : ""
+                        }`}
+                      >
+                        {/* Delete Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirmGallery(attachment.id);
+                          }}
+                          className="absolute top-2 left-2 z-10 bg-[#DC569D]/90 hover:bg-[#c44a87] backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
-                          {/* Delete Button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteConfirmGallery(attachment.id);
-                            }}
-                            className="absolute top-2 left-2 z-10 bg-[#DC569D]/90 hover:bg-[#c44a87] backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Trash2 className="h-4 w-4 text-white" />
-                          </button>
+                          <Trash2 className="h-4 w-4 text-white" />
+                        </button>
 
-                          {/* AI Badge */}
-                          {isAIGenerated && (
-                            <div className="absolute top-2 right-2 z-10 bg-[#DC569D] rounded-full p-1.5">
-                              <Sparkles className="h-3 w-3 text-white" />
-                            </div>
-                          )}
-
-                          {/* Loading State */}
-                          {!loadedMedia.has(attachment.id) && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-[#2f2f2f]">
-                              <Loader2 className="h-8 w-8 text-[#DC569D] animate-spin" />
-                            </div>
-                          )}
-
-                          {/* Media Content */}
-                          <div onClick={() => setCurrentGalleryIndex(idx)}>
-                            {attachment.file_type === "image" ? (
-                              <img
-                                src={attachment.url}
-                                alt="Gallery item"
-                                loading="lazy"
-                                className={`w-full h-auto block transition-opacity duration-300 ${
-                                  loadedMedia.has(attachment.id)
-                                    ? "opacity-100"
-                                    : "opacity-0"
-                                }`}
-                                onLoad={() => {
-                                  setLoadedMedia((prev) =>
-                                    new Set(prev).add(attachment.id)
-                                  );
-                                }}
-                              />
-                            ) : attachment.file_type === "video" ? (
-                              <video
-                                src={attachment.url}
-                                loading="lazy"
-                                className={`w-full h-auto block transition-opacity duration-300 ${
-                                  loadedMedia.has(attachment.id)
-                                    ? "opacity-100"
-                                    : "opacity-0"
-                                }`}
-                                muted
-                                playsInline
-                                onLoadedData={() => {
-                                  setLoadedMedia((prev) =>
-                                    new Set(prev).add(attachment.id)
-                                  );
-                                }}
-                              />
-                            ) : null}
+                        {/* AI Badge */}
+                        {isAIGenerated && (
+                          <div className="absolute top-2 right-2 z-10 bg-[#DC569D] rounded-full p-1.5">
+                            <Sparkles className="h-3 w-3 text-white" />
                           </div>
+                        )}
 
-                          {/* Overlay */}
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                              {attachment.file_type === "video" && (
-                                <Video className="h-8 w-8 text-white" />
-                              )}
-                            </div>
+                        {/* Loading State */}
+                        {!loadedMedia.has(attachment.id) && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-[#2f2f2f]">
+                            <Loader2 className="h-8 w-8 text-[#DC569D] animate-spin" />
+                          </div>
+                        )}
+
+                        {/* Media Content */}
+                        <div>
+                          {attachment.file_type === "image" ? (
+                            <img
+                              src={attachment.url}
+                              alt="Gallery item"
+                              loading="lazy"
+                              className={`w-full h-auto block transition-opacity duration-300 ${
+                                loadedMedia.has(attachment.id)
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              }`}
+                              onLoad={() => {
+                                setLoadedMedia((prev) =>
+                                  new Set(prev).add(attachment.id)
+                                );
+                              }}
+                            />
+                          ) : attachment.file_type === "video" ? (
+                            <video
+                              src={attachment.url}
+                              loading="lazy"
+                              className={`w-full h-auto block transition-opacity duration-300 ${
+                                loadedMedia.has(attachment.id)
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              }`}
+                              muted
+                              playsInline
+                              onLoadedData={() => {
+                                setLoadedMedia((prev) =>
+                                  new Set(prev).add(attachment.id)
+                                );
+                              }}
+                            />
+                          ) : null}
+                        </div>
+
+                        {/* Overlay */}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            {attachment.file_type === "video" && (
+                              <Video className="h-8 w-8 text-white" />
+                            )}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {selectedChat ? (
@@ -1614,12 +1716,35 @@ function ChatMain({
                             <div
                               key={idx}
                               className="relative cursor-pointer hover:opacity-80 transition-opacity"
-                              onClick={() =>
-                                setPreviewMedia({
-                                  url: attachment.url,
-                                  type: attachment.file_type,
-                                })
-                              }
+                              onClick={() => {
+                                // Switch filter to all to ensure we find it
+                                if (galleryFilter !== "all")
+                                  setGalleryFilter("all");
+
+                                // Find in the FULL sorted list (simulating 'all' view)
+                                const allFiltered = (attachments || []).filter(
+                                  (a) => !deletedAttachmentIds.has(a.id)
+                                );
+                                const allSorted = allFiltered.sort(
+                                  (a, b) =>
+                                    new Date(b.created_at) -
+                                    new Date(a.created_at)
+                                );
+
+                                const index = allSorted.findIndex(
+                                  (a) => a.id === attachment.id
+                                );
+
+                                if (index !== -1) {
+                                  setCurrentGalleryIndex(index);
+                                  // Don't open gallery grid, just the preview
+                                } else {
+                                  setPreviewMedia({
+                                    url: attachment.url,
+                                    type: attachment.file_type,
+                                  });
+                                }
+                              }}
                             >
                               {attachment.file_type === "image" ? (
                                 <img
@@ -1635,13 +1760,61 @@ function ChatMain({
                                   loop
                                   muted
                                   playsInline
-                                  onClick={() =>
-                                    setPreviewMedia({
-                                      url: attachment.url,
-                                      type: attachment.file_type,
-                                    })
-                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Switch filter to all to ensure we find it
+                                    if (galleryFilter !== "all")
+                                      setGalleryFilter("all");
+
+                                    // Find in the FULL sorted list (simulating 'all' view)
+                                    const allFiltered = (
+                                      attachments || []
+                                    ).filter(
+                                      (a) => !deletedAttachmentIds.has(a.id)
+                                    );
+                                    const allSorted = allFiltered.sort(
+                                      (a, b) =>
+                                        new Date(b.created_at) -
+                                        new Date(a.created_at)
+                                    );
+
+                                    const index = allSorted.findIndex(
+                                      (a) => a.id === attachment.id
+                                    );
+
+                                    if (index !== -1) {
+                                      setCurrentGalleryIndex(index);
+                                      // Don't open gallery grid, just the preview
+                                    } else {
+                                      setPreviewMedia({
+                                        url: attachment.url,
+                                        type: attachment.file_type,
+                                      });
+                                    }
+                                  }}
                                 />
+                              ) : attachment.file_type === "audio" ? (
+                                <div
+                                  className="flex items-center justify-center bg-[#2f2f2f] rounded-lg border border-gray-600 p-2 min-w-[260px] cursor-default"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <audio
+                                    src={attachment.url}
+                                    controls
+                                    className="w-full h-10"
+                                  />
+                                </div>
+                              ) : attachment.file_type === "audio" ? (
+                                <div
+                                  className="flex items-center justify-center bg-[#2f2f2f] rounded-lg border border-gray-600 p-2 min-w-[260px] cursor-default"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <audio
+                                    src={attachment.url}
+                                    controls
+                                    className="w-full h-10"
+                                  />
+                                </div>
                               ) : null}
                             </div>
                           ))}
@@ -1796,6 +1969,15 @@ function ChatMain({
                 >
                   <Send size={18} />
                 </button>
+                {isSending && (
+                  <button
+                    onClick={onCancel}
+                    className="bg-red-500/10 hover:bg-red-500/20 text-red-500 p-2 rounded-lg transition-colors ml-2 border border-red-500/50"
+                    title="Stop generation"
+                  >
+                    <Square size={18} fill="currentColor" className="p-0.5" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1870,12 +2052,37 @@ function ChatMain({
                               <div
                                 key={idx}
                                 className="relative cursor-pointer hover:opacity-80 transition-opacity"
-                                onClick={() =>
-                                  setPreviewMedia({
-                                    url: attachment.url,
-                                    type: attachment.file_type,
-                                  })
-                                }
+                                onClick={() => {
+                                  // Switch filter to all to ensure we find it
+                                  if (galleryFilter !== "all")
+                                    setGalleryFilter("all");
+
+                                  // Find in the FULL sorted list (simulating 'all' view)
+                                  const allFiltered = (
+                                    attachments || []
+                                  ).filter(
+                                    (a) => !deletedAttachmentIds.has(a.id)
+                                  );
+                                  const allSorted = allFiltered.sort(
+                                    (a, b) =>
+                                      new Date(b.created_at) -
+                                      new Date(a.created_at)
+                                  );
+
+                                  const index = allSorted.findIndex(
+                                    (a) => a.id === attachment.id
+                                  );
+
+                                  if (index !== -1) {
+                                    setCurrentGalleryIndex(index);
+                                    // Don't open gallery grid, just the preview
+                                  } else {
+                                    setPreviewMedia({
+                                      url: attachment.url,
+                                      type: attachment.file_type,
+                                    });
+                                  }
+                                }}
                               >
                                 {attachment.file_type === "image" ? (
                                   <img
@@ -1891,12 +2098,38 @@ function ChatMain({
                                     loop
                                     muted
                                     playsInline
-                                    onClick={() =>
-                                      setPreviewMedia({
-                                        url: attachment.url,
-                                        type: attachment.file_type,
-                                      })
-                                    }
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // Switch filter to all to ensure we find it
+                                      if (galleryFilter !== "all")
+                                        setGalleryFilter("all");
+
+                                      // Find in the FULL sorted list (simulating 'all' view)
+                                      const allFiltered = (
+                                        attachments || []
+                                      ).filter(
+                                        (a) => !deletedAttachmentIds.has(a.id)
+                                      );
+                                      const allSorted = allFiltered.sort(
+                                        (a, b) =>
+                                          new Date(b.created_at) -
+                                          new Date(a.created_at)
+                                      );
+
+                                      const index = allSorted.findIndex(
+                                        (a) => a.id === attachment.id
+                                      );
+
+                                      if (index !== -1) {
+                                        setCurrentGalleryIndex(index);
+                                        // Don't open gallery grid, just the preview
+                                      } else {
+                                        setPreviewMedia({
+                                          url: attachment.url,
+                                          type: attachment.file_type,
+                                        });
+                                      }
+                                    }}
                                   />
                                 ) : null}
                               </div>
@@ -2049,6 +2282,15 @@ function ChatMain({
                     >
                       <Send size={22} />
                     </button>
+                    {isSending && (
+                      <button
+                        onClick={onCancel}
+                        className="bg-red-500/10 hover:bg-red-500/20 text-red-500 p-2 rounded-lg transition-colors ml-2 border border-red-500/50"
+                        title="Stop generation"
+                      >
+                        <Square size={22} fill="currentColor" className="p-1" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2306,6 +2548,15 @@ function ChatMain({
                     >
                       <Send size={22} />
                     </button>
+                    {isSending && (
+                      <button
+                        onClick={onCancel}
+                        className="bg-red-500/10 hover:bg-red-500/20 text-red-500 p-2 rounded-lg transition-colors ml-2 border border-red-500/50"
+                        title="Stop generation"
+                      >
+                        <Square size={22} fill="currentColor" className="p-1" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

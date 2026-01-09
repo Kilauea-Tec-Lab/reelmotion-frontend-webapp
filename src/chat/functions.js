@@ -106,7 +106,12 @@ if (!conversationUUID) {
   sessionStorage.setItem("conversation_uuid", conversationUUID);
 }
 
-export async function postMessage(message, chatId = null, filesData = []) {
+export async function postMessage(
+  message,
+  chatId = null,
+  filesData = [],
+  signal = null
+) {
   try {
     const formData = new FormData();
     formData.append("message", message);
@@ -164,6 +169,7 @@ export async function postMessage(message, chatId = null, filesData = []) {
           Accept: "application/json",
         },
         body: formData,
+        signal,
       }
     );
 
