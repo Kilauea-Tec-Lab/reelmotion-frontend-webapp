@@ -209,13 +209,13 @@ function Library() {
       {/* Media Preview Modal */}
       {currentAttachment && (
         <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-xl z-50 flex items-center justify-center"
+          className="fixed inset-0 bg-black/40 backdrop-blur-2xl z-[100] flex items-center justify-center p-4"
           onClick={() => setCurrentIndex(null)}
         >
           {/* Close Button */}
           <button
             onClick={() => setCurrentIndex(null)}
-            className="absolute top-4 right-4 bg-[#DC569D] hover:bg-[#c44a87] rounded-full p-2 z-10"
+            className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 z-20 transition-colors"
           >
             <X size={24} />
           </button>
@@ -227,9 +227,9 @@ function Library() {
                 e.stopPropagation();
                 goToPrevious();
               }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-gradient-to-br from-gray-700 to-gray-900 hover:from-gray-600 hover:to-gray-800 backdrop-blur-md rounded-full p-3 z-10 transition-all shadow-lg"
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full p-3 z-20 transition-all shadow-lg text-white"
             >
-              <ChevronLeft size={32} className="text-white" />
+              <ChevronLeft size={32} />
             </button>
           )}
 
@@ -240,36 +240,41 @@ function Library() {
                 e.stopPropagation();
                 goToNext();
               }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-gradient-to-br from-gray-700 to-gray-900 hover:from-gray-600 hover:to-gray-800 backdrop-blur-md rounded-full p-3 z-10 transition-all shadow-lg"
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full p-3 z-20 transition-all shadow-lg text-white"
             >
-              <ChevronRight size={32} className="text-white" />
+              <ChevronRight size={32} />
             </button>
           )}
 
           {/* Media Content */}
-          <div
-            className="flex items-center justify-center p-4 md:p-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {currentAttachment.file_type === "image" ? (
+          {currentAttachment.file_type === "image" ? (
+            <div
+              className="relative w-full h-full flex items-center justify-center pointer-events-none select-none"
+              onClick={(e) => e.stopPropagation()}
+            >
               <img
                 src={currentAttachment.url}
                 alt="Preview"
-                className="max-w-[90vw] max-h-[90vh] rounded-lg"
+                className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
               />
-            ) : (
+            </div>
+          ) : (
+            <div
+              className="max-w-7xl w-full max-h-[90vh] overflow-hidden flex items-center justify-center bg-black/50 rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            >
               <video
                 src={currentAttachment.url}
-                className="max-w-[90vw] max-h-[90vh] rounded-lg"
+                className="max-w-full max-h-[85vh] rounded-lg"
                 controls
                 autoPlay
               />
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Counter */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm rounded-full px-4 py-2">
-            <p className="text-white text-sm">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm rounded-full px-4 py-2 z-20">
+            <p className="text-white text-sm font-medium">
               {currentIndex + 1} / {sortedAttachments.length}
             </p>
           </div>
@@ -368,6 +373,7 @@ function Library() {
                 return (
                   <div
                     key={attachment.id || idx}
+                    onClick={() => setCurrentIndex(idx)}
                     className={`relative bg-[#2f2f2f] rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#DC569D] transition-all group break-inside-avoid mb-4 ${
                       !loadedMedia.has(attachment.id) ? "min-h-[160px]" : ""
                     }`}
@@ -398,7 +404,7 @@ function Library() {
                     )}
 
                     {/* Media Content */}
-                    <div onClick={() => setCurrentIndex(idx)}>
+                    <div>
                       {attachment.file_type === "image" ? (
                         <img
                           src={attachment.url}

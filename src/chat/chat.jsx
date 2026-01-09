@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate, useRevalidator } from "react-router-dom";
 import ChatMain from "./components/chat-main";
 import { postMessage } from "./functions";
@@ -11,6 +11,7 @@ function Chat() {
   const [isCreating, setIsCreating] = useState(false);
   const [previewMessages, setPreviewMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
+  const abortControllerRef = useRef(null);
 
   const handleSendMessage = async (filesData = []) => {
     // Normalizar filesData
@@ -47,8 +48,18 @@ function Chat() {
     setIsCreating(true);
     setIsTyping(true);
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     try {
-      const response = await postMessage(userMessage, null, filesData);
+      const response = await postMessage(
+        userMessage,
+        null,
+        filesData,
+        abortControllerRef.current.signal
+      );
 
       if (response.success && response.chat_id) {
         // Revalidate to refresh chat list in sidebar
@@ -57,10 +68,24 @@ function Chat() {
         navigate(`/${response.chat_id}`);
       }
     } catch (error) {
-      console.error("Error sending message:", error);
-      setMessage(userMessage);
+      if (error.name === "AbortError") {
+        console.log("Request cancelled");
+      } else {
+        console.error("Error sending message:", error);
+        setMessage(userMessage);
+      }
       setPreviewMessages([]);
     } finally {
+      setIsSending(false);
+      setIsCreating(false);
+      setIsTyping(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
       setIsSending(false);
       setIsCreating(false);
       setIsTyping(false);
@@ -73,6 +98,7 @@ function Chat() {
       message={message}
       onMessageChange={setMessage}
       onSendMessage={handleSendMessage}
+      onCancel={handleCancel}
       isSending={isSending}
       isCreating={isCreating}
       messages={previewMessages}
