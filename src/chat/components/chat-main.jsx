@@ -22,6 +22,8 @@ import {
   Search,
   Square,
   Music,
+  Download,
+  Check,
 } from "lucide-react";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router-dom";
@@ -65,7 +67,7 @@ const connection = new Connection(
   {
     commitment: "confirmed",
     confirmTransactionInitialTimeout: 60000,
-  }
+  },
 );
 
 let MERCHANT_WALLET;
@@ -198,8 +200,8 @@ function CardInput({ onPaymentProcess, isProcessing, totalAmount }) {
         {isProcessing
           ? "Processing..."
           : !allFieldsComplete
-          ? "Enter card details"
-          : `Pay $${Number(totalAmount).toFixed(2)}`}
+            ? "Enter card details"
+            : `Pay $${Number(totalAmount).toFixed(2)}`}
       </button>
     </form>
   );
@@ -390,6 +392,9 @@ function ChatMain({
   const [deleteConfirmGallery, setDeleteConfirmGallery] = useState(null);
   const [isDeletingGallery, setIsDeletingGallery] = useState(false);
   const [deletedAttachmentIds, setDeletedAttachmentIds] = useState(new Set());
+  const [editingGalleryName, setEditingGalleryName] = useState("");
+  const [isEditingGalleryName, setIsEditingGalleryName] = useState(false);
+  const [isSavingGalleryName, setIsSavingGalleryName] = useState(false);
 
   // Delete chat
   const [deleteConfirmChat, setDeleteConfirmChat] = useState(false);
@@ -432,7 +437,7 @@ function ChatMain({
             Authorization: "Bearer " + Cookies.get("token"),
           },
           body: formData,
-        }
+        },
       );
 
       if (!response.ok) {
@@ -474,7 +479,7 @@ function ChatMain({
             Authorization: "Bearer " + Cookies.get("token"),
           },
           body: formData,
-        }
+        },
       );
 
       if (!response.ok) {
@@ -571,6 +576,86 @@ function ChatMain({
       ? sortedAttachments[currentGalleryIndex]
       : null;
 
+  const handleDownload = async (e, url) => {
+    e.stopPropagation();
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Network response was not ok");
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      const mimeType = blob.type;
+      const extension = mimeType.split("/")[1] || "bin";
+      link.download = `media-${Date.now()}.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("Download failed:", error);
+      window.open(url, "_blank");
+    }
+  };
+
+  const handleSaveGalleryAttachmentName = async () => {
+    if (!currentAttachment || !editingGalleryName.trim()) return;
+    setIsSavingGalleryName(true);
+    try {
+      const formData = new FormData();
+      formData.append("attachment_id", currentAttachment.id);
+      formData.append("name", editingGalleryName.trim());
+
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}chat/update-attachment-name`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Actualizar optimísticamente
+        setDeletedAttachmentIds((prev) => {
+          const updated = new Set(prev);
+          return updated;
+        });
+        setIsEditingGalleryName(false);
+        // Revalidar para obtener datos actualizados
+        revalidator.revalidate();
+      }
+    } catch (error) {
+      console.error("Error saving attachment name:", error);
+    } finally {
+      setIsSavingGalleryName(false);
+    }
+  };
+
+  const handleStartEditingGalleryName = () => {
+    setEditingGalleryName(currentAttachment?.name || "");
+    setIsEditingGalleryName(true);
+  };
+
+  const handleCancelEditingGalleryName = () => {
+    setIsEditingGalleryName(false);
+    setEditingGalleryName("");
+  };
+
+  // Reset editing state when changing attachment
+  useEffect(() => {
+    setIsEditingGalleryName(false);
+    setEditingGalleryName("");
+  }, [currentGalleryIndex]);
+
   // Función para eliminar attachment del gallery
   const handleDeleteGalleryAttachment = async (attachmentId) => {
     setIsDeletingGallery(true);
@@ -586,7 +671,7 @@ function ChatMain({
             Authorization: "Bearer " + Cookies.get("token"),
           },
           body: formData,
-        }
+        },
       );
 
       if (!response.ok) {
@@ -655,7 +740,7 @@ function ChatMain({
   const handleNotificationClick = async (notification) => {
     await deleteNotification(notification.id);
     setNotificationsInfo((prev) =>
-      prev.filter((n) => n.id !== notification.id)
+      prev.filter((n) => n.id !== notification.id),
     );
   };
 
@@ -688,7 +773,7 @@ function ChatMain({
           headers: {
             Authorization: "Bearer " + Cookies.get("token"),
           },
-        }
+        },
       );
 
       if (response.ok) {
@@ -711,7 +796,7 @@ function ChatMain({
     if (!pusherClient || !selectedChat?.user_owner_id) return;
 
     const channel = pusherClient.subscribe(
-      `private-get-notifications.${selectedChat.user_owner_id}`
+      `private-get-notifications.${selectedChat.user_owner_id}`,
     );
 
     channel.bind("fill-notifications", () => {
@@ -721,7 +806,7 @@ function ChatMain({
     return () => {
       channel.unbind("fill-notifications");
       pusherClient.unsubscribe(
-        `private-get-notifications.${selectedChat.user_owner_id}`
+        `private-get-notifications.${selectedChat.user_owner_id}`,
       );
     };
   }, [pusherClient, selectedChat?.user_owner_id]);
@@ -1050,7 +1135,7 @@ function ChatMain({
             amount: breakdown.total,
             tokens: breakdown.tokens,
           }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -1332,6 +1417,15 @@ function ChatMain({
           className="fixed inset-0 bg-black/40 backdrop-blur-2xl z-[100] flex items-center justify-center p-4"
           onClick={() => setCurrentGalleryIndex(null)}
         >
+          {/* Download Button */}
+          <button
+            onClick={(e) => handleDownload(e, currentAttachment.url)}
+            className="absolute top-4 right-16 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 z-20 transition-colors"
+            title="Download"
+          >
+            <Download size={24} />
+          </button>
+
           {/* Close Button */}
           <button
             onClick={() => setCurrentGalleryIndex(null)}
@@ -1412,6 +1506,59 @@ function ChatMain({
             <p className="text-white text-sm font-medium">
               {currentGalleryIndex + 1} / {sortedAttachments.length}
             </p>
+          </div>
+
+          {/* Name Editor */}
+          <div
+            className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-black/60 backdrop-blur-sm rounded-lg p-3">
+              {isEditingGalleryName ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={editingGalleryName}
+                    onChange={(e) => setEditingGalleryName(e.target.value)}
+                    className="flex-1 px-3 py-2 bg-[#2f2f2f] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#DC569D] focus:ring-1 focus:ring-[#DC569D] transition-all text-sm"
+                    placeholder="Enter file name..."
+                    maxLength={255}
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleSaveGalleryAttachmentName}
+                    disabled={isSavingGalleryName || !editingGalleryName.trim()}
+                    className="px-3 py-2 bg-[#DC569D] text-white rounded-lg hover:bg-[#c44a87] transition-colors disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {isSavingGalleryName ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
+                  </button>
+                  <button
+                    onClick={handleCancelEditingGalleryName}
+                    disabled={isSavingGalleryName}
+                    className="px-3 py-2 bg-[#2f2f2f] text-gray-300 rounded-lg hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-white text-sm font-medium truncate">
+                    {currentAttachment.name || "Unnamed file"}
+                  </p>
+                  <button
+                    onClick={handleStartEditingGalleryName}
+                    className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+                    title="Edit name"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1545,7 +1692,7 @@ function ChatMain({
                               }`}
                               onLoad={() => {
                                 setLoadedMedia((prev) =>
-                                  new Set(prev).add(attachment.id)
+                                  new Set(prev).add(attachment.id),
                                 );
                               }}
                             />
@@ -1562,7 +1709,7 @@ function ChatMain({
                               playsInline
                               onLoadedData={() => {
                                 setLoadedMedia((prev) =>
-                                  new Set(prev).add(attachment.id)
+                                  new Set(prev).add(attachment.id),
                                 );
                               }}
                             />
@@ -1767,16 +1914,16 @@ function ChatMain({
 
                                 // Find in the FULL sorted list (simulating 'all' view)
                                 const allFiltered = (attachments || []).filter(
-                                  (a) => !deletedAttachmentIds.has(a.id)
+                                  (a) => !deletedAttachmentIds.has(a.id),
                                 );
                                 const allSorted = allFiltered.sort(
                                   (a, b) =>
                                     new Date(b.created_at) -
-                                    new Date(a.created_at)
+                                    new Date(a.created_at),
                                 );
 
                                 const index = allSorted.findIndex(
-                                  (a) => a.id === attachment.id
+                                  (a) => a.id === attachment.id,
                                 );
 
                                 if (index !== -1) {
@@ -1814,16 +1961,16 @@ function ChatMain({
                                     const allFiltered = (
                                       attachments || []
                                     ).filter(
-                                      (a) => !deletedAttachmentIds.has(a.id)
+                                      (a) => !deletedAttachmentIds.has(a.id),
                                     );
                                     const allSorted = allFiltered.sort(
                                       (a, b) =>
                                         new Date(b.created_at) -
-                                        new Date(a.created_at)
+                                        new Date(a.created_at),
                                     );
 
                                     const index = allSorted.findIndex(
-                                      (a) => a.id === attachment.id
+                                      (a) => a.id === attachment.id,
                                     );
 
                                     if (index !== -1) {
@@ -2113,16 +2260,16 @@ function ChatMain({
                                   const allFiltered = (
                                     attachments || []
                                   ).filter(
-                                    (a) => !deletedAttachmentIds.has(a.id)
+                                    (a) => !deletedAttachmentIds.has(a.id),
                                   );
                                   const allSorted = allFiltered.sort(
                                     (a, b) =>
                                       new Date(b.created_at) -
-                                      new Date(a.created_at)
+                                      new Date(a.created_at),
                                   );
 
                                   const index = allSorted.findIndex(
-                                    (a) => a.id === attachment.id
+                                    (a) => a.id === attachment.id,
                                   );
 
                                   if (index !== -1) {
@@ -2160,16 +2307,16 @@ function ChatMain({
                                       const allFiltered = (
                                         attachments || []
                                       ).filter(
-                                        (a) => !deletedAttachmentIds.has(a.id)
+                                        (a) => !deletedAttachmentIds.has(a.id),
                                       );
                                       const allSorted = allFiltered.sort(
                                         (a, b) =>
                                           new Date(b.created_at) -
-                                          new Date(a.created_at)
+                                          new Date(a.created_at),
                                       );
 
                                       const index = allSorted.findIndex(
-                                        (a) => a.id === attachment.id
+                                        (a) => a.id === attachment.id,
                                       );
 
                                       if (index !== -1) {
@@ -2358,286 +2505,376 @@ function ChatMain({
             </>
           ) : (
             /* Initial empty state */
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center max-w-3xl w-3xl px-6">
-                <h1 className="text-4xl font-semibold mb-4">
-                  How can I help you?
-                </h1>
-
-                {/* Quick Actions */}
-                <div className="flex flex-col items-center gap-4 mb-8 w-full">
-                  {quickActionMenu !== "main" && (
-                    <button
-                      onClick={() => setQuickActionMenu("main")}
-                      className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-2 self-center"
-                    >
-                      <ChevronLeft size={20} />
-                      <span>Back</span>
-                    </button>
-                  )}
-
-                  <div className="flex flex-wrap gap-3 justify-center">
-                    {quickActionMenu === "main" && (
-                      <>
-                        <button
-                          onClick={() => setQuickActionMenu("create")}
-                          disabled={isSending}
-                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Plus className="h-5 w-5 text-[#DC569D]" />
-                          <span>Create</span>
-                        </button>
-
-                        <button
-                          onClick={() => setQuickActionMenu("edit")}
-                          disabled={isSending}
-                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Pencil className="h-5 w-5 text-[#DC569D]" />
-                          <span>Edit</span>
-                        </button>
-
-                        <button
-                          onClick={() => setQuickActionMenu("analyze")}
-                          disabled={isSending}
-                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Search className="h-5 w-5 text-[#DC569D]" />
-                          <span>Analyze</span>
-                        </button>
-                      </>
-                    )}
-
-                    {quickActionMenu === "create" && (
-                      <>
-                        <button
-                          onClick={() =>
-                            handleQuickAction("I want to create an image")
-                          }
-                          disabled={isSending}
-                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Image className="h-5 w-5 text-[#DC569D]" />
-                          <span>Create IA Image</span>
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleQuickAction("I want to create a video")
-                          }
-                          disabled={isSending}
-                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Video className="h-5 w-5 text-[#DC569D]" />
-                          <span>Create IA Video</span>
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleQuickAction("I want to create a project")
-                          }
-                          disabled={isSending}
-                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Plus className="h-5 w-5 text-[#DC569D]" />
-                          <span>Create Project</span>
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleQuickAction("I want to create a voice")
-                          }
-                          disabled={isSending}
-                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Mic className="h-5 w-5 text-[#DC569D]" />
-                          <span>Create Voice</span>
-                        </button>
-                      </>
-                    )}
-
-                    {quickActionMenu === "edit" && (
-                      <>
-                        <button
-                          onClick={() =>
-                            handleQuickAction("I want to edit an image")
-                          }
-                          disabled={isSending}
-                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Image className="h-5 w-5 text-[#DC569D]" />
-                          <span>Edit Image</span>
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleQuickAction("I want to edit a video")
-                          }
-                          disabled={isSending}
-                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Video className="h-5 w-5 text-[#DC569D]" />
-                          <span>Edit Video</span>
-                        </button>
-                      </>
-                    )}
-
-                    {quickActionMenu === "analyze" && (
-                      <>
-                        <button
-                          onClick={() =>
-                            handleQuickAction("I want to analyze an image")
-                          }
-                          disabled={isSending}
-                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Image className="h-5 w-5 text-[#DC569D]" />
-                          <span>Analyze Image</span>
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleQuickAction("I want to analyze a video")
-                          }
-                          disabled={isSending}
-                          className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Video className="h-5 w-5 text-[#DC569D]" />
-                          <span>Analyze Video</span>
-                        </button>
-                      </>
-                    )}
-                  </div>
+            <div className="flex-1 flex flex-col relative">
+              {/* Tokens y Notificaciones - Top Right */}
+              <div className="absolute top-4 right-6 flex items-center space-x-3 z-10">
+                <div className="flex items-center space-x-2 bg-[#2f2f2f] px-3 py-1.5 rounded-lg">
+                  <CreditCard className="h-4 w-4 text-[#DC569D]" />
+                  <span className="text-white text-sm font-medium">
+                    Tokens:{" "}
+                    {isLoadingTokens
+                      ? "..."
+                      : Math.floor(tokens).toLocaleString("en-US")}
+                  </span>
                 </div>
 
-                <div className="relative mt-8">
-                  {/* File Previews */}
-                  {selectedFiles.length > 0 && (
-                    <div className="mb-3 flex gap-3 overflow-x-auto pb-2">
-                      {selectedFiles.map((fileObj, index) => (
-                        <div key={index} className="relative flex-shrink-0">
-                          <button
-                            onClick={() => handleRemoveFile(index)}
-                            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 rounded-full p-1 z-10"
-                          >
-                            <X size={14} />
-                          </button>
-                          {fileObj.type === "image" ? (
-                            <img
-                              src={
-                                fileObj.isUrl ? fileObj.url : fileObj.preview
-                              }
-                              alt="Preview"
-                              className="h-24 w-24 object-cover rounded-lg border border-gray-700"
-                            />
-                          ) : (
-                            <video
-                              src={
-                                fileObj.isUrl ? fileObj.url : fileObj.preview
-                              }
-                              className="h-24 w-24 object-cover rounded-lg border border-gray-700"
-                              muted
-                            />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <button
+                  onClick={handleOpenTokenModal}
+                  className="px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1"
+                >
+                  <DollarSign className="h-3 w-3" />
+                  Buy Tokens
+                </button>
 
-                  <div className="flex items-center gap-3 bg-[#2f2f2f] rounded-2xl px-5 py-4 border border-gray-700 hover:border-gray-600 transition-colors relative">
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowFileMenu(!showFileMenu)}
-                        className="text-gray-400 hover:text-white transition-colors"
-                      >
-                        <Plus size={20} />
-                      </button>
-                      {showFileMenu && (
-                        <div className="absolute bottom-full left-0 mb-2 bg-[#2f2f2f] border border-gray-700 rounded-lg shadow-lg overflow-hidden z-20 w-40">
-                          <button
-                            onClick={() => handleFileSelect("image")}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-[#3a3a3a] transition-colors w-full text-left"
-                          >
-                            <Image size={18} />
-                            <span className="text-sm">Add images</span>
-                          </button>
-                          <button
-                            onClick={() => handleFileSelect("video")}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-[#3a3a3a] transition-colors w-full text-left border-t border-gray-700"
-                          >
-                            <Video size={18} />
-                            <span className="text-sm">Add video</span>
-                          </button>
+                {/* Notificaciones */}
+                <div className="relative" ref={notificationsRef}>
+                  <button
+                    onClick={() => setShowNotifications(!showNotifications)}
+                    className="relative p-2 text-gray-400 hover:text-white transition-colors hover:bg-[#2f2f2f] rounded-lg"
+                  >
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-[#DC569D] text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Dropdown de Notificaciones */}
+                  {showNotifications && (
+                    <div className="absolute top-12 right-0 bg-[#2f2f2f] rounded-lg shadow-xl border border-gray-700 w-80 max-h-96 overflow-y-auto z-50">
+                      <div className="p-3 border-b border-gray-700">
+                        <h3 className="text-white font-medium">
+                          Notifications
+                        </h3>
+                      </div>
+                      {notificationsInfo.length > 0 ? (
+                        <div className="py-2">
+                          {notificationsInfo.map((notif) => (
+                            <button
+                              key={notif.id}
+                              onClick={() => handleNotificationClick(notif)}
+                              className="w-full px-4 py-3 hover:bg-[#3a3a3a] transition-colors text-left border-b border-gray-800"
+                            >
+                              <div className="flex items-start gap-3">
+                                {notif.other_user?.image ? (
+                                  <img
+                                    src={notif.other_user.image}
+                                    alt="User"
+                                    className="w-8 h-8 rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+                                    <User className="h-4 w-4 text-gray-400" />
+                                  </div>
+                                )}
+                                <div className="flex-1">
+                                  <p className="text-white text-sm">
+                                    {notif.notification}
+                                  </p>
+                                  <p className="text-gray-400 text-xs mt-1">
+                                    {timeAgo(notif.created_at)}
+                                  </p>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="px-4 py-8 text-center text-gray-400 text-sm">
+                          No notifications
                         </div>
                       )}
                     </div>
-                    <input
-                      ref={imageInputRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                    <input
-                      ref={videoInputRef}
-                      type="file"
-                      accept="video/*"
-                      onChange={handleVideoChange}
-                      className="hidden"
-                    />
-                    <textarea
-                      ref={messageInputRef}
-                      placeholder="Ask anything..."
-                      value={message}
-                      onChange={(e) => {
-                        onMessageChange(e.target.value);
-                        e.target.style.height = "auto";
-                        e.target.style.height = `${e.target.scrollHeight}px`;
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
+                  )}
+                </div>
+              </div>
+
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center max-w-3xl w-3xl px-6">
+                  <h1 className="text-4xl font-semibold mb-4">
+                    How can I help you?
+                  </h1>
+
+                  {/* Quick Actions */}
+                  <div className="flex flex-col items-center gap-4 mb-8 w-full">
+                    {quickActionMenu !== "main" && (
+                      <button
+                        onClick={() => setQuickActionMenu("main")}
+                        className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-2 self-center"
+                      >
+                        <ChevronLeft size={20} />
+                        <span>Back</span>
+                      </button>
+                    )}
+
+                    <div className="flex flex-wrap gap-3 justify-center">
+                      {quickActionMenu === "main" && (
+                        <>
+                          <button
+                            onClick={() => setQuickActionMenu("create")}
+                            disabled={isSending}
+                            className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Plus className="h-5 w-5 text-[#DC569D]" />
+                            <span>Create</span>
+                          </button>
+
+                          <button
+                            onClick={() => setQuickActionMenu("edit")}
+                            disabled={isSending}
+                            className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Pencil className="h-5 w-5 text-[#DC569D]" />
+                            <span>Edit</span>
+                          </button>
+
+                          <button
+                            onClick={() => setQuickActionMenu("analyze")}
+                            disabled={isSending}
+                            className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Search className="h-5 w-5 text-[#DC569D]" />
+                            <span>Analyze</span>
+                          </button>
+                        </>
+                      )}
+
+                      {quickActionMenu === "create" && (
+                        <>
+                          <button
+                            onClick={() =>
+                              handleQuickAction("I want to create an image")
+                            }
+                            disabled={isSending}
+                            className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Image className="h-5 w-5 text-[#DC569D]" />
+                            <span>Create IA Image</span>
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              handleQuickAction("I want to create a video")
+                            }
+                            disabled={isSending}
+                            className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Video className="h-5 w-5 text-[#DC569D]" />
+                            <span>Create IA Video</span>
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              handleQuickAction("I want to create a project")
+                            }
+                            disabled={isSending}
+                            className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Plus className="h-5 w-5 text-[#DC569D]" />
+                            <span>Create Project</span>
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              handleQuickAction("I want to create a voice")
+                            }
+                            disabled={isSending}
+                            className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Mic className="h-5 w-5 text-[#DC569D]" />
+                            <span>Create Voice</span>
+                          </button>
+                        </>
+                      )}
+
+                      {quickActionMenu === "edit" && (
+                        <>
+                          <button
+                            onClick={() =>
+                              handleQuickAction("I want to edit an image")
+                            }
+                            disabled={isSending}
+                            className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Image className="h-5 w-5 text-[#DC569D]" />
+                            <span>Edit Image</span>
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              handleQuickAction("I want to edit a video")
+                            }
+                            disabled={isSending}
+                            className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Video className="h-5 w-5 text-[#DC569D]" />
+                            <span>Edit Video</span>
+                          </button>
+                        </>
+                      )}
+
+                      {quickActionMenu === "analyze" && (
+                        <>
+                          <button
+                            onClick={() =>
+                              handleQuickAction("I want to analyze an image")
+                            }
+                            disabled={isSending}
+                            className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Image className="h-5 w-5 text-[#DC569D]" />
+                            <span>Analyze Image</span>
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              handleQuickAction("I want to analyze a video")
+                            }
+                            disabled={isSending}
+                            className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Video className="h-5 w-5 text-[#DC569D]" />
+                            <span>Analyze Video</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="relative mt-8">
+                    {/* File Previews */}
+                    {selectedFiles.length > 0 && (
+                      <div className="mb-3 flex gap-3 overflow-x-auto pb-2">
+                        {selectedFiles.map((fileObj, index) => (
+                          <div key={index} className="relative flex-shrink-0">
+                            <button
+                              onClick={() => handleRemoveFile(index)}
+                              className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 rounded-full p-1 z-10"
+                            >
+                              <X size={14} />
+                            </button>
+                            {fileObj.type === "image" ? (
+                              <img
+                                src={
+                                  fileObj.isUrl ? fileObj.url : fileObj.preview
+                                }
+                                alt="Preview"
+                                className="h-24 w-24 object-cover rounded-lg border border-gray-700"
+                              />
+                            ) : (
+                              <video
+                                src={
+                                  fileObj.isUrl ? fileObj.url : fileObj.preview
+                                }
+                                className="h-24 w-24 object-cover rounded-lg border border-gray-700"
+                                muted
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-3 bg-[#2f2f2f] rounded-2xl px-5 py-4 border border-gray-700 hover:border-gray-600 transition-colors relative">
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowFileMenu(!showFileMenu)}
+                          className="text-gray-400 hover:text-white transition-colors"
+                        >
+                          <Plus size={20} />
+                        </button>
+                        {showFileMenu && (
+                          <div className="absolute bottom-full left-0 mb-2 bg-[#2f2f2f] border border-gray-700 rounded-lg shadow-lg overflow-hidden z-20 w-40">
+                            <button
+                              onClick={() => handleFileSelect("image")}
+                              className="flex items-center gap-3 px-4 py-3 hover:bg-[#3a3a3a] transition-colors w-full text-left"
+                            >
+                              <Image size={18} />
+                              <span className="text-sm">Add images</span>
+                            </button>
+                            <button
+                              onClick={() => handleFileSelect("video")}
+                              className="flex items-center gap-3 px-4 py-3 hover:bg-[#3a3a3a] transition-colors w-full text-left border-t border-gray-700"
+                            >
+                              <Video size={18} />
+                              <span className="text-sm">Add video</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleImageChange}
+                        className="hidden"
+                      />
+                      <input
+                        ref={videoInputRef}
+                        type="file"
+                        accept="video/*"
+                        onChange={handleVideoChange}
+                        className="hidden"
+                      />
+                      <textarea
+                        ref={messageInputRef}
+                        placeholder="Ask anything..."
+                        value={message}
+                        onChange={(e) => {
+                          onMessageChange(e.target.value);
+                          e.target.style.height = "auto";
+                          e.target.style.height = `${e.target.scrollHeight}px`;
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            if (selectedFiles.length > 0) {
+                              handleSendWithFiles();
+                            } else {
+                              onSendMessage([]);
+                            }
+                            e.target.style.height = "auto";
+                          }
+                        }}
+                        disabled={isSending}
+                        rows={1}
+                        className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none text-lg disabled:opacity-50 resize-none max-h-[200px]"
+                      />
+                      <button
+                        onClick={() => {
                           if (selectedFiles.length > 0) {
                             handleSendWithFiles();
                           } else {
                             onSendMessage([]);
                           }
-                          e.target.style.height = "auto";
+                          if (messageInputRef.current) {
+                            messageInputRef.current.style.height = "auto";
+                          }
+                        }}
+                        disabled={
+                          (!message.trim() && selectedFiles.length === 0) ||
+                          isSending
                         }
-                      }}
-                      disabled={isSending}
-                      rows={1}
-                      className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none text-lg disabled:opacity-50 resize-none max-h-[200px]"
-                    />
-                    <button
-                      onClick={() => {
-                        if (selectedFiles.length > 0) {
-                          handleSendWithFiles();
-                        } else {
-                          onSendMessage([]);
-                        }
-                        if (messageInputRef.current) {
-                          messageInputRef.current.style.height = "auto";
-                        }
-                      }}
-                      disabled={
-                        (!message.trim() && selectedFiles.length === 0) ||
-                        isSending
-                      }
-                      className="bg-[#DC569D] hover:bg-[#c9458b] p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Send size={22} />
-                    </button>
-                    {isSending && (
-                      <button
-                        onClick={onCancel}
-                        className="bg-red-500/10 hover:bg-red-500/20 text-red-500 p-2 rounded-lg transition-colors ml-2 border border-red-500/50"
-                        title="Stop generation"
+                        className="bg-[#DC569D] hover:bg-[#c9458b] p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Square size={22} fill="currentColor" className="p-1" />
+                        <Send size={22} />
                       </button>
-                    )}
+                      {isSending && (
+                        <button
+                          onClick={onCancel}
+                          className="bg-red-500/10 hover:bg-red-500/20 text-red-500 p-2 rounded-lg transition-colors ml-2 border border-red-500/50"
+                          title="Stop generation"
+                        >
+                          <Square
+                            size={22}
+                            fill="currentColor"
+                            className="p-1"
+                          />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2699,7 +2936,7 @@ function ChatMain({
                       <div className="bg-[#3a3a3a] p-4 rounded-lg">
                         {(() => {
                           const breakdown = getPaymentBreakdown(
-                            Number(purchaseAmount) || 0
+                            Number(purchaseAmount) || 0,
                           );
                           return (
                             <>
@@ -2757,7 +2994,7 @@ function ChatMain({
                     <div className="bg-[#3a3a3a] p-4 rounded-lg">
                       {(() => {
                         const breakdown = getPaymentBreakdown(
-                          Number(purchaseAmount) || 0
+                          Number(purchaseAmount) || 0,
                         );
                         return (
                           <div className="space-y-2">

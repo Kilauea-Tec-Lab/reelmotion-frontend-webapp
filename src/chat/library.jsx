@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLoaderData } from "react-router-dom";
 import {
   Images,
@@ -12,8 +12,171 @@ import {
   Trash2,
   Clapperboard,
   Music,
+  Download,
+  Check,
+  Pencil,
 } from "lucide-react";
 import Cookies from "js-cookie";
+
+const GalleryItem = ({
+  attachment,
+  idx,
+  onClick,
+  onDelete,
+  isLoaded,
+  onLoad,
+}) => {
+  const [retryCount, setRetryCount] = useState(0);
+  const [mediaKey, setMediaKey] = useState(0);
+  const videoRef = useRef(null);
+  const timeoutRef = useRef(null);
+
+  const isAIGenerated =
+    attachment.path?.includes("generated-images") ||
+    attachment.path?.includes("ia") ||
+    attachment.path?.includes("veo31-videos") ||
+    attachment.path?.includes("sora2-videos") ||
+    attachment.url?.includes("generated-images");
+
+  const handleMediaError = () => {
+    if (retryCount < 3) {
+      setTimeout(() => {
+        setRetryCount((prev) => prev + 1);
+        setMediaKey((prev) => prev + 1);
+      }, 2000);
+    } else {
+      onLoad(attachment.id);
+    }
+  };
+
+  const handleVideoLoad = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    onLoad(attachment.id);
+  };
+
+  // Timeout de seguridad para videos que no disparan eventos
+  useEffect(() => {
+    if (attachment.file_type === "video" && !isLoaded) {
+      timeoutRef.current = setTimeout(() => {
+        // Si después de 5 segundos no ha cargado, marcarlo como cargado de todas formas
+        onLoad(attachment.id);
+      }, 5000);
+
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+      };
+    }
+  }, [attachment.file_type, attachment.id, isLoaded, mediaKey]);
+
+  // Forzar carga del video cuando cambia la key
+  useEffect(() => {
+    if (videoRef.current && attachment.file_type === "video") {
+      videoRef.current.load();
+    }
+  }, [mediaKey, attachment.file_type]);
+
+  return (
+    <div
+      onClick={() => onClick(idx)}
+      className={`relative bg-[#2f2f2f] rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#DC569D] transition-all group break-inside-avoid mb-4 ${
+        !isLoaded ? "min-h-[160px]" : ""
+      }`}
+    >
+      {/* Delete Button */}
+      {attachment.sourceType !== "project" && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(attachment.id);
+          }}
+          className="absolute top-2 left-2 z-10 bg-[#DC569D]/90 hover:bg-[#c44a87] backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <Trash2 className="h-4 w-4 text-white" />
+        </button>
+      )}
+
+      {/* AI Badge */}
+      {isAIGenerated && (
+        <div className="absolute top-2 right-2 z-10 bg-[#DC569D] rounded-full p-1.5">
+          <Sparkles className="h-3 w-3 text-white" />
+        </div>
+      )}
+
+      {/* Project Badge */}
+      {attachment.sourceType === "project" && (
+        <div className="absolute top-2 right-2 z-10 bg-[#8E24AA] rounded-full p-1.5">
+          <Clapperboard className="h-3 w-3 text-white" />
+        </div>
+      )}
+
+      {/* Loading State */}
+      {!isLoaded && attachment.file_type !== "audio" && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#2f2f2f]">
+          <Loader2 className="h-8 w-8 text-[#DC569D] animate-spin" />
+        </div>
+      )}
+
+      {/* Media Content */}
+      <div>
+        {attachment.file_type === "image" ? (
+          <img
+            key={mediaKey}
+            src={attachment.url}
+            alt="Gallery item"
+            loading="lazy"
+            className={`w-full h-auto block transition-opacity duration-300 ${
+              isLoaded ? "opacity-100" : "opacity-0"
+            }`}
+            onLoad={() => onLoad(attachment.id)}
+            onError={handleMediaError}
+          />
+        ) : attachment.file_type === "video" ? (
+          <video
+            ref={videoRef}
+            key={mediaKey}
+            src={attachment.url}
+            preload="metadata"
+            className={`w-full h-auto block transition-opacity duration-300 ${
+              isLoaded ? "opacity-100" : "opacity-0"
+            }`}
+            muted
+            playsInline
+            onLoadedMetadata={handleVideoLoad}
+            onLoadedData={handleVideoLoad}
+            onCanPlay={handleVideoLoad}
+            onError={handleMediaError}
+          />
+        ) : attachment.file_type === "audio" ? (
+          <div className="w-full h-40 flex flex-col items-center justify-center bg-[#1a1a1a] p-4 text-center group-hover:bg-[#252525] transition-colors">
+            <div className="w-12 h-12 bg-[#2f2f2f] rounded-full flex items-center justify-center mb-3">
+              <Music className="h-6 w-6 text-[#DC569D]" />
+            </div>
+            <span className="text-sm text-gray-400 font-medium truncate w-full px-2">
+              {attachment.chatName || "Audio File"}
+            </span>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center pointer-events-none">
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+          {attachment.file_type === "video" && (
+            <Video className="h-8 w-8 text-white" />
+          )}
+          {attachment.file_type === "audio" && (
+            <Music className="h-8 w-8 text-white" />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 function Library() {
   const libraryData = useLoaderData();
@@ -22,14 +185,19 @@ function Library() {
   const [currentIndex, setCurrentIndex] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [attachmentsData, setAttachmentsData] = useState(
-    libraryData?.chats || []
+    libraryData?.chats || [],
   );
   const [videoProjects, setVideoProjects] = useState(
-    libraryData?.video_projects || []
+    libraryData?.video_projects || [],
   );
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
+  const [visibleCount, setVisibleCount] = useState(40);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const loadMoreRef = useRef(null);
+  const [editingName, setEditingName] = useState("");
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isSavingName, setIsSavingName] = useState(false);
   // Extraer todos los attachments de todos los chats con el nombre del chat
   const chatAttachments = attachmentsData.flatMap((chat) =>
     chat.attachments.map((attachment) => ({
@@ -37,7 +205,7 @@ function Library() {
       chatName: chat.name,
       chatId: chat.id,
       sourceType: "chat",
-    }))
+    })),
   );
 
   const projectAttachments = videoProjects.map((project) => ({
@@ -91,6 +259,43 @@ function Library() {
     .slice()
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
+  // Attachments visibles (lazy loading)
+  const visibleAttachments = sortedAttachments.slice(0, visibleCount);
+  const hasMore = visibleCount < sortedAttachments.length;
+
+  // Reset visible count cuando cambia el filtro o búsqueda
+  useEffect(() => {
+    setVisibleCount(30);
+  }, [galleryFilter, searchTerm]);
+
+  // Cargar más elementos
+  const loadMore = useCallback(() => {
+    if (isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    setTimeout(() => {
+      setVisibleCount((prev) => Math.min(prev + 30, sortedAttachments.length));
+      setIsLoadingMore(false);
+    }, 300);
+  }, [isLoadingMore, hasMore, sortedAttachments.length]);
+
+  // IntersectionObserver para detectar scroll al final
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, loadMore]);
+
   // Función para eliminar attachment
   const handleDeleteAttachment = async (attachmentId) => {
     setIsDeleting(true);
@@ -106,7 +311,7 @@ function Library() {
             Authorization: "Bearer " + Cookies.get("token"),
           },
           body: formData,
-        }
+        },
       );
 
       if (!response.ok) {
@@ -121,9 +326,9 @@ function Library() {
           prevChats.map((chat) => ({
             ...chat,
             attachments: chat.attachments.filter(
-              (att) => att.id !== attachmentId
+              (att) => att.id !== attachmentId,
             ),
-          }))
+          })),
         );
         setDeleteConfirm(null);
         // Si estamos en preview y eliminamos el actual, cerrar el preview
@@ -154,6 +359,12 @@ function Library() {
     }
   };
 
+  // Reset editing state when changing attachment
+  useEffect(() => {
+    setIsEditingName(false);
+    setEditingName("");
+  }, [currentIndex]);
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -174,6 +385,84 @@ function Library() {
 
   const currentAttachment =
     currentIndex !== null ? sortedAttachments[currentIndex] : null;
+
+  const handleDownload = async (e, url) => {
+    e.stopPropagation();
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Network response was not ok");
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      const mimeType = blob.type;
+      const extension = mimeType.split("/")[1] || "bin";
+      link.download = `media-${Date.now()}.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("Download failed:", error);
+      window.open(url, "_blank");
+    }
+  };
+
+  const handleSaveAttachmentName = async () => {
+    if (!currentAttachment || !editingName.trim()) return;
+    setIsSavingName(true);
+    try {
+      const formData = new FormData();
+      formData.append("attachment_id", currentAttachment.id);
+      formData.append("name", editingName.trim());
+
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}chat/update-attachment-name`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Actualizar el nombre en el estado local
+        setAttachmentsData((prevChats) =>
+          prevChats.map((chat) => ({
+            ...chat,
+            attachments: chat.attachments.map((att) =>
+              att.id === currentAttachment.id
+                ? { ...att, name: editingName.trim() }
+                : att,
+            ),
+          })),
+        );
+        setIsEditingName(false);
+      }
+    } catch (error) {
+      console.error("Error saving attachment name:", error);
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
+  const handleStartEditingName = () => {
+    setEditingName(currentAttachment?.name || "");
+    setIsEditingName(true);
+  };
+
+  const handleCancelEditingName = () => {
+    setIsEditingName(false);
+    setEditingName("");
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-primarioDark">
@@ -235,6 +524,15 @@ function Library() {
           className="fixed inset-0 bg-black/40 backdrop-blur-2xl z-[100] flex items-center justify-center p-4"
           onClick={() => setCurrentIndex(null)}
         >
+          {/* Download Button */}
+          <button
+            onClick={(e) => handleDownload(e, currentAttachment.url)}
+            className="absolute top-4 right-16 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 z-20 transition-colors"
+            title="Download"
+          >
+            <Download size={24} />
+          </button>
+
           {/* Close Button */}
           <button
             onClick={() => setCurrentIndex(null)}
@@ -319,6 +617,61 @@ function Library() {
               {currentIndex + 1} / {sortedAttachments.length}
             </p>
           </div>
+
+          {/* Name Editor */}
+          {currentAttachment.sourceType !== "project" && (
+            <div
+              className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-black/60 backdrop-blur-sm rounded-lg p-3">
+                {isEditingName ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      className="flex-1 px-3 py-2 bg-[#2f2f2f] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#DC569D] focus:ring-1 focus:ring-[#DC569D] transition-all text-sm"
+                      placeholder="Enter file name..."
+                      maxLength={255}
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSaveAttachmentName}
+                      disabled={isSavingName || !editingName.trim()}
+                      className="px-3 py-2 bg-[#DC569D] text-white rounded-lg hover:bg-[#c44a87] transition-colors disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {isSavingName ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                    </button>
+                    <button
+                      onClick={handleCancelEditingName}
+                      disabled={isSavingName}
+                      className="px-3 py-2 bg-[#2f2f2f] text-gray-300 rounded-lg hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-white text-sm font-medium truncate">
+                      {currentAttachment.name || "Unnamed file"}
+                    </p>
+                    <button
+                      onClick={handleStartEditingName}
+                      className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+                      title="Edit name"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -413,120 +766,43 @@ function Library() {
         ) : (
           <div className="max-w-7xl mx-auto">
             <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4">
-              {sortedAttachments.map((attachment, idx) => {
-                const isAIGenerated =
-                  attachment.path?.includes("generated-images") ||
-                  attachment.path?.includes("ia") ||
-                  attachment.path?.includes("veo31-videos") ||
-                  attachment.path?.includes("sora2-videos") ||
-                  attachment.url?.includes("generated-images");
-
-                return (
-                  <div
-                    key={attachment.id || idx}
-                    onClick={() => setCurrentIndex(idx)}
-                    className={`relative bg-[#2f2f2f] rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#DC569D] transition-all group break-inside-avoid mb-4 ${
-                      !loadedMedia.has(attachment.id) ? "min-h-[160px]" : ""
-                    }`}
-                  >
-                    {/* Delete Button */}
-                    {attachment.sourceType !== "project" && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteConfirm(attachment.id);
-                        }}
-                        className="absolute top-2 left-2 z-10 bg-[#DC569D]/90 hover:bg-[#c44a87] backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Trash2 className="h-4 w-4 text-white" />
-                      </button>
-                    )}
-
-                    {/* AI Badge */}
-                    {isAIGenerated && (
-                      <div className="absolute top-2 right-2 z-10 bg-[#DC569D] rounded-full p-1.5">
-                        <Sparkles className="h-3 w-3 text-white" />
-                      </div>
-                    )}
-
-                    {/* Project Badge */}
-                    {attachment.sourceType === "project" && (
-                      <div className="absolute top-2 right-2 z-10 bg-[#8E24AA] rounded-full p-1.5">
-                        <Clapperboard className="h-3 w-3 text-white" />
-                      </div>
-                    )}
-
-                    {/* Loading State */}
-                    {/* For audio we don't need loading state in the same way, or it's instant */}
-                    {!loadedMedia.has(attachment.id) &&
-                      attachment.file_type !== "audio" && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-[#2f2f2f]">
-                          <Loader2 className="h-8 w-8 text-[#DC569D] animate-spin" />
-                        </div>
-                      )}
-
-                    {/* Media Content */}
-                    <div>
-                      {attachment.file_type === "image" ? (
-                        <img
-                          src={attachment.url}
-                          alt="Gallery item"
-                          loading="lazy"
-                          className={`w-full h-auto block transition-opacity duration-300 ${
-                            loadedMedia.has(attachment.id)
-                              ? "opacity-100"
-                              : "opacity-0"
-                          }`}
-                          onLoad={() => {
-                            setLoadedMedia((prev) =>
-                              new Set(prev).add(attachment.id)
-                            );
-                          }}
-                        />
-                      ) : attachment.file_type === "video" ? (
-                        <video
-                          src={attachment.url}
-                          loading="lazy"
-                          className={`w-full h-auto block transition-opacity duration-300 ${
-                            loadedMedia.has(attachment.id)
-                              ? "opacity-100"
-                              : "opacity-0"
-                          }`}
-                          muted
-                          playsInline
-                          onLoadedData={() => {
-                            setLoadedMedia((prev) =>
-                              new Set(prev).add(attachment.id)
-                            );
-                          }}
-                        />
-                      ) : attachment.file_type === "audio" ? (
-                        <div className="w-full h-40 flex flex-col items-center justify-center bg-[#1a1a1a] p-4 text-center group-hover:bg-[#252525] transition-colors">
-                          <div className="w-12 h-12 bg-[#2f2f2f] rounded-full flex items-center justify-center mb-3">
-                            <Music className="h-6 w-6 text-[#DC569D]" />
-                          </div>
-                          <span className="text-sm text-gray-400 font-medium truncate w-full px-2">
-                            {attachment.chatName || "Audio File"}
-                          </span>
-                        </div>
-                      ) : null}
-                    </div>
-
-                    {/* Overlay */}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center pointer-events-none">
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        {attachment.file_type === "video" && (
-                          <Video className="h-8 w-8 text-white" />
-                        )}
-                        {attachment.file_type === "audio" && (
-                          <Music className="h-8 w-8 text-white" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {visibleAttachments.map((attachment, idx) => (
+                <GalleryItem
+                  key={attachment.id || idx}
+                  attachment={attachment}
+                  idx={idx}
+                  onClick={setCurrentIndex}
+                  onDelete={setDeleteConfirm}
+                  isLoaded={loadedMedia.has(attachment.id)}
+                  onLoad={(id) =>
+                    setLoadedMedia((prev) => new Set(prev).add(id))
+                  }
+                />
+              ))}
             </div>
+
+            {/* Load More Trigger */}
+            {hasMore && (
+              <div
+                ref={loadMoreRef}
+                className="flex justify-center items-center py-8"
+              >
+                {isLoadingMore ? (
+                  <div className="flex items-center gap-3 text-gray-400">
+                    <Loader2 className="h-6 w-6 animate-spin text-[#DC569D]" />
+                    <span>Loading more...</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={loadMore}
+                    className="px-6 py-2 bg-[#2f2f2f] text-gray-300 rounded-lg hover:bg-[#3a3a3a] transition-colors"
+                  >
+                    Load more ({sortedAttachments.length - visibleCount}{" "}
+                    remaining)
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
