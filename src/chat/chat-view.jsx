@@ -9,6 +9,7 @@ function ChatView() {
 
   const [selectedChat, setSelectedChat] = useState(chatData?.chat || null);
   const [messages, setMessages] = useState(chatData?.messages || []);
+  const [attachments, setAttachments] = useState(chatData?.attachments || []);
 
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -19,10 +20,16 @@ function ChatView() {
     if (chatData?.chat) {
       setSelectedChat(chatData.chat);
       setMessages(chatData.messages || []);
+      setAttachments(chatData.attachments || []);
     }
   }, [chatData]);
 
-  const handleSendMessage = async (filesData = []) => {
+  const handleSendMessage = async (
+    filesData = [],
+    retryCount = 0,
+    savedMessage = null,
+    tempMsgId = null,
+  ) => {
     // Normalizar filesData
     let actualFiles = [];
     let forwardedAttachments = [];
@@ -63,52 +70,89 @@ function ChatView() {
       actualFiles = filesData;
     }
 
-    if (
-      (!message.trim() &&
-        actualFiles.length === 0 &&
-        forwardedAttachments.length === 0) ||
-      isSending
-    )
-      return;
+    const MAX_RETRIES = 3;
+    let userMessage = savedMessage || message;
+    let currentTempMsgId = tempMsgId;
 
-    const userMessage = message;
-    setMessage("");
+    // Solo configuración inicial en el primer intento
+    if (retryCount === 0) {
+      if (
+        (!message.trim() &&
+          actualFiles.length === 0 &&
+          forwardedAttachments.length === 0) ||
+        isSending
+      )
+        return;
 
-    // Add user message immediately with attachment preview
-    const tempUserMsg = {
-      id: Date.now(),
-      role: "user",
-      content:
-        userMessage ||
-        (actualFiles.length > 0 || forwardedAttachments.length > 0
-          ? "[Files attached]"
-          : ""),
-      attachments: [
-        ...actualFiles.map((f) => ({
-          url: f.isUrl ? f.url : f.preview,
-          file_type: f.type,
-        })),
-        ...forwardedAttachments,
-      ],
-    };
-    setMessages((prev) => [...prev, tempUserMsg]);
+      userMessage = message;
+      setMessage("");
 
-    setIsSending(true);
-    setIsTyping(true);
+      // Add user message immediately with attachment preview
+      const tempUserMsg = {
+        id: Date.now(),
+        role: "user",
+        content:
+          userMessage ||
+          (actualFiles.length > 0 || forwardedAttachments.length > 0
+            ? "[Files attached]"
+            : ""),
+        attachments: [
+          ...actualFiles.map((f) => ({
+            url: f.isUrl ? f.url : f.preview,
+            file_type: f.type,
+          })),
+          ...forwardedAttachments,
+        ],
+      };
+      currentTempMsgId = tempUserMsg.id;
+      setMessages((prev) => [...prev, tempUserMsg]);
 
-    // Create new AbortController for this request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+      setIsSending(true);
+      setIsTyping(true);
+
+      // Create new AbortController for this request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
     }
-    abortControllerRef.current = new AbortController();
 
     try {
+      console.log(
+        `[handleSendMessage] Calling postMessage (Attempt ${retryCount + 1})...`,
+      );
       const response = await postMessage(
         userMessage,
         selectedChat?.id,
         filesData,
-        abortControllerRef.current.signal
+        abortControllerRef.current?.signal,
       );
+
+      // Check for backend error even if success is true
+      const responseMsg = response.message ? response.message.trim() : "";
+
+      if (
+        responseMsg === "error|resonse_empty" ||
+        responseMsg === "error|response_empty"
+      ) {
+        console.log(
+          "[handleSendMessage] Detected error response, retryCount:",
+          retryCount,
+        );
+        if (retryCount < MAX_RETRIES) {
+          console.log(
+            `[handleSendMessage] Retrying message... Attempt ${retryCount + 1}`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          return handleSendMessage(
+            filesData,
+            retryCount + 1,
+            userMessage,
+            currentTempMsgId,
+          );
+        }
+        throw new Error("Server error: " + responseMsg);
+      }
 
       if (response.success) {
         const chatId = response.chat_id;
@@ -163,20 +207,50 @@ function ChatView() {
                 : response.attachments || [],
           };
           setMessages((prev) => [...prev, aiMessage]);
+          if (responseAttachments.length > 0) {
+            setAttachments((prev) => [...prev, ...responseAttachments]);
+          } else if (response.attachments && response.attachments.length > 0) {
+            setAttachments((prev) => [...prev, ...response.attachments]);
+          }
         }
       }
+
+      // Success cleanup
+      setIsSending(false);
+      setIsTyping(false);
+      abortControllerRef.current = null;
     } catch (error) {
+      console.log(
+        "[handleSendMessage] Catch block - error:",
+        error.name,
+        error.message,
+      );
       if (error.name === "AbortError") {
         console.log("Request cancelled");
+        // No removemos el mensaje si fue cancelado manualmente? O si? En chat.jsx no
       } else {
+        // Red error or Max Retries exceeded
+        if (retryCount < MAX_RETRIES) {
+          console.log(
+            `[handleSendMessage] Network error retry ${retryCount + 1}`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          return handleSendMessage(
+            filesData,
+            retryCount + 1,
+            userMessage,
+            currentTempMsgId,
+          );
+        }
+
         console.error("Error sending message:", error);
-      }
-      // Remove temp message and restore input on error
-      if (error.name !== "AbortError") {
-        setMessages((prev) => prev.filter((msg) => msg.id !== tempUserMsg.id));
+        // Remove temp message and restore input on error
+        setMessages((prev) =>
+          prev.filter((msg) => msg.id !== currentTempMsgId),
+        );
         setMessage(userMessage);
       }
-    } finally {
+
       setIsSending(false);
       setIsTyping(false);
       abortControllerRef.current = null;
@@ -201,7 +275,7 @@ function ChatView() {
       isSending={isSending}
       isTyping={isTyping}
       messages={messages}
-      attachments={chatData?.attachments || []}
+      attachments={attachments}
     />
   );
 }

@@ -13,8 +13,18 @@ function Chat() {
   const [isTyping, setIsTyping] = useState(false);
   const abortControllerRef = useRef(null);
 
-  const handleSendMessage = async (filesData = [], retryCount = 0) => {
-    const MAX_RETRIES = 3;
+  const handleSendMessage = async (
+    filesData = [],
+    retryCount = 0,
+    savedMessage = null,
+  ) => {
+    const MAX_RETRIES = 6;
+
+    console.log("[handleSendMessage] Called with:", {
+      retryCount,
+      savedMessage,
+      currentMessage: message,
+    });
 
     // Normalizar filesData
     let actualFiles = [];
@@ -28,12 +38,25 @@ function Chat() {
       actualFiles = filesData;
     }
 
-    if ((!message.trim() && actualFiles.length === 0) || isSending) return;
+    // Usar savedMessage en reintentos, message en el primer intento
+    const userMessage = retryCount > 0 ? savedMessage : message;
 
-    const userMessage = message;
+    console.log(
+      "[handleSendMessage] userMessage:",
+      userMessage,
+      "actualFiles:",
+      actualFiles.length,
+    );
 
-    // Solo limpiar mensaje y mostrar preview en el primer intento
+    // Solo validar en el primer intento
     if (retryCount === 0) {
+      if ((!message.trim() && actualFiles.length === 0) || isSending) {
+        console.log(
+          "[handleSendMessage] Early return - no message or already sending",
+        );
+        return;
+      }
+
       setMessage("");
 
       // Add user message immediately with attachment preview
@@ -67,23 +90,42 @@ function Chat() {
         abortControllerRef.current.signal,
       );
 
-      // Si la respuesta es error|resonse_empty, reintentar silenciosamente
+      // Check for backend error even if success is true
+      // Backend typo is "resonse", checking both to be safe
+      const responseMsg = response.message ? response.message.trim() : "";
+
       if (
-        response.message === "error|resonse_empty" &&
-        retryCount < MAX_RETRIES
+        responseMsg === "error|resonse_empty" ||
+        responseMsg === "error|response_empty"
       ) {
-        // Pequeña pausa antes de reintentar
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        return handleSendMessage(filesData, retryCount + 1);
+        if (retryCount < MAX_RETRIES) {
+          console.log(
+            `[handleSendMessage] Retrying message... Attempt ${retryCount + 1}`,
+          );
+          // Pequeña pausa antes de reintentar
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          return handleSendMessage(filesData, retryCount + 1, userMessage);
+        }
+        console.log("[handleSendMessage] Max retries exceeded, throwing error");
+        throw new Error("Server error: " + responseMsg);
       }
 
       if (response.success && response.chat_id) {
+        console.log(
+          "[handleSendMessage] Success! Navigating to:",
+          response.chat_id,
+        );
         // Revalidate to refresh chat list in sidebar
         await revalidator.revalidate();
         // Navigate to new chat
         navigate(`/${response.chat_id}`);
       }
     } catch (error) {
+      console.log(
+        "[handleSendMessage] Catch block - error:",
+        error.name,
+        error.message,
+      );
       if (error.name === "AbortError") {
         console.log("Request cancelled");
         setPreviewMessages([]);
@@ -94,8 +136,11 @@ function Chat() {
       } else {
         // Si hay error de red y no hemos excedido los reintentos, reintentar
         if (retryCount < MAX_RETRIES) {
+          console.log(
+            `[handleSendMessage] Network error retry ${retryCount + 1}`,
+          );
           await new Promise((resolve) => setTimeout(resolve, 1000));
-          return handleSendMessage(filesData, retryCount + 1);
+          return handleSendMessage(filesData, retryCount + 1, userMessage);
         }
         console.error("Error sending message:", error);
         setMessage(userMessage);
