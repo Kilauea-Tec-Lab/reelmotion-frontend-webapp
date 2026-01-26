@@ -20,12 +20,6 @@ function Chat() {
   ) => {
     const MAX_RETRIES = 6;
 
-    console.log("[handleSendMessage] Called with:", {
-      retryCount,
-      savedMessage,
-      currentMessage: message,
-    });
-
     // Normalizar filesData
     let actualFiles = [];
     if (
@@ -41,19 +35,9 @@ function Chat() {
     // Usar savedMessage en reintentos, message en el primer intento
     const userMessage = retryCount > 0 ? savedMessage : message;
 
-    console.log(
-      "[handleSendMessage] userMessage:",
-      userMessage,
-      "actualFiles:",
-      actualFiles.length,
-    );
-
     // Solo validar en el primer intento
     if (retryCount === 0) {
       if ((!message.trim() && actualFiles.length === 0) || isSending) {
-        console.log(
-          "[handleSendMessage] Early return - no message or already sending",
-        );
         return;
       }
 
@@ -99,35 +83,21 @@ function Chat() {
         responseMsg === "error|response_empty"
       ) {
         if (retryCount < MAX_RETRIES) {
-          console.log(
-            `[handleSendMessage] Retrying message... Attempt ${retryCount + 1}`,
-          );
           // Pequeña pausa antes de reintentar
           await new Promise((resolve) => setTimeout(resolve, 1000));
           return handleSendMessage(filesData, retryCount + 1, userMessage);
         }
-        console.log("[handleSendMessage] Max retries exceeded, throwing error");
         throw new Error("Server error: " + responseMsg);
       }
 
       if (response.success && response.chat_id) {
-        console.log(
-          "[handleSendMessage] Success! Navigating to:",
-          response.chat_id,
-        );
         // Revalidate to refresh chat list in sidebar
         await revalidator.revalidate();
         // Navigate to new chat
         navigate(`/${response.chat_id}`);
       }
     } catch (error) {
-      console.log(
-        "[handleSendMessage] Catch block - error:",
-        error.name,
-        error.message,
-      );
       if (error.name === "AbortError") {
-        console.log("Request cancelled");
         setPreviewMessages([]);
         setIsSending(false);
         setIsCreating(false);
@@ -136,13 +106,9 @@ function Chat() {
       } else {
         // Si hay error de red y no hemos excedido los reintentos, reintentar
         if (retryCount < MAX_RETRIES) {
-          console.log(
-            `[handleSendMessage] Network error retry ${retryCount + 1}`,
-          );
           await new Promise((resolve) => setTimeout(resolve, 1000));
           return handleSendMessage(filesData, retryCount + 1, userMessage);
         }
-        console.error("Error sending message:", error);
         setMessage(userMessage);
         setPreviewMessages([]);
         setIsSending(false);
