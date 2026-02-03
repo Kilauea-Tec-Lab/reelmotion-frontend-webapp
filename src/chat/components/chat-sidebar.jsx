@@ -15,12 +15,19 @@ import {
   Trash2,
   Loader2,
   X,
+  Crown,
 } from "lucide-react";
 import { Link, useParams, useNavigate, useRevalidator } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import Cookies from "js-cookie";
 
-function ChatSidebar({ chats, searchQuery, onSearchChange, user }) {
+function ChatSidebar({
+  chats,
+  searchQuery,
+  onSearchChange,
+  user,
+  subscription,
+}) {
   const { chatId } = useParams();
   const navigate = useNavigate();
   const revalidator = useRevalidator();
@@ -61,7 +68,7 @@ function ChatSidebar({ chats, searchQuery, onSearchChange, user }) {
   }, []);
 
   const filteredChats = chats.filter((chat) =>
-    chat.title.toLowerCase().includes(searchQuery.toLowerCase())
+    chat.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const closeEditModal = () => {
@@ -93,7 +100,7 @@ function ChatSidebar({ chats, searchQuery, onSearchChange, user }) {
             Authorization: "Bearer " + Cookies.get("token"),
           },
           body: formData,
-        }
+        },
       );
 
       if (!response.ok) {
@@ -134,7 +141,7 @@ function ChatSidebar({ chats, searchQuery, onSearchChange, user }) {
             Authorization: "Bearer " + Cookies.get("token"),
           },
           body: formData,
-        }
+        },
       );
 
       if (!response.ok) {
@@ -318,6 +325,25 @@ function ChatSidebar({ chats, searchQuery, onSearchChange, user }) {
           <Images size={20} />
           <span className="font-medium">Discover</span>
         </Link>
+        {subscription &&
+        subscription.suscription &&
+        subscription.suscription !== "free" ? (
+          <Link
+            to={"/my-subscription"}
+            className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
+          >
+            <Crown size={20} className="text-[#DC569D]" />
+            <span className="font-medium">My Subscription</span>
+          </Link>
+        ) : (
+          <Link
+            to={"/pro"}
+            className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
+          >
+            <Crown size={20} className="text-[#DC569D]" />
+            <span className="font-medium">Pro</span>
+          </Link>
+        )}
       </div>
 
       {/* Search */}

@@ -18,7 +18,7 @@ export async function getChatInfo() {
         headers: {
           Authorization: "Bearer " + token,
         },
-      }
+      },
     );
 
     // Si el token es inválido o expiró
@@ -63,7 +63,7 @@ export async function getChatDetails(chatId) {
         headers: {
           Authorization: "Bearer " + Cookies.get("token"),
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -85,7 +85,7 @@ export async function getLibrary() {
         headers: {
           Authorization: "Bearer " + Cookies.get("token"),
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -110,7 +110,7 @@ export async function postMessage(
   message,
   chatId = null,
   filesData = [],
-  signal = null
+  signal = null,
 ) {
   try {
     const formData = new FormData();
@@ -170,7 +170,7 @@ export async function postMessage(
         },
         body: formData,
         signal,
-      }
+      },
     );
 
     if (!response.ok) {
@@ -180,6 +180,31 @@ export async function postMessage(
     return response.json();
   } catch (error) {
     console.error("Error sending message:", error);
+    throw error;
+  }
+}
+
+export async function createSubscription(data) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_APP_BACKEND_URL}suscriptions/create`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + Cookies.get("token"),
+        },
+        body: JSON.stringify(data),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to create subscription: ${response.statusText}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Error creating subscription:", error);
     throw error;
   }
 }

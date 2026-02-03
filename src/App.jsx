@@ -22,6 +22,8 @@ import Chat from "./chat/chat";
 import ChatView from "./chat/chat-view";
 import ChatLayout from "./chat/chat-layout";
 import Library from "./chat/library";
+import ProPage from "./subscription/pro-page";
+import MySubscription from "./subscription/my-subscription";
 import { getChatInfo, getChatDetails, getLibrary } from "./chat/functions";
 
 // Component to handle editor redirection
@@ -103,6 +105,14 @@ const router = createBrowserRouter([
         path: "library",
         element: <Library />,
         loader: getLibrary,
+      },
+      {
+        path: "pro",
+        element: <ProPage />,
+      },
+      {
+        path: "my-subscription",
+        element: <MySubscription />,
       },
       {
         path: ":chatId",

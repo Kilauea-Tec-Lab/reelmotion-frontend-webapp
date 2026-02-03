@@ -1,10 +1,10 @@
-import { Outlet } from "react-router-dom";
-import { useLoaderData } from "react-router-dom";
+import { Outlet, useLoaderData, useRevalidator } from "react-router-dom";
 import { useState } from "react";
 import ChatSidebar from "./components/chat-sidebar";
 
 function ChatLayout() {
   const chatData = useLoaderData();
+  const revalidator = useRevalidator();
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
@@ -14,8 +14,9 @@ function ChatLayout() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         user={chatData?.user || {}}
+        subscription={chatData?.suscription || null}
       />
-      <Outlet />
+      <Outlet context={{ revalidate: revalidator.revalidate }} />
     </div>
   );
 }
