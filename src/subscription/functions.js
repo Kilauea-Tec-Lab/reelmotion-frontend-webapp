@@ -108,3 +108,28 @@ export async function updateSubscription(data) {
     throw error;
   }
 }
+
+export async function getBillingInfo() {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_APP_BACKEND_URL}suscriptions/get-billing-info`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + Cookies.get("token"),
+        },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch billing info");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching billing info:", error);
+    // Silent fail or rethrow? Usually better to just log and let form be empty if it fails.
+    // But keeping consistency with other functions that throw.
+    throw error;
+  }
+}

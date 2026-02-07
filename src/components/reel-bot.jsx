@@ -100,7 +100,7 @@ function ReelBot({ onClose }) {
             message: messageToSend,
             conversation: JSON.stringify(previousConversation),
           }),
-        }
+        },
       );
 
       const data = await response.json();
@@ -201,11 +201,11 @@ function ReelBot({ onClose }) {
   };
 
   return (
-    <div className="fixed bottom-6 left-20 z-50 bg-darkBox rounded-2xl shadow-2xl w-96 h-[500px] flex flex-col border border-darkBoxSub">
+    <div className="fixed bottom-6 right-24 z-50 bg-darkBox rounded-2xl shadow-2xl w-96 h-[500px] flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-darkBoxSub">
+      <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#F2D543] flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-[#2f2f2f] border border-gray-600 flex items-center justify-center">
             <img
               src="/logos/reelbot.png"
               size={35}
@@ -238,7 +238,7 @@ function ReelBot({ onClose }) {
             <div
               className={`max-w-[80%] rounded-2xl px-4 py-2 ${
                 message.type === "user"
-                  ? "bg-[#F2D543] text-primarioDark ml-auto"
+                  ? "bg-[#2f2f2f] text-white border border-gray-600 ml-auto"
                   : "bg-darkBoxSub text-white"
               }`}
             >
@@ -257,7 +257,7 @@ function ReelBot({ onClose }) {
                   <p
                     className={`montserrat-light text-xs mt-1 ${
                       message.type === "user"
-                        ? "text-primarioDark opacity-70"
+                        ? "text-gray-300 opacity-70"
                         : "text-gray-400"
                     }`}
                   >
@@ -265,10 +265,7 @@ function ReelBot({ onClose }) {
                   </p>
                 </div>
                 {message.type === "user" && (
-                  <User
-                    size={16}
-                    className="text-primarioDark mt-1 flex-shrink-0"
-                  />
+                  <User size={16} className="text-white mt-1 flex-shrink-0" />
                 )}
               </div>
             </div>
@@ -304,23 +301,20 @@ function ReelBot({ onClose }) {
       </div>
 
       {/* Input */}
-      <form
-        onSubmit={handleSendMessage}
-        className="p-4 border-t border-darkBoxSub"
-      >
+      <form onSubmit={handleSendMessage} className="p-4">
         <div className="flex items-center gap-2">
           <input
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             placeholder="Type your message..."
-            className="flex-1 bg-darkBoxSub text-white placeholder-gray-400 px-4 py-2 rounded-full montserrat-regular text-sm focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
+            className="flex-1 bg-darkBoxSub text-white placeholder-gray-400 px-4 py-2 rounded-full montserrat-regular text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
             disabled={isTyping}
           />
           <button
             type="submit"
             disabled={!inputMessage.trim() || isTyping}
-            className="bg-[#F2D543] hover:bg-[#f2f243] disabled:bg-gray-600 disabled:cursor-not-allowed text-primarioDark p-2 rounded-full transition-colors"
+            className="bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-600 disabled:bg-gray-800 disabled:border-gray-800 disabled:cursor-not-allowed text-white p-2 rounded-full transition-colors"
           >
             <Send size={16} />
           </button>

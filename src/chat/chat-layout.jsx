@@ -1,6 +1,7 @@
 import { Outlet, useLoaderData, useRevalidator } from "react-router-dom";
 import { useState } from "react";
 import ChatSidebar from "./components/chat-sidebar";
+import HelpButton from "../components/help-button";
 
 function ChatLayout() {
   const chatData = useLoaderData();
@@ -17,6 +18,7 @@ function ChatLayout() {
         subscription={chatData?.suscription || null}
       />
       <Outlet context={{ revalidate: revalidator.revalidate }} />
+      <HelpButton />
     </div>
   );
 }

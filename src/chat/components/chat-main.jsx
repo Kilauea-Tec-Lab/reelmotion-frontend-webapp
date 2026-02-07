@@ -20,6 +20,7 @@ import {
   Trash2,
   Pencil,
   Search,
+  ChevronDown,
   Square,
   Music,
   Download,
@@ -29,6 +30,7 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router-dom";
 import Cookies from "js-cookie";
 import { getUserNotifications, deleteNotification } from "../../auth/functions";
+import { getBillingInfo } from "../../subscription/functions";
 import { createPusherClient } from "@/pusher";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -54,7 +56,298 @@ import {
 import { Channel } from "pusher-js";
 
 // Stripe initialization
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+const stripePromise = loadStripe(
+  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST ||
+    import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
+);
+
+const COUNTRIES = [
+  { code: "GB", name: "United Kingdom", flag: "🇬🇧" },
+  { code: "AF", name: "Afghanistan", flag: "🇦🇫" },
+  { code: "AL", name: "Albania", flag: "🇦🇱" },
+  { code: "DZ", name: "Algeria", flag: "🇩🇿" },
+  { code: "AD", name: "Andorra", flag: "🇦🇩" },
+  { code: "AO", name: "Angola", flag: "🇦🇴" },
+  { code: "AG", name: "Antigua & Barbuda", flag: "🇦🇬" },
+  { code: "AR", name: "Argentina", flag: "🇦🇷" },
+  { code: "AM", name: "Armenia", flag: "🇦🇲" },
+  { code: "AU", name: "Australia", flag: "🇦🇺" },
+  { code: "AT", name: "Austria", flag: "🇦🇹" },
+  { code: "AZ", name: "Azerbaijan", flag: "🇦🇿" },
+  { code: "BS", name: "Bahamas", flag: "🇧🇸" },
+  { code: "BH", name: "Bahrain", flag: "🇧🇭" },
+  { code: "BD", name: "Bangladesh", flag: "🇧🇩" },
+  { code: "BB", name: "Barbados", flag: "🇧🇧" },
+  { code: "BY", name: "Belarus", flag: "🇧🇾" },
+  { code: "BE", name: "Belgium", flag: "🇧🇪" },
+  { code: "BZ", name: "Belize", flag: "🇧🇿" },
+  { code: "BJ", name: "Benin", flag: "🇧🇯" },
+  { code: "BT", name: "Bhutan", flag: "🇧🇹" },
+  { code: "BO", name: "Bolivia", flag: "🇧🇴" },
+  { code: "BA", name: "Bosnia & Herzegovina", flag: "🇧🇦" },
+  { code: "BW", name: "Botswana", flag: "🇧🇼" },
+  { code: "BR", name: "Brazil", flag: "🇧🇷" },
+  { code: "BN", name: "Brunei", flag: "🇧🇳" },
+  { code: "BG", name: "Bulgaria", flag: "🇧🇬" },
+  { code: "BF", name: "Burkina Faso", flag: "🇧🇫" },
+  { code: "BI", name: "Burundi", flag: "🇧🇮" },
+  { code: "KH", name: "Cambodia", flag: "🇰🇭" },
+  { code: "CM", name: "Cameroon", flag: "🇨🇲" },
+  { code: "CA", name: "Canada", flag: "🇨🇦" },
+  { code: "CV", name: "Cape Verde", flag: "🇨🇻" },
+  { code: "CF", name: "Central African Rep.", flag: "🇨🇫" },
+  { code: "TD", name: "Chad", flag: "🇹🇩" },
+  { code: "CL", name: "Chile", flag: "🇨🇱" },
+  { code: "CN", name: "China", flag: "🇨🇳" },
+  { code: "CO", name: "Colombia", flag: "🇨🇴" },
+  { code: "KM", name: "Comoros", flag: "🇰🇲" },
+  { code: "CG", name: "Congo - Brazzaville", flag: "🇨🇬" },
+  { code: "CD", name: "Congo - Kinshasa", flag: "🇨🇩" },
+  { code: "CR", name: "Costa Rica", flag: "🇨🇷" },
+  { code: "HR", name: "Croatia", flag: "🇭🇷" },
+  { code: "CU", name: "Cuba", flag: "🇨🇺" },
+  { code: "CY", name: "Cyprus", flag: "🇨🇾" },
+  { code: "CZ", name: "Czech Republic", flag: "🇨🇿" },
+  { code: "DK", name: "Denmark", flag: "🇩🇰" },
+  { code: "DJ", name: "Djibouti", flag: "🇩🇯" },
+  { code: "DM", name: "Dominica", flag: "🇩🇲" },
+  { code: "DO", name: "Dominican Republic", flag: "🇩🇴" },
+  { code: "EC", name: "Ecuador", flag: "🇪🇨" },
+  { code: "EG", name: "Egypt", flag: "🇪🇬" },
+  { code: "SV", name: "El Salvador", flag: "🇸🇻" },
+  { code: "GQ", name: "Equatorial Guinea", flag: "🇬🇶" },
+  { code: "ER", name: "Eritrea", flag: "🇪🇷" },
+  { code: "EE", name: "Estonia", flag: "🇪🇪" },
+  { code: "ET", name: "Ethiopia", flag: "🇪🇹" },
+  { code: "FJ", name: "Fiji", flag: "🇫🇯" },
+  { code: "FI", name: "Finland", flag: "🇫🇮" },
+  { code: "FR", name: "France", flag: "🇫🇷" },
+  { code: "GA", name: "Gabon", flag: "🇬🇦" },
+  { code: "GM", name: "Gambia", flag: "🇬🇲" },
+  { code: "GE", name: "Georgia", flag: "🇬🇪" },
+  { code: "DE", name: "Germany", flag: "🇩🇪" },
+  { code: "GH", name: "Ghana", flag: "🇬🇭" },
+  { code: "GR", name: "Greece", flag: "🇬🇷" },
+  { code: "GD", name: "Grenada", flag: "🇬🇩" },
+  { code: "GT", name: "Guatemala", flag: "🇬🇹" },
+  { code: "GN", name: "Guinea", flag: "🇬🇳" },
+  { code: "GW", name: "Guinea-Bissau", flag: "🇬🇼" },
+  { code: "GY", name: "Guyana", flag: "🇬🇾" },
+  { code: "HT", name: "Haiti", flag: "🇭🇹" },
+  { code: "HN", name: "Honduras", flag: "🇭🇳" },
+  { code: "HU", name: "Hungary", flag: "🇭🇺" },
+  { code: "IS", name: "Iceland", flag: "🇮🇸" },
+  { code: "IN", name: "India", flag: "🇮🇳" },
+  { code: "ID", name: "Indonesia", flag: "🇮🇩" },
+  { code: "IR", name: "Iran", flag: "🇮🇷" },
+  { code: "IQ", name: "Iraq", flag: "🇮🇶" },
+  { code: "IE", name: "Ireland", flag: "🇮🇪" },
+  { code: "IL", name: "Israel", flag: "🇮🇱" },
+  { code: "IT", name: "Italy", flag: "🇮🇹" },
+  { code: "CI", name: "Ivory Coast", flag: "🇨🇮" },
+  { code: "JM", name: "Jamaica", flag: "🇯🇲" },
+  { code: "JP", name: "Japan", flag: "🇯🇵" },
+  { code: "JO", name: "Jordan", flag: "🇯🇴" },
+  { code: "KZ", name: "Kazakhstan", flag: "🇰🇿" },
+  { code: "KE", name: "Kenya", flag: "🇰🇪" },
+  { code: "KI", name: "Kiribati", flag: "🇰🇮" },
+  { code: "KP", name: "North Korea", flag: "🇰🇵" },
+  { code: "KR", name: "South Korea", flag: "🇰🇷" },
+  { code: "KW", name: "Kuwait", flag: "🇰🇼" },
+  { code: "KG", name: "Kyrgyzstan", flag: "🇰🇬" },
+  { code: "LA", name: "Laos", flag: "🇱🇦" },
+  { code: "LV", name: "Latvia", flag: "🇱🇻" },
+  { code: "LB", name: "Lebanon", flag: "🇱🇧" },
+  { code: "LS", name: "Lesotho", flag: "🇱🇸" },
+  { code: "LR", name: "Liberia", flag: "🇱🇷" },
+  { code: "LY", name: "Libya", flag: "🇱🇾" },
+  { code: "LI", name: "Liechtenstein", flag: "🇱🇮" },
+  { code: "LT", name: "Lithuania", flag: "🇱🇹" },
+  { code: "LU", name: "Luxembourg", flag: "🇱🇺" },
+  { code: "MK", name: "Macedonia", flag: "🇲🇰" },
+  { code: "MG", name: "Madagascar", flag: "🇲🇬" },
+  { code: "MW", name: "Malawi", flag: "🇲🇼" },
+  { code: "MY", name: "Malaysia", flag: "🇲🇾" },
+  { code: "MV", name: "Maldives", flag: "🇲🇻" },
+  { code: "ML", name: "Mali", flag: "🇲🇱" },
+  { code: "MT", name: "Malta", flag: "🇲🇹" },
+  { code: "MH", name: "Marshall Islands", flag: "🇲🇭" },
+  { code: "MR", name: "Mauritania", flag: "🇲🇷" },
+  { code: "MU", name: "Mauritius", flag: "🇲🇺" },
+  { code: "MX", name: "Mexico", flag: "🇲🇽" },
+  { code: "FM", name: "Micronesia", flag: "🇫🇲" },
+  { code: "MD", name: "Moldova", flag: "🇲🇩" },
+  { code: "MC", name: "Monaco", flag: "🇲🇨" },
+  { code: "MN", name: "Mongolia", flag: "🇲🇳" },
+  { code: "ME", name: "Montenegro", flag: "🇲🇪" },
+  { code: "MA", name: "Morocco", flag: "🇲🇦" },
+  { code: "MZ", name: "Mozambique", flag: "🇲🇿" },
+  { code: "MM", name: "Myanmar", flag: "🇲🇲" },
+  { code: "NA", name: "Namibia", flag: "🇳🇦" },
+  { code: "NR", name: "Nauru", flag: "🇳🇷" },
+  { code: "NP", name: "Nepal", flag: "🇳🇵" },
+  { code: "NL", name: "Netherlands", flag: "🇳🇱" },
+  { code: "NZ", name: "New Zealand", flag: "🇳🇿" },
+  { code: "NI", name: "Nicaragua", flag: "🇳🇮" },
+  { code: "NE", name: "Niger", flag: "🇳🇪" },
+  { code: "NG", name: "Nigeria", flag: "🇳🇬" },
+  { code: "NO", name: "Norway", flag: "🇳🇴" },
+  { code: "OM", name: "Oman", flag: "🇴🇲" },
+  { code: "PK", name: "Pakistan", flag: "🇵🇰" },
+  { code: "PW", name: "Palau", flag: "🇵🇼" },
+  { code: "PA", name: "Panama", flag: "🇵🇦" },
+  { code: "PG", name: "Papua New Guinea", flag: "🇵🇬" },
+  { code: "PY", name: "Paraguay", flag: "🇵🇾" },
+  { code: "PE", name: "Peru", flag: "🇵🇪" },
+  { code: "PH", name: "Philippines", flag: "🇵🇭" },
+  { code: "PL", name: "Poland", flag: "🇵🇱" },
+  { code: "PT", name: "Portugal", flag: "🇵🇹" },
+  { code: "QA", name: "Qatar", flag: "🇶🇦" },
+  { code: "RO", name: "Romania", flag: "🇷🇴" },
+  { code: "RU", name: "Russia", flag: "🇷🇺" },
+  { code: "RW", name: "Rwanda", flag: "🇷🇼" },
+  { code: "KN", name: "St. Kitts & Nevis", flag: "🇰🇳" },
+  { code: "LC", name: "St. Lucia", flag: "🇱🇨" },
+  { code: "VC", name: "St. Vincent & Grenadines", flag: "🇻🇨" },
+  { code: "WS", name: "Samoa", flag: "🇼🇸" },
+  { code: "SM", name: "San Marino", flag: "🇸🇲" },
+  { code: "ST", name: "Sao Tome & Principe", flag: "🇸🇹" },
+  { code: "SA", name: "Saudi Arabia", flag: "🇸🇦" },
+  { code: "SN", name: "Senegal", flag: "🇸🇳" },
+  { code: "RS", name: "Serbia", flag: "🇷🇸" },
+  { code: "SC", name: "Seychelles", flag: "🇸🇨" },
+  { code: "SL", name: "Sierra Leone", flag: "🇸🇱" },
+  { code: "SG", name: "Singapore", flag: "🇸🇬" },
+  { code: "SK", name: "Slovakia", flag: "🇸🇰" },
+  { code: "SI", name: "Slovenia", flag: "🇸🇮" },
+  { code: "SB", name: "Solomon Islands", flag: "🇸🇧" },
+  { code: "SO", name: "Somalia", flag: "🇸🇴" },
+  { code: "ZA", name: "South Africa", flag: "🇿🇦" },
+  { code: "SS", name: "South Sudan", flag: "🇸🇸" },
+  { code: "LK", name: "Sri Lanka", flag: "🇱🇰" },
+  { code: "SD", name: "Sudan", flag: "🇸🇩" },
+  { code: "SR", name: "Suriname", flag: "🇸🇷" },
+  { code: "SZ", name: "Swaziland", flag: "🇸🇿" },
+  { code: "SE", name: "Sweden", flag: "🇸🇪" },
+  { code: "CH", name: "Switzerland", flag: "🇨🇭" },
+  { code: "SY", name: "Syria", flag: "🇸🇾" },
+  { code: "TW", name: "Taiwan", flag: "🇹🇼" },
+  { code: "TJ", name: "Tajikistan", flag: "🇹🇯" },
+  { code: "TZ", name: "Tanzania", flag: "🇹🇿" },
+  { code: "TH", name: "Thailand", flag: "🇹🇭" },
+  { code: "TL", name: "Timor-Leste", flag: "🇹🇱" },
+  { code: "TG", name: "Togo", flag: "🇹🇬" },
+  { code: "TO", name: "Tonga", flag: "🇹🇴" },
+  { code: "TT", name: "Trinidad & Tobago", flag: "🇹🇹" },
+  { code: "TN", name: "Tunisia", flag: "🇹🇳" },
+  { code: "TR", name: "Turkey", flag: "🇹🇷" },
+  { code: "TM", name: "Turkmenistan", flag: "🇹🇲" },
+  { code: "TV", name: "Tuvalu", flag: "🇹🇻" },
+  { code: "UG", name: "Uganda", flag: "🇺🇬" },
+  { code: "UA", name: "Ukraine", flag: "🇺🇦" },
+  { code: "AE", name: "United Arab Emirates", flag: "🇦🇪" },
+  { code: "UY", name: "Uruguay", flag: "🇺🇾" },
+  { code: "UZ", name: "Uzbekistan", flag: "🇺🇿" },
+  { code: "VU", name: "Vanuatu", flag: "🇻🇺" },
+  { code: "VA", name: "Vatican City", flag: "🇻🇦" },
+  { code: "VE", name: "Venezuela", flag: "🇻🇪" },
+  { code: "VN", name: "Vietnam", flag: "🇻🇳" },
+  { code: "YE", name: "Yemen", flag: "🇾🇪" },
+  { code: "ZM", name: "Zambia", flag: "🇿🇲" },
+  { code: "ZW", name: "Zimbabwe", flag: "🇿🇼" },
+];
+
+function SearchableCountrySelect({ value, onChange, countries }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const wrapperRef = useRef(null);
+
+  // Close when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredCountries = countries.filter((c) =>
+    c.name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const selectedCountry = countries.find((c) => c.code === value);
+
+  return (
+    <div className="relative" ref={wrapperRef}>
+      <div
+        className="w-full p-3 border border-gray-700 rounded-lg bg-[#3a3a3a] text-white flex items-center justify-between cursor-pointer focus:outline-none focus:border-[#DC569D] transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="flex items-center gap-2">
+          {selectedCountry ? (
+            <>
+              <span className="text-xl">{selectedCountry.flag}</span>
+              <span>{selectedCountry.name}</span>
+            </>
+          ) : (
+            <span className="text-gray-400">Select a country</span>
+          )}
+        </span>
+        <ChevronDown
+          size={16}
+          className={`text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+        />
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-2 bg-[#2f2f2f] border border-gray-700 rounded-lg shadow-xl max-h-60 overflow-hidden flex flex-col">
+          <div className="p-2 border-b border-gray-700 sticky top-0 bg-[#2f2f2f]">
+            <div className="relative">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="text"
+                placeholder="Search country..."
+                className="w-full pl-9 pr-3 py-2 bg-[#3a3a3a] border border-gray-700 rounded-md text-sm text-white focus:outline-none focus:border-[#DC569D]"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="overflow-y-auto flex-1">
+            {filteredCountries.map((c) => (
+              <div
+                key={c.code}
+                className={`px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-white/5 transition-colors ${value === c.code ? "bg-white/10" : ""}`}
+                onClick={() => {
+                  onChange(c.code);
+                  setIsOpen(false);
+                  setSearch("");
+                }}
+              >
+                <span className="text-xl">{c.flag}</span>
+                <span>{c.name}</span>
+                {value === c.code && (
+                  <Check size={16} className="ml-auto text-[#DC569D]" />
+                )}
+              </div>
+            ))}
+            {filteredCountries.length === 0 && (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                No countries found
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // PayPal configuration
 let paypalClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
@@ -405,6 +698,30 @@ function ChatMain({
   const [showEditChatModal, setShowEditChatModal] = useState(false);
   const [editChatTitle, setEditChatTitle] = useState("");
   const [isSavingChatTitle, setIsSavingChatTitle] = useState(false);
+
+  // Billing Details State
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [address, setAddress] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [country, setCountry] = useState("US");
+
+  useEffect(() => {
+    getBillingInfo()
+      .then((response) => {
+        const data = response?.billing_info;
+        if (data) {
+          if (data.first_name) setFirstName(data.first_name);
+          if (data.last_name) setLastName(data.last_name);
+          if (data.address) setAddress(data.address);
+          if (data.postal_code) setPostalCode(data.postal_code);
+          if (data.country_code) setCountry(data.country_code);
+        }
+      })
+      .catch(() => {
+        // Silent fail
+      });
+  }, []);
 
   // Quick Actions Menu State
   const [quickActionMenu, setQuickActionMenu] = useState("main");
@@ -886,6 +1203,18 @@ function ChatMain({
     }
   };
 
+  const handleEditAttachment = (attachment) => {
+    const fileAttachment = {
+      url: attachment.url,
+      type: attachment.file_type,
+      isUrl: true,
+    };
+    setSelectedFiles([fileAttachment]);
+    if (messageInputRef.current) {
+      messageInputRef.current.focus();
+    }
+  };
+
   const handleCopyToClipboard = async (msg) => {
     try {
       await navigator.clipboard.writeText(msg.content);
@@ -1061,8 +1390,11 @@ function ChatMain({
   const calculateTokens = (dollars) => dollars * 100;
 
   const calculateVAT = (amount) => {
-    const vatRate = 0.2;
-    return Number((amount * vatRate).toFixed(2));
+    if (country === "GB") {
+      const vatRate = 0.2;
+      return Number((amount * vatRate).toFixed(2));
+    }
+    return 0;
   };
 
   const calculateTotalWithVAT = (baseAmount) => {
@@ -1114,6 +1446,14 @@ function ChatMain({
       const { error, paymentMethod } = await stripe.createPaymentMethod({
         type: "card",
         card: elements.getElement(CardNumberElement),
+        billing_details: {
+          name: `${firstName} ${lastName}`,
+          address: {
+            line1: address,
+            postal_code: postalCode,
+            country: country,
+          },
+        },
       });
 
       if (error) {
@@ -1123,7 +1463,7 @@ function ChatMain({
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_APP_BACKEND_URL}payments/stripe/process`,
+        `${import.meta.env.VITE_APP_BACKEND_URL}payments/create-payment-intent`,
         {
           method: "POST",
           headers: {
@@ -1134,6 +1474,14 @@ function ChatMain({
             payment_method_id: paymentMethod.id,
             amount: breakdown.total,
             tokens: breakdown.tokens,
+            billing_details: {
+              first_name: firstName,
+              last_name: lastName,
+              address: address,
+              postal_code: postalCode,
+              country: country,
+              vat_amount: breakdown.vat,
+            },
           }),
         },
       );
@@ -1937,6 +2285,19 @@ function ChatMain({
                                 }
                               }}
                             >
+                              {(attachment.file_type === "image" ||
+                                attachment.file_type === "video") && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditAttachment(attachment);
+                                  }}
+                                  className="absolute top-[-14px] right-[-14px] z-10 bg-primarioLogo hover:bg-[#ec77b5] text-white text-xs px-2 py-1 rounded-md flex items-center gap-1 backdrop-blur-sm transition-colors"
+                                >
+                                  <Pencil size={12} />
+                                  Edit
+                                </button>
+                              )}
                               {attachment.file_type === "image" ? (
                                 <img
                                   src={attachment.url}
@@ -2946,14 +3307,16 @@ function ChatMain({
                                   ${breakdown.subtotal.toFixed(2)}
                                 </span>
                               </div>
-                              <div className="flex justify-between items-center mt-1">
-                                <span className="text-gray-400">
-                                  VAT (20%):
-                                </span>
-                                <span className="text-white font-medium">
-                                  ${breakdown.vat.toFixed(2)}
-                                </span>
-                              </div>
+                              {breakdown.vat > 0 && (
+                                <div className="flex justify-between items-center mt-1">
+                                  <span className="text-gray-400">
+                                    VAT (20%):
+                                  </span>
+                                  <span className="text-white font-medium">
+                                    ${breakdown.vat.toFixed(2)}
+                                  </span>
+                                </div>
+                              )}
                               <div className="border-t border-gray-600 mt-2 pt-2">
                                 <div className="flex justify-between items-center">
                                   <span className="text-white font-semibold">
@@ -3095,6 +3458,79 @@ function ChatMain({
                           Credit/Debit Card Payment
                         </h3>
 
+                        {/* Billing Info */}
+                        <div className="space-y-4 pt-2 pb-6 border-b border-gray-700">
+                          <h3 className="text-lg font-semibold text-white">
+                            Billing Address
+                          </h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <label className="block text-gray-300 text-sm font-medium">
+                                First Name
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={firstName}
+                                onChange={(e) => setFirstName(e.target.value)}
+                                className="w-full p-3 border border-gray-700 rounded-lg bg-[#3a3a3a] text-white focus:outline-none focus:border-[#DC569D] transition-colors"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="block text-gray-300 text-sm font-medium">
+                                Last Name
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={lastName}
+                                onChange={(e) => setLastName(e.target.value)}
+                                className="w-full p-3 border border-gray-700 rounded-lg bg-[#3a3a3a] text-white focus:outline-none focus:border-[#DC569D] transition-colors"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="block text-gray-300 text-sm font-medium">
+                              Address
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={address}
+                              onChange={(e) => setAddress(e.target.value)}
+                              className="w-full p-3 border border-gray-700 rounded-lg bg-[#3a3a3a] text-white focus:outline-none focus:border-[#DC569D] transition-colors"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <label className="block text-gray-300 text-sm font-medium">
+                                Country
+                              </label>
+                              <div className="relative">
+                                <SearchableCountrySelect
+                                  value={country}
+                                  onChange={setCountry}
+                                  countries={COUNTRIES}
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="block text-gray-300 text-sm font-medium">
+                                Postal Code
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={postalCode}
+                                onChange={(e) => setPostalCode(e.target.value)}
+                                className="w-full p-3 border border-gray-700 rounded-lg bg-[#3a3a3a] text-white focus:outline-none focus:border-[#DC569D] transition-colors"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
                         <CardInput
                           onPaymentProcess={handleStripePayment}
                           isProcessing={isProcessingPayment}
@@ -3104,10 +3540,50 @@ function ChatMain({
                           }
                         />
 
+                        <div className="bg-[#3a3a3a] p-4 rounded-lg mt-4">
+                          {(() => {
+                            const breakdown = getPaymentBreakdown(
+                              Number(purchaseAmount) || 0,
+                            );
+                            return (
+                              <>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-gray-400">
+                                    Subtotal:
+                                  </span>
+                                  <span className="text-white font-medium">
+                                    ${breakdown.subtotal.toFixed(2)}
+                                  </span>
+                                </div>
+                                {breakdown.vat > 0 && (
+                                  <div className="flex justify-between items-center mt-1">
+                                    <span className="text-gray-400">
+                                      VAT (20%):
+                                    </span>
+                                    <span className="text-white font-medium">
+                                      ${breakdown.vat.toFixed(2)}
+                                    </span>
+                                  </div>
+                                )}
+                                <div className="border-t border-gray-600 mt-2 pt-2">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-white font-semibold">
+                                      Total Amount:
+                                    </span>
+                                    <span className="text-[#DC569D] font-bold text-lg">
+                                      ${breakdown.total.toFixed(2)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+
                         <button
                           onClick={() => setTokenPurchaseStep("select-gateway")}
                           disabled={isProcessingPayment}
-                          className="w-full px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                          className="w-full px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 mt-4"
                         >
                           Back
                         </button>

@@ -1,5 +1,14 @@
-import { useState, useEffect } from "react";
-import { Check, X, Zap, Crown, ArrowLeft, ShieldCheck } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import {
+  Check,
+  X,
+  Zap,
+  Crown,
+  ArrowLeft,
+  ShieldCheck,
+  ChevronDown,
+  Search,
+} from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -9,13 +18,305 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { createSubscription, updateSubscription } from "./functions";
+import {
+  createSubscription,
+  updateSubscription,
+  getBillingInfo,
+} from "./functions";
 import { useNavigate, useOutletContext, useLocation } from "react-router-dom";
 
 const stripePromise = loadStripe(
   import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST ||
     import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
 );
+
+const COUNTRIES = [
+  { code: "GB", name: "United Kingdom", flag: "🇬🇧" },
+  { code: "AF", name: "Afghanistan", flag: "🇦🇫" },
+  { code: "AL", name: "Albania", flag: "🇦🇱" },
+  { code: "DZ", name: "Algeria", flag: "🇩🇿" },
+  { code: "AD", name: "Andorra", flag: "🇦🇩" },
+  { code: "AO", name: "Angola", flag: "🇦🇴" },
+  { code: "AG", name: "Antigua & Barbuda", flag: "🇦🇬" },
+  { code: "AR", name: "Argentina", flag: "🇦🇷" },
+  { code: "AM", name: "Armenia", flag: "🇦🇲" },
+  { code: "AU", name: "Australia", flag: "🇦🇺" },
+  { code: "AT", name: "Austria", flag: "🇦🇹" },
+  { code: "AZ", name: "Azerbaijan", flag: "🇦🇿" },
+  { code: "BS", name: "Bahamas", flag: "🇧🇸" },
+  { code: "BH", name: "Bahrain", flag: "🇧🇭" },
+  { code: "BD", name: "Bangladesh", flag: "🇧🇩" },
+  { code: "BB", name: "Barbados", flag: "🇧🇧" },
+  { code: "BY", name: "Belarus", flag: "🇧🇾" },
+  { code: "BE", name: "Belgium", flag: "🇧🇪" },
+  { code: "BZ", name: "Belize", flag: "🇧🇿" },
+  { code: "BJ", name: "Benin", flag: "🇧🇯" },
+  { code: "BT", name: "Bhutan", flag: "🇧🇹" },
+  { code: "BO", name: "Bolivia", flag: "🇧🇴" },
+  { code: "BA", name: "Bosnia & Herzegovina", flag: "🇧🇦" },
+  { code: "BW", name: "Botswana", flag: "🇧🇼" },
+  { code: "BR", name: "Brazil", flag: "🇧🇷" },
+  { code: "BN", name: "Brunei", flag: "🇧🇳" },
+  { code: "BG", name: "Bulgaria", flag: "🇧🇬" },
+  { code: "BF", name: "Burkina Faso", flag: "🇧🇫" },
+  { code: "BI", name: "Burundi", flag: "🇧🇮" },
+  { code: "KH", name: "Cambodia", flag: "🇰🇭" },
+  { code: "CM", name: "Cameroon", flag: "🇨🇲" },
+  { code: "CA", name: "Canada", flag: "🇨🇦" },
+  { code: "CV", name: "Cape Verde", flag: "🇨🇻" },
+  { code: "CF", name: "Central African Rep.", flag: "🇨🇫" },
+  { code: "TD", name: "Chad", flag: "🇹🇩" },
+  { code: "CL", name: "Chile", flag: "🇨🇱" },
+  { code: "CN", name: "China", flag: "🇨🇳" },
+  { code: "CO", name: "Colombia", flag: "🇨🇴" },
+  { code: "KM", name: "Comoros", flag: "🇰🇲" },
+  { code: "CG", name: "Congo - Brazzaville", flag: "🇨🇬" },
+  { code: "CD", name: "Congo - Kinshasa", flag: "🇨🇩" },
+  { code: "CR", name: "Costa Rica", flag: "🇨🇷" },
+  { code: "HR", name: "Croatia", flag: "🇭🇷" },
+  { code: "CU", name: "Cuba", flag: "🇨🇺" },
+  { code: "CY", name: "Cyprus", flag: "🇨🇾" },
+  { code: "CZ", name: "Czech Republic", flag: "🇨🇿" },
+  { code: "DK", name: "Denmark", flag: "🇩🇰" },
+  { code: "DJ", name: "Djibouti", flag: "🇩🇯" },
+  { code: "DM", name: "Dominica", flag: "🇩🇲" },
+  { code: "DO", name: "Dominican Republic", flag: "🇩🇴" },
+  { code: "EC", name: "Ecuador", flag: "🇪🇨" },
+  { code: "EG", name: "Egypt", flag: "🇪🇬" },
+  { code: "SV", name: "El Salvador", flag: "🇸🇻" },
+  { code: "GQ", name: "Equatorial Guinea", flag: "🇬🇶" },
+  { code: "ER", name: "Eritrea", flag: "🇪🇷" },
+  { code: "EE", name: "Estonia", flag: "🇪🇪" },
+  { code: "ET", name: "Ethiopia", flag: "🇪🇹" },
+  { code: "FJ", name: "Fiji", flag: "🇫🇯" },
+  { code: "FI", name: "Finland", flag: "🇫🇮" },
+  { code: "FR", name: "France", flag: "🇫🇷" },
+  { code: "GA", name: "Gabon", flag: "🇬🇦" },
+  { code: "GM", name: "Gambia", flag: "🇬🇲" },
+  { code: "GE", name: "Georgia", flag: "🇬🇪" },
+  { code: "DE", name: "Germany", flag: "🇩🇪" },
+  { code: "GH", name: "Ghana", flag: "🇬🇭" },
+  { code: "GR", name: "Greece", flag: "🇬🇷" },
+  { code: "GD", name: "Grenada", flag: "🇬🇩" },
+  { code: "GT", name: "Guatemala", flag: "🇬🇹" },
+  { code: "GN", name: "Guinea", flag: "🇬🇳" },
+  { code: "GW", name: "Guinea-Bissau", flag: "🇬🇼" },
+  { code: "GY", name: "Guyana", flag: "🇬🇾" },
+  { code: "HT", name: "Haiti", flag: "🇭🇹" },
+  { code: "HN", name: "Honduras", flag: "🇭🇳" },
+  { code: "HU", name: "Hungary", flag: "🇭🇺" },
+  { code: "IS", name: "Iceland", flag: "🇮🇸" },
+  { code: "IN", name: "India", flag: "🇮🇳" },
+  { code: "ID", name: "Indonesia", flag: "🇮🇩" },
+  { code: "IR", name: "Iran", flag: "🇮🇷" },
+  { code: "IQ", name: "Iraq", flag: "🇮🇶" },
+  { code: "IE", name: "Ireland", flag: "🇮🇪" },
+  { code: "IL", name: "Israel", flag: "🇮🇱" },
+  { code: "IT", name: "Italy", flag: "🇮🇹" },
+  { code: "CI", name: "Ivory Coast", flag: "🇨🇮" },
+  { code: "JM", name: "Jamaica", flag: "🇯🇲" },
+  { code: "JP", name: "Japan", flag: "🇯🇵" },
+  { code: "JO", name: "Jordan", flag: "🇯🇴" },
+  { code: "KZ", name: "Kazakhstan", flag: "🇰🇿" },
+  { code: "KE", name: "Kenya", flag: "🇰🇪" },
+  { code: "KI", name: "Kiribati", flag: "🇰🇮" },
+  { code: "KP", name: "North Korea", flag: "🇰🇵" },
+  { code: "KR", name: "South Korea", flag: "🇰🇷" },
+  { code: "KW", name: "Kuwait", flag: "🇰🇼" },
+  { code: "KG", name: "Kyrgyzstan", flag: "🇰🇬" },
+  { code: "LA", name: "Laos", flag: "🇱🇦" },
+  { code: "LV", name: "Latvia", flag: "🇱🇻" },
+  { code: "LB", name: "Lebanon", flag: "🇱🇧" },
+  { code: "LS", name: "Lesotho", flag: "🇱🇸" },
+  { code: "LR", name: "Liberia", flag: "🇱🇷" },
+  { code: "LY", name: "Libya", flag: "🇱🇾" },
+  { code: "LI", name: "Liechtenstein", flag: "🇱🇮" },
+  { code: "LT", name: "Lithuania", flag: "🇱🇹" },
+  { code: "LU", name: "Luxembourg", flag: "🇱🇺" },
+  { code: "MK", name: "Macedonia", flag: "🇲🇰" },
+  { code: "MG", name: "Madagascar", flag: "🇲🇬" },
+  { code: "MW", name: "Malawi", flag: "🇲🇼" },
+  { code: "MY", name: "Malaysia", flag: "🇲🇾" },
+  { code: "MV", name: "Maldives", flag: "🇲🇻" },
+  { code: "ML", name: "Mali", flag: "🇲🇱" },
+  { code: "MT", name: "Malta", flag: "🇲🇹" },
+  { code: "MH", name: "Marshall Islands", flag: "🇲🇭" },
+  { code: "MR", name: "Mauritania", flag: "🇲🇷" },
+  { code: "MU", name: "Mauritius", flag: "🇲🇺" },
+  { code: "MX", name: "Mexico", flag: "🇲🇽" },
+  { code: "FM", name: "Micronesia", flag: "🇫🇲" },
+  { code: "MD", name: "Moldova", flag: "🇲🇩" },
+  { code: "MC", name: "Monaco", flag: "🇲🇨" },
+  { code: "MN", name: "Mongolia", flag: "🇲🇳" },
+  { code: "ME", name: "Montenegro", flag: "🇲🇪" },
+  { code: "MA", name: "Morocco", flag: "🇲🇦" },
+  { code: "MZ", name: "Mozambique", flag: "🇲🇿" },
+  { code: "MM", name: "Myanmar", flag: "🇲🇲" },
+  { code: "NA", name: "Namibia", flag: "🇳🇦" },
+  { code: "NR", name: "Nauru", flag: "🇳🇷" },
+  { code: "NP", name: "Nepal", flag: "🇳🇵" },
+  { code: "NL", name: "Netherlands", flag: "🇳🇱" },
+  { code: "NZ", name: "New Zealand", flag: "🇳🇿" },
+  { code: "NI", name: "Nicaragua", flag: "🇳🇮" },
+  { code: "NE", name: "Niger", flag: "🇳🇪" },
+  { code: "NG", name: "Nigeria", flag: "🇳🇬" },
+  { code: "NO", name: "Norway", flag: "🇳🇴" },
+  { code: "OM", name: "Oman", flag: "🇴🇲" },
+  { code: "PK", name: "Pakistan", flag: "🇵🇰" },
+  { code: "PW", name: "Palau", flag: "🇵🇼" },
+  { code: "PA", name: "Panama", flag: "🇵🇦" },
+  { code: "PG", name: "Papua New Guinea", flag: "🇵🇬" },
+  { code: "PY", name: "Paraguay", flag: "🇵🇾" },
+  { code: "PE", name: "Peru", flag: "🇵🇪" },
+  { code: "PH", name: "Philippines", flag: "🇵🇭" },
+  { code: "PL", name: "Poland", flag: "🇵🇱" },
+  { code: "PT", name: "Portugal", flag: "🇵🇹" },
+  { code: "QA", name: "Qatar", flag: "🇶🇦" },
+  { code: "RO", name: "Romania", flag: "🇷🇴" },
+  { code: "RU", name: "Russia", flag: "🇷🇺" },
+  { code: "RW", name: "Rwanda", flag: "🇷🇼" },
+  { code: "KN", name: "St. Kitts & Nevis", flag: "🇰🇳" },
+  { code: "LC", name: "St. Lucia", flag: "🇱🇨" },
+  { code: "VC", name: "St. Vincent & Grenadines", flag: "🇻🇨" },
+  { code: "WS", name: "Samoa", flag: "🇼🇸" },
+  { code: "SM", name: "San Marino", flag: "🇸🇲" },
+  { code: "ST", name: "Sao Tome & Principe", flag: "🇸🇹" },
+  { code: "SA", name: "Saudi Arabia", flag: "🇸🇦" },
+  { code: "SN", name: "Senegal", flag: "🇸🇳" },
+  { code: "RS", name: "Serbia", flag: "🇷🇸" },
+  { code: "SC", name: "Seychelles", flag: "🇸🇨" },
+  { code: "SL", name: "Sierra Leone", flag: "🇸🇱" },
+  { code: "SG", name: "Singapore", flag: "🇸🇬" },
+  { code: "SK", name: "Slovakia", flag: "🇸🇰" },
+  { code: "SI", name: "Slovenia", flag: "🇸🇮" },
+  { code: "SB", name: "Solomon Islands", flag: "🇸🇧" },
+  { code: "SO", name: "Somalia", flag: "🇸🇴" },
+  { code: "ZA", name: "South Africa", flag: "🇿🇦" },
+  { code: "SS", name: "South Sudan", flag: "🇸🇸" },
+  { code: "LK", name: "Sri Lanka", flag: "🇱🇰" },
+  { code: "SD", name: "Sudan", flag: "🇸🇩" },
+  { code: "SR", name: "Suriname", flag: "🇸🇷" },
+  { code: "SZ", name: "Swaziland", flag: "🇸🇿" },
+  { code: "SE", name: "Sweden", flag: "🇸🇪" },
+  { code: "CH", name: "Switzerland", flag: "🇨🇭" },
+  { code: "SY", name: "Syria", flag: "🇸🇾" },
+  { code: "TW", name: "Taiwan", flag: "🇹🇼" },
+  { code: "TJ", name: "Tajikistan", flag: "🇹🇯" },
+  { code: "TZ", name: "Tanzania", flag: "🇹🇿" },
+  { code: "TH", name: "Thailand", flag: "🇹🇭" },
+  { code: "TL", name: "Timor-Leste", flag: "🇹🇱" },
+  { code: "TG", name: "Togo", flag: "🇹🇬" },
+  { code: "TO", name: "Tonga", flag: "🇹🇴" },
+  { code: "TT", name: "Trinidad & Tobago", flag: "🇹🇹" },
+  { code: "TN", name: "Tunisia", flag: "🇹🇳" },
+  { code: "TR", name: "Turkey", flag: "🇹🇷" },
+  { code: "TM", name: "Turkmenistan", flag: "🇹🇲" },
+  { code: "TV", name: "Tuvalu", flag: "🇹🇻" },
+  { code: "UG", name: "Uganda", flag: "🇺🇬" },
+  { code: "UA", name: "Ukraine", flag: "🇺🇦" },
+  { code: "AE", name: "United Arab Emirates", flag: "🇦🇪" },
+  { code: "UY", name: "Uruguay", flag: "🇺🇾" },
+  { code: "UZ", name: "Uzbekistan", flag: "🇺🇿" },
+  { code: "VU", name: "Vanuatu", flag: "🇻🇺" },
+  { code: "VA", name: "Vatican City", flag: "🇻🇦" },
+  { code: "VE", name: "Venezuela", flag: "🇻🇪" },
+  { code: "VN", name: "Vietnam", flag: "🇻🇳" },
+  { code: "YE", name: "Yemen", flag: "🇾🇪" },
+  { code: "ZM", name: "Zambia", flag: "🇿🇲" },
+  { code: "ZW", name: "Zimbabwe", flag: "🇿🇼" },
+];
+
+function SearchableCountrySelect({ value, onChange, countries }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const wrapperRef = useRef(null);
+
+  // Close when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredCountries = countries.filter((c) =>
+    c.name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const selectedCountry = countries.find((c) => c.code === value);
+
+  return (
+    <div className="relative" ref={wrapperRef}>
+      <div
+        className="w-full p-3 border border-gray-700 rounded-lg bg-[#212121] text-white flex items-center justify-between cursor-pointer focus:outline-none focus:border-[#DC569D] transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="flex items-center gap-2">
+          {selectedCountry ? (
+            <>
+              <span className="text-xl">{selectedCountry.flag}</span>
+              <span>{selectedCountry.name}</span>
+            </>
+          ) : (
+            <span className="text-gray-400">Select a country</span>
+          )}
+        </span>
+        <ChevronDown
+          size={16}
+          className={`text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+        />
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-2 bg-[#212121] border border-gray-700 rounded-lg shadow-xl max-h-60 overflow-hidden flex flex-col">
+          <div className="p-2 border-b border-gray-700 sticky top-0 bg-[#212121]">
+            <div className="relative">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="text"
+                placeholder="Search country..."
+                className="w-full pl-9 pr-3 py-2 bg-[#171717] border border-gray-700 rounded-md text-sm text-white focus:outline-none focus:border-[#DC569D]"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="overflow-y-auto flex-1">
+            {filteredCountries.map((c) => (
+              <div
+                key={c.code}
+                className={`px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-white/5 transition-colors ${value === c.code ? "bg-white/10" : ""}`}
+                onClick={() => {
+                  onChange(c.code);
+                  setIsOpen(false);
+                  setSearch("");
+                }}
+              >
+                <span className="text-xl">{c.flag}</span>
+                <span>{c.name}</span>
+                {value === c.code && (
+                  <Check size={16} className="ml-auto text-[#DC569D]" />
+                )}
+              </div>
+            ))}
+            {filteredCountries.length === 0 && (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                No countries found
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function SuccessMessage({ onContinue }) {
   return (
@@ -57,6 +358,46 @@ function CheckoutForm({
   const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
   const [cardCvcComplete, setCardCvcComplete] = useState(false);
   const [cardErrors, setCardErrors] = useState({});
+
+  // Billing Details State
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [address, setAddress] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [country, setCountry] = useState("US");
+
+  // VAT and Total Calculation
+  const [vatAmount, setVatAmount] = useState(0);
+  const [totalAmount, setTotalAmount] = useState(parseFloat(price));
+
+  useEffect(() => {
+    getBillingInfo()
+      .then((response) => {
+        const data = response?.billing_info;
+        if (data) {
+          if (data.first_name) setFirstName(data.first_name);
+          if (data.last_name) setLastName(data.last_name);
+          if (data.address) setAddress(data.address);
+          if (data.postal_code) setPostalCode(data.postal_code);
+          if (data.country_code) setCountry(data.country_code);
+        }
+      })
+      .catch(() => {
+        // Silent fail if no info exists
+      });
+  }, []);
+
+  useEffect(() => {
+    const basePrice = parseFloat(price);
+    if (country === "GB") {
+      const vat = basePrice * 0.2;
+      setVatAmount(vat);
+      setTotalAmount(basePrice + vat);
+    } else {
+      setVatAmount(0);
+      setTotalAmount(basePrice);
+    }
+  }, [country, price]);
 
   const calculateProrationEstimate = () => {
     if (!currentPlanPrice) return null;
@@ -102,7 +443,13 @@ function CheckoutForm({
   };
 
   const allFieldsComplete =
-    cardNumberComplete && cardExpiryComplete && cardCvcComplete;
+    cardNumberComplete &&
+    cardExpiryComplete &&
+    cardCvcComplete &&
+    firstName &&
+    lastName &&
+    address &&
+    postalCode;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -117,6 +464,14 @@ function CheckoutForm({
       const { error, paymentMethod } = await stripe.createPaymentMethod({
         type: "card",
         card: cardElement,
+        billing_details: {
+          name: `${firstName} ${lastName}`,
+          address: {
+            line1: address,
+            postal_code: postalCode,
+            country: country,
+          },
+        },
       });
 
       if (error) {
@@ -159,34 +514,33 @@ function CheckoutForm({
         );
       }
 
-      // 3. Send to backend
-      console.log("Sending to backend:", {
+      const subscriptionData = {
         plan: plan.name,
         billing_cycle: billingCycle,
-        price: price,
+        price: totalAmount.toFixed(2), // Send the total with VAT
         payment_method: paymentMethod.id,
         price_id: priceId,
-      });
+        billing_details: {
+          first_name: firstName,
+          last_name: lastName,
+          address: address,
+          postal_code: postalCode,
+          country: country,
+          vat_amount: vatAmount.toFixed(2),
+        },
+      };
+
+      console.log("Sending to backend:", subscriptionData);
 
       let response;
       if (isUpdate) {
         response = await updateSubscription({
-          plan: plan.name,
-          billing_cycle: billingCycle,
-          price: price,
-          payment_method: paymentMethod.id,
-          price_id: priceId,
+          ...subscriptionData,
           proration_behavior: prorationBehavior,
           prorate_amount: estimatedProration,
         });
       } else {
-        response = await createSubscription({
-          plan: plan.name,
-          billing_cycle: billingCycle,
-          price: price,
-          payment_method: paymentMethod.id,
-          price_id: priceId,
-        });
+        response = await createSubscription(subscriptionData);
       }
 
       if (
@@ -291,10 +645,12 @@ function CheckoutForm({
                 <span className="text-gray-400">Subtotal</span>
                 <span>${price}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Tax</span>
-                <span>$0.00</span>
-              </div>
+              {vatAmount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">VAT (20%)</span>
+                  <span>${vatAmount.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center pt-4 border-t border-gray-700">
                 <div className="flex flex-col">
                   <span className="font-bold text-lg">
@@ -317,7 +673,7 @@ function CheckoutForm({
                         <span className="text-lg">Difference Only</span>
                       )
                     ) : (
-                      `$${price}`
+                      `$${totalAmount.toFixed(2)}`
                     )}
                   </span>
                   {isUpdate && prorationBehavior === "prorate" && (
@@ -372,6 +728,79 @@ function CheckoutForm({
             onSubmit={handleSubmit}
             className="space-y-6 bg-[#171717] p-6 rounded-xl border border-gray-800 shadow-xl"
           >
+            {/* Billing Info */}
+            <div className="space-y-4 pt-2 pb-6 border-b border-gray-700">
+              <h3 className="text-lg font-semibold text-white">
+                Billing Address
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-gray-300 text-sm font-medium">
+                    First Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full p-3 border border-gray-700 rounded-lg bg-[#212121] text-white focus:outline-none focus:border-[#DC569D] transition-colors"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-gray-300 text-sm font-medium">
+                    Last Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full p-3 border border-gray-700 rounded-lg bg-[#212121] text-white focus:outline-none focus:border-[#DC569D] transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-gray-300 text-sm font-medium">
+                  Address
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full p-3 border border-gray-700 rounded-lg bg-[#212121] text-white focus:outline-none focus:border-[#DC569D] transition-colors"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-gray-300 text-sm font-medium">
+                    Country
+                  </label>
+                  <div className="relative">
+                    <SearchableCountrySelect
+                      value={country}
+                      onChange={setCountry}
+                      countries={COUNTRIES}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-gray-300 text-sm font-medium">
+                    Postal Code
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={postalCode}
+                    onChange={(e) => setPostalCode(e.target.value)}
+                    className="w-full p-3 border border-gray-700 rounded-lg bg-[#212121] text-white focus:outline-none focus:border-[#DC569D] transition-colors"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Card Number */}
             <div className="space-y-2">
               <label className="block text-gray-300 text-sm font-medium">
@@ -434,7 +863,7 @@ function CheckoutForm({
                 ? "Processing..."
                 : isUpdate
                   ? "Update Subscription"
-                  : `Pay $${price}`}
+                  : `Pay $${totalAmount.toFixed(2)}`}
             </button>
 
             <div className="text-center text-xs text-gray-500 mt-4 leading-relaxed">
@@ -507,7 +936,7 @@ export default function ProPage() {
       { text: "No access to adding captions", included: false },
     ],
     pro: [
-      { text: "Faster Renderization", included: true },
+      { text: "Fast Rendering", included: true },
       { text: "Quality 1080p HD", included: true },
       { text: "No watermark", included: true },
       { text: "1000 credits / month", included: true },
@@ -517,7 +946,7 @@ export default function ProPage() {
       { text: "Access to adding captions", included: true },
     ],
     elite: [
-      { text: "Faster Renderization", included: true },
+      { text: "Fast Rendering", included: true },
       { text: "Quality 1080p HD", included: true },
       { text: "No watermark", included: true },
       { text: "4000 credits / month", included: true },

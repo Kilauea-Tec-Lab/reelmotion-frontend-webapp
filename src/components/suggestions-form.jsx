@@ -81,7 +81,7 @@ function SuggestionsForm({ onClose }) {
 
   if (submitted) {
     return (
-      <div className="fixed bottom-6 left-20 z-50 bg-darkBox rounded-2xl shadow-2xl w-96 p-6 border border-darkBoxSub">
+      <div className="fixed bottom-6 right-24 z-50 bg-darkBox rounded-2xl shadow-2xl w-96 p-6">
         <div className="text-center">
           <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
@@ -110,9 +110,9 @@ function SuggestionsForm({ onClose }) {
   }
 
   return (
-    <div className="fixed bottom-6 left-20 z-50 bg-darkBox rounded-2xl shadow-2xl w-96 max-h-[600px] overflow-y-auto border border-darkBoxSub">
+    <div className="fixed bottom-6 right-24 z-50 bg-darkBox rounded-2xl shadow-2xl w-96 max-h-[600px] overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-darkBoxSub sticky top-0 bg-darkBox">
+      <div className="flex items-center justify-between p-4 sticky top-0 bg-darkBox">
         <div>
           <h3 className="text-white montserrat-medium text-lg">Suggestions</h3>
           <p className="text-gray-400 montserrat-light text-sm">
@@ -138,7 +138,7 @@ function SuggestionsForm({ onClose }) {
             name="category"
             value={formData.category}
             onChange={handleInputChange}
-            className="w-full bg-darkBoxSub text-white border border-gray-600 rounded-lg px-3 py-2 montserrat-regular text-sm focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent"
+            className="w-full bg-darkBoxSub text-white border border-gray-600 rounded-lg px-3 py-2 montserrat-regular text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
             required
           >
             <option value="">Select a category</option>
@@ -167,7 +167,7 @@ function SuggestionsForm({ onClose }) {
                   size={24}
                   className={
                     star <= formData.rating
-                      ? "text-[#F2D543] fill-current"
+                      ? "text-white fill-current"
                       : "text-gray-400"
                   }
                 />
@@ -190,7 +190,7 @@ function SuggestionsForm({ onClose }) {
             onChange={handleInputChange}
             placeholder="Tell us what we can improve or what new features you'd like to see..."
             rows={4}
-            className="w-full bg-darkBoxSub text-white border border-gray-600 rounded-lg px-3 py-2 montserrat-regular text-sm focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent resize-none"
+            className="w-full bg-darkBoxSub text-white border border-gray-600 rounded-lg px-3 py-2 montserrat-regular text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent resize-none"
             required
           />
         </div>
@@ -206,7 +206,7 @@ function SuggestionsForm({ onClose }) {
             value={formData.email}
             onChange={handleInputChange}
             placeholder="your@email.com"
-            className="w-full bg-darkBoxSub text-white border border-gray-600 rounded-lg px-3 py-2 montserrat-regular text-sm focus:outline-none focus:ring-2 focus:ring-[#F2D543] focus:border-transparent"
+            className="w-full bg-darkBoxSub text-white border border-gray-600 rounded-lg px-3 py-2 montserrat-regular text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
             required
           />
           <p className="text-gray-500 montserrat-light text-xs mt-1">
@@ -218,11 +218,11 @@ function SuggestionsForm({ onClose }) {
         <button
           type="submit"
           disabled={isSubmitting || !isFormValid()}
-          className="w-full bg-[#F2D543] hover:bg-[#f2f243] disabled:bg-gray-600 disabled:cursor-not-allowed text-primarioDark py-3 rounded-lg montserrat-medium text-sm transition-colors flex items-center justify-center gap-2"
+          className="w-full bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed text-white py-3 rounded-lg montserrat-medium text-sm transition-colors flex items-center justify-center gap-2"
         >
           {isSubmitting ? (
             <>
-              <div className="w-4 h-4 border-2 border-primarioDark border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               Sending...
             </>
           ) : (
