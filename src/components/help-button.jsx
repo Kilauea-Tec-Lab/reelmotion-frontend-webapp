@@ -62,24 +62,24 @@ function HelpButton() {
   return (
     <>
       {/* Help Button */}
-      <div ref={menuRef} className="fixed bottom-6 left-6 z-50">
+      <div ref={menuRef} className="fixed bottom-6 right-6 z-50">
         <button
           onClick={handleButtonClick}
-          className="bg-[#F2D543] hover:bg-[#f2f243] text-primarioDark p-4 rounded-full shadow-2xl transition-all transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-[#F2D543] focus:ring-opacity-50 animate-pulse hover:animate-none"
+          className="bg-[#2f2f2f] hover:bg-[#3a3a3a] text-white border border-gray-600 p-4 rounded-full shadow-2xl transition-all transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-gray-600 focus:ring-opacity-50 animate-pulse hover:animate-none"
         >
           <HelpCircle size={24} />
         </button>
 
         {/* Options Menu */}
         {isOpen && (
-          <div className="absolute bottom-16 left-0 bg-darkBox rounded-lg shadow-xl p-2 min-w-[200px] border border-darkBoxSub animate-in slide-in-from-bottom-2 duration-200">
+          <div className="absolute bottom-16 right-0 bg-darkBox rounded-lg shadow-xl p-2 min-w-[200px] animate-in slide-in-from-bottom-2 duration-200">
             <button
               onClick={() => handleOptionSelect("reelbot")}
               className={`w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-darkBoxSub rounded-lg transition-all duration-200 text-left group`}
             >
               <MessageCircle
                 size={20}
-                className="text-[#F2D543] group-hover:scale-110 transition-transform flex-shrink-0"
+                className="text-white group-hover:scale-110 transition-transform flex-shrink-0"
               />
               <div>
                 <span className="montserrat-medium text-sm block text-white">
@@ -97,7 +97,7 @@ function HelpButton() {
             >
               <Lightbulb
                 size={20}
-                className="text-[#F2D543] group-hover:scale-110 transition-transform flex-shrink-0"
+                className="text-white group-hover:scale-110 transition-transform flex-shrink-0"
               />
               <div>
                 <span className="montserrat-medium text-sm block">
@@ -109,7 +109,7 @@ function HelpButton() {
               </div>
             </button>
 
-            <button
+            {/* <button
               onClick={() => handleOptionSelect("tutorials")}
               className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-darkBoxSub rounded-lg transition-all duration-200 text-left group"
             >
@@ -125,7 +125,7 @@ function HelpButton() {
                   Video tutorials
                 </span>
               </div>
-            </button>
+            </button> */}
           </div>
         )}
       </div>

@@ -55,7 +55,7 @@ const connection = new Connection(
   {
     commitment: "confirmed",
     confirmTransactionInitialTimeout: 60000,
-  }
+  },
 );
 
 // Validate merchant wallet address
@@ -197,8 +197,8 @@ function CardInput({ onPaymentProcess, isProcessing, totalAmount }) {
         {isProcessing
           ? "Processing..."
           : !allFieldsComplete
-          ? "Enter card details"
-          : `Pay $${Number(totalAmount).toFixed(2)}`}
+            ? "Enter card details"
+            : `Pay $${Number(totalAmount).toFixed(2)}`}
       </button>
     </form>
   );
@@ -533,7 +533,7 @@ function MainTopMenu({ user_info }) {
     if (!user_info?.id) return;
 
     let channel = pusherClient.subscribe(
-      `private-get-notifications.${user_info.id}`
+      `private-get-notifications.${user_info.id}`,
     );
 
     channel.bind("fill-notifications", ({ user_id }) => {
@@ -554,16 +554,16 @@ function MainTopMenu({ user_info }) {
     if (!user_info?.id) return;
 
     console.log(
-      `🔌 [TOKENS SOCKET] Subscribing to channel: private-get-user-tokens.${user_info.id}`
+      `🔌 [TOKENS SOCKET] Subscribing to channel: private-get-user-tokens.${user_info.id}`,
     );
 
     let channel = pusherClient.subscribe(
-      `private-get-user-tokens.${user_info.id}`
+      `private-get-user-tokens.${user_info.id}`,
     );
 
     const handleTokenUpdate = ({ user_id }) => {
       console.log(
-        `💰 [TOKENS SOCKET] Token update received for user: ${user_id}`
+        `💰 [TOKENS SOCKET] Token update received for user: ${user_id}`,
       );
       fetchUserTokens();
     };
@@ -575,7 +575,7 @@ function MainTopMenu({ user_info }) {
 
     return () => {
       console.log(
-        `🔌 [TOKENS SOCKET] Unsubscribing from channel: private-get-user-tokens.${user_info.id}`
+        `🔌 [TOKENS SOCKET] Unsubscribing from channel: private-get-user-tokens.${user_info.id}`,
       );
       channel.unbind("fill-user-tokens", handleTokenUpdate);
       pusherClient.unsubscribe(`private-get-user-tokens.${user_info.id}`);
@@ -646,7 +646,7 @@ function MainTopMenu({ user_info }) {
           headers: {
             Authorization: "Bearer " + Cookies.get("token"),
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -761,7 +761,7 @@ function MainTopMenu({ user_info }) {
 
       if (!paypalClientId) {
         console.error(
-          "PayPal Client ID not found. Please set VITE_PAYPAL_CLIENT_ID environment variable."
+          "PayPal Client ID not found. Please set VITE_PAYPAL_CLIENT_ID environment variable.",
         );
         return;
       }
@@ -841,7 +841,7 @@ function MainTopMenu({ user_info }) {
               console.error("Error capturing PayPal card order:", error);
               setTokenPurchaseStep("error");
               setPaymentMessage(
-                "Card payment capture failed. Please try again."
+                "Card payment capture failed. Please try again.",
               );
               setPaymentMessageType("error");
             } finally {
@@ -861,7 +861,7 @@ function MainTopMenu({ user_info }) {
         // Apply custom styles to make PayPal card container white
         setTimeout(() => {
           const paypalCardContainerElements = document.querySelectorAll(
-            "#paypal-card-container .paypal-button-container, #paypal-card-container .paypal-autoresize-container, #paypal-card-container .paypal-button-layout-vertical, #paypal-card-container .paypal-button-shape-rect, #paypal-card-container .paypal-button-number-single, #paypal-card-container .paypal-button-env-sandbox"
+            "#paypal-card-container .paypal-button-container, #paypal-card-container .paypal-autoresize-container, #paypal-card-container .paypal-button-layout-vertical, #paypal-card-container .paypal-button-shape-rect, #paypal-card-container .paypal-button-number-single, #paypal-card-container .paypal-button-env-sandbox",
           );
 
           paypalCardContainerElements.forEach((element) => {
@@ -872,7 +872,7 @@ function MainTopMenu({ user_info }) {
 
           // Also apply to nested iframe content if accessible
           const paypalCardIframes = document.querySelectorAll(
-            "#paypal-card-container iframe"
+            "#paypal-card-container iframe",
           );
           paypalCardIframes.forEach((iframe) => {
             try {
@@ -892,7 +892,7 @@ function MainTopMenu({ user_info }) {
       } else if (selectedGateway === "paypal") {
         // For PayPal account payments
         const paypalContainer = document.querySelector(
-          "#paypal-button-container"
+          "#paypal-button-container",
         );
 
         if (!paypalContainer) {
@@ -985,7 +985,7 @@ function MainTopMenu({ user_info }) {
         // Apply custom styles to make PayPal container white
         setTimeout(() => {
           const paypalContainerElements = document.querySelectorAll(
-            ".paypal-button-container, .paypal-autoresize-container, .paypal-button-layout-vertical, .paypal-button-shape-rect, .paypal-button-number-single, .paypal-button-env-sandbox"
+            ".paypal-button-container, .paypal-autoresize-container, .paypal-button-layout-vertical, .paypal-button-shape-rect, .paypal-button-number-single, .paypal-button-env-sandbox",
           );
 
           paypalContainerElements.forEach((element) => {
@@ -996,7 +996,7 @@ function MainTopMenu({ user_info }) {
 
           // Also apply to nested iframe content if accessible
           const paypalIframes = document.querySelectorAll(
-            "#paypal-button-container iframe"
+            "#paypal-button-container iframe",
           );
           paypalIframes.forEach((iframe) => {
             try {
@@ -1032,7 +1032,7 @@ function MainTopMenu({ user_info }) {
       if (order.status !== "COMPLETED") {
         console.error(
           "❌ [VALIDATION 1] Payment not completed. Status:",
-          order.status
+          order.status,
         );
         setTokenPurchaseStep("error");
         setPaymentMessage(`Payment not completed. Status: ${order.status}`);
@@ -1071,7 +1071,7 @@ function MainTopMenu({ user_info }) {
       if (captureStatus !== "COMPLETED") {
         console.error(
           "❌ [VALIDATION 4] Payment capture failed. Status:",
-          captureStatus
+          captureStatus,
         );
         setTokenPurchaseStep("error");
         setPaymentMessage(`Payment capture failed. Status: ${captureStatus}`);
@@ -1088,7 +1088,7 @@ function MainTopMenu({ user_info }) {
         });
         setTokenPurchaseStep("error");
         setPaymentMessage(
-          `Amount mismatch: Expected $${breakdown.total} (including VAT), captured $${captureAmount}`
+          `Amount mismatch: Expected $${breakdown.total} (including VAT), captured $${captureAmount}`,
         );
         setPaymentMessageType("error");
         return;
@@ -1098,7 +1098,7 @@ function MainTopMenu({ user_info }) {
         console.error("❌ [VALIDATION 6] Currency mismatch:", captureCurrency);
         setTokenPurchaseStep("error");
         setPaymentMessage(
-          `Invalid currency: ${captureCurrency}. Only USD is accepted.`
+          `Invalid currency: ${captureCurrency}. Only USD is accepted.`,
         );
         setPaymentMessageType("error");
         return;
@@ -1152,7 +1152,7 @@ function MainTopMenu({ user_info }) {
                 }
               : null,
           }),
-        }
+        },
       );
       const result = await response.json();
 
@@ -1235,7 +1235,7 @@ function MainTopMenu({ user_info }) {
               tokens_to_add: breakdown.tokens,
             },
           }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -1286,7 +1286,7 @@ function MainTopMenu({ user_info }) {
           await fetchUserTokens();
         } else {
           throw new Error(
-            `Payment failed with status: ${paymentIntent.status}`
+            `Payment failed with status: ${paymentIntent.status}`,
           );
         }
       } else {
@@ -1326,13 +1326,13 @@ function MainTopMenu({ user_info }) {
       const userPublicKey = phantomProvider.publicKey;
       const userUsdcAccount = await getAssociatedTokenAddress(
         USDC_MINT,
-        userPublicKey
+        userPublicKey,
       );
 
       // Get merchant's USDC token account
       const merchantUsdcAccount = await getAssociatedTokenAddress(
         USDC_MINT,
-        MERCHANT_WALLET
+        MERCHANT_WALLET,
       );
 
       // Convert USD to USDC (1:1 ratio, but with 6 decimals for USDC)
@@ -1349,8 +1349,8 @@ function MainTopMenu({ user_info }) {
           userPublicKey,
           usdcAmountInDecimals,
           [],
-          TOKEN_PROGRAM_ID
-        )
+          TOKEN_PROGRAM_ID,
+        ),
       );
 
       // Get recent blockhash
@@ -1359,11 +1359,10 @@ function MainTopMenu({ user_info }) {
       transaction.feePayer = userPublicKey;
 
       // Sign and send transaction
-      const signedTransaction = await phantomProvider.signTransaction(
-        transaction
-      );
+      const signedTransaction =
+        await phantomProvider.signTransaction(transaction);
       const signature = await connection.sendRawTransaction(
-        signedTransaction.serialize()
+        signedTransaction.serialize(),
       );
 
       // Wait for confirmation
@@ -1397,7 +1396,7 @@ function MainTopMenu({ user_info }) {
               tokens_to_add: breakdown.tokens,
             },
           }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -1820,7 +1819,7 @@ function MainTopMenu({ user_info }) {
                       <div className="bg-darkBoxSub p-4 rounded-lg">
                         {(() => {
                           const breakdown = getPaymentBreakdown(
-                            Number(purchaseAmount) || 0
+                            Number(purchaseAmount) || 0,
                           );
                           return (
                             <>
@@ -1884,7 +1883,7 @@ function MainTopMenu({ user_info }) {
                     <div className="bg-darkBoxSub p-4 rounded-lg">
                       {(() => {
                         const breakdown = getPaymentBreakdown(
-                          Number(purchaseAmount) || 0
+                          Number(purchaseAmount) || 0,
                         );
                         return (
                           <>
@@ -2031,7 +2030,7 @@ function MainTopMenu({ user_info }) {
                     <div className="bg-darkBoxSub p-4 rounded-lg">
                       {(() => {
                         const breakdown = getPaymentBreakdown(
-                          Number(purchaseAmount) || 0
+                          Number(purchaseAmount) || 0,
                         );
                         return (
                           <>
@@ -2071,11 +2070,11 @@ function MainTopMenu({ user_info }) {
                                 {selectedGateway === "card"
                                   ? "Credit/Debit Card"
                                   : selectedGateway === "paypal"
-                                  ? "PayPal Account"
-                                  : selectedGateway === "crypto" &&
-                                    MERCHANT_WALLET
-                                  ? "USDC on Solana"
-                                  : "Credit/Debit Card"}
+                                    ? "PayPal Account"
+                                    : selectedGateway === "crypto" &&
+                                        MERCHANT_WALLET
+                                      ? "USDC on Solana"
+                                      : "Credit/Debit Card"}
                               </span>
                             </div>
                           </>
@@ -2279,7 +2278,7 @@ function MainTopMenu({ user_info }) {
                           $
                           {paymentDetails?.total_paid ||
                             getPaymentBreakdown(
-                              Number(purchaseAmount) || 0
+                              Number(purchaseAmount) || 0,
                             ).total.toFixed(2)}
                         </span>
                       </div>

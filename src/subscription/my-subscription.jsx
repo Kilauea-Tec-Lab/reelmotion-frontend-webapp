@@ -42,7 +42,7 @@ export default function MySubscription() {
 
   const features = {
     pro: [
-      { text: "Faster Renderization", included: true },
+      { text: "Fast Rendering", included: true },
       { text: "Quality 1080p HD", included: true },
       { text: "No watermark", included: true },
       { text: "1000 credits / month", included: true },
@@ -52,7 +52,7 @@ export default function MySubscription() {
       { text: "Access to adding captions", included: true },
     ],
     elite: [
-      { text: "Faster Renderization", included: true },
+      { text: "Fast Rendering", included: true },
       { text: "Quality 1080p HD", included: true },
       { text: "No watermark", included: true },
       { text: "4000 credits / month", included: true },
