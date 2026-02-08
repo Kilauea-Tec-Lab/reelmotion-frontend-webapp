@@ -26,7 +26,7 @@ import {
 import { useNavigate, useOutletContext, useLocation } from "react-router-dom";
 
 const stripePromise = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST ||
+  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
     import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
 );
 
@@ -486,7 +486,7 @@ function CheckoutForm({
       const bCycle = billingCycle.toLowerCase();
 
       // Check if running in test mode based on available keys
-      if (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST) {
+      if (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
         if (pName === "pro" && bCycle === "monthly") {
           priceId = import.meta.env.VITE_STRIPE_PRO_MONTHLY_PRICE_ID_TEST;
         } else if (pName === "pro" && bCycle === "yearly") {

@@ -57,7 +57,7 @@ import { Channel } from "pusher-js";
 
 // Stripe initialization
 const stripePromise = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST ||
+  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
     import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
 );
 
