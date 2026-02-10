@@ -3011,7 +3011,7 @@ function ChatMain({
                             className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Image className="h-5 w-5 text-[#DC569D]" />
-                            <span>Create IA Image</span>
+                            <span>Create AI Image</span>
                           </button>
 
                           <button
@@ -3022,7 +3022,7 @@ function ChatMain({
                             className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Video className="h-5 w-5 text-[#DC569D]" />
-                            <span>Create IA Video</span>
+                            <span>Create AI Video</span>
                           </button>
 
                           <button
