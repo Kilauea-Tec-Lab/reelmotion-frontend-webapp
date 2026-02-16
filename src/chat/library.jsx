@@ -190,6 +190,9 @@ function Library() {
   const [videoProjects, setVideoProjects] = useState(
     libraryData?.video_projects || [],
   );
+  const [unassignedAttachments, setUnassignedAttachments] = useState(
+    libraryData?.unassigned_attachments || [],
+  );
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [visibleCount, setVisibleCount] = useState(40);
@@ -208,6 +211,14 @@ function Library() {
     })),
   );
 
+  const processedUnassignedAttachments = unassignedAttachments.map(
+    (attachment) => ({
+      ...attachment,
+      chatName: "Unassigned",
+      sourceType: "unassigned",
+    }),
+  );
+
   const projectAttachments = videoProjects.map((project) => ({
     id: project.id,
     file_type: "video",
@@ -217,7 +228,11 @@ function Library() {
     sourceType: "project",
   }));
 
-  const allAttachments = [...chatAttachments, ...projectAttachments];
+  const allAttachments = [
+    ...processedUnassignedAttachments,
+    ...chatAttachments,
+    ...projectAttachments,
+  ];
 
   // Filtrar attachments según el filtro seleccionado y búsqueda
   const filteredAttachments = allAttachments.filter((attachment) => {
@@ -238,6 +253,9 @@ function Library() {
     }
     if (galleryFilter === "uploads") {
       if (attachment.sourceType === "project") return false;
+      // Unassigned attachments are usually uploads
+      if (attachment.sourceType === "unassigned") return true;
+
       const isUpload =
         attachment.path?.includes("user") ||
         attachment.path?.includes("chat_attachments");
@@ -322,14 +340,24 @@ function Library() {
 
       if (data.success) {
         // Eliminar el attachment del estado
-        setAttachmentsData((prevChats) =>
-          prevChats.map((chat) => ({
-            ...chat,
-            attachments: chat.attachments.filter(
-              (att) => att.id !== attachmentId,
-            ),
-          })),
+        const isUnassigned = unassignedAttachments.some(
+          (att) => att.id === attachmentId,
         );
+
+        if (isUnassigned) {
+          setUnassignedAttachments((prev) =>
+            prev.filter((att) => att.id !== attachmentId),
+          );
+        } else {
+          setAttachmentsData((prevChats) =>
+            prevChats.map((chat) => ({
+              ...chat,
+              attachments: chat.attachments.filter(
+                (att) => att.id !== attachmentId,
+              ),
+            })),
+          );
+        }
         setDeleteConfirm(null);
         // Si estamos en preview y eliminamos el actual, cerrar el preview
         if (
@@ -435,16 +463,26 @@ function Library() {
 
       if (data.success) {
         // Actualizar el nombre en el estado local
-        setAttachmentsData((prevChats) =>
-          prevChats.map((chat) => ({
-            ...chat,
-            attachments: chat.attachments.map((att) =>
+        if (currentAttachment.sourceType === "unassigned") {
+          setUnassignedAttachments((prev) =>
+            prev.map((att) =>
               att.id === currentAttachment.id
                 ? { ...att, name: editingName.trim() }
                 : att,
             ),
-          })),
-        );
+          );
+        } else {
+          setAttachmentsData((prevChats) =>
+            prevChats.map((chat) => ({
+              ...chat,
+              attachments: chat.attachments.map((att) =>
+                att.id === currentAttachment.id
+                  ? { ...att, name: editingName.trim() }
+                  : att,
+              ),
+            })),
+          );
+        }
         setIsEditingName(false);
       }
     } catch (error) {

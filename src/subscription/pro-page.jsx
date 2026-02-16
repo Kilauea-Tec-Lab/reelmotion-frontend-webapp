@@ -26,8 +26,8 @@ import {
 import { useNavigate, useOutletContext, useLocation } from "react-router-dom";
 
 const stripePromise = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
-    import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
+  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST ||
+    import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST,
 );
 
 const COUNTRIES = [
@@ -418,6 +418,14 @@ function CheckoutForm({
       ? calculateProrationEstimate()
       : null;
 
+  // Apply VAT to proration estimate when applicable (e.g. UK)
+  const estimatedProrationWithVat = estimatedProration
+    ? (
+        parseFloat(estimatedProration) +
+        (country === "GB" ? parseFloat(estimatedProration) * 0.2 : 0)
+      ).toFixed(2)
+    : null;
+
   const handleCardNumberChange = (event) => {
     setCardNumberComplete(event.complete);
     setCardErrors((prev) => ({
@@ -485,27 +493,15 @@ function CheckoutForm({
       const pName = plan.name.toLowerCase();
       const bCycle = billingCycle.toLowerCase();
 
-      // Check if running in test mode based on available keys
-      if (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
-        if (pName === "pro" && bCycle === "monthly") {
-          priceId = import.meta.env.VITE_STRIPE_PRO_MONTHLY_PRICE_ID_TEST;
-        } else if (pName === "pro" && bCycle === "yearly") {
-          priceId = import.meta.env.VITE_STRIPE_PRO_YEARLY_PRICE_ID_TEST;
-        } else if (pName === "elite" && bCycle === "monthly") {
-          priceId = import.meta.env.VITE_STRIPE_ELITE_MONTHLY_PRICE_ID_TEST;
-        } else if (pName === "elite" && bCycle === "yearly") {
-          priceId = import.meta.env.VITE_STRIPE_ELITE_YEARLY_PRICE_ID_TEST;
-        }
-      } else {
-        if (pName === "pro" && bCycle === "monthly") {
-          priceId = import.meta.env.VITE_STRIPE_PRO_MONTHLY_PRICE_ID;
-        } else if (pName === "pro" && bCycle === "yearly") {
-          priceId = import.meta.env.VITE_STRIPE_PRO_YEARLY_PRICE_ID;
-        } else if (pName === "elite" && bCycle === "monthly") {
-          priceId = import.meta.env.VITE_STRIPE_ELITE_MONTHLY_PRICE_ID;
-        } else if (pName === "elite" && bCycle === "yearly") {
-          priceId = import.meta.env.VITE_STRIPE_ELITE_YEARLY_PRICE_ID;
-        }
+      // Using TEST mode - all prices are test prices
+      if (pName === "pro" && bCycle === "monthly") {
+        priceId = import.meta.env.VITE_STRIPE_PRO_MONTHLY_PRICE_ID_TEST;
+      } else if (pName === "pro" && bCycle === "yearly") {
+        priceId = import.meta.env.VITE_STRIPE_PRO_YEARLY_PRICE_ID_TEST;
+      } else if (pName === "elite" && bCycle === "monthly") {
+        priceId = import.meta.env.VITE_STRIPE_ELITE_MONTHLY_PRICE_ID_TEST;
+      } else if (pName === "elite" && bCycle === "yearly") {
+        priceId = import.meta.env.VITE_STRIPE_ELITE_YEARLY_PRICE_ID_TEST;
       }
 
       if (!priceId) {
@@ -667,8 +663,8 @@ function CheckoutForm({
                 <div className="text-right">
                   <span className="text-2xl font-bold text-[#DC569D]">
                     {isUpdate && prorationBehavior === "prorate" ? (
-                      estimatedProration ? (
-                        `~$${estimatedProration}`
+                      estimatedProrationWithVat ? (
+                        `~$${estimatedProrationWithVat}`
                       ) : (
                         <span className="text-lg">Difference Only</span>
                       )
@@ -678,8 +674,8 @@ function CheckoutForm({
                   </span>
                   {isUpdate && prorationBehavior === "prorate" && (
                     <p className="text-xs text-green-400 mt-1">
-                      {estimatedProration
-                        ? "Rough estimate *"
+                      {estimatedProrationWithVat
+                        ? `Rough estimate *${vatAmount > 0 ? " (incl. VAT)" : ""}`
                         : "Less unused time credit"}
                     </p>
                   )}
@@ -930,36 +926,25 @@ export default function ProPage() {
       { text: "Quality - 720p", included: true },
       { text: "Comes with watermark", included: true },
       { text: "20 credits (one time)", included: true },
-      { text: "Only 16:9 and 9:16 resize options", included: true },
-      { text: "Limited access to stock footage/images", included: true },
-      { text: "Limited access to Text fonts", included: true },
-      { text: "No access to adding captions", included: false },
+      { text: "3 rendered videos a month", included: true },
+      { text: "Limited access to the chat system", included: true },
     ],
     pro: [
       { text: "Fast Rendering", included: true },
       { text: "Quality 1080p HD", included: true },
       { text: "No watermark", included: true },
       { text: "1000 credits / month", included: true },
-      { text: "All resize options", included: true },
-      { text: "Access to all stock footage/images", included: true },
-      { text: "Access to text fonts", included: true },
       { text: "Access to adding captions", included: true },
+      { text: "Unlimited rendered HD videos a month", included: true },
+      { text: "Unlimited access to the chat system", included: true },
     ],
     elite: [
       { text: "Fast Rendering", included: true },
       { text: "Quality 1080p HD", included: true },
       { text: "No watermark", included: true },
       { text: "4000 credits / month", included: true },
-      { text: "All resize options", included: true },
-      { text: "Access to all stock footage/images", included: true },
-      { text: "Access to text fonts", included: true },
-      { text: "Access to adding captions", included: true },
-      { text: "Includes 4K video export", included: true },
-      {
-        text: "10% bonus on credit top-ups",
-        included: true,
-        tooltip: "Everytime you top up, get extra 10% credits",
-      },
+      { text: "Unlimited rendered 4K videos a month", included: true },
+      { text: "Unlimited access to the chat system", included: true },
     ],
   };
 

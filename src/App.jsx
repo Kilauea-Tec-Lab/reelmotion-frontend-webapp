@@ -22,6 +22,7 @@ import Chat from "./chat/chat";
 import ChatView from "./chat/chat-view";
 import ChatLayout from "./chat/chat-layout";
 import Library from "./chat/library";
+import AiLab from "./chat/ai-lab";
 import ProPage from "./subscription/pro-page";
 import MySubscription from "./subscription/my-subscription";
 import { getChatInfo, getChatDetails, getLibrary } from "./chat/functions";
@@ -105,6 +106,10 @@ const router = createBrowserRouter([
         path: "library",
         element: <Library />,
         loader: getLibrary,
+      },
+      {
+        path: "dashboard",
+        element: <AiLab />,
       },
       {
         path: "pro",
