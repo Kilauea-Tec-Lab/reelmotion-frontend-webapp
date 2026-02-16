@@ -305,6 +305,9 @@ function ChatSidebar({
         >
           <MessageCirclePlus size={20} />
           <span className="font-medium">New chat</span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F2D543] text-black uppercase tracking-wide">
+            Beta
+          </span>
         </Link>
         <button
           onClick={onOpenAiLab}
@@ -374,8 +377,11 @@ function ChatSidebar({
 
       {/* Section Title */}
       <div className="px-4 py-2">
-        <h3 className="text-xs text-gray-500 font-semibold uppercase">
+        <h3 className="text-xs text-gray-500 font-semibold uppercase flex items-center gap-2">
           Your chats
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F2D543] text-black uppercase tracking-wide">
+            Beta
+          </span>
         </h3>
       </div>
 
