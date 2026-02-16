@@ -16,6 +16,7 @@ import {
   Loader2,
   X,
   Crown,
+  FlaskConical,
 } from "lucide-react";
 import { Link, useParams, useNavigate, useRevalidator } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
@@ -27,6 +28,7 @@ function ChatSidebar({
   onSearchChange,
   user,
   subscription,
+  onOpenAiLab,
 }) {
   const { chatId } = useParams();
   const navigate = useNavigate();
@@ -304,6 +306,13 @@ function ChatSidebar({
           <MessageCirclePlus size={20} />
           <span className="font-medium">New chat</span>
         </Link>
+        <button
+          onClick={onOpenAiLab}
+          className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
+        >
+          <FlaskConical size={20} />
+          <span className="font-medium">AI Lab</span>
+        </button>
         <Link
           to={"/editor"}
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
