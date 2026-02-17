@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Cookies from "js-cookie";
 import {
   X,
@@ -9,7 +9,7 @@ import {
   Diamond,
   Image,
   Video,
-  SlidersHorizontal,
+  Mic,
   Square,
   RectangleHorizontal,
   RectangleVertical,
@@ -19,7 +19,17 @@ import {
   Coins,
   Ban,
   Check,
+  Play,
+  Pause,
+  Volume2,
+  Clock,
+  Search,
+  CreditCard,
 } from "lucide-react";
+import {
+  getElevenLabsVoices,
+  generateElevenLabsSpeech,
+} from "../../create_elements/functions";
 
 // Map frontend model IDs to backend model names
 const MODEL_MAP = {
@@ -540,6 +550,33 @@ function ModelCard({ model, isSelected, onSelect, duration }) {
   );
 }
 
+// Custom Slider Component for voice settings
+const VoiceSlider = ({ value, min, max, step, onChange, className = "" }) => {
+  const percentage = ((value - min) / (max - min)) * 100;
+  return (
+    <div className={`relative w-full h-6 ${className}`}>
+      <div className="absolute top-1/2 -translate-y-1/2 w-full h-1.5 bg-gray-700 rounded-full" />
+      <div
+        className="absolute top-1/2 -translate-y-1/2 h-1.5 bg-[#DC569D] rounded-full"
+        style={{ width: `${percentage}%` }}
+      />
+      <div
+        className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-[#DC569D] rounded-full border-2 border-white shadow-md"
+        style={{ left: `calc(${percentage}% - 7px)` }}
+      />
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={onChange}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      />
+    </div>
+  );
+};
+
 function AiLabModal({ isOpen, onClose }) {
   const [selectedModel, setSelectedModel] = useState("nano-banana-pro");
   const [selectedVideoModel, setSelectedVideoModel] = useState("sora-2-pro");
@@ -552,7 +589,7 @@ function AiLabModal({ isOpen, onClose }) {
   const [imageCount, setImageCount] = useState(1);
   const [duration, setDuration] = useState(5);
   const [availableDurations, setAvailableDurations] = useState([5, 10]);
-  const [activeTab, setActiveTab] = useState("image"); // "image" | "video"
+  const [activeTab, setActiveTab] = useState("image"); // "image" | "video" | "voice"
   const [files, setFiles] = useState([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -565,6 +602,403 @@ function AiLabModal({ isOpen, onClose }) {
   const [showDurationMenu, setShowDurationMenu] = useState(false);
   const [showConfirmGeneration, setShowConfirmGeneration] = useState(false);
   const fileInputRef = useRef(null);
+
+  // ====== VOICE TAB STATES ======
+  const [voiceName, setVoiceName] = useState("");
+  const [voiceDescription, setVoiceDescription] = useState("");
+  const [selectedVoice, setSelectedVoice] = useState(null);
+  const [textToSpeak, setTextToSpeak] = useState("");
+  const [isGeneratingVoice, setIsGeneratingVoice] = useState(false);
+  const [generatedAudioUrl, setGeneratedAudioUrl] = useState(null);
+  const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const [voiceCurrentTime, setVoiceCurrentTime] = useState(0);
+  const [voiceDuration, setVoiceDuration] = useState(0);
+  const [estimatedTime, setEstimatedTime] = useState(0);
+  const [showVoiceCreator, setShowVoiceCreator] = useState(true);
+  const [generatedVoiceData, setGeneratedVoiceData] = useState(null);
+  const [isSavingVoice, setIsSavingVoice] = useState(false);
+  const [uploadedVoiceUrl, setUploadedVoiceUrl] = useState(null);
+  const [availableVoices, setAvailableVoices] = useState([]);
+  const [filteredVoices, setFilteredVoices] = useState([]);
+  const [displayedVoices, setDisplayedVoices] = useState([]);
+  const [isLoadingVoices, setIsLoadingVoices] = useState(false);
+  const [voiceSearchTerm, setVoiceSearchTerm] = useState("");
+  const [languageFilter, setLanguageFilter] = useState("");
+  const [genderFilter, setGenderFilter] = useState("");
+  const [ageFilter, setAgeFilter] = useState("");
+  const [voiceCurrentPage, setVoiceCurrentPage] = useState(1);
+  const [isLoadingMoreVoices, setIsLoadingMoreVoices] = useState(false);
+  const VOICES_PER_PAGE = 50;
+  const [voiceTokens, setVoiceTokens] = useState(0);
+  const [isLoadingVoiceTokens, setIsLoadingVoiceTokens] = useState(false);
+  const VOICE_COST_PER_MINUTE = 16;
+  const [previewAudio, setPreviewAudio] = useState(null);
+  const [playingVoiceId, setPlayingVoiceId] = useState(null);
+  const [elevenLabsModel, setElevenLabsModel] = useState(
+    "eleven_multilingual_v2",
+  );
+  const [voiceSettings, setVoiceSettings] = useState({
+    stability: 0.5,
+    similarity_boost: 0.5,
+    style: 0.0,
+    use_speaker_boost: true,
+  });
+  const voiceAudioRef = useRef(null);
+
+  // ====== VOICE HELPER FUNCTIONS ======
+  const getVoiceId = (voice) => (voice ? voice.voice_id : null);
+  const getVoiceAudioSample = (voice) => (voice ? voice.preview_url : null);
+  const getVoiceName = (voice) => (voice ? voice.name : "Unknown Voice");
+  const getVoiceLanguage = (voice) =>
+    voice ? voice.labels?.language || "Multi" : "Unknown";
+  const getVoiceGender = (voice) =>
+    voice ? voice.labels?.gender || "Unknown" : "Unknown";
+  const getVoiceAge = (voice) =>
+    voice ? voice.labels?.age || "Unknown" : "Unknown";
+
+  const fetchVoiceTokens = async () => {
+    setIsLoadingVoiceTokens(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}users/tokens`,
+        { headers: { Authorization: "Bearer " + Cookies.get("token") } },
+      );
+      const data = await response.json();
+      if (response.ok) setVoiceTokens(parseFloat(data.data) || 0);
+    } catch (error) {
+      console.error("Error fetching tokens:", error);
+    } finally {
+      setIsLoadingVoiceTokens(false);
+    }
+  };
+
+  const reduceVoiceTokens = async (tokensToReduce) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}tokens/reduce-tokens`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: JSON.stringify({ tokens: tokensToReduce }),
+        },
+      );
+      const data = await response.json();
+      if (response.ok) {
+        console.log(`Successfully reduced ${tokensToReduce} tokens`);
+        fetchVoiceTokens();
+      } else {
+        console.error("Error reducing tokens:", data.message);
+      }
+    } catch (error) {
+      console.error("Error reducing tokens:", error);
+    }
+  };
+
+  const calculateRequiredVoiceTokens = () => {
+    if (!estimatedTime) return VOICE_COST_PER_MINUTE;
+    const adjustedTime = estimatedTime * 2;
+    const minutes = Math.ceil(adjustedTime / 60);
+    return minutes * VOICE_COST_PER_MINUTE;
+  };
+
+  // Load voices when voice tab is active
+  useEffect(() => {
+    if (isOpen && activeTab === "voice") {
+      loadVoices();
+      fetchVoiceTokens();
+    }
+  }, [isOpen, activeTab]);
+
+  // Voice filter and search logic
+  useEffect(() => {
+    let filtered = availableVoices.filter((voice) => voice != null);
+    if (voiceSearchTerm) {
+      filtered = filtered.filter((voice) =>
+        getVoiceName(voice)
+          .toLowerCase()
+          .includes(voiceSearchTerm.toLowerCase()),
+      );
+    }
+    if (languageFilter) {
+      filtered = filtered.filter(
+        (voice) => getVoiceLanguage(voice) === languageFilter,
+      );
+    }
+    if (genderFilter) {
+      filtered = filtered.filter(
+        (voice) => getVoiceGender(voice) === genderFilter,
+      );
+    }
+    if (ageFilter) {
+      filtered = filtered.filter((voice) => getVoiceAge(voice) === ageFilter);
+    }
+    setFilteredVoices(filtered);
+    setVoiceCurrentPage(1);
+    setDisplayedVoices(filtered.slice(0, VOICES_PER_PAGE));
+  }, [
+    availableVoices,
+    voiceSearchTerm,
+    languageFilter,
+    genderFilter,
+    ageFilter,
+  ]);
+
+  const loadVoices = async () => {
+    setIsLoadingVoices(true);
+    try {
+      const result = await getElevenLabsVoices();
+      if (result.success && Array.isArray(result.voices)) {
+        setAvailableVoices(result.voices);
+      } else {
+        console.error("Error loading voices:", result.error);
+        setAvailableVoices([]);
+      }
+    } catch (error) {
+      console.error("Error loading voices:", error);
+      setAvailableVoices([]);
+    } finally {
+      setIsLoadingVoices(false);
+    }
+  };
+
+  const loadMoreVoicesHandler = () => {
+    setIsLoadingMoreVoices(true);
+    const nextPage = voiceCurrentPage + 1;
+    const startIndex = nextPage * VOICES_PER_PAGE;
+    const endIndex = startIndex + VOICES_PER_PAGE;
+    const newVoices = filteredVoices.slice(startIndex, endIndex);
+    setTimeout(() => {
+      setDisplayedVoices((prev) => [...prev, ...newVoices]);
+      setVoiceCurrentPage(nextPage);
+      setIsLoadingMoreVoices(false);
+    }, 500);
+  };
+
+  const getUniqueVoiceValues = (key) => {
+    let values = [];
+    availableVoices.forEach((voice) => {
+      if (!voice) return;
+      let value = null;
+      switch (key) {
+        case "language":
+          value = getVoiceLanguage(voice);
+          break;
+        case "gender":
+          value = getVoiceGender(voice);
+          break;
+        case "age":
+          value = getVoiceAge(voice);
+          break;
+        default:
+          value = voice[key];
+      }
+      if (value && value !== "Unknown" && !values.includes(value))
+        values.push(value);
+    });
+    return values.sort();
+  };
+
+  const calculateEstimatedTime = (text) => {
+    if (!text || text.trim().length === 0) {
+      setEstimatedTime(0);
+      return 0;
+    }
+    const charactersPerSecond = 10;
+    const totalCharacters = text.length;
+    const estimatedSeconds = totalCharacters / charactersPerSecond;
+    const finalEstimatedSeconds = Math.max(estimatedSeconds, 2);
+    setEstimatedTime(finalEstimatedSeconds);
+    return finalEstimatedSeconds;
+  };
+
+  const handleVoiceTextChange = (text) => {
+    setTextToSpeak(text);
+    calculateEstimatedTime(text);
+  };
+
+  const handleVoiceSelect = (voice) => setSelectedVoice(voice);
+
+  const playVoicePreview = async (voice) => {
+    const audioSampleUrl = getVoiceAudioSample(voice);
+    if (!audioSampleUrl) return;
+    if (previewAudio) {
+      previewAudio.pause();
+      setPreviewAudio(null);
+      setPlayingVoiceId(null);
+    }
+    try {
+      const audio = new Audio(audioSampleUrl);
+      audio.volume = 0.7;
+      audio.onplay = () => setPlayingVoiceId(getVoiceId(voice));
+      audio.onended = () => {
+        setPlayingVoiceId(null);
+        setPreviewAudio(null);
+      };
+      audio.onerror = () => {
+        console.error("Error playing voice preview");
+        setPlayingVoiceId(null);
+        setPreviewAudio(null);
+      };
+      setPreviewAudio(audio);
+      audio.play();
+    } catch (error) {
+      console.error("Error creating audio for preview:", error);
+    }
+  };
+
+  const stopVoicePreview = () => {
+    if (previewAudio) {
+      previewAudio.pause();
+      setPreviewAudio(null);
+    }
+    setPlayingVoiceId(null);
+  };
+
+  const handleGenerateVoice = async () => {
+    if (!textToSpeak.trim() || !selectedVoice) {
+      setError("Please select a voice and enter the text to generate.");
+      return;
+    }
+    const voiceId = getVoiceId(selectedVoice);
+    if (!voiceId) {
+      setError("Selected voice does not have a valid ID.");
+      return;
+    }
+    const requiredTokens = calculateRequiredVoiceTokens();
+    if (voiceTokens < requiredTokens) {
+      setError(
+        `Insufficient tokens. You need ${requiredTokens} tokens but only have ${Math.floor(voiceTokens).toLocaleString("en-US")}.`,
+      );
+      return;
+    }
+    setIsGeneratingVoice(true);
+    setError(null);
+    try {
+      const speechResult = await generateElevenLabsSpeech({
+        text: textToSpeak,
+        voiceId: voiceId,
+        model_id: elevenLabsModel,
+        ...voiceSettings,
+      });
+      if (!speechResult.success)
+        throw new Error(`Error generating speech: ${speechResult.error}`);
+      const actualDuration = speechResult.data.duration || estimatedTime;
+      const actualMinutes = Math.ceil(actualDuration / 60);
+      const tokensToReduce = actualMinutes * VOICE_COST_PER_MINUTE;
+      setGeneratedAudioUrl(speechResult.data.audioUrl);
+      setVoiceDuration(actualDuration);
+      setGeneratedVoiceData({
+        audioUrl: speechResult.data.audioUrl,
+        audioBlob: speechResult.data.audioBlob,
+        playableAudioUrl: speechResult.data.audioUrl,
+        duration: actualDuration,
+        format: speechResult.data.format || "mp3",
+        textUsed: textToSpeak,
+        voiceUsed: selectedVoice,
+        model_id: speechResult.data.model_id,
+        voice_settings: speechResult.data.voice_settings,
+      });
+      setShowVoiceCreator(false);
+
+      // Auto-upload to ai/upload-attachments with type audio
+      try {
+        const audioFile = new File(
+          [speechResult.data.audioBlob],
+          `voice-${Date.now()}.${speechResult.data.format || "mp3"}`,
+          { type: speechResult.data.audioBlob.type || "audio/mpeg" },
+        );
+        const uploadedUrl = await uploadMediaToGCS(audioFile, "audio");
+        console.log("Voice auto-uploaded:", uploadedUrl);
+        setUploadedVoiceUrl(uploadedUrl);
+      } catch (uploadErr) {
+        console.warn("Auto-upload failed:", uploadErr);
+      }
+
+      // Reduce tokens after successful generation
+      await reduceVoiceTokens(tokensToReduce);
+    } catch (error) {
+      console.error("Error generating voice:", error);
+      setError(`Error generating voice: ${error.message}`);
+    } finally {
+      setIsGeneratingVoice(false);
+    }
+  };
+
+  const handleDiscardVoice = () => {
+    if (generatedAudioUrl && generatedAudioUrl.startsWith("blob:"))
+      URL.revokeObjectURL(generatedAudioUrl);
+    setShowVoiceCreator(true);
+    setGeneratedVoiceData(null);
+    setGeneratedAudioUrl(null);
+    setIsPlayingVoice(false);
+    setVoiceCurrentTime(0);
+    setVoiceDuration(0);
+    setUploadedVoiceUrl(null);
+  };
+
+  const resetVoiceStates = () => {
+    if (generatedAudioUrl && generatedAudioUrl.startsWith("blob:"))
+      URL.revokeObjectURL(generatedAudioUrl);
+    setVoiceName("");
+    setVoiceDescription("");
+    setSelectedVoice(null);
+    setTextToSpeak("");
+    setGeneratedAudioUrl(null);
+    setIsGeneratingVoice(false);
+    setIsPlayingVoice(false);
+    setVoiceCurrentTime(0);
+    setVoiceDuration(0);
+    setEstimatedTime(0);
+    setVoiceSearchTerm("");
+    setLanguageFilter("");
+    setGenderFilter("");
+    setAgeFilter("");
+    setVoiceCurrentPage(1);
+    setShowVoiceCreator(true);
+    setGeneratedVoiceData(null);
+    setIsSavingVoice(false);
+    setUploadedVoiceUrl(null);
+    stopVoicePreview();
+    if (voiceAudioRef.current) voiceAudioRef.current.pause();
+  };
+
+  const toggleVoicePlayPause = () => {
+    if (!voiceAudioRef.current || !generatedAudioUrl) return;
+    if (isPlayingVoice) {
+      voiceAudioRef.current.pause();
+    } else {
+      voiceAudioRef.current.play();
+    }
+    setIsPlayingVoice(!isPlayingVoice);
+  };
+
+  const handleVoiceTimeUpdate = () => {
+    if (voiceAudioRef.current)
+      setVoiceCurrentTime(voiceAudioRef.current.currentTime);
+  };
+
+  const handleVoiceLoadedMetadata = () => {
+    if (voiceAudioRef.current) setVoiceDuration(voiceAudioRef.current.duration);
+  };
+
+  const handleVoiceSeek = (e) => {
+    if (!voiceAudioRef.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pos = (e.clientX - rect.left) / rect.width;
+    const newTime = pos * voiceDuration;
+    voiceAudioRef.current.currentTime = newTime;
+    setVoiceCurrentTime(newTime);
+  };
+
+  const formatVoiceTime = (time) => {
+    if (!time || isNaN(time)) return "0:00";
+    const mins = Math.floor(time / 60);
+    const secs = Math.floor(time % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
   if (!isOpen) return null;
 
@@ -656,6 +1090,11 @@ function AiLabModal({ isOpen, onClose }) {
       if (!durations.includes(duration)) {
         setDuration(durations[0]);
       }
+    }
+
+    // Reset voice states when leaving voice tab
+    if (activeTab === "voice" && tab !== "voice") {
+      resetVoiceStates();
     }
   };
 
@@ -898,7 +1337,7 @@ function AiLabModal({ isOpen, onClose }) {
           rounded-2xl border border-white/10 shadow-2xl 
           flex flex-col overflow-hidden 
           transition-all duration-300 ease-in-out
-          ${showModels || isGenerating || generatedImages.length > 0 ? "h-[600px]" : "h-auto"}
+          ${showModels || isGenerating || generatedImages.length > 0 || activeTab === "voice" ? "h-[600px]" : "h-auto"}
         `}
       >
         {/* Header */}
@@ -914,15 +1353,431 @@ function AiLabModal({ isOpen, onClose }) {
           </button>
         </div>
 
+        {/* ====== VOICE TAB CONTENT ====== */}
+        {activeTab === "voice" && (
+          <div className="flex-1 overflow-hidden flex flex-col">
+            {/* Top bar: tokens + selected voice badge */}
+            <div className="flex items-center justify-between px-6 py-3 border-b border-gray-800/40">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 bg-[#2a2a2a] px-3 py-1 rounded-full border border-gray-700/50">
+                  <CreditCard size={12} className="text-[#DC569D]" />
+                  <span className="text-xs text-gray-300 font-medium">
+                    {isLoadingVoiceTokens
+                      ? "..."
+                      : Math.floor(voiceTokens).toLocaleString("en-US")}{" "}
+                    tokens
+                  </span>
+                </div>
+                {selectedVoice && (
+                  <div className="flex items-center gap-1.5 bg-[#DC569D]/10 px-3 py-1 rounded-full border border-[#DC569D]/30">
+                    <Mic size={12} className="text-[#DC569D]" />
+                    <span className="text-xs text-[#DC569D] font-medium truncate max-w-[150px]">
+                      {getVoiceName(selectedVoice)}
+                    </span>
+                  </div>
+                )}
+              </div>
+              {!showVoiceCreator && (
+                <div className="flex items-center gap-2">
+                  {uploadedVoiceUrl && (
+                    <span className="text-[10px] text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full border border-green-400/20 font-medium">
+                      Uploaded
+                    </span>
+                  )}
+                  <button
+                    onClick={handleDiscardVoice}
+                    className="px-3 py-1 bg-gray-700/80 text-white rounded-full hover:bg-gray-600 transition-colors text-xs font-medium flex items-center gap-1"
+                  >
+                    <X className="w-3 h-3" /> New
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {showVoiceCreator ? (
+              /* ===== VOICE CREATOR: 2-column layout ===== */
+              <div className="flex-1 flex overflow-hidden">
+                {/* LEFT COLUMN: Voice library */}
+                <div className="w-[340px] border-r border-gray-800/40 flex flex-col shrink-0">
+                  {/* Search & Filters */}
+                  <div className="px-4 pt-3 pb-2 space-y-2">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-500 w-3.5 h-3.5" />
+                      <input
+                        type="text"
+                        placeholder="Search voices..."
+                        value={voiceSearchTerm}
+                        onChange={(e) => setVoiceSearchTerm(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 bg-[#2a2a2a] border border-gray-700/50 rounded-lg text-white placeholder-gray-500 focus:border-[#DC569D] focus:outline-none text-xs"
+                      />
+                    </div>
+                    <div className="flex gap-1.5">
+                      <select
+                        value={languageFilter}
+                        onChange={(e) => setLanguageFilter(e.target.value)}
+                        className="flex-1 px-2 py-1 bg-[#2a2a2a] border border-gray-700/50 rounded-lg text-white text-[10px] focus:border-[#DC569D] focus:outline-none"
+                      >
+                        <option value="">Language</option>
+                        {getUniqueVoiceValues("language").map((lang) => (
+                          <option key={lang} value={lang}>
+                            {lang}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={genderFilter}
+                        onChange={(e) => setGenderFilter(e.target.value)}
+                        className="flex-1 px-2 py-1 bg-[#2a2a2a] border border-gray-700/50 rounded-lg text-white text-[10px] focus:border-[#DC569D] focus:outline-none"
+                      >
+                        <option value="">Gender</option>
+                        {getUniqueVoiceValues("gender").map((g) => (
+                          <option key={g} value={g}>
+                            {g}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={ageFilter}
+                        onChange={(e) => setAgeFilter(e.target.value)}
+                        className="flex-1 px-2 py-1 bg-[#2a2a2a] border border-gray-700/50 rounded-lg text-white text-[10px] focus:border-[#DC569D] focus:outline-none"
+                      >
+                        <option value="">Age</option>
+                        {getUniqueVoiceValues("age").map((a) => (
+                          <option key={a} value={a}>
+                            {a}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Voice List */}
+                  <div className="flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar">
+                    {isLoadingVoices ? (
+                      <div className="flex items-center justify-center py-10">
+                        <Loader2
+                          size={20}
+                          className="text-[#DC569D] animate-spin"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        {displayedVoices
+                          .filter((voice) => voice && getVoiceId(voice))
+                          .map((voice) => (
+                            <div
+                              key={getVoiceId(voice)}
+                              className={`px-3 py-2 rounded-lg border cursor-pointer transition-all ${
+                                getVoiceId(selectedVoice) === getVoiceId(voice)
+                                  ? "border-[#DC569D] bg-[#DC569D]/10"
+                                  : "border-transparent hover:bg-[#2a2a2a]"
+                              }`}
+                              onClick={() => handleVoiceSelect(voice)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-white font-medium text-xs truncate">
+                                    {getVoiceName(voice)}
+                                  </h4>
+                                  <p className="text-gray-500 text-[10px] mt-0.5">
+                                    {getVoiceLanguage(voice)} ·{" "}
+                                    {getVoiceGender(voice)} ·{" "}
+                                    {getVoiceAge(voice)}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (playingVoiceId === getVoiceId(voice))
+                                      stopVoicePreview();
+                                    else playVoicePreview(voice);
+                                  }}
+                                  className={`ml-2 p-1 rounded-full transition-colors shrink-0 ${
+                                    playingVoiceId === getVoiceId(voice)
+                                      ? "bg-[#DC569D] text-white"
+                                      : "bg-gray-700/60 text-gray-400 hover:bg-gray-600 hover:text-white"
+                                  }`}
+                                >
+                                  {playingVoiceId === getVoiceId(voice) ? (
+                                    <Square className="w-3 h-3" />
+                                  ) : (
+                                    <Play className="w-3 h-3" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        {filteredVoices.length > displayedVoices.length && (
+                          <button
+                            onClick={loadMoreVoicesHandler}
+                            disabled={isLoadingMoreVoices}
+                            className="w-full mt-2 px-3 py-1.5 bg-[#2a2a2a] text-gray-400 rounded-lg hover:bg-[#333] hover:text-white transition-colors text-xs font-medium disabled:opacity-50"
+                          >
+                            {isLoadingMoreVoices ? "Loading..." : "Load more"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* RIGHT COLUMN: Config + Text + Generate */}
+                <div className="flex-1 flex flex-col overflow-y-auto px-5 py-3 custom-scrollbar">
+                  {/* Model & Settings - compact row */}
+                  <div className="mb-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <select
+                        value={elevenLabsModel}
+                        onChange={(e) => setElevenLabsModel(e.target.value)}
+                        className="flex-1 px-3 py-1.5 bg-[#2a2a2a] border border-gray-700/50 rounded-lg text-white focus:border-[#DC569D] focus:outline-none text-xs"
+                      >
+                        <option value="eleven_multilingual_v2">
+                          Multilingual v2 (HQ)
+                        </option>
+                        <option value="eleven_flash_v2_5">
+                          Flash v2.5 (Fast)
+                        </option>
+                        <option value="eleven_turbo_v2_5">Turbo v2.5</option>
+                        <option value="eleven_v3_alpha">
+                          v3 Alpha (Expressive)
+                        </option>
+                      </select>
+                      <label className="flex items-center gap-1.5 text-[10px] text-gray-400 shrink-0 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={voiceSettings.use_speaker_boost}
+                          onChange={(e) =>
+                            setVoiceSettings((prev) => ({
+                              ...prev,
+                              use_speaker_boost: e.target.checked,
+                            }))
+                          }
+                          className="accent-[#DC569D] w-3 h-3"
+                        />
+                        Boost
+                      </label>
+                    </div>
+
+                    {/* Sliders in a row */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1">
+                          Stability{" "}
+                          <span className="text-gray-600">
+                            {voiceSettings.stability}
+                          </span>
+                        </label>
+                        <VoiceSlider
+                          min={0}
+                          max={1}
+                          step={0.1}
+                          value={voiceSettings.stability}
+                          onChange={(e) =>
+                            setVoiceSettings((prev) => ({
+                              ...prev,
+                              stability: parseFloat(e.target.value),
+                            }))
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1">
+                          Similarity{" "}
+                          <span className="text-gray-600">
+                            {voiceSettings.similarity_boost}
+                          </span>
+                        </label>
+                        <VoiceSlider
+                          min={0}
+                          max={1}
+                          step={0.1}
+                          value={voiceSettings.similarity_boost}
+                          onChange={(e) =>
+                            setVoiceSettings((prev) => ({
+                              ...prev,
+                              similarity_boost: parseFloat(e.target.value),
+                            }))
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1">
+                          Style{" "}
+                          <span className="text-gray-600">
+                            {voiceSettings.style}
+                          </span>
+                        </label>
+                        <VoiceSlider
+                          min={0}
+                          max={1}
+                          step={0.1}
+                          value={voiceSettings.style}
+                          onChange={(e) =>
+                            setVoiceSettings((prev) => ({
+                              ...prev,
+                              style: parseFloat(e.target.value),
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Text Input */}
+                  <div className="flex-1 flex flex-col mb-3">
+                    <textarea
+                      placeholder="Enter the text you want to convert to speech..."
+                      value={textToSpeak}
+                      onChange={(e) => handleVoiceTextChange(e.target.value)}
+                      className="flex-1 min-h-[120px] p-3 bg-[#2a2a2a]/60 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:border-[#DC569D] focus:outline-none resize-none text-sm leading-relaxed"
+                    />
+                    {estimatedTime > 0 && (
+                      <div className="flex items-center justify-between mt-2 text-[10px] text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />~
+                          {Math.ceil(estimatedTime * 2)}s · {textToSpeak.length}{" "}
+                          chars
+                        </span>
+                        <span className="text-[#DC569D] font-medium">
+                          {calculateRequiredVoiceTokens()} tokens
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Generate Button */}
+                  <button
+                    onClick={handleGenerateVoice}
+                    disabled={
+                      isGeneratingVoice ||
+                      !textToSpeak.trim() ||
+                      !selectedVoice ||
+                      isLoadingVoices ||
+                      voiceTokens < calculateRequiredVoiceTokens()
+                    }
+                    className="w-full px-4 py-2.5 bg-[#DC569D] text-white rounded-xl hover:bg-[#c44d8b] transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isGeneratingVoice ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="w-4 h-4" /> Generate Voice
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* ===== GENERATED VOICE PLAYER ===== */
+              <div className="flex-1 flex items-center justify-center px-6 py-6">
+                <div className="w-full max-w-lg">
+                  {/* Waveform-style player card */}
+                  <div className="bg-[#1a1a1a]/80 rounded-2xl p-6 border border-gray-700/40">
+                    <div className="flex items-center gap-4 mb-5">
+                      <button
+                        onClick={toggleVoicePlayPause}
+                        disabled={!generatedAudioUrl}
+                        className={`p-4 rounded-full transition-all shadow-lg ${
+                          generatedAudioUrl
+                            ? "bg-[#DC569D] text-white hover:bg-[#c44d8b] hover:scale-105"
+                            : "bg-gray-700 text-gray-500 cursor-not-allowed"
+                        }`}
+                      >
+                        {isPlayingVoice ? (
+                          <Pause className="w-6 h-6" />
+                        ) : (
+                          <Play className="w-6 h-6 ml-0.5" />
+                        )}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-semibold text-sm">
+                          {selectedVoice
+                            ? getVoiceName(selectedVoice)
+                            : "Generated Voice"}
+                        </p>
+                        <p className="text-gray-500 text-xs mt-0.5">
+                          {elevenLabsModel
+                            .replace("eleven_", "")
+                            .replace(/_/g, " ")}{" "}
+                          · {textToSpeak.length} chars
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {generatedAudioUrl && (
+                          <a
+                            href={generatedAudioUrl}
+                            download={`voice-${Date.now()}.mp3`}
+                            className="p-2 rounded-full bg-gray-700/60 text-gray-300 hover:bg-gray-600 hover:text-white transition-colors"
+                            title="Download"
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div
+                      className="w-full h-2 bg-gray-700/60 rounded-full cursor-pointer relative overflow-hidden mb-2"
+                      onClick={handleVoiceSeek}
+                    >
+                      <div
+                        className="h-full bg-gradient-to-r from-[#DC569D] to-[#DC569D]/60 rounded-full transition-all duration-100"
+                        style={{
+                          width:
+                            voiceDuration > 0
+                              ? `${(voiceCurrentTime / voiceDuration) * 100}%`
+                              : "0%",
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-gray-500">
+                      <span>{formatVoiceTime(voiceCurrentTime)}</span>
+                      <span>{formatVoiceTime(voiceDuration)}</span>
+                    </div>
+
+                    {generatedAudioUrl && (
+                      <audio
+                        ref={voiceAudioRef}
+                        src={generatedAudioUrl}
+                        onTimeUpdate={handleVoiceTimeUpdate}
+                        onLoadedMetadata={handleVoiceLoadedMetadata}
+                        onEnded={() => setIsPlayingVoice(false)}
+                        className="hidden"
+                      />
+                    )}
+                  </div>
+
+                  {/* Uploaded URL display */}
+                  {uploadedVoiceUrl && (
+                    <div className="mt-3 p-3 bg-green-400/5 rounded-xl border border-green-400/20">
+                      <p className="text-[10px] text-green-400 font-medium mb-0.5">
+                        Saved to attachments
+                      </p>
+                      <p className="text-[10px] text-gray-500 truncate">
+                        {uploadedVoiceUrl}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Center Content - Loader / Generated Images / Placeholder */}
-        {!showModels &&
+        {activeTab !== "voice" &&
+          !showModels &&
           !isGenerating &&
           generatedImages.length === 0 &&
           !error &&
           null}
 
         {/* Loader */}
-        {isGenerating && (
+        {activeTab !== "voice" && isGenerating && (
           <div className="flex-1 flex flex-col items-center justify-center gap-4">
             <div className="relative">
               <div className="w-16 h-16 rounded-full border-2 border-[#DC569D]/20 flex items-center justify-center">
@@ -941,7 +1796,7 @@ function AiLabModal({ isOpen, onClose }) {
         )}
 
         {/* Error message */}
-        {error && !isGenerating && (
+        {error && !isGenerating && !isGeneratingVoice && (
           <div className="px-6 py-4">
             <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 flex items-center gap-3">
               <span className="text-red-400 text-sm">{error}</span>
@@ -956,122 +1811,126 @@ function AiLabModal({ isOpen, onClose }) {
         )}
 
         {/* Generated Images Gallery */}
-        {generatedImages.length > 0 && !isGenerating && (
-          <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
-            {/* Token info bar */}
-            {generationInfo && (
-              <div className="flex items-center gap-3 mb-4 text-xs">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#DC569D]/10 border border-[#DC569D]/30 text-[#DC569D]">
-                  <Coins size={12} />
-                  {generationInfo.tokensUsed} tokens used
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-800 border border-gray-700 text-gray-300">
-                  <Coins size={12} />
-                  {generationInfo.remainingTokens} remaining
-                </span>
-              </div>
-            )}
+        {activeTab !== "voice" &&
+          generatedImages.length > 0 &&
+          !isGenerating && (
+            <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
+              {/* Token info bar */}
+              {generationInfo && (
+                <div className="flex items-center gap-3 mb-4 text-xs">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#DC569D]/10 border border-[#DC569D]/30 text-[#DC569D]">
+                    <Coins size={12} />
+                    {generationInfo.tokensUsed} tokens used
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-800 border border-gray-700 text-gray-300">
+                    <Coins size={12} />
+                    {generationInfo.remainingTokens} remaining
+                  </span>
+                </div>
+              )}
 
-            {/* Images grid */}
-            <div
-              className={`grid gap-3 ${
-                generatedImages.length === 1
-                  ? "grid-cols-1 max-w-md mx-auto"
-                  : generatedImages.length === 2
-                    ? "grid-cols-2"
-                    : "grid-cols-2 md:grid-cols-3"
-              }`}
-            >
-              {generatedImages.map((item, index) => {
-                const url = typeof item === "string" ? item : item.url;
-                const isVideo =
-                  url.endsWith(".mp4") ||
-                  url.includes("video") ||
-                  activeTab === "video";
+              {/* Images grid */}
+              <div
+                className={`grid gap-3 ${
+                  generatedImages.length === 1
+                    ? "grid-cols-1 max-w-md mx-auto"
+                    : generatedImages.length === 2
+                      ? "grid-cols-2"
+                      : "grid-cols-2 md:grid-cols-3"
+                }`}
+              >
+                {generatedImages.map((item, index) => {
+                  const url = typeof item === "string" ? item : item.url;
+                  const isVideo =
+                    url.endsWith(".mp4") ||
+                    url.includes("video") ||
+                    activeTab === "video";
 
-                return (
-                  <div
-                    key={index}
-                    className="relative group rounded-xl overflow-hidden border border-gray-700/50 bg-[#1a1a1a]"
-                  >
-                    {isVideo ? (
-                      <video
-                        src={url}
-                        controls
-                        className="w-full h-auto object-cover"
-                      />
-                    ) : (
-                      <img
-                        src={url}
-                        alt={`Generated ${index + 1}`}
-                        className="w-full h-auto object-cover cursor-pointer"
-                        loading="lazy"
-                        onClick={() => setPreviewImage(url)}
-                      />
-                    )}
+                  return (
+                    <div
+                      key={index}
+                      className="relative group rounded-xl overflow-hidden border border-gray-700/50 bg-[#1a1a1a]"
+                    >
+                      {isVideo ? (
+                        <video
+                          src={url}
+                          controls
+                          className="w-full h-auto object-cover"
+                        />
+                      ) : (
+                        <img
+                          src={url}
+                          alt={`Generated ${index + 1}`}
+                          className="w-full h-auto object-cover cursor-pointer"
+                          loading="lazy"
+                          onClick={() => setPreviewImage(url)}
+                        />
+                      )}
 
-                    {/* Overlay on hover */}
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-end p-2 pointer-events-none">
-                      <div className="flex gap-2 pointer-events-auto">
-                        {!isVideo && (
+                      {/* Overlay on hover */}
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-end p-2 pointer-events-none">
+                        <div className="flex gap-2 pointer-events-auto">
+                          {!isVideo && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewImage(url)}
+                              className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+                              title="Preview"
+                            >
+                              <Image size={14} />
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={() => setPreviewImage(url)}
+                            onClick={() => handleDownloadImage(url, index)}
                             className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-colors"
-                            title="Preview"
+                            title="Download"
                           >
-                            <Image size={14} />
+                            <Download size={14} />
                           </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleDownloadImage(url, index)}
-                          className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-colors"
-                          title="Download"
-                        >
-                          <Download size={14} />
-                        </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        {/* Models Grid - Toggle height and opacity */}
+        {activeTab !== "voice" && (
+          <div
+            className={`overflow-y-auto custom-scrollbar transition-all duration-300 ease-in-out ${
+              showModels
+                ? "opacity-100 flex-1 px-6 py-4"
+                : "opacity-0 h-0 overflow-hidden py-0 px-6"
+            }`}
+          >
+            <div className="flex flex-col h-full">
+              <h3 className="text-gray-400 text-sm font-medium mb-3 shrink-0">
+                Select {activeTab === "video" ? "Video " : "Image "} Model
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-4">
+                {currentModels.map((model) => (
+                  <ModelCard
+                    key={model.id}
+                    model={model}
+                    isSelected={currentModelId === model.id}
+                    duration={duration}
+                    onSelect={(id) => {
+                      if (activeTab === "image") {
+                        setSelectedModel(id);
+                        setShowModels(false);
+                      } else {
+                        handleVideoModelChange(id);
+                      }
+                    }}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         )}
-
-        {/* Models Grid - Toggle height and opacity */}
-        <div
-          className={`overflow-y-auto custom-scrollbar transition-all duration-300 ease-in-out ${
-            showModels
-              ? "opacity-100 flex-1 px-6 py-4"
-              : "opacity-0 h-0 overflow-hidden py-0 px-6"
-          }`}
-        >
-          <div className="flex flex-col h-full">
-            <h3 className="text-gray-400 text-sm font-medium mb-3 shrink-0">
-              Select {activeTab === "video" ? "Video " : "Image "} Model
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-4">
-              {currentModels.map((model) => (
-                <ModelCard
-                  key={model.id}
-                  model={model}
-                  isSelected={currentModelId === model.id}
-                  duration={duration}
-                  onSelect={(id) => {
-                    if (activeTab === "image") {
-                      setSelectedModel(id);
-                      setShowModels(false);
-                    } else {
-                      handleVideoModelChange(id);
-                    }
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
 
         {/* Bottom Area */}
         <div className="border-t border-gray-800/60 px-6 py-4 shrink-0 z-20">
@@ -1105,260 +1964,237 @@ function AiLabModal({ isOpen, onClose }) {
               </button>
               <button
                 type="button"
-                className="h-9 w-9 rounded-xl border border-gray-700 text-gray-400 flex items-center justify-center hover:bg-[#2a2a2a] hover:text-white transition-colors"
-                title="Settings"
+                onClick={() => handleTabChange("voice")}
+                className={`h-9 w-9 rounded-xl border flex items-center justify-center transition-colors ${
+                  activeTab === "voice"
+                    ? "border-[#DC569D] text-[#DC569D] bg-[#DC569D]/10"
+                    : "border-gray-700 text-gray-400 hover:bg-[#2a2a2a] hover:text-white"
+                }`}
+                title="Create Voice"
               >
-                <SlidersHorizontal size={16} />
+                <Mic size={16} />
               </button>
             </div>
 
-            {/* Text input area */}
-            <div className="flex-1 relative">
-              <div
-                className={`rounded-2xl border transition-colors ${
-                  isDragOver
-                    ? "border-[#DC569D] bg-[#DC569D]/10"
-                    : "border-gray-700/60 bg-[#2a2a2a]/60"
-                } px-4 py-3 min-h-[120px] flex flex-col`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-              >
-                {/* Negative Prompt Input */}
-                {showNegativePrompt && (
-                  <div className="mb-3 pb-3 border-b border-gray-700/50">
-                    <label className="text-gray-400 text-xs mb-1.5 block font-medium">
-                      Negative Prompt
-                    </label>
+            {/* Text input area - hidden when voice tab is active */}
+            {activeTab !== "voice" && (
+              <div className="flex-1 relative">
+                <div
+                  className={`rounded-2xl border transition-colors ${
+                    isDragOver
+                      ? "border-[#DC569D] bg-[#DC569D]/10"
+                      : "border-gray-700/60 bg-[#2a2a2a]/60"
+                  } px-4 py-3 min-h-[120px] flex flex-col`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  {/* Negative Prompt Input */}
+                  {showNegativePrompt && (
+                    <div className="mb-3 pb-3 border-b border-gray-700/50">
+                      <label className="text-gray-400 text-xs mb-1.5 block font-medium">
+                        Negative Prompt
+                      </label>
+                      <input
+                        type="text"
+                        value={negativePrompt}
+                        onChange={(e) => setNegativePrompt(e.target.value)}
+                        placeholder="List what to exclude from your video (e.g. if you don't want trees, type 'trees')"
+                        className="w-full bg-[#1a1a1a] text-white placeholder:text-gray-600 outline-none text-sm px-3 py-2 rounded-lg border border-gray-700/50 focus:border-[#DC569D]/50 transition-colors"
+                      />
+                    </div>
+                  )}
+
+                  {/* Files Preview */}
+                  {files.length > 0 && (
+                    <div className="flex gap-2 mb-2 overflow-x-auto pb-2 custom-scrollbar">
+                      {files.map((file, index) => (
+                        <div key={index} className="relative shrink-0 group">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt="preview"
+                            className="h-16 w-16 object-cover rounded-lg border border-gray-600"
+                          />
+                          <button
+                            onClick={() => removeFile(index)}
+                            className="absolute -top-1 -right-1 bg-black/80 rounded-full p-0.5 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 h-full">
+                    {/* Upload image button inside input */}
                     <input
-                      type="text"
-                      value={negativePrompt}
-                      onChange={(e) => setNegativePrompt(e.target.value)}
-                      placeholder="List what to exclude from your video (e.g. if you don't want trees, type 'trees')"
-                      className="w-full bg-[#1a1a1a] text-white placeholder:text-gray-600 outline-none text-sm px-3 py-2 rounded-lg border border-gray-700/50 focus:border-[#DC569D]/50 transition-colors"
-                    />
-                  </div>
-                )}
-
-                {/* Files Preview */}
-                {files.length > 0 && (
-                  <div className="flex gap-2 mb-2 overflow-x-auto pb-2 custom-scrollbar">
-                    {files.map((file, index) => (
-                      <div key={index} className="relative shrink-0 group">
-                        <img
-                          src={URL.createObjectURL(file)}
-                          alt="preview"
-                          className="h-16 w-16 object-cover rounded-lg border border-gray-600"
-                        />
-                        <button
-                          onClick={() => removeFile(index)}
-                          className="absolute -top-1 -right-1 bg-black/80 rounded-full p-0.5 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex gap-3 h-full">
-                  {/* Upload image button inside input */}
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept={
-                      activeTab === "video" ? "image/*,video/*" : "image/*"
-                    }
-                    multiple={activeTab === "image"}
-                    onChange={handleFileChange}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="h-8 w-8 rounded-lg border border-dashed border-gray-600 text-gray-500 flex items-center justify-center hover:border-gray-400 hover:text-gray-300 transition-colors shrink-0 mt-1"
-                    title={
-                      activeTab === "video"
-                        ? "Upload reference (video/image)"
-                        : "Upload reference image"
-                    }
-                  >
-                    <ImagePlus size={16} />
-                  </button>
-
-                  <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder={
-                      activeTab === "video"
-                        ? "Describe the video you want to create"
-                        : "Describe the image you want to create"
-                    }
-                    className="flex-1 bg-transparent text-white placeholder:text-gray-500 outline-none text-sm resize-none h-full min-h-[80px]"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleGenerate();
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept={
+                        activeTab === "video" ? "image/*,video/*" : "image/*"
                       }
-                    }}
-                  />
-
-                  {/* Send button aligned to bottom */}
-                  <div className="flex flex-col justify-end">
+                      multiple={activeTab === "image"}
+                      onChange={handleFileChange}
+                    />
                     <button
                       type="button"
-                      onClick={handleGenerateClick}
-                      className={`h-9 w-9 rounded-full flex items-center justify-center transition-all shrink-0 ${
-                        isGenerating
-                          ? "bg-[#DC569D]/50 text-white cursor-wait"
-                          : prompt.trim()
-                            ? "bg-[#DC569D] text-white hover:bg-[#c44d8b]"
-                            : "bg-gray-600 text-gray-400 cursor-not-allowed"
-                      }`}
-                      disabled={!prompt.trim() || isGenerating}
-                      title="Generate"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="h-8 w-8 rounded-lg border border-dashed border-gray-600 text-gray-500 flex items-center justify-center hover:border-gray-400 hover:text-gray-300 transition-colors shrink-0 mt-1"
+                      title={
+                        activeTab === "video"
+                          ? "Upload reference (video/image)"
+                          : "Upload reference image"
+                      }
                     >
-                      {isGenerating ? (
-                        <Loader2 size={15} className="animate-spin" />
-                      ) : (
-                        <Send size={15} />
-                      )}
+                      <ImagePlus size={16} />
                     </button>
-                  </div>
-                </div>
 
-                {isDragOver && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-[#1c1c1c]/80 backdrop-blur-sm rounded-2xl z-10 pointer-events-none">
-                    <div className="text-center">
-                      <ImagePlus
-                        size={32}
-                        className="mx-auto text-[#DC569D] mb-2"
-                      />
-                      <p className="text-white font-medium">Drop images here</p>
+                    <textarea
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      placeholder={
+                        activeTab === "video"
+                          ? "Describe the video you want to create"
+                          : "Describe the image you want to create"
+                      }
+                      className="flex-1 bg-transparent text-white placeholder:text-gray-500 outline-none text-sm resize-none h-full min-h-[80px]"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleGenerate();
+                        }
+                      }}
+                    />
+
+                    {/* Send button aligned to bottom */}
+                    <div className="flex flex-col justify-end">
+                      <button
+                        type="button"
+                        onClick={handleGenerateClick}
+                        className={`h-9 w-9 rounded-full flex items-center justify-center transition-all shrink-0 ${
+                          isGenerating
+                            ? "bg-[#DC569D]/50 text-white cursor-wait"
+                            : prompt.trim()
+                              ? "bg-[#DC569D] text-white hover:bg-[#c44d8b]"
+                              : "bg-gray-600 text-gray-400 cursor-not-allowed"
+                        }`}
+                        disabled={!prompt.trim() || isGenerating}
+                        title="Generate"
+                      >
+                        {isGenerating ? (
+                          <Loader2 size={15} className="animate-spin" />
+                        ) : (
+                          <Send size={15} />
+                        )}
+                      </button>
                     </div>
                   </div>
-                )}
+
+                  {isDragOver && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#1c1c1c]/80 backdrop-blur-sm rounded-2xl z-10 pointer-events-none">
+                      <div className="text-center">
+                        <ImagePlus
+                          size={32}
+                          className="mx-auto text-[#DC569D] mb-2"
+                        />
+                        <p className="text-white font-medium">
+                          Drop images here
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Bottom toolbar - model info & settings */}
-          <div className="mt-3 flex items-center gap-2 flex-wrap">
-            {/* Selected model pill */}
-            <button
-              onClick={toggleModels}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border font-medium transition-colors ${
-                showModels
-                  ? "bg-[#DC569D] border-[#DC569D] text-white"
-                  : "bg-[#0C0C0D] border-gray-700 text-white hover:bg-[#1a1a1a]"
-              }`}
-            >
-              <span
-                className={`text-sm font-bold ${
-                  showModels
-                    ? "text-white"
-                    : selectedModelData?.iconColor || "text-white"
-                } w-5 h-5 flex items-center justify-center`}
-              >
-                {selectedModelData?.iconComponent ? (
-                  <selectedModelData.iconComponent />
-                ) : (
-                  selectedModelData?.icon || "●"
-                )}
-              </span>
-              {selectedModelData?.name || "Select model"}
-            </button>
-
-            {/* Aspect ratio */}
-            <div className="relative">
+          {activeTab !== "voice" && (
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              {/* Selected model pill */}
               <button
-                type="button"
-                onClick={() => setShowAspectRatioMenu(!showAspectRatioMenu)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-[#2a2a2a] text-gray-300 border border-gray-700/50 cursor-pointer hover:bg-[#333] transition-colors"
+                onClick={toggleModels}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border font-medium transition-colors ${
+                  showModels
+                    ? "bg-[#DC569D] border-[#DC569D] text-white"
+                    : "bg-[#0C0C0D] border-gray-700 text-white hover:bg-[#1a1a1a]"
+                }`}
               >
-                <Square size={12} />
-                {aspectRatio}
+                <span
+                  className={`text-sm font-bold ${
+                    showModels
+                      ? "text-white"
+                      : selectedModelData?.iconColor || "text-white"
+                  } w-5 h-5 flex items-center justify-center`}
+                >
+                  {selectedModelData?.iconComponent ? (
+                    <selectedModelData.iconComponent />
+                  ) : (
+                    selectedModelData?.icon || "●"
+                  )}
+                </span>
+                {selectedModelData?.name || "Select model"}
               </button>
 
-              {showAspectRatioMenu && (
-                <div className="absolute bottom-full mb-2 left-0 w-32 bg-[#1c1c1c] border border-gray-700 rounded-xl shadow-xl overflow-hidden py-1 z-50 max-h-60 overflow-y-auto custom-scrollbar">
-                  {ASPECT_RATIOS.map((ratio) => (
-                    <button
-                      key={ratio}
-                      type="button"
-                      onClick={() => {
-                        setAspectRatio(ratio);
-                        setShowAspectRatioMenu(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors ${
-                        aspectRatio === ratio
-                          ? "text-[#DC569D] font-medium"
-                          : "text-gray-300"
-                      }`}
-                    >
-                      {ratio}
-                    </button>
-                  ))}
+              {/* Negative Prompt Toggle */}
+              <button
+                type="button"
+                onClick={() => setShowNegativePrompt(!showNegativePrompt)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border font-medium transition-colors ${
+                  showNegativePrompt
+                    ? "bg-[#DC569D] border-[#DC569D] text-white"
+                    : "bg-[#2a2a2a] text-gray-300 border-gray-700/50 hover:bg-[#333]"
+                }`}
+                title="Negative Prompt"
+              >
+                <Ban size={12} />
+                Negative Prompt
+              </button>
+
+              {/* Video Duration Selector */}
+              {activeTab === "video" && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowDurationMenu(!showDurationMenu)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-[#2a2a2a] text-gray-300 border border-gray-700/50 cursor-pointer hover:bg-[#333] transition-colors"
+                  >
+                    <span className="text-[10px] uppercase font-bold text-gray-500">
+                      DUR:
+                    </span>
+                    {duration}s
+                  </button>
+
+                  {showDurationMenu && (
+                    <div className="absolute bottom-full mb-2 left-0 w-24 bg-[#1c1c1c] border border-gray-700 rounded-xl shadow-xl overflow-hidden py-1 z-50">
+                      {availableDurations.map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => {
+                            setDuration(opt);
+                            setShowDurationMenu(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors ${
+                            duration === opt
+                              ? "text-[#DC569D] font-medium"
+                              : "text-gray-300"
+                          }`}
+                        >
+                          {opt}s
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
+
+              {/* Image count */}
+              {/* Removed image count and resolution controls as requested by user */}
             </div>
-
-            {/* Negative Prompt Toggle */}
-            <button
-              type="button"
-              onClick={() => setShowNegativePrompt(!showNegativePrompt)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border font-medium transition-colors ${
-                showNegativePrompt
-                  ? "bg-[#DC569D] border-[#DC569D] text-white"
-                  : "bg-[#2a2a2a] text-gray-300 border-gray-700/50 hover:bg-[#333]"
-              }`}
-              title="Negative Prompt"
-            >
-              <Ban size={12} />
-              Negative Prompt
-            </button>
-
-            {/* Video Duration Selector */}
-            {activeTab === "video" && (
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowDurationMenu(!showDurationMenu)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-[#2a2a2a] text-gray-300 border border-gray-700/50 cursor-pointer hover:bg-[#333] transition-colors"
-                >
-                  <span className="text-[10px] uppercase font-bold text-gray-500">
-                    DUR:
-                  </span>
-                  {duration}s
-                </button>
-
-                {showDurationMenu && (
-                  <div className="absolute bottom-full mb-2 left-0 w-24 bg-[#1c1c1c] border border-gray-700 rounded-xl shadow-xl overflow-hidden py-1 z-50">
-                    {availableDurations.map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => {
-                          setDuration(opt);
-                          setShowDurationMenu(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors ${
-                          duration === opt
-                            ? "text-[#DC569D] font-medium"
-                            : "text-gray-300"
-                        }`}
-                      >
-                        {opt}s
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Image count */}
-            {/* Removed image count and resolution controls as requested by user */}
-          </div>
+          )}
         </div>
       </div>
 
