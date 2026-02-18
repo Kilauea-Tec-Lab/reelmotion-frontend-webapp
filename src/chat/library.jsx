@@ -15,6 +15,8 @@ import {
   Download,
   Check,
   Pencil,
+  Globe,
+  Lock,
 } from "lucide-react";
 import Cookies from "js-cookie";
 
@@ -201,6 +203,7 @@ function Library() {
   const [editingName, setEditingName] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
   const [isSavingName, setIsSavingName] = useState(false);
+  const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
   // Extraer todos los attachments de todos los chats con el nombre del chat
   const chatAttachments = attachmentsData.flatMap((chat) =>
     chat.attachments.map((attachment) => ({
@@ -226,6 +229,8 @@ function Library() {
     created_at: project.created_at,
     chatName: project.name,
     sourceType: "project",
+    id_project: project.id_project,
+    project_type: project.project_type,
   }));
 
   const allAttachments = [
@@ -440,18 +445,139 @@ function Library() {
     if (!currentAttachment || !editingName.trim()) return;
     setIsSavingName(true);
     try {
-      const formData = new FormData();
-      formData.append("attachment_id", currentAttachment.id);
-      formData.append("name", editingName.trim());
+      if (
+        currentAttachment.sourceType === "project" &&
+        currentAttachment.id_project
+      ) {
+        // For projects, send to projects/edit
+        const info = {
+          id: currentAttachment.id_project,
+          name: editingName.trim(),
+        };
+
+        const response = await fetch(
+          `${import.meta.env.VITE_APP_BACKEND_URL}projects/edit`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              Authorization: "Bearer " + Cookies.get("token"),
+            },
+            body: JSON.stringify(info),
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+          setVideoProjects((prev) =>
+            prev.map((p) =>
+              p.id === currentAttachment.id
+                ? { ...p, name: editingName.trim() }
+                : p,
+            ),
+          );
+          setIsEditingName(false);
+        }
+      } else {
+        // For chat/unassigned attachments
+        const formData = new FormData();
+        formData.append("attachment_id", currentAttachment.id);
+        formData.append("name", editingName.trim());
+
+        const response = await fetch(
+          `${import.meta.env.VITE_APP_BACKEND_URL}chat/update-attachment-name`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: "Bearer " + Cookies.get("token"),
+            },
+            body: formData,
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+          if (currentAttachment.sourceType === "unassigned") {
+            setUnassignedAttachments((prev) =>
+              prev.map((att) =>
+                att.id === currentAttachment.id
+                  ? { ...att, name: editingName.trim() }
+                  : att,
+              ),
+            );
+          } else {
+            setAttachmentsData((prevChats) =>
+              prevChats.map((chat) => ({
+                ...chat,
+                attachments: chat.attachments.map((att) =>
+                  att.id === currentAttachment.id
+                    ? { ...att, name: editingName.trim() }
+                    : att,
+                ),
+              })),
+            );
+          }
+          setIsEditingName(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error saving attachment name:", error);
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
+  const handleStartEditingName = () => {
+    setEditingName(
+      currentAttachment?.sourceType === "project"
+        ? currentAttachment?.chatName || ""
+        : currentAttachment?.name || "",
+    );
+    setIsEditingName(true);
+  };
+
+  const handleCancelEditingName = () => {
+    setIsEditingName(false);
+    setEditingName("");
+  };
+
+  const handleToggleProjectType = async () => {
+    if (
+      !currentAttachment ||
+      currentAttachment.sourceType !== "project" ||
+      !currentAttachment.id_project
+    )
+      return;
+    const newType =
+      currentAttachment.project_type === "public" ? "private" : "public";
+    setIsTogglingVisibility(true);
+    try {
+      const info = {
+        id: currentAttachment.id_project,
+        project_type: newType,
+      };
 
       const response = await fetch(
-        `${import.meta.env.VITE_APP_BACKEND_URL}chat/update-attachment-name`,
+        `${import.meta.env.VITE_APP_BACKEND_URL}projects/edit`,
         {
           method: "POST",
           headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
             Authorization: "Bearer " + Cookies.get("token"),
           },
-          body: formData,
+          body: JSON.stringify(info),
         },
       );
 
@@ -462,44 +588,17 @@ function Library() {
       const data = await response.json();
 
       if (data.success) {
-        // Actualizar el nombre en el estado local
-        if (currentAttachment.sourceType === "unassigned") {
-          setUnassignedAttachments((prev) =>
-            prev.map((att) =>
-              att.id === currentAttachment.id
-                ? { ...att, name: editingName.trim() }
-                : att,
-            ),
-          );
-        } else {
-          setAttachmentsData((prevChats) =>
-            prevChats.map((chat) => ({
-              ...chat,
-              attachments: chat.attachments.map((att) =>
-                att.id === currentAttachment.id
-                  ? { ...att, name: editingName.trim() }
-                  : att,
-              ),
-            })),
-          );
-        }
-        setIsEditingName(false);
+        setVideoProjects((prev) =>
+          prev.map((p) =>
+            p.id === currentAttachment.id ? { ...p, project_type: newType } : p,
+          ),
+        );
       }
     } catch (error) {
-      console.error("Error saving attachment name:", error);
+      console.error("Error toggling project visibility:", error);
     } finally {
-      setIsSavingName(false);
+      setIsTogglingVisibility(false);
     }
-  };
-
-  const handleStartEditingName = () => {
-    setEditingName(currentAttachment?.name || "");
-    setIsEditingName(true);
-  };
-
-  const handleCancelEditingName = () => {
-    setIsEditingName(false);
-    setEditingName("");
   };
 
   return (
@@ -656,48 +755,94 @@ function Library() {
             </p>
           </div>
 
-          {/* Name Editor */}
-          {currentAttachment.sourceType !== "project" && (
-            <div
-              className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-black/60 backdrop-blur-sm rounded-lg p-3">
-                {isEditingName ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={editingName}
-                      onChange={(e) => setEditingName(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-[#2f2f2f] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#DC569D] focus:ring-1 focus:ring-[#DC569D] transition-all text-sm"
-                      placeholder="Enter file name..."
-                      maxLength={255}
-                      autoFocus
-                    />
-                    <button
-                      onClick={handleSaveAttachmentName}
-                      disabled={isSavingName || !editingName.trim()}
-                      className="px-3 py-2 bg-[#DC569D] text-white rounded-lg hover:bg-[#c44a87] transition-colors disabled:opacity-50 flex items-center gap-1"
-                    >
-                      {isSavingName ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+          {/* Name Editor & Project Controls */}
+          <div
+            className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-black/60 backdrop-blur-sm rounded-lg p-3">
+              {/* Visibility toggle for projects */}
+              {currentAttachment.sourceType === "project" &&
+                currentAttachment.id_project && (
+                  <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
+                    <div className="flex items-center gap-2">
+                      {currentAttachment.project_type === "public" ? (
+                        <Globe className="h-4 w-4 text-green-400" />
                       ) : (
-                        <Check className="h-4 w-4" />
+                        <Lock className="h-4 w-4 text-yellow-400" />
+                      )}
+                      <span className="text-sm text-gray-300">
+                        {currentAttachment.project_type === "public"
+                          ? "Public"
+                          : "Private"}
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleToggleProjectType}
+                      disabled={isTogglingVisibility}
+                      className="px-3 py-1.5 bg-[#2f2f2f] text-gray-300 rounded-lg hover:bg-[#3a3a3a] transition-colors text-sm disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      {isTogglingVisibility ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : currentAttachment.project_type === "public" ? (
+                        <>
+                          <Lock className="h-3 w-3" />
+                          Make Private
+                        </>
+                      ) : (
+                        <>
+                          <Globe className="h-3 w-3" />
+                          Make Public
+                        </>
                       )}
                     </button>
-                    <button
-                      onClick={handleCancelEditingName}
-                      disabled={isSavingName}
-                      className="px-3 py-2 bg-[#2f2f2f] text-gray-300 rounded-lg hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
                   </div>
-                ) : (
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-white text-sm font-medium truncate">
-                      {currentAttachment.name || "Unnamed file"}
-                    </p>
+                )}
+
+              {/* Name editor */}
+              {isEditingName ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    className="flex-1 px-3 py-2 bg-[#2f2f2f] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#DC569D] focus:ring-1 focus:ring-[#DC569D] transition-all text-sm"
+                    placeholder={
+                      currentAttachment.sourceType === "project"
+                        ? "Enter project name..."
+                        : "Enter file name..."
+                    }
+                    maxLength={255}
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleSaveAttachmentName}
+                    disabled={isSavingName || !editingName.trim()}
+                    className="px-3 py-2 bg-[#DC569D] text-white rounded-lg hover:bg-[#c44a87] transition-colors disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {isSavingName ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
+                  </button>
+                  <button
+                    onClick={handleCancelEditingName}
+                    disabled={isSavingName}
+                    className="px-3 py-2 bg-[#2f2f2f] text-gray-300 rounded-lg hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-white text-sm font-medium truncate">
+                    {currentAttachment.sourceType === "project"
+                      ? currentAttachment.chatName || "Unnamed project"
+                      : currentAttachment.name || "Unnamed file"}
+                  </p>
+                  {(currentAttachment.sourceType !== "project" ||
+                    currentAttachment.id_project) && (
                     <button
                       onClick={handleStartEditingName}
                       className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
@@ -705,11 +850,11 @@ function Library() {
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       )}
 

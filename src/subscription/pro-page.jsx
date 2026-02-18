@@ -26,8 +26,8 @@ import {
 import { useNavigate, useOutletContext, useLocation } from "react-router-dom";
 
 const stripePromise = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST ||
-    import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST,
+  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
+    import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
 );
 
 const COUNTRIES = [
@@ -495,13 +495,13 @@ function CheckoutForm({
 
       // Using TEST mode - all prices are test prices
       if (pName === "pro" && bCycle === "monthly") {
-        priceId = import.meta.env.VITE_STRIPE_PRO_MONTHLY_PRICE_ID_TEST;
+        priceId = import.meta.env.VITE_STRIPE_PRO_MONTHLY_PRICE_ID;
       } else if (pName === "pro" && bCycle === "yearly") {
-        priceId = import.meta.env.VITE_STRIPE_PRO_YEARLY_PRICE_ID_TEST;
+        priceId = import.meta.env.VITE_STRIPE_PRO_YEARLY_PRICE_ID;
       } else if (pName === "elite" && bCycle === "monthly") {
-        priceId = import.meta.env.VITE_STRIPE_ELITE_MONTHLY_PRICE_ID_TEST;
+        priceId = import.meta.env.VITE_STRIPE_ELITE_MONTHLY_PRICE_ID;
       } else if (pName === "elite" && bCycle === "yearly") {
-        priceId = import.meta.env.VITE_STRIPE_ELITE_YEARLY_PRICE_ID_TEST;
+        priceId = import.meta.env.VITE_STRIPE_ELITE_YEARLY_PRICE_ID;
       }
 
       if (!priceId) {
