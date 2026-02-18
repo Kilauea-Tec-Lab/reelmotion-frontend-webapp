@@ -12,14 +12,16 @@ const MODELS = [
   {
     id: "artist-original",
     name: "Artist Original 1.0",
-    description: "Cinema-grade visuals and creative control for high-end scenes",
+    description:
+      "Cinema-grade visuals and creative control for high-end scenes",
     badges: ["1K", "Styles"],
     isNew: false,
   },
   {
     id: "kling-30",
     name: "Kling 3.0",
-    description: "Cinematic visuals with strong style consistency for professional use",
+    description:
+      "Cinematic visuals with strong style consistency for professional use",
     badges: ["Image input", "2K"],
     isNew: true,
   },
@@ -33,7 +35,8 @@ const MODELS = [
   {
     id: "grok-imagine",
     name: "Grok Imagine",
-    description: "Creative, expressive image generation with fast results by xAI",
+    description:
+      "Creative, expressive image generation with fast results by xAI",
     badges: ["Fast", "Expressive"],
     isNew: true,
   },
@@ -56,7 +59,9 @@ function ModelCard({ model }) {
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2">
           <Sparkles size={16} className="text-gray-300" />
-          <h3 className="text-white font-semibold text-xl leading-tight">{model.name}</h3>
+          <h3 className="text-white font-semibold text-xl leading-tight">
+            {model.name}
+          </h3>
           {model.isNew && (
             <span className="text-[10px] font-semibold px-2 py-1 rounded-md bg-[#F2D543] text-black uppercase">
               New
@@ -92,7 +97,9 @@ function AiLab() {
           </div>
           <div>
             <h1 className="text-white text-2xl font-bold">AI Lab</h1>
-            <p className="text-gray-400 text-sm">Create images and videos with AI models</p>
+            <p className="text-gray-400 text-sm">
+              Create images and videos with AI models
+            </p>
           </div>
         </div>
 

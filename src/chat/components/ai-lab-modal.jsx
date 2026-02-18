@@ -58,9 +58,9 @@ const MODEL_DURATIONS = {
   "veo-3.1": [8],
   "veo-3.1-flash": [8],
   "veo-3.1-ultra": [8],
-  "luma-labs": [5],
-  "seedance-pro": [5],
-  "kling-v1": [5, 10],
+  //"luma-labs": [5],
+  //"seedance-pro": [5],
+  //"kling-v1": [5, 10],
   "kling-v3-omni-pro": [3, 5, 8, 10, 15],
   "kling-v3-omni-std": [3, 5, 8, 10, 15],
 };
@@ -300,7 +300,7 @@ const IMAGE_MODELS = [
     badges: ["Creative", "Assets"],
     isNew: false,
     type: "image",
-    cost: 8, // tokens per image
+    cost: 10, // tokens per image
   },
   {
     id: "gpt-image-1.5",
@@ -312,7 +312,7 @@ const IMAGE_MODELS = [
     badges: ["Advanced", "NLP"],
     isNew: true,
     type: "image",
-    cost: 12, // tokens per image
+    cost: 10, // tokens per image
   },
 ];
 
@@ -437,7 +437,7 @@ const VIDEO_MODELS = [
     type: "video",
     capabilities: ["image-to-video"],
   },
-  {
+  /*{
     id: "luma-labs",
     name: "Luma Labs",
     iconComponent: Logos.Runway,
@@ -472,7 +472,7 @@ const VIDEO_MODELS = [
     isNew: false,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
-  },
+  },*/
 ];
 
 const ASPECT_RATIOS = [
