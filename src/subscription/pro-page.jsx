@@ -899,18 +899,18 @@ export default function ProPage() {
       const planName = location.state.selectedPlan;
       let price = 0;
       if (planName === "pro")
-        price = location.state.billingCycle === "yearly" ? 323.89 : 29.99;
+        price = location.state.billingCycle === "yearly" ? 194.99 : 17.99;
       if (planName === "elite")
-        price = location.state.billingCycle === "yearly" ? 647.89 : 59.99;
+        price = location.state.billingCycle === "yearly" ? 518.28 : 47.99;
 
       setSelectedPlan({ name: planName, price: Number(price).toFixed(2) });
     }
   }, [location.state]);
 
-  const handleSubscribe = (planName, monthlyPrice) => {
+  const handleSubscribe = (planName, monthlyPrice, yearlyPrice) => {
     let price;
     if (billingCycle === "yearly") {
-      price = (monthlyPrice * 12 * 0.9).toFixed(0);
+      price = yearlyPrice;
     } else {
       price = monthlyPrice;
     }
@@ -930,30 +930,28 @@ export default function ProPage() {
       { text: "Limited access to the chat system", included: true },
     ],
     pro: [
-      { text: "Fast Rendering", included: true },
-      { text: "Quality 1080p HD", included: true },
-      { text: "No watermark", included: true },
-      { text: "1000 credits / month", included: true },
-      { text: "Access to adding captions", included: true },
-      { text: "Unlimited rendered HD videos a month", included: true },
-      { text: "Unlimited access to the chat system", included: true },
+      { text: "1,000 Tokens ($10.00 to generate)", included: true },
+      { text: "Full Unlimited Editing Tool", included: true },
+      { text: "Full Unlimited Chat System", included: true },
+      { text: "No Watermark", included: true },
+      { text: "1080p HD Quality Rendering", included: true },
+      { text: "Fast Rendering Speeds", included: true },
     ],
     elite: [
-      { text: "Fast Rendering", included: true },
-      { text: "Quality 1080p HD", included: true },
-      { text: "No watermark", included: true },
-      { text: "4000 credits / month", included: true },
-      { text: "Unlimited rendered 4K videos a month", included: true },
-      { text: "Unlimited access to the chat system", included: true },
+      { text: "4,000 Tokens ($40.00 to generate)", included: true },
+      { text: "Unlimited Editing Access", included: true },
+      { text: "Unlimited Chat System", included: true },
+      { text: "No Watermarks", included: true },
+      { text: "Ultra HD 4K Rendering", included: true },
+      { text: "High-Speed Rendering", included: true },
     ],
   };
 
-  const getPriceContent = (priceMonthly) => {
+  const getPriceContent = (priceMonthly, priceYearly) => {
     if (billingCycle === "yearly") {
-      const yearlyPrice = priceMonthly * 12 * 0.9;
       return (
         <div className="flex flex-col">
-          <span className="text-3xl font-bold">${yearlyPrice.toFixed(0)}</span>
+          <span className="text-3xl font-bold">${priceYearly}</span>
           <span className="text-sm text-gray-400">/year (save 10%)</span>
         </div>
       );
@@ -1090,10 +1088,10 @@ export default function ProPage() {
             <div className="mb-6">
               <h3 className="text-xl font-semibold mb-2">Pro Tier</h3>
               <div className="h-16 flex items-center">
-                {getPriceContent(29.99)}
+                {getPriceContent(17.99, 194.99)}
               </div>
               <button
-                onClick={() => handleSubscribe("pro", 29.99)}
+                onClick={() => handleSubscribe("pro", 17.99, 194.99)}
                 className="w-full mt-4 py-2 px-4 rounded-lg bg-[#DC569D] text-white font-medium hover:bg-[#c44a87] transition-colors shadow-lg shadow-[#DC569D]/20"
               >
                 Subscribe
@@ -1121,10 +1119,10 @@ export default function ProPage() {
                 <Crown size={18} className="text-yellow-500" />
               </div>
               <div className="h-16 flex items-center">
-                {getPriceContent(59.99)}
+                {getPriceContent(47.99, 518.28)}
               </div>
               <button
-                onClick={() => handleSubscribe("elite", 59.99)}
+                onClick={() => handleSubscribe("elite", 47.99, 518.28)}
                 className="w-full mt-4 py-2 px-4 rounded-lg bg-[#2f2f2f] text-white font-medium hover:bg-[#DC569D] hover:text-white transition-all"
               >
                 Subscribe
