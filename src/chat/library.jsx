@@ -30,6 +30,7 @@ const GalleryItem = ({
 }) => {
   const [retryCount, setRetryCount] = useState(0);
   const [mediaKey, setMediaKey] = useState(0);
+  const [hasError, setHasError] = useState(false);
   const videoRef = useRef(null);
   const timeoutRef = useRef(null);
 
@@ -45,8 +46,10 @@ const GalleryItem = ({
       setTimeout(() => {
         setRetryCount((prev) => prev + 1);
         setMediaKey((prev) => prev + 1);
+        setHasError(false);
       }, 2000);
     } else {
+      setHasError(true);
       onLoad(attachment.id);
     }
   };
@@ -56,16 +59,23 @@ const GalleryItem = ({
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+    // Seek to first frame so the video canvas is not black
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0.1;
+    }
     onLoad(attachment.id);
   };
 
-  // Timeout de seguridad para videos que no disparan eventos
+  // Safety timeout for videos that never fire load events
   useEffect(() => {
     if (attachment.file_type === "video" && !isLoaded) {
       timeoutRef.current = setTimeout(() => {
-        // Si después de 5 segundos no ha cargado, marcarlo como cargado de todas formas
+        // Force first-frame seek even on timeout
+        if (videoRef.current) {
+          videoRef.current.currentTime = 0.1;
+        }
         onLoad(attachment.id);
-      }, 5000);
+      }, 8000);
 
       return () => {
         if (timeoutRef.current) {
@@ -75,7 +85,7 @@ const GalleryItem = ({
     }
   }, [attachment.file_type, attachment.id, isLoaded, mediaKey]);
 
-  // Forzar carga del video cuando cambia la key
+  // Force reload when mediaKey changes
   useEffect(() => {
     if (videoRef.current && attachment.file_type === "video") {
       videoRef.current.load();
@@ -85,16 +95,18 @@ const GalleryItem = ({
   return (
     <div
       onClick={() => onClick(idx)}
-      className={`relative bg-[#2f2f2f] rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#DC569D] transition-all group break-inside-avoid mb-4 ${
-        !isLoaded ? "min-h-[160px]" : ""
-      }`}
+      className={`relative bg-[#2f2f2f] rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#DC569D] transition-all group break-inside-avoid mb-4 min-h-[160px]`}
     >
-      {/* Delete Button */}
+      {/* Delete Button (hover, grid) */}
       {attachment.sourceType !== "project" && (
         <button
           onClick={(e) => {
             e.stopPropagation();
-            onDelete(attachment.id);
+            onDelete({
+              id: attachment.id,
+              sourceType: attachment.sourceType,
+              id_project: attachment.id_project,
+            });
           }}
           className="absolute top-2 left-2 z-10 bg-[#DC569D]/90 hover:bg-[#c44a87] backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
         >
@@ -118,8 +130,16 @@ const GalleryItem = ({
 
       {/* Loading State */}
       {!isLoaded && attachment.file_type !== "audio" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-[#2f2f2f]">
+        <div className="absolute inset-0 flex items-center justify-center bg-[#2f2f2f] min-h-[160px]">
           <Loader2 className="h-8 w-8 text-[#DC569D] animate-spin" />
+        </div>
+      )}
+
+      {/* Error State */}
+      {hasError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#2f2f2f] min-h-[160px] gap-2">
+          <Video className="h-8 w-8 text-gray-500" />
+          <span className="text-xs text-gray-500">Failed to load</span>
         </div>
       )}
 
@@ -142,7 +162,7 @@ const GalleryItem = ({
             ref={videoRef}
             key={mediaKey}
             src={attachment.url}
-            preload="metadata"
+            preload="auto"
             className={`w-full h-auto block transition-opacity duration-300 ${
               isLoaded ? "opacity-100" : "opacity-0"
             }`}
@@ -151,6 +171,10 @@ const GalleryItem = ({
             onLoadedMetadata={handleVideoLoad}
             onLoadedData={handleVideoLoad}
             onCanPlay={handleVideoLoad}
+            onSeeked={() => {
+              // Ensure frame is painted after seek
+              onLoad(attachment.id);
+            }}
             onError={handleMediaError}
           />
         ) : attachment.file_type === "audio" ? (
@@ -319,23 +343,39 @@ function Library() {
     return () => observer.disconnect();
   }, [hasMore, isLoadingMore, loadMore]);
 
-  // Función para eliminar attachment
-  const handleDeleteAttachment = async (attachmentId) => {
+  // Función para eliminar attachment o proyecto
+  const handleDeleteAttachment = async () => {
+    if (!deleteConfirm) return;
     setIsDeleting(true);
     try {
-      const formData = new FormData();
-      formData.append("attachment_id", attachmentId);
-
-      const response = await fetch(
-        `${import.meta.env.VITE_APP_BACKEND_URL}chat/destroy-attachment`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: "Bearer " + Cookies.get("token"),
+      let response;
+      if (deleteConfirm.sourceType === "project") {
+        response = await fetch(
+          `${import.meta.env.VITE_APP_BACKEND_URL}projects/delete`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              Authorization: "Bearer " + Cookies.get("token"),
+            },
+            body: JSON.stringify({ id: deleteConfirm.id_project }),
           },
-          body: formData,
-        },
-      );
+        );
+      } else {
+        response = await fetch(
+          `${import.meta.env.VITE_APP_BACKEND_URL}editor/delete-upload`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              Authorization: "Bearer " + Cookies.get("token"),
+            },
+            body: JSON.stringify({ id: deleteConfirm.id }),
+          },
+        );
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -344,21 +384,20 @@ function Library() {
       const data = await response.json();
 
       if (data.success) {
-        // Eliminar el attachment del estado
-        const isUnassigned = unassignedAttachments.some(
-          (att) => att.id === attachmentId,
-        );
-
-        if (isUnassigned) {
+        if (deleteConfirm.sourceType === "project") {
+          setVideoProjects((prev) =>
+            prev.filter((p) => p.id !== deleteConfirm.id),
+          );
+        } else if (deleteConfirm.sourceType === "unassigned") {
           setUnassignedAttachments((prev) =>
-            prev.filter((att) => att.id !== attachmentId),
+            prev.filter((att) => att.id !== deleteConfirm.id),
           );
         } else {
           setAttachmentsData((prevChats) =>
             prevChats.map((chat) => ({
               ...chat,
               attachments: chat.attachments.filter(
-                (att) => att.id !== attachmentId,
+                (att) => att.id !== deleteConfirm.id,
               ),
             })),
           );
@@ -367,13 +406,13 @@ function Library() {
         // Si estamos en preview y eliminamos el actual, cerrar el preview
         if (
           currentIndex !== null &&
-          sortedAttachments[currentIndex]?.id === attachmentId
+          sortedAttachments[currentIndex]?.id === deleteConfirm.id
         ) {
           setCurrentIndex(null);
         }
       }
     } catch (error) {
-      console.error("Error deleting attachment:", error);
+      console.error("Error deleting:", error);
     } finally {
       setIsDeleting(false);
     }
@@ -606,7 +645,7 @@ function Library() {
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
           onClick={() => !isDeleting && setDeleteConfirm(null)}
         >
           <div
@@ -618,12 +657,15 @@ function Library() {
                 <Trash2 className="h-6 w-6 text-[#DC569D]" />
               </div>
               <h3 className="text-xl font-semibold text-white">
-                Delete Attachment
+                {deleteConfirm.sourceType === "project"
+                  ? "Delete Project"
+                  : "Delete File"}
               </h3>
             </div>
             <p className="text-gray-400 mb-6">
-              Are you sure you want to delete this attachment? This action
-              cannot be undone.
+              {deleteConfirm.sourceType === "project"
+                ? "Are you sure you want to delete this project? This action cannot be undone."
+                : "Are you sure you want to delete this file? This action cannot be undone."}
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -634,7 +676,7 @@ function Library() {
                 Cancel
               </button>
               <button
-                onClick={() => handleDeleteAttachment(deleteConfirm)}
+                onClick={handleDeleteAttachment}
                 disabled={isDeleting}
                 className="px-4 py-2 bg-[#DC569D] text-white rounded-lg hover:bg-[#c44a87] transition-colors disabled:opacity-50 flex items-center gap-2"
               >
@@ -661,6 +703,22 @@ function Library() {
           className="fixed inset-0 bg-black/40 backdrop-blur-2xl z-[100] flex items-center justify-center p-4"
           onClick={() => setCurrentIndex(null)}
         >
+          {/* Delete Button (preview) */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteConfirm({
+                id: currentAttachment.id,
+                sourceType: currentAttachment.sourceType,
+                id_project: currentAttachment.id_project,
+              });
+            }}
+            className="absolute top-4 right-28 bg-red-600/80 hover:bg-red-600 text-white rounded-full p-2 z-20 transition-colors"
+            title="Delete"
+          >
+            <Trash2 size={24} />
+          </button>
+
           {/* Download Button */}
           <button
             onClick={(e) => handleDownload(e, currentAttachment.url)}
