@@ -289,7 +289,7 @@ const IMAGE_MODELS = [
     badges: ["Multi-Image", "4K"],
     isNew: false,
     type: "image",
-    cost: 10, // tokens per image
+    cost: 7, // tokens per image
   },
   {
     id: "freepik",
@@ -300,7 +300,7 @@ const IMAGE_MODELS = [
     badges: ["Creative", "Assets"],
     isNew: false,
     type: "image",
-    cost: 10, // tokens per image
+    cost: 1, // tokens per image
   },
   {
     id: "gpt-image-1.5",
@@ -312,7 +312,7 @@ const IMAGE_MODELS = [
     badges: ["Advanced", "NLP"],
     isNew: true,
     type: "image",
-    cost: 10, // tokens per image
+    cost: 6, // tokens per image
   },
 ];
 
@@ -324,7 +324,7 @@ const VIDEO_MODELS = [
     iconColor: "text-green-400",
     description: "Cinematic video generation from text or image",
     badges: ["30 tok/s", "4-12s"],
-    cost: 30,
+    cost: 33,
     isNew: true,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -336,7 +336,7 @@ const VIDEO_MODELS = [
     iconColor: "text-blue-400",
     description: "Maximum quality video generation (8s fixed)",
     badges: ["60 tok/s", "Ultra"],
-    cost: 60,
+    cost: 65,
     isNew: true,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -348,7 +348,7 @@ const VIDEO_MODELS = [
     iconColor: "text-purple-400",
     description: "Advanced creative control for video generation",
     badges: ["25 tok/s", "5-10s"],
-    cost: 25,
+    cost: 14,
     isNew: false,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -360,7 +360,7 @@ const VIDEO_MODELS = [
     iconColor: "text-purple-400",
     description: "Video-to-video style transfer and editing",
     badges: ["V2V", "19 tok/s"],
-    cost: 19,
+    cost: 17,
     isNew: true,
     type: "video",
     capabilities: ["video-to-video"],
@@ -372,7 +372,7 @@ const VIDEO_MODELS = [
     iconColor: "text-orange-400",
     description: "Professional grade, 3-15s flexible duration",
     badges: ["8 tok/s", "3-15s"],
-    cost: 8,
+    cost: 26,
     isNew: true,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -384,7 +384,7 @@ const VIDEO_MODELS = [
     iconColor: "text-orange-400",
     description: "Video-to-video editing with V3 technology",
     badges: ["V2V", "6 tok/s"],
-    cost: 6,
+    cost: 19,
     isNew: false,
     type: "video",
     capabilities: ["video-to-video"],
@@ -396,7 +396,7 @@ const VIDEO_MODELS = [
     iconColor: "text-green-400",
     description: "Standard cinematic generation, cost-effective",
     badges: ["15 tok/s", "4-12s"],
-    cost: 15,
+    cost: 11,
     isNew: false,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -408,7 +408,7 @@ const VIDEO_MODELS = [
     iconColor: "text-blue-400",
     description: "High-quality 8s video generation",
     badges: ["48 tok/s", "8s"],
-    cost: 48,
+    cost: 44,
     isNew: false,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -420,12 +420,12 @@ const VIDEO_MODELS = [
     iconColor: "text-blue-400",
     description: "Faster generation with good quality (8s)",
     badges: ["21 tok/s", "Fast"],
-    cost: 21,
+    cost: 17,
     isNew: false,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
   },
-  {
+  /*{
     id: "runway",
     name: "Runway",
     iconComponent: Logos.Runway,
@@ -437,7 +437,7 @@ const VIDEO_MODELS = [
     type: "video",
     capabilities: ["image-to-video"],
   },
-  /*{
+  {
     id: "luma-labs",
     name: "Luma Labs",
     iconComponent: Logos.Runway,
@@ -493,15 +493,6 @@ const IMAGE_COUNTS = [1, 2, 3, 4];
 
 function ModelCard({ model, isSelected, onSelect, duration }) {
   // Calcular el costo basado en el tipo de modelo
-  const getCostDisplay = () => {
-    if (model.type === "video") {
-      const costPerSecond = model.cost || 0;
-      const totalCost = costPerSecond * (duration || 5);
-      return `${totalCost} Tokens`;
-    }
-    // Para imágenes
-    return `${model.cost || 10} Tokens`;
-  };
 
   return (
     <button
@@ -530,7 +521,7 @@ function ModelCard({ model, isSelected, onSelect, duration }) {
           )}
         </div>
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-gradient-to-r from-purple-500 to-pink-500 text-white uppercase tracking-wide shrink-0">
-          {getCostDisplay()}
+          {model.cost} {model.type === "video" ? "tok/s" : "tok/img"}
         </span>
       </div>
       <p className="text-gray-400 text-sm leading-relaxed line-clamp-2">
@@ -631,7 +622,6 @@ function AiLabModal({ isOpen, onClose }) {
   const VOICES_PER_PAGE = 50;
   const [voiceTokens, setVoiceTokens] = useState(0);
   const [isLoadingVoiceTokens, setIsLoadingVoiceTokens] = useState(false);
-  const VOICE_COST_PER_MINUTE = 16;
   const [previewAudio, setPreviewAudio] = useState(null);
   const [playingVoiceId, setPlayingVoiceId] = useState(null);
   const [elevenLabsModel, setElevenLabsModel] = useState(
@@ -698,10 +688,9 @@ function AiLabModal({ isOpen, onClose }) {
   };
 
   const calculateRequiredVoiceTokens = () => {
-    if (!estimatedTime) return VOICE_COST_PER_MINUTE;
-    const adjustedTime = estimatedTime * 2;
-    const minutes = Math.ceil(adjustedTime / 60);
-    return minutes * VOICE_COST_PER_MINUTE;
+    const charCount = textToSpeak ? textToSpeak.length : 0;
+    if (charCount <= 500) return 1;
+    return 8; // 500–999 characters
   };
 
   // Load voices when voice tab is active
@@ -886,8 +875,7 @@ function AiLabModal({ isOpen, onClose }) {
       if (!speechResult.success)
         throw new Error(`Error generating speech: ${speechResult.error}`);
       const actualDuration = speechResult.data.duration || estimatedTime;
-      const actualMinutes = Math.ceil(actualDuration / 60);
-      const tokensToReduce = actualMinutes * VOICE_COST_PER_MINUTE;
+      const tokensToReduce = calculateRequiredVoiceTokens();
       setGeneratedAudioUrl(speechResult.data.audioUrl);
       setVoiceDuration(actualDuration);
       setGeneratedVoiceData({

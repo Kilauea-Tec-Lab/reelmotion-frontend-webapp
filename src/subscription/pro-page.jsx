@@ -526,8 +526,6 @@ function CheckoutForm({
         },
       };
 
-      console.log("Sending to backend:", subscriptionData);
-
       let response;
       if (isUpdate) {
         response = await updateSubscription({
@@ -926,7 +924,7 @@ export default function ProPage() {
       { text: "Quality - 720p", included: true },
       { text: "Comes with watermark", included: true },
       { text: "20 credits (one time)", included: true },
-      { text: "3 rendered videos a month", included: true },
+      { text: "3 rendered videos per month", included: true },
       { text: "Limited access to the chat system", included: true },
     ],
     pro: [
@@ -939,8 +937,8 @@ export default function ProPage() {
     ],
     elite: [
       { text: "4,000 Tokens ($40.00 to generate)", included: true },
-      { text: "Unlimited Editing Access", included: true },
-      { text: "Unlimited Chat System", included: true },
+      { text: "Full Unlimited Editing Access", included: true },
+      { text: "Full Unlimited Chat System", included: true },
       { text: "No Watermarks", included: true },
       { text: "Ultra HD 4K Rendering", included: true },
       { text: "High-Speed Rendering", included: true },
@@ -1004,7 +1002,7 @@ export default function ProPage() {
       <div className="max-w-6xl mx-auto space-y-12">
         {/* Header */}
         <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent py-2">
             Upgrade your plan
           </h1>
           <p className="text-gray-400 max-w-2xl mx-auto">
