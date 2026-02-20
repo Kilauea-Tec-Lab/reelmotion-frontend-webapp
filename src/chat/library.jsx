@@ -375,7 +375,9 @@ function Library() {
               Accept: "application/json",
               Authorization: "Bearer " + Cookies.get("token"),
             },
-            body: JSON.stringify({ id: deleteConfirm.id_project }),
+            body: JSON.stringify({
+              id: deleteConfirm.id_project || deleteConfirm.id,
+            }),
           },
         );
       } else {
@@ -506,11 +508,11 @@ function Library() {
     try {
       if (
         currentAttachment.sourceType === "project" &&
-        currentAttachment.id_project
+        (currentAttachment.id_project || currentAttachment.id)
       ) {
         // For projects, send to projects/edit
         const info = {
-          id: currentAttachment.id_project,
+          id: currentAttachment.id_project || currentAttachment.id,
           name: editingName.trim(),
         };
 
@@ -612,18 +614,14 @@ function Library() {
   };
 
   const handleToggleProjectType = async () => {
-    if (
-      !currentAttachment ||
-      currentAttachment.sourceType !== "project" ||
-      !currentAttachment.id_project
-    )
+    if (!currentAttachment || currentAttachment.sourceType !== "project")
       return;
     const newType =
       currentAttachment.project_type === "public" ? "private" : "public";
     setIsTogglingVisibility(true);
     try {
       const info = {
-        id: currentAttachment.id_project,
+        id: currentAttachment.id_project || currentAttachment.id,
         project_type: newType,
       };
 
@@ -841,7 +839,7 @@ function Library() {
             <div className="bg-black/60 backdrop-blur-sm rounded-lg p-3">
               {/* Visibility toggle for projects */}
               {currentAttachment.sourceType === "project" &&
-                currentAttachment.id_project && (
+                (currentAttachment.id_project || currentAttachment.id) && (
                   <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
                     <div className="flex items-center gap-2">
                       {currentAttachment.project_type === "public" ? (
@@ -920,7 +918,8 @@ function Library() {
                       : currentAttachment.name || "Unnamed file"}
                   </p>
                   {(currentAttachment.sourceType !== "project" ||
-                    currentAttachment.id_project) && (
+                    currentAttachment.id_project ||
+                    currentAttachment.id) && (
                     <button
                       onClick={handleStartEditingName}
                       className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
