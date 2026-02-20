@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import { useLoaderData } from "react-router-dom";
 import {
   Images,
@@ -20,85 +20,78 @@ import {
 } from "lucide-react";
 import Cookies from "js-cookie";
 
-const GalleryItem = ({
-  attachment,
-  idx,
-  onClick,
-  onDelete,
-  isLoaded,
-  onLoad,
-}) => {
-  const [retryCount, setRetryCount] = useState(0);
-  const [mediaKey, setMediaKey] = useState(0);
-  const [hasError, setHasError] = useState(false);
-  const videoRef = useRef(null);
-  const timeoutRef = useRef(null);
+const GalleryItem = memo(
+  ({ attachment, idx, onClick, onDelete, isLoaded, onLoad }) => {
+    const [retryCount, setRetryCount] = useState(0);
+    const [mediaKey, setMediaKey] = useState(0);
+    const [hasError, setHasError] = useState(false);
+    const videoRef = useRef(null);
+    const timeoutRef = useRef(null);
 
-  const isAIGenerated =
-    attachment.path?.includes("generated-images") ||
-    attachment.path?.includes("ia") ||
-    attachment.path?.includes("veo31-videos") ||
-    attachment.path?.includes("sora2-videos") ||
-    attachment.url?.includes("generated-images");
+    const isAIGenerated =
+      attachment.path?.includes("generated-images") ||
+      attachment.path?.includes("ia") ||
+      attachment.path?.includes("veo31-videos") ||
+      attachment.path?.includes("sora2-videos") ||
+      attachment.url?.includes("generated-images");
 
-  const handleMediaError = () => {
-    if (retryCount < 3) {
-      setTimeout(() => {
-        setRetryCount((prev) => prev + 1);
-        setMediaKey((prev) => prev + 1);
-        setHasError(false);
-      }, 2000);
-    } else {
-      setHasError(true);
-      onLoad(attachment.id);
-    }
-  };
-
-  const handleVideoLoad = () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    // Seek to first frame so the video canvas is not black
-    if (videoRef.current) {
-      videoRef.current.currentTime = 0.1;
-    }
-    onLoad(attachment.id);
-  };
-
-  // Safety timeout for videos that never fire load events
-  useEffect(() => {
-    if (attachment.file_type === "video" && !isLoaded) {
-      timeoutRef.current = setTimeout(() => {
-        // Force first-frame seek even on timeout
-        if (videoRef.current) {
-          videoRef.current.currentTime = 0.1;
-        }
+    const handleMediaError = () => {
+      if (retryCount < 3) {
+        setTimeout(() => {
+          setRetryCount((prev) => prev + 1);
+          setMediaKey((prev) => prev + 1);
+          setHasError(false);
+        }, 2000);
+      } else {
+        setHasError(true);
         onLoad(attachment.id);
-      }, 8000);
+      }
+    };
 
-      return () => {
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
-      };
-    }
-  }, [attachment.file_type, attachment.id, isLoaded, mediaKey]);
+    const handleVideoLoad = () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      // Seek to first frame so the video canvas is not black
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0.1;
+      }
+      onLoad(attachment.id);
+    };
 
-  // Force reload when mediaKey changes
-  useEffect(() => {
-    if (videoRef.current && attachment.file_type === "video") {
-      videoRef.current.load();
-    }
-  }, [mediaKey, attachment.file_type]);
+    // Safety timeout for videos that never fire load events
+    useEffect(() => {
+      if (attachment.file_type === "video" && !isLoaded) {
+        timeoutRef.current = setTimeout(() => {
+          // Force first-frame seek even on timeout
+          if (videoRef.current) {
+            videoRef.current.currentTime = 0.1;
+          }
+          onLoad(attachment.id);
+        }, 8000);
 
-  return (
-    <div
-      onClick={() => onClick(idx)}
-      className={`relative bg-[#2f2f2f] rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#DC569D] transition-all group break-inside-avoid mb-4 min-h-[160px]`}
-    >
-      {/* Delete Button (hover, grid) */}
-      {attachment.sourceType !== "project" && (
+        return () => {
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
+        };
+      }
+    }, [attachment.file_type, attachment.id, isLoaded, mediaKey]);
+
+    // Force reload when mediaKey changes
+    useEffect(() => {
+      if (videoRef.current && attachment.file_type === "video") {
+        videoRef.current.load();
+      }
+    }, [mediaKey, attachment.file_type]);
+
+    return (
+      <div
+        onClick={() => onClick(idx)}
+        className={`relative bg-[#2f2f2f] rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#DC569D] transition-all group break-inside-avoid mb-4 ${!isLoaded && attachment.file_type !== "audio" ? "min-h-[160px]" : ""}`}
+      >
+        {/* Delete Button (hover, grid) */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -112,97 +105,99 @@ const GalleryItem = ({
         >
           <Trash2 className="h-4 w-4 text-white" />
         </button>
-      )}
 
-      {/* AI Badge */}
-      {isAIGenerated && (
-        <div className="absolute top-2 right-2 z-10 bg-[#DC569D] rounded-full p-1.5">
-          <Sparkles className="h-3 w-3 text-white" />
-        </div>
-      )}
-
-      {/* Project Badge */}
-      {attachment.sourceType === "project" && (
-        <div className="absolute top-2 right-2 z-10 bg-[#8E24AA] rounded-full p-1.5">
-          <Clapperboard className="h-3 w-3 text-white" />
-        </div>
-      )}
-
-      {/* Loading State */}
-      {!isLoaded && attachment.file_type !== "audio" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-[#2f2f2f] min-h-[160px]">
-          <Loader2 className="h-8 w-8 text-[#DC569D] animate-spin" />
-        </div>
-      )}
-
-      {/* Error State */}
-      {hasError && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#2f2f2f] min-h-[160px] gap-2">
-          <Video className="h-8 w-8 text-gray-500" />
-          <span className="text-xs text-gray-500">Failed to load</span>
-        </div>
-      )}
-
-      {/* Media Content */}
-      <div>
-        {attachment.file_type === "image" ? (
-          <img
-            key={mediaKey}
-            src={attachment.url}
-            alt="Gallery item"
-            loading="lazy"
-            className={`w-full h-auto block transition-opacity duration-300 ${
-              isLoaded ? "opacity-100" : "opacity-0"
-            }`}
-            onLoad={() => onLoad(attachment.id)}
-            onError={handleMediaError}
-          />
-        ) : attachment.file_type === "video" ? (
-          <video
-            ref={videoRef}
-            key={mediaKey}
-            src={attachment.url}
-            preload="auto"
-            className={`w-full h-auto block transition-opacity duration-300 ${
-              isLoaded ? "opacity-100" : "opacity-0"
-            }`}
-            muted
-            playsInline
-            onLoadedMetadata={handleVideoLoad}
-            onLoadedData={handleVideoLoad}
-            onCanPlay={handleVideoLoad}
-            onSeeked={() => {
-              // Ensure frame is painted after seek
-              onLoad(attachment.id);
-            }}
-            onError={handleMediaError}
-          />
-        ) : attachment.file_type === "audio" ? (
-          <div className="w-full h-40 flex flex-col items-center justify-center bg-[#1a1a1a] p-4 text-center group-hover:bg-[#252525] transition-colors">
-            <div className="w-12 h-12 bg-[#2f2f2f] rounded-full flex items-center justify-center mb-3">
-              <Music className="h-6 w-6 text-[#DC569D]" />
-            </div>
-            <span className="text-sm text-gray-400 font-medium truncate w-full px-2">
-              {attachment.chatName || "Audio File"}
-            </span>
+        {/* AI Badge */}
+        {isAIGenerated && (
+          <div className="absolute top-2 right-2 z-10 bg-[#DC569D] rounded-full p-1.5">
+            <Sparkles className="h-3 w-3 text-white" />
           </div>
-        ) : null}
-      </div>
+        )}
 
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center pointer-events-none">
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-          {attachment.file_type === "video" && (
-            <Video className="h-8 w-8 text-white" />
-          )}
-          {attachment.file_type === "audio" && (
-            <Music className="h-8 w-8 text-white" />
-          )}
+        {/* Project Badge */}
+        {attachment.sourceType === "project" && (
+          <div className="absolute top-2 right-2 z-10 bg-[#8E24AA] rounded-full p-1.5">
+            <Clapperboard className="h-3 w-3 text-white" />
+          </div>
+        )}
+
+        {/* Loading State */}
+        {!isLoaded && attachment.file_type !== "audio" && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#2f2f2f] min-h-[160px]">
+            <Loader2 className="h-8 w-8 text-[#DC569D] animate-spin" />
+          </div>
+        )}
+
+        {/* Error State */}
+        {hasError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#2f2f2f] min-h-[160px] gap-2">
+            <Video className="h-8 w-8 text-gray-500" />
+            <span className="text-xs text-gray-500">Failed to load</span>
+          </div>
+        )}
+
+        {/* Media Content */}
+        <div>
+          {attachment.file_type === "image" ? (
+            <img
+              key={mediaKey}
+              src={attachment.url}
+              alt="Gallery item"
+              loading="lazy"
+              className={`w-full h-auto block transition-opacity duration-300 ${
+                isLoaded ? "opacity-100" : "opacity-0"
+              }`}
+              onLoad={() => onLoad(attachment.id)}
+              onError={handleMediaError}
+            />
+          ) : attachment.file_type === "video" ? (
+            <video
+              ref={videoRef}
+              key={mediaKey}
+              src={attachment.url}
+              preload="metadata"
+              className={`w-full h-auto block transition-opacity duration-300 ${
+                isLoaded ? "opacity-100" : "opacity-0"
+              }`}
+              muted
+              playsInline
+              onLoadedMetadata={handleVideoLoad}
+              onLoadedData={handleVideoLoad}
+              onCanPlay={handleVideoLoad}
+              onSeeked={() => {
+                // Ensure frame is painted after seek
+                onLoad(attachment.id);
+              }}
+              onError={handleMediaError}
+            />
+          ) : attachment.file_type === "audio" ? (
+            <div className="w-full h-40 flex flex-col items-center justify-center bg-[#1a1a1a] p-4 text-center group-hover:bg-[#252525] transition-colors">
+              <div className="w-12 h-12 bg-[#2f2f2f] rounded-full flex items-center justify-center mb-3">
+                <Music className="h-6 w-6 text-[#DC569D]" />
+              </div>
+              <span className="text-sm text-gray-400 font-medium truncate w-full px-2">
+                {attachment.chatName || "Audio File"}
+              </span>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center pointer-events-none">
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            {attachment.file_type === "video" && (
+              <Video className="h-8 w-8 text-white" />
+            )}
+            {attachment.file_type === "audio" && (
+              <Music className="h-8 w-8 text-white" />
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  },
+);
+
+GalleryItem.displayName = "GalleryItem";
 
 function Library() {
   const libraryData = useLoaderData();
@@ -228,83 +223,104 @@ function Library() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [isSavingName, setIsSavingName] = useState(false);
   const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
-  // Extraer todos los attachments de todos los chats con el nombre del chat
-  const chatAttachments = attachmentsData.flatMap((chat) =>
-    chat.attachments.map((attachment) => ({
-      ...attachment,
-      chatName: chat.name,
-      chatId: chat.id,
-      sourceType: "chat",
-    })),
-  );
 
-  const processedUnassignedAttachments = unassignedAttachments.map(
-    (attachment) => ({
+  // Stable callback for media load events (avoids re-creating inline functions)
+  const handleMediaLoad = useCallback((id) => {
+    setLoadedMedia((prev) => {
+      if (prev.has(id)) return prev; // No-op if already loaded
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
+
+  // Memoize: flatten all attachments from all sources, filter blob URLs, and deduplicate by URL
+  const allAttachments = useMemo(() => {
+    const chatAtts = attachmentsData.flatMap((chat) =>
+      chat.attachments.map((attachment) => ({
+        ...attachment,
+        chatName: chat.name,
+        chatId: chat.id,
+        sourceType: "chat",
+      })),
+    );
+
+    const unassignedAtts = unassignedAttachments.map((attachment) => ({
       ...attachment,
       chatName: "Unassigned",
       sourceType: "unassigned",
-    }),
-  );
+    }));
 
-  const projectAttachments = videoProjects.map((project) => ({
-    id: project.id,
-    file_type: "video",
-    url: project.video_url,
-    created_at: project.created_at,
-    chatName: project.name,
-    sourceType: "project",
-    id_project: project.id_project,
-    project_type: project.project_type,
-  }));
+    const projectAtts = videoProjects.map((project) => ({
+      id: project.id,
+      file_type: "video",
+      url: project.video_url,
+      created_at: project.created_at,
+      chatName: project.name,
+      sourceType: "project",
+      id_project: project.id_project,
+      project_type: project.project_type,
+    }));
 
-  const allAttachments = [
-    ...processedUnassignedAttachments,
-    ...chatAttachments,
-    ...projectAttachments,
-  ];
+    const combined = [...unassignedAtts, ...chatAtts, ...projectAtts];
 
-  // Filtrar attachments según el filtro seleccionado y búsqueda
-  const filteredAttachments = allAttachments.filter((attachment) => {
-    // Filtro por tipo (AI/Uploads/All/Projects)
-    if (galleryFilter === "projects") {
-      return attachment.sourceType === "project";
-    }
+    // Filter out blob URLs (they are ephemeral and will never load)
+    const withoutBlobs = combined.filter(
+      (att) => !att.url?.startsWith("blob:"),
+    );
 
-    if (galleryFilter === "ai") {
-      if (attachment.sourceType === "project") return false;
-      const isAI =
-        attachment.path?.includes("generated-images") ||
-        attachment.path?.includes("ia") ||
-        attachment.path?.includes("veo31-videos") ||
-        attachment.path?.includes("sora2-videos") ||
-        attachment.url?.includes("generated-images");
-      if (!isAI) return false;
-    }
-    if (galleryFilter === "uploads") {
-      if (attachment.sourceType === "project") return false;
-      // Unassigned attachments are usually uploads
-      if (attachment.sourceType === "unassigned") return true;
+    // Deduplicate by URL to avoid rendering the same media multiple times
+    const seen = new Set();
+    return withoutBlobs.filter((att) => {
+      if (!att.url || seen.has(att.url)) return false;
+      seen.add(att.url);
+      return true;
+    });
+  }, [attachmentsData, unassignedAttachments, videoProjects]);
 
-      const isUpload =
-        attachment.path?.includes("user") ||
-        attachment.path?.includes("chat_attachments");
-      if (!isUpload) return false;
-    }
+  // Memoize: filter + sort
+  const sortedAttachments = useMemo(() => {
+    const filtered = allAttachments.filter((attachment) => {
+      // Filtro por tipo (AI/Uploads/All/Projects)
+      if (galleryFilter === "projects") {
+        return attachment.sourceType === "project";
+      }
 
-    // Filtro por búsqueda de nombre de chat
-    if (searchTerm.trim() !== "") {
-      return attachment.chatName
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase());
-    }
+      if (galleryFilter === "ai") {
+        if (attachment.sourceType === "project") return false;
+        const isAI =
+          attachment.path?.includes("generated-images") ||
+          attachment.path?.includes("ia") ||
+          attachment.path?.includes("veo31-videos") ||
+          attachment.path?.includes("sora2-videos") ||
+          attachment.url?.includes("generated-images");
+        if (!isAI) return false;
+      }
+      if (galleryFilter === "uploads") {
+        if (attachment.sourceType === "project") return false;
+        if (attachment.sourceType === "unassigned") return true;
 
-    return true;
-  });
+        const isUpload =
+          attachment.path?.includes("user") ||
+          attachment.path?.includes("chat_attachments");
+        if (!isUpload) return false;
+      }
 
-  // Ordenar por fecha de creación (más nuevo primero)
-  const sortedAttachments = filteredAttachments
-    .slice()
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      // Filtro por búsqueda de nombre de chat
+      if (searchTerm.trim() !== "") {
+        return attachment.chatName
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase());
+      }
+
+      return true;
+    });
+
+    // Ordenar por fecha de creación (más nuevo primero)
+    return filtered.sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at),
+    );
+  }, [allAttachments, galleryFilter, searchTerm]);
 
   // Attachments visibles (lazy loading)
   const visibleAttachments = sortedAttachments.slice(0, visibleCount);
@@ -383,7 +399,11 @@ function Library() {
 
       const data = await response.json();
 
-      if (data.success) {
+      if (
+        data.success ||
+        data.message === "Project deleted successfully" ||
+        response.ok
+      ) {
         if (deleteConfirm.sourceType === "project") {
           setVideoProjects((prev) =>
             prev.filter((p) => p.id !== deleteConfirm.id),
@@ -1015,9 +1035,7 @@ function Library() {
                   onClick={setCurrentIndex}
                   onDelete={setDeleteConfirm}
                   isLoaded={loadedMedia.has(attachment.id)}
-                  onLoad={(id) =>
-                    setLoadedMedia((prev) => new Set(prev).add(id))
-                  }
+                  onLoad={handleMediaLoad}
                 />
               ))}
             </div>
