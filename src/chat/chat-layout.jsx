@@ -11,7 +11,7 @@ function ChatLayout() {
   const [isAiLabOpen, setIsAiLabOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-[#212121] text-white overflow-hidden">
+    <div className="flex h-screen bg-primarioDark text-white overflow-hidden">
       <ChatSidebar
         chats={chatData?.chats || []}
         searchQuery={searchQuery}

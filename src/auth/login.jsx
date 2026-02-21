@@ -103,7 +103,7 @@ function Login() {
         console.log("🔍 Login - Token length:", token?.length);
         console.log(
           "🔍 Login - VITE_EDITOR_URL:",
-          import.meta.env.VITE_EDITOR_URL
+          import.meta.env.VITE_EDITOR_URL,
         );
 
         // Set cookie in current domain only (token will be passed via URL to editor)
@@ -114,7 +114,7 @@ function Login() {
         const cookieCheck = Cookies.get("token");
         console.log(
           "🔍 Login - Cookie verification:",
-          cookieCheck ? "Found" : "Not found"
+          cookieCheck ? "Found" : "Not found",
         );
 
         window.location.replace("/");
@@ -160,7 +160,7 @@ function Login() {
           body: JSON.stringify({
             email: resetEmail.toLowerCase(),
           }),
-        }
+        },
       );
 
       const data = await response.json();
@@ -170,7 +170,7 @@ function Login() {
         setResetSuccess(true);
         setResetMessage(
           data.message ||
-            "Password reset instructions have been sent to your email."
+            "Password reset instructions have been sent to your email.",
         );
       } else {
         // Handle error cases
@@ -202,7 +202,7 @@ function Login() {
     // Validate terms acceptance
     if (!acceptTerms) {
       setAcceptTermsError(
-        "You must accept the Privacy Policy and Terms & Conditions to create an account"
+        "You must accept the Privacy Policy and Terms & Conditions to create an account",
       );
       return;
     }
@@ -245,7 +245,7 @@ function Login() {
       console.log("🔍 Register - Token length:", token?.length);
       console.log(
         "🔍 Register - VITE_EDITOR_URL:",
-        import.meta.env.VITE_EDITOR_URL
+        import.meta.env.VITE_EDITOR_URL,
       );
 
       // Set cookie in current domain only (token will be passed via URL to editor)
@@ -256,7 +256,7 @@ function Login() {
       const cookieCheck = Cookies.get("token");
       console.log(
         "🔍 Register - Cookie verification:",
-        cookieCheck ? "Found" : "Not found"
+        cookieCheck ? "Found" : "Not found",
       );
 
       window.location.replace("/");
@@ -297,11 +297,11 @@ function Login() {
           type="video/mp4"
           media="(max-width: 767px)"
         />
-        <source src="/videos/bg_loop_desktop.mp4" type="video/mp4" />
+        <source src="/videos/bg_loop_desktop.webm" type="video/mp4" />
       </video>
 
       {/* Overlay */}
-      <div className="absolute top-0 left-0 w-full h-full bg-black/38 z-10" />
+      <div className="absolute top-0 left-0 w-full h-full bg-black/20 z-10" />
 
       {/* Main Content Layer */}
       <div className="relative z-20 w-full h-full">
@@ -313,7 +313,15 @@ function Login() {
             onClick={() => setShowAuthModal(true)}
           />
         </div>
-        {/* Top Right Login Button */}
+        {/* Enter Button moved to top right (Desktop Only) */}
+        <div className="absolute top-6 right-6 z-50 hidden md:block">
+          <button
+            onClick={() => setShowAuthModal(true)}
+            className="bg-[#DC569D] text-white text-sm md:text-base px-6 pb-2 pt-1 rounded-2xl font-semibold hover:bg-[#dc569ecc] hover:text-white transition-all shadow-lg hover:shadow-[#DC569D]/20 transform"
+          >
+            SIGN IN
+          </button>
+        </div>
 
         {/* Center Logo & Text */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center w-full max-w-4xl px-4">
@@ -324,17 +332,41 @@ function Login() {
             <img
               src="/logos/logo_reelmotion_new.png"
               alt="Logo Reelmotion IA"
-              className="sm:w-[600px] w-[345px] mx-auto drop-shadow-2xl"
+              className="sm:w-[600px] w-[345px] mx-auto drop-shadow-2xl hidden md:block opacity-0"
             />
-            <h1 className="text-white sm:text-[38px] ml-[-8px] sm:ml-[-10px] text-[22px] mt-[-23px] sm:mt-[-40px] tracking-wider montserrat-medium">
+            {/* Logo hidden on desktop per request (using hidden md:block opacity-0 to keep structure if needed, or just display:none) 
+                Wait, user said "ocultamos el logo... en la version desktop". 
+                "hidden md:hidden" would hide it on desktop.
+                Let's use "md:hidden" to hide on desktop and show on mobile.
+                
+                Actually the user said "solo en la version desktop... ocultamos el logo".
+                So it should be visible on mobile?
+                "sm:w-[600px]" suggests it captures bigger screens.
+                
+                Let's apply "md:hidden" to the img and the h1.
+            */}
+            <img
+              src="/logos/logo_reelmotion_new.png"
+              alt="Logo Reelmotion IA"
+              className="sm:w-[600px] w-[345px] mx-auto drop-shadow-2xl md:hidden"
+            />
+            <h1 className="text-white sm:text-[38px] ml-[-8px] sm:ml-[-10px] text-[22px] mt-[-23px] sm:mt-[-40px] tracking-wider montserrat-medium md:hidden">
               Simple AI Video Creation
             </h1>
           </div>
+          {/* Enter button is now in top right, so we hide it here or remove it? Use hidden to be safe if mobile still needs it?
+             The user said "Move the enter button to the top right".
+             Usually "Move" implies it's gone from the original spot.
+             However, on mobile, top-right might be crowded or they might still want the center button.
+             The request says "Aqui solo en la version desktop... el boton de enter lo movemos a la esquina superior derecha".
+             This implies on mobile it stays? Or maybe it moves on desktop only.
+             I will hide the center button on desktop "md:hidden" and show the top-right button on desktop only "hidden md:block".
+          */}
           <button
             onClick={() => setShowAuthModal(true)}
-            className="bg-[#DC569D] text-white text-xl px-8 py-2 mt-6 tracking-wider rounded-full font-semibold hover:bg-[#dc569ecc] hover:text-white transition-all shadow-lg hover:shadow-[#DC569D]/20 transform"
+            className="bg-[#DC569D] text-white text-xl px-8 pb-2 pt-1 mt-6 tracking-wider rounded-2xl font-semibold hover:bg-[#dc569ecc] hover:text-white transition-all shadow-lg hover:shadow-[#DC569D]/20 transform md:hidden"
           >
-            ENTER
+            SIGN IN
           </button>
         </div>
 
