@@ -323,9 +323,9 @@ function Profile() {
   };
 
   return (
-    <div className="min-h-screen bg-primarioDark p-6">
+    <div className="min-h-screen w-full bg-primarioDark p-6">
       <div className="w-full mx-auto">
-        {/* Rewards Link Widget */}
+        {/* Rewards Link Widget 
         <div className="bg-darkBox border border-gray-600 rounded-lg p-4 mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -360,7 +360,7 @@ function Profile() {
               {`https://reelmotion.ai/login?code=${user?.data?.email || ""}`}
             </p>
           </div>
-        </div>
+        </div>*/}
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -559,7 +559,7 @@ function Profile() {
                   </div>
                 </div>
 
-                {/* Solana Wallet Address */}
+                {/* Solana Wallet Address 
                 <div className="flex items-center gap-3 overflow-hidden">
                   <div className="bg-darkBoxSub p-2 rounded-lg">
                     <Wallet size={18} className="text-[#F2D543]" />
@@ -587,7 +587,7 @@ function Profile() {
                       </p>
                     )}
                   </div>
-                </div>
+                </div>*/}
 
                 {/* Password Field - Only visible when editing */}
                 {isEditing && (

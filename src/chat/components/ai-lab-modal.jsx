@@ -568,6 +568,46 @@ const VoiceSlider = ({ value, min, max, step, onChange, className = "" }) => {
   );
 };
 
+const FilePreview = ({ file, onRemove }) => {
+  const [previewUrl, setPreviewUrl] = useState(null);
+
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  if (!previewUrl) return null;
+
+  const isVideoFile = file.type.startsWith("video/");
+
+  return (
+    <div className="relative shrink-0 group">
+      {isVideoFile ? (
+        <video
+          src={previewUrl}
+          className="h-16 w-16 object-cover rounded-lg border border-gray-600"
+          muted
+          loop
+          playsInline
+        />
+      ) : (
+        <img
+          src={previewUrl}
+          alt="preview"
+          className="h-16 w-16 object-cover rounded-lg border border-gray-600"
+        />
+      )}
+      <button
+        onClick={onRemove}
+        className="absolute -top-1 -right-1 bg-black/80 rounded-full p-0.5 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <X size={12} />
+      </button>
+    </div>
+  );
+};
+
 function AiLabModal({ isOpen, onClose }) {
   const [selectedModel, setSelectedModel] = useState("nano-banana-pro");
   const [selectedVideoModel, setSelectedVideoModel] = useState("sora-2-pro");
@@ -592,6 +632,7 @@ function AiLabModal({ isOpen, onClose }) {
   const [showAspectRatioMenu, setShowAspectRatioMenu] = useState(false);
   const [showDurationMenu, setShowDurationMenu] = useState(false);
   const [showConfirmGeneration, setShowConfirmGeneration] = useState(false);
+  const [uploadedVideoDuration, setUploadedVideoDuration] = useState(0);
   const fileInputRef = useRef(null);
 
   // ====== VOICE TAB STATES ======
@@ -988,6 +1029,56 @@ function AiLabModal({ isOpen, onClose }) {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  useEffect(() => {
+    if (!isOpen) {
+      setGeneratedImages([]);
+      setGenerationInfo(null);
+      setError(null);
+      setFiles([]);
+      setPrompt("");
+      setNegativePrompt("");
+      setPreviewImage(null);
+      setIsGenerating(false);
+      setUploadingStatus("");
+      setShowConfirmGeneration(false);
+
+      setGeneratedAudioUrl((prev) => {
+        if (prev && prev.startsWith("blob:")) {
+          URL.revokeObjectURL(prev);
+        }
+        return null;
+      });
+      setVoiceName("");
+      setVoiceDescription("");
+      setSelectedVoice(null);
+      setTextToSpeak("");
+      setGeneratedAudioUrl(null);
+      setIsGeneratingVoice(false);
+      setIsPlayingVoice(false);
+      setVoiceCurrentTime(0);
+      setVoiceDuration(0);
+      setEstimatedTime(0);
+      setVoiceSearchTerm("");
+      setLanguageFilter("");
+      setGenderFilter("");
+      setAgeFilter("");
+      setVoiceCurrentPage(1);
+      setShowVoiceCreator(true);
+      setGeneratedVoiceData(null);
+      setIsSavingVoice(false);
+      setUploadedVoiceUrl(null);
+
+      setPreviewAudio((prev) => {
+        if (prev) prev.pause();
+        return null;
+      });
+      setPlayingVoiceId(null);
+
+      if (voiceAudioRef.current) voiceAudioRef.current.pause();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const currentModels = activeTab === "image" ? IMAGE_MODELS : VIDEO_MODELS;
@@ -1017,13 +1108,36 @@ function AiLabModal({ isOpen, onClose }) {
     }
   };
 
-  const handleFileChange = (e) => {
+  const handleRemoveGeneratedImage = (indexToRemove) => {
+    setGeneratedImages((prev) =>
+      prev.filter((_, index) => index !== indexToRemove),
+    );
+  };
+
+  const extractVideoDuration = (file) => {
+    return new Promise((resolve) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(video.src);
+        resolve(video.duration);
+      };
+      video.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleFileChange = async (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
       if (activeTab === "video") {
         if (files.length + newFiles.length > 1) {
           setError("Video generation only supports one reference file.");
           return;
+        }
+        const videoFile = newFiles.find((f) => f.type.startsWith("video/"));
+        if (videoFile) {
+          const dur = await extractVideoDuration(videoFile);
+          setUploadedVideoDuration(Math.ceil(dur));
         }
       }
       setFiles((prev) => [...prev, ...newFiles]);
@@ -1054,12 +1168,29 @@ function AiLabModal({ isOpen, onClose }) {
         return;
       }
 
+      // Check for video file and update duration
+      if (activeTab === "video") {
+        const videoFile = validFiles.find((f) => f.type.startsWith("video/"));
+        if (videoFile) {
+          extractVideoDuration(videoFile).then((dur) => {
+            setUploadedVideoDuration(Math.ceil(dur));
+          });
+        }
+      }
+
       setFiles((prev) => [...prev, ...validFiles]);
     }
   };
 
   const removeFile = (index) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+    setFiles((prev) => {
+      const newFiles = prev.filter((_, i) => i !== index);
+      // If we removed the only video file, reset duration logic if needed
+      if (activeTab === "video" && !newFiles.some(f => f.type.startsWith("video/"))) {
+         setUploadedVideoDuration(0);
+      }
+      return newFiles;
+    });
   };
 
   const handleTabChange = (tab) => {
@@ -1104,12 +1235,27 @@ function AiLabModal({ isOpen, onClose }) {
       return (model?.cost || 10) * imageCount;
     } else {
       const model = VIDEO_MODELS.find((m) => m.id === selectedVideoModel);
+      if (selectedVideoModel === "runway-aleph") {
+        return (model?.cost || 10) * (uploadedVideoDuration || 5);
+      }
       return (model?.cost || 10) * duration;
     }
   };
 
   const handleGenerateClick = () => {
     if (!prompt.trim() || isGenerating) return;
+
+    if (
+      selectedVideoModel === "runway-aleph" &&
+      activeTab === "video" &&
+      !files.some((f) => f.type.startsWith("video/"))
+    ) {
+      setError(
+        "Runway Aleph requires a reference video for video-to-video generation.",
+      );
+      return;
+    }
+
     setShowConfirmGeneration(true);
   };
 
@@ -1255,6 +1401,12 @@ function AiLabModal({ isOpen, onClose }) {
 
         setUploadingStatus("Generating video...");
 
+        // Determine effective duration for model
+        let effectiveDuration = duration;
+        if (selectedVideoModel === "runway-aleph" && uploadedVideoDuration) {
+          effectiveDuration = uploadedVideoDuration;
+        }
+
         const result = await generateVideoAPI({
           model: selectedVideoModel,
           prompt: finalPrompt,
@@ -1262,7 +1414,7 @@ function AiLabModal({ isOpen, onClose }) {
           referenceVideo,
           mediaUrl,
           aspectRatio,
-          duration,
+          duration: effectiveDuration,
         });
 
         // La respuesta del backend debe tener video_url
@@ -1856,8 +2008,18 @@ function AiLabModal({ isOpen, onClose }) {
                       )}
 
                       {/* Overlay on hover */}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-end p-2 pointer-events-none">
-                        <div className="flex gap-2 pointer-events-auto">
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2 pointer-events-none">
+                        <div className="flex justify-end pointer-events-auto">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveGeneratedImage(index)}
+                            className="h-8 w-8 rounded-lg bg-red-500/80 backdrop-blur-sm flex items-center justify-center text-white hover:bg-red-600 transition-colors"
+                            title="Remove"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                        <div className="flex justify-end gap-2 pointer-events-auto mb-12">
                           {!isVideo && (
                             <button
                               type="button"
@@ -1997,19 +2159,11 @@ function AiLabModal({ isOpen, onClose }) {
                   {files.length > 0 && (
                     <div className="flex gap-2 mb-2 overflow-x-auto pb-2 custom-scrollbar">
                       {files.map((file, index) => (
-                        <div key={index} className="relative shrink-0 group">
-                          <img
-                            src={URL.createObjectURL(file)}
-                            alt="preview"
-                            className="h-16 w-16 object-cover rounded-lg border border-gray-600"
-                          />
-                          <button
-                            onClick={() => removeFile(index)}
-                            className="absolute -top-1 -right-1 bg-black/80 rounded-full p-0.5 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
+                        <FilePreview
+                          key={index}
+                          file={file}
+                          onRemove={() => removeFile(index)}
+                        />
                       ))}
                     </div>
                   )}
@@ -2051,7 +2205,7 @@ function AiLabModal({ isOpen, onClose }) {
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
-                          handleGenerate();
+                          handleGenerateClick();
                         }
                       }}
                     />
@@ -2144,37 +2298,50 @@ function AiLabModal({ isOpen, onClose }) {
               {/* Video Duration Selector */}
               {activeTab === "video" && (
                 <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowDurationMenu(!showDurationMenu)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-[#2a2a2a] text-gray-300 border border-gray-700/50 cursor-pointer hover:bg-[#333] transition-colors"
-                  >
-                    <span className="text-[10px] uppercase font-bold text-gray-500">
-                      DUR:
-                    </span>
-                    {duration}s
+                  {selectedVideoModel === "runway-aleph" ? (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-[#2a2a2a] text-gray-300 border border-gray-700/50 cursor-not-allowed opacity-80">
+                      <span className="text-[10px] uppercase font-bold text-gray-500">
+                        DUR:
+                      </span>
+                      {uploadedVideoDuration > 0
+                        ? `${uploadedVideoDuration}s`
+                        : "Auto"}
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setShowDurationMenu(!showDurationMenu)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-[#2a2a2a] text-gray-300 border border-gray-700/50 cursor-pointer hover:bg-[#333] transition-colors"
+                      >
+                        <span className="text-[10px] uppercase font-bold text-gray-500">
+                          DUR:
+                        </span>
+                        {duration}s
                   </button>
 
-                  {showDurationMenu && (
-                    <div className="absolute bottom-full mb-2 left-0 w-24 bg-[#1c1c1c] border border-gray-700 rounded-xl shadow-xl overflow-hidden py-1 z-50">
-                      {availableDurations.map((opt) => (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() => {
-                            setDuration(opt);
-                            setShowDurationMenu(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors ${
-                            duration === opt
-                              ? "text-[#DC569D] font-medium"
-                              : "text-gray-300"
-                          }`}
-                        >
-                          {opt}s
-                        </button>
-                      ))}
-                    </div>
+                      {showDurationMenu && (
+                        <div className="absolute bottom-full mb-2 left-0 w-24 bg-[#1c1c1c] border border-gray-700 rounded-xl shadow-xl overflow-hidden py-1 z-50">
+                          {availableDurations.map((opt) => (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() => {
+                                setDuration(opt);
+                                setShowDurationMenu(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors ${
+                                duration === opt
+                                  ? "text-[#DC569D] font-medium"
+                                  : "text-gray-300"
+                              }`}
+                            >
+                              {opt}s
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -2202,11 +2369,15 @@ function AiLabModal({ isOpen, onClose }) {
               </p>
               <div className="bg-[#DC569D]/10 border border-[#DC569D]/30 rounded-xl px-6 py-4 mb-6">
                 <p className="text-[#DC569D] text-3xl font-bold">
-                  {calculateTokenCost()} Tokens
+                  {Math.floor(calculateTokenCost()).toLocaleString("en-US")} Tokens
                 </p>
                 {activeTab === "video" && (
                   <p className="text-gray-400 text-xs mt-1">
-                    {selectedModelData?.cost || 0} tokens/sec × {duration}s
+                    {selectedModelData?.cost || 0} tokens/sec ×{" "}
+                    {selectedVideoModel === "runway-aleph"
+                      ? uploadedVideoDuration || 5
+                      : duration}
+                    s
                   </p>
                 )}
                 {activeTab === "image" && imageCount > 1 && (
