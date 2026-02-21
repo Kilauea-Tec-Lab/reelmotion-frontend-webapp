@@ -697,15 +697,6 @@ function Profile() {
                       Completed
                     </p>
                   </div>
-
-                  <div className="bg-darkBoxSub rounded-lg p-4 text-center">
-                    <p className="text-[#F2D543] montserrat-medium text-2xl">
-                      {user?.folders || 0}
-                    </p>
-                    <p className="text-gray-400 montserrat-light text-sm">
-                      Folders
-                    </p>
-                  </div>
                 </div>
               </div>
             </div>
