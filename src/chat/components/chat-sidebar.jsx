@@ -330,6 +330,7 @@ function ChatSidebar({
           <LibraryBig size={20} />
           <span className="font-medium">Library</span>
         </Link>
+        {/* 
         <Link
           to={"/discover"}
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
@@ -337,6 +338,7 @@ function ChatSidebar({
           <Images size={20} />
           <span className="font-medium">Discover</span>
         </Link>
+        */}
         {subscription &&
         subscription.suscription &&
         subscription.suscription !== "free" ? (
