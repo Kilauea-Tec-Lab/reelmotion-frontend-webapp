@@ -1153,7 +1153,9 @@ function AiLabModal({ isOpen, onClose }) {
       if (activeTab === "image") {
         const maxImages = getMaxImagesForModel();
         if (files.length + newFiles.length > maxImages) {
-          setError(`${selectedModelData?.name || "This model"} supports up to ${maxImages} reference image${maxImages > 1 ? "s" : ""}.`);
+          setError(
+            `${selectedModelData?.name || "This model"} supports up to ${maxImages} reference image${maxImages > 1 ? "s" : ""}.`,
+          );
           return;
         }
       }
@@ -1188,7 +1190,9 @@ function AiLabModal({ isOpen, onClose }) {
       if (activeTab === "image") {
         const maxImages = getMaxImagesForModel();
         if (files.length + validFiles.length > maxImages) {
-          setError(`${selectedModelData?.name || "This model"} supports up to ${maxImages} reference image${maxImages > 1 ? "s" : ""}.`);
+          setError(
+            `${selectedModelData?.name || "This model"} supports up to ${maxImages} reference image${maxImages > 1 ? "s" : ""}.`,
+          );
           return;
         }
       }
@@ -2127,7 +2131,9 @@ function AiLabModal({ isOpen, onClose }) {
                         const newMax = newModel?.maxImages || 1;
                         if (files.length > newMax) {
                           setFiles((prev) => prev.slice(0, newMax));
-                          setError(`${newModel?.name || "This model"} supports up to ${newMax} reference image${newMax > 1 ? "s" : ""}. Extra images were removed.`);
+                          setError(
+                            `${newModel?.name || "This model"} supports up to ${newMax} reference image${newMax > 1 ? "s" : ""}. Extra images were removed.`,
+                          );
                         }
                         setShowModels(false);
                       } else {
@@ -2236,7 +2242,9 @@ function AiLabModal({ isOpen, onClose }) {
                       accept={
                         activeTab === "video" ? "image/*,video/*" : "image/*"
                       }
-                      multiple={activeTab === "image" && getMaxImagesForModel() > 1}
+                      multiple={
+                        activeTab === "image" && getMaxImagesForModel() > 1
+                      }
                       onChange={handleFileChange}
                     />
                     <div className="flex flex-col items-center gap-1 shrink-0 mt-1">
@@ -2254,7 +2262,8 @@ function AiLabModal({ isOpen, onClose }) {
                       </button>
                       {activeTab === "image" && (
                         <span className="text-[9px] text-gray-500 whitespace-nowrap">
-                          Max {getMaxImagesForModel()} img{getMaxImagesForModel() > 1 ? "s" : ""}
+                          Max {getMaxImagesForModel()} img
+                          {getMaxImagesForModel() > 1 ? "s" : ""}
                         </span>
                       )}
                     </div>
