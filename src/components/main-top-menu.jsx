@@ -675,6 +675,13 @@ function MainTopMenu({ user_info }) {
     setPurchaseAmount(6);
   };
 
+  useEffect(() => {
+    window.addEventListener("openTokenModal", handleOpenTokenModal);
+    return () => {
+      window.removeEventListener("openTokenModal", handleOpenTokenModal);
+    };
+  }, []);
+
   const handleCloseTokenModal = () => {
     setShowTokenModal(false);
     setTokenPurchaseStep("select-amount");
@@ -1768,7 +1775,7 @@ function MainTopMenu({ user_info }) {
       {/* Token Purchase Modal */}
       {showTokenModal && (
         <Elements stripe={stripePromise}>
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
             <div className="bg-darkBox rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
               {/* Modal Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-600">

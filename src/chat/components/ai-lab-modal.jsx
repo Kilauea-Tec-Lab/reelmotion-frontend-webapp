@@ -281,7 +281,7 @@ const Logos = {
 const IMAGE_MODELS = [
   {
     id: "nano-banana-pro",
-    name: "Nano Banana Pro",
+    name: "Nano Banana 2",
     // Use Google logo for Nano Banana Pro as requested
     iconComponent: Logos.Google,
     iconColor: "text-blue-400",
@@ -290,6 +290,7 @@ const IMAGE_MODELS = [
     isNew: false,
     type: "image",
     cost: 7, // tokens per image
+    maxImages: 14, // Up to 14 reference images
   },
   {
     id: "freepik",
@@ -301,6 +302,7 @@ const IMAGE_MODELS = [
     isNew: false,
     type: "image",
     cost: 1, // tokens per image
+    maxImages: 1, // Single reference image only
   },
   {
     id: "gpt-image-1.5",
@@ -313,6 +315,7 @@ const IMAGE_MODELS = [
     isNew: true,
     type: "image",
     cost: 6, // tokens per image
+    maxImages: 5, // Up to 5 reference images
   },
 ];
 
@@ -734,11 +737,13 @@ function AiLabModal({ isOpen, onClose }) {
     return 8; // 500–999 characters
   };
 
-  // Load voices when voice tab is active
+  // Load voices and tokens when modal opens
   useEffect(() => {
-    if (isOpen && activeTab === "voice") {
-      loadVoices();
+    if (isOpen) {
       fetchVoiceTokens();
+      if (activeTab === "voice") {
+        loadVoices();
+      }
     }
   }, [isOpen, activeTab]);
 
@@ -1126,6 +1131,11 @@ function AiLabModal({ isOpen, onClose }) {
     });
   };
 
+  const getMaxImagesForModel = () => {
+    const model = IMAGE_MODELS.find((m) => m.id === selectedModel);
+    return model?.maxImages || 1;
+  };
+
   const handleFileChange = async (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
@@ -1138,6 +1148,13 @@ function AiLabModal({ isOpen, onClose }) {
         if (videoFile) {
           const dur = await extractVideoDuration(videoFile);
           setUploadedVideoDuration(Math.ceil(dur));
+        }
+      }
+      if (activeTab === "image") {
+        const maxImages = getMaxImagesForModel();
+        if (files.length + newFiles.length > maxImages) {
+          setError(`${selectedModelData?.name || "This model"} supports up to ${maxImages} reference image${maxImages > 1 ? "s" : ""}.`);
+          return;
         }
       }
       setFiles((prev) => [...prev, ...newFiles]);
@@ -1168,6 +1185,14 @@ function AiLabModal({ isOpen, onClose }) {
         return;
       }
 
+      if (activeTab === "image") {
+        const maxImages = getMaxImagesForModel();
+        if (files.length + validFiles.length > maxImages) {
+          setError(`${selectedModelData?.name || "This model"} supports up to ${maxImages} reference image${maxImages > 1 ? "s" : ""}.`);
+          return;
+        }
+      }
+
       // Check for video file and update duration
       if (activeTab === "video") {
         const videoFile = validFiles.find((f) => f.type.startsWith("video/"));
@@ -1186,8 +1211,11 @@ function AiLabModal({ isOpen, onClose }) {
     setFiles((prev) => {
       const newFiles = prev.filter((_, i) => i !== index);
       // If we removed the only video file, reset duration logic if needed
-      if (activeTab === "video" && !newFiles.some(f => f.type.startsWith("video/"))) {
-         setUploadedVideoDuration(0);
+      if (
+        activeTab === "video" &&
+        !newFiles.some((f) => f.type.startsWith("video/"))
+      ) {
+        setUploadedVideoDuration(0);
       }
       return newFiles;
     });
@@ -1233,13 +1261,16 @@ function AiLabModal({ isOpen, onClose }) {
     if (activeTab === "image") {
       const model = IMAGE_MODELS.find((m) => m.id === selectedModel);
       return (model?.cost || 10) * imageCount;
-    } else {
+    } else if (activeTab === "video") {
       const model = VIDEO_MODELS.find((m) => m.id === selectedVideoModel);
       if (selectedVideoModel === "runway-aleph") {
         return (model?.cost || 10) * (uploadedVideoDuration || 5);
       }
       return (model?.cost || 10) * duration;
+    } else if (activeTab === "voice") {
+      return calculateRequiredVoiceTokens();
     }
+    return 0;
   };
 
   const handleGenerateClick = () => {
@@ -1252,6 +1283,15 @@ function AiLabModal({ isOpen, onClose }) {
     ) {
       setError(
         "Runway Aleph requires a reference video for video-to-video generation.",
+      );
+      return;
+    }
+
+    const requiredTokens = calculateTokenCost();
+    // voiceTokens stores the user's available tokens
+    if (voiceTokens < requiredTokens) {
+      setError(
+        `Insufficient tokens. You need ${Math.ceil(requiredTokens)} tokens but only have ${Math.floor(voiceTokens).toLocaleString("en-US")}.`,
       );
       return;
     }
@@ -1939,10 +1979,22 @@ function AiLabModal({ isOpen, onClose }) {
         {error && !isGenerating && !isGeneratingVoice && (
           <div className="px-6 py-4">
             <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 flex items-center gap-3">
-              <span className="text-red-400 text-sm">{error}</span>
+              <span className="text-red-400 text-sm flex-1">{error}</span>
+              {error.includes("Insufficient tokens") && (
+                <button
+                  onClick={() => {
+                    setError(null);
+                    // Do not close AiLab, just open Token modal
+                    window.dispatchEvent(new Event("openTokenModal"));
+                  }}
+                  className="px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+                >
+                  Buy Tokens
+                </button>
+              )}
               <button
                 onClick={() => setError(null)}
-                className="ml-auto text-red-400 hover:text-red-300 transition-colors"
+                className={`${error.includes("Insufficient tokens") ? "ml-2" : "ml-auto"} text-red-400 hover:text-red-300 transition-colors`}
               >
                 <X size={14} />
               </button>
@@ -2070,6 +2122,13 @@ function AiLabModal({ isOpen, onClose }) {
                     onSelect={(id) => {
                       if (activeTab === "image") {
                         setSelectedModel(id);
+                        // Trim files if new model supports fewer reference images
+                        const newModel = IMAGE_MODELS.find((m) => m.id === id);
+                        const newMax = newModel?.maxImages || 1;
+                        if (files.length > newMax) {
+                          setFiles((prev) => prev.slice(0, newMax));
+                          setError(`${newModel?.name || "This model"} supports up to ${newMax} reference image${newMax > 1 ? "s" : ""}. Extra images were removed.`);
+                        }
                         setShowModels(false);
                       } else {
                         handleVideoModelChange(id);
@@ -2177,21 +2236,28 @@ function AiLabModal({ isOpen, onClose }) {
                       accept={
                         activeTab === "video" ? "image/*,video/*" : "image/*"
                       }
-                      multiple={activeTab === "image"}
+                      multiple={activeTab === "image" && getMaxImagesForModel() > 1}
                       onChange={handleFileChange}
                     />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="h-8 w-8 rounded-lg border border-dashed border-gray-600 text-gray-500 flex items-center justify-center hover:border-gray-400 hover:text-gray-300 transition-colors shrink-0 mt-1"
-                      title={
-                        activeTab === "video"
-                          ? "Upload reference (video/image)"
-                          : "Upload reference image"
-                      }
-                    >
-                      <ImagePlus size={16} />
-                    </button>
+                    <div className="flex flex-col items-center gap-1 shrink-0 mt-1">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="h-8 w-8 rounded-lg border border-dashed border-gray-600 text-gray-500 flex items-center justify-center hover:border-gray-400 hover:text-gray-300 transition-colors"
+                        title={
+                          activeTab === "video"
+                            ? "Upload reference (video/image)"
+                            : `Upload reference image (max ${getMaxImagesForModel()})`
+                        }
+                      >
+                        <ImagePlus size={16} />
+                      </button>
+                      {activeTab === "image" && (
+                        <span className="text-[9px] text-gray-500 whitespace-nowrap">
+                          Max {getMaxImagesForModel()} img{getMaxImagesForModel() > 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </div>
 
                     <textarea
                       value={prompt}
@@ -2318,7 +2384,7 @@ function AiLabModal({ isOpen, onClose }) {
                           DUR:
                         </span>
                         {duration}s
-                  </button>
+                      </button>
 
                       {showDurationMenu && (
                         <div className="absolute bottom-full mb-2 left-0 w-24 bg-[#1c1c1c] border border-gray-700 rounded-xl shadow-xl overflow-hidden py-1 z-50">
@@ -2369,7 +2435,8 @@ function AiLabModal({ isOpen, onClose }) {
               </p>
               <div className="bg-[#DC569D]/10 border border-[#DC569D]/30 rounded-xl px-6 py-4 mb-6">
                 <p className="text-[#DC569D] text-3xl font-bold">
-                  {Math.floor(calculateTokenCost()).toLocaleString("en-US")} Tokens
+                  {Math.floor(calculateTokenCost()).toLocaleString("en-US")}{" "}
+                  Tokens
                 </p>
                 {activeTab === "video" && (
                   <p className="text-gray-400 text-xs mt-1">
