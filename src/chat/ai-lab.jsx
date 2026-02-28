@@ -3,7 +3,7 @@ import { FlaskConical, Sparkles, ImagePlus, Send, Diamond } from "lucide-react";
 const MODELS = [
   {
     id: "nano-banana-pro",
-    name: "Nano Banana Pro",
+    name: "Nano Banana 2",
     description:
       "State-of-the-art 4K visuals with flawless typography in any language",
     badges: ["Multi-image input", "4K"],
