@@ -317,7 +317,7 @@ function Login() {
         <div className="absolute top-6 right-6 z-50 hidden md:block">
           <button
             onClick={() => setShowAuthModal(true)}
-            className="bg-[#DC569D] text-white text-sm md:text-base px-6 pb-2 pt-1 rounded-2xl font-semibold hover:bg-[#dc569ecc] hover:text-white transition-all shadow-lg hover:shadow-[#DC569D]/20 transform"
+            className="bg-[#DC569D] text-white text-sm md:text-base px-6 py-1.5 rounded-2xl font-semibold hover:bg-[#dc569ecc] hover:text-white transition-all shadow-lg hover:shadow-[#DC569D]/20 transform flex items-center justify-center"
           >
             SIGN IN
           </button>
@@ -364,7 +364,7 @@ function Login() {
           */}
           <button
             onClick={() => setShowAuthModal(true)}
-            className="bg-[#DC569D] text-white text-xl px-8 pb-2 pt-1 mt-6 tracking-wider rounded-2xl font-semibold hover:bg-[#dc569ecc] hover:text-white transition-all shadow-lg hover:shadow-[#DC569D]/20 transform md:hidden"
+            className="bg-[#DC569D] text-white text-xl px-8 py-1.5 mt-6 tracking-wider rounded-2xl font-semibold hover:bg-[#dc569ecc] hover:text-white transition-all shadow-lg hover:shadow-[#DC569D]/20 transform md:hidden flex items-center justify-center"
           >
             SIGN IN
           </button>
