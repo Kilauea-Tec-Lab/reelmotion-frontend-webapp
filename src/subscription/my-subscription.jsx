@@ -42,21 +42,20 @@ export default function MySubscription() {
 
   const features = {
     pro: [
-      { text: "Fast Rendering", included: true },
-      { text: "Quality 1080p HD", included: true },
-      { text: "No watermark", included: true },
-      { text: "1000 credits / month", included: true },
-      { text: "Access to adding captions", included: true },
-      { text: "Unlimited rendered HD videos a month", included: true },
-      { text: "Unlimited access to the chat system", included: true },
+      { text: "1,000 Tokens ($10.00 to generate)", included: true },
+      { text: "Full Unlimited Editing Tool", included: true },
+      { text: "Full Unlimited Chat System", included: true },
+      { text: "No Watermark", included: true },
+      { text: "1080p HD Quality Rendering", included: true },
+      { text: "Fast Rendering Speeds", included: true },
     ],
     elite: [
-      { text: "Fast Rendering", included: true },
-      { text: "Quality 1080p HD", included: true },
-      { text: "No watermark", included: true },
-      { text: "4000 credits / month", included: true },
-      { text: "Unlimited rendered 4K videos a month", included: true },
-      { text: "Unlimited access to the chat system", included: true },
+      { text: "4,000 Tokens ($40.00 to generate)", included: true },
+      { text: "Full Unlimited Editing Access", included: true },
+      { text: "Full Unlimited Chat System", included: true },
+      { text: "No Watermarks", included: true },
+      { text: "Ultra HD 4K Rendering", included: true },
+      { text: "High-Speed Rendering", included: true },
     ],
   };
 
@@ -90,9 +89,9 @@ export default function MySubscription() {
 
     let price = 0;
     if (rawSub.suscription === "pro") {
-      price = rawSub.payment_recurrency === "yearly" ? 323.89 : 29.99;
+      price = rawSub.payment_recurrency === "yearly" ? 194.99 : 17.99;
     } else if (rawSub.suscription === "elite") {
-      price = rawSub.payment_recurrency === "yearly" ? 647.89 : 59.99;
+      price = rawSub.payment_recurrency === "yearly" ? 518.28 : 47.99;
     }
 
     let nextBilling = new Date(rawSub.ultimate_pay);
@@ -289,7 +288,7 @@ export default function MySubscription() {
                     </div>
                     <div className="flex items-baseline gap-1">
                       <span className="text-3xl font-bold">
-                        {modalBillingCycle === "yearly" ? "$323.89" : "$29.99"}
+                        {modalBillingCycle === "yearly" ? "$194.99" : "$17.99"}
                       </span>
                       <span className="text-sm text-gray-400">
                         /{modalBillingCycle === "yearly" ? "year" : "month"}
@@ -359,7 +358,7 @@ export default function MySubscription() {
                     </div>
                     <div className="flex items-baseline gap-1">
                       <span className="text-3xl font-bold">
-                        {modalBillingCycle === "yearly" ? "$647.89" : "$59.99"}
+                        {modalBillingCycle === "yearly" ? "$518.28" : "$47.99"}
                       </span>
                       <span className="text-sm text-gray-400">
                         /{modalBillingCycle === "yearly" ? "year" : "month"}

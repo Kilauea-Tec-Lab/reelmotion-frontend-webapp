@@ -11,6 +11,7 @@ import {
   CreditCard,
   DollarSign,
   Wallet,
+  Check,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -18,6 +19,7 @@ import { searchProjects } from "../create_elements/functions";
 import PostModal from "../discover/components/post-modal";
 import { getUserNotifications, deleteNotification } from "../auth/functions";
 import { getPostById } from "../discover/functions";
+import { getBillingInfo } from "../subscription/functions";
 import { createPusherClient } from "@/pusher";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -74,6 +76,198 @@ try {
 } catch (error) {
   console.error("Invalid merchant wallet address:", error);
   MERCHANT_WALLET = null;
+}
+
+const COUNTRIES = [
+  { code: "GB", name: "United Kingdom", flag: "🇬🇧" },
+  { code: "US", name: "United States", flag: "🇺🇸" },
+  { code: "AF", name: "Afghanistan", flag: "🇦🇫" },
+  { code: "AL", name: "Albania", flag: "🇦🇱" },
+  { code: "DZ", name: "Algeria", flag: "🇩🇿" },
+  { code: "AD", name: "Andorra", flag: "🇦🇩" },
+  { code: "AO", name: "Angola", flag: "🇦🇴" },
+  { code: "AG", name: "Antigua & Barbuda", flag: "🇦🇬" },
+  { code: "AR", name: "Argentina", flag: "🇦🇷" },
+  { code: "AM", name: "Armenia", flag: "🇦🇲" },
+  { code: "AU", name: "Australia", flag: "🇦🇺" },
+  { code: "AT", name: "Austria", flag: "🇦🇹" },
+  { code: "AZ", name: "Azerbaijan", flag: "🇦🇿" },
+  { code: "BS", name: "Bahamas", flag: "🇧🇸" },
+  { code: "BH", name: "Bahrain", flag: "🇧🇭" },
+  { code: "BD", name: "Bangladesh", flag: "🇧🇩" },
+  { code: "BB", name: "Barbados", flag: "🇧🇧" },
+  { code: "BY", name: "Belarus", flag: "🇧🇾" },
+  { code: "BE", name: "Belgium", flag: "🇧🇪" },
+  { code: "BZ", name: "Belize", flag: "🇧🇿" },
+  { code: "BJ", name: "Benin", flag: "🇧🇯" },
+  { code: "BT", name: "Bhutan", flag: "🇧🇹" },
+  { code: "BO", name: "Bolivia", flag: "🇧🇴" },
+  { code: "BA", name: "Bosnia & Herzegovina", flag: "🇧🇦" },
+  { code: "BW", name: "Botswana", flag: "🇧🇼" },
+  { code: "BR", name: "Brazil", flag: "🇧🇷" },
+  { code: "BN", name: "Brunei", flag: "🇧🇳" },
+  { code: "BG", name: "Bulgaria", flag: "🇧🇬" },
+  { code: "CA", name: "Canada", flag: "🇨🇦" },
+  { code: "CL", name: "Chile", flag: "🇨🇱" },
+  { code: "CN", name: "China", flag: "🇨🇳" },
+  { code: "CO", name: "Colombia", flag: "🇨🇴" },
+  { code: "CR", name: "Costa Rica", flag: "🇨🇷" },
+  { code: "HR", name: "Croatia", flag: "🇭🇷" },
+  { code: "CY", name: "Cyprus", flag: "🇨🇾" },
+  { code: "CZ", name: "Czech Republic", flag: "🇨🇿" },
+  { code: "DK", name: "Denmark", flag: "🇩🇰" },
+  { code: "DO", name: "Dominican Republic", flag: "🇩🇴" },
+  { code: "EC", name: "Ecuador", flag: "🇪🇨" },
+  { code: "EG", name: "Egypt", flag: "🇪🇬" },
+  { code: "SV", name: "El Salvador", flag: "🇸🇻" },
+  { code: "EE", name: "Estonia", flag: "🇪🇪" },
+  { code: "FI", name: "Finland", flag: "🇫🇮" },
+  { code: "FR", name: "France", flag: "🇫🇷" },
+  { code: "DE", name: "Germany", flag: "🇩🇪" },
+  { code: "GH", name: "Ghana", flag: "🇬🇭" },
+  { code: "GR", name: "Greece", flag: "🇬🇷" },
+  { code: "GT", name: "Guatemala", flag: "🇬🇹" },
+  { code: "HN", name: "Honduras", flag: "🇭🇳" },
+  { code: "HU", name: "Hungary", flag: "🇭🇺" },
+  { code: "IS", name: "Iceland", flag: "🇮🇸" },
+  { code: "IN", name: "India", flag: "🇮🇳" },
+  { code: "ID", name: "Indonesia", flag: "🇮🇩" },
+  { code: "IE", name: "Ireland", flag: "🇮🇪" },
+  { code: "IL", name: "Israel", flag: "🇮🇱" },
+  { code: "IT", name: "Italy", flag: "🇮🇹" },
+  { code: "JM", name: "Jamaica", flag: "🇯🇲" },
+  { code: "JP", name: "Japan", flag: "🇯🇵" },
+  { code: "KE", name: "Kenya", flag: "🇰🇪" },
+  { code: "KR", name: "South Korea", flag: "🇰🇷" },
+  { code: "KW", name: "Kuwait", flag: "🇰🇼" },
+  { code: "LV", name: "Latvia", flag: "🇱🇻" },
+  { code: "LT", name: "Lithuania", flag: "🇱🇹" },
+  { code: "LU", name: "Luxembourg", flag: "🇱🇺" },
+  { code: "MY", name: "Malaysia", flag: "🇲🇾" },
+  { code: "MX", name: "Mexico", flag: "🇲🇽" },
+  { code: "MA", name: "Morocco", flag: "🇲🇦" },
+  { code: "NL", name: "Netherlands", flag: "🇳🇱" },
+  { code: "NZ", name: "New Zealand", flag: "🇳🇿" },
+  { code: "NG", name: "Nigeria", flag: "🇳🇬" },
+  { code: "NO", name: "Norway", flag: "🇳🇴" },
+  { code: "PK", name: "Pakistan", flag: "🇵🇰" },
+  { code: "PA", name: "Panama", flag: "🇵🇦" },
+  { code: "PY", name: "Paraguay", flag: "🇵🇾" },
+  { code: "PE", name: "Peru", flag: "🇵🇪" },
+  { code: "PH", name: "Philippines", flag: "🇵🇭" },
+  { code: "PL", name: "Poland", flag: "🇵🇱" },
+  { code: "PT", name: "Portugal", flag: "🇵🇹" },
+  { code: "QA", name: "Qatar", flag: "🇶🇦" },
+  { code: "RO", name: "Romania", flag: "🇷🇴" },
+  { code: "RU", name: "Russia", flag: "🇷🇺" },
+  { code: "SA", name: "Saudi Arabia", flag: "🇸🇦" },
+  { code: "RS", name: "Serbia", flag: "🇷🇸" },
+  { code: "SG", name: "Singapore", flag: "🇸🇬" },
+  { code: "SK", name: "Slovakia", flag: "🇸🇰" },
+  { code: "SI", name: "Slovenia", flag: "🇸🇮" },
+  { code: "ZA", name: "South Africa", flag: "🇿🇦" },
+  { code: "ES", name: "Spain", flag: "🇪🇸" },
+  { code: "SE", name: "Sweden", flag: "🇸🇪" },
+  { code: "CH", name: "Switzerland", flag: "🇨🇭" },
+  { code: "TW", name: "Taiwan", flag: "🇹🇼" },
+  { code: "TH", name: "Thailand", flag: "🇹🇭" },
+  { code: "TR", name: "Turkey", flag: "🇹🇷" },
+  { code: "UA", name: "Ukraine", flag: "🇺🇦" },
+  { code: "AE", name: "United Arab Emirates", flag: "🇦🇪" },
+  { code: "UY", name: "Uruguay", flag: "🇺🇾" },
+  { code: "VE", name: "Venezuela", flag: "🇻🇪" },
+  { code: "VN", name: "Vietnam", flag: "🇻🇳" },
+];
+
+function SearchableCountrySelect({ value, onChange, countries }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredCountries = countries.filter((c) =>
+    c.name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const selectedCountry = countries.find((c) => c.code === value);
+
+  return (
+    <div className="relative" ref={wrapperRef}>
+      <div
+        className="w-full p-3 border border-gray-600 rounded-lg bg-darkBoxSub text-white flex items-center justify-between cursor-pointer focus:outline-none focus:border-primarioLogo transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="flex items-center gap-2">
+          {selectedCountry ? (
+            <>
+              <span className="text-xl">{selectedCountry.flag}</span>
+              <span>{selectedCountry.name}</span>
+            </>
+          ) : (
+            <span className="text-gray-400">Select a country</span>
+          )}
+        </span>
+        <ChevronDown
+          size={16}
+          className={`text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+        />
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-2 bg-darkBoxSub border border-gray-600 rounded-lg shadow-xl max-h-60 overflow-hidden flex flex-col">
+          <div className="p-2 border-b border-gray-600 sticky top-0 bg-darkBoxSub">
+            <div className="relative">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="text"
+                placeholder="Search country..."
+                className="w-full pl-9 pr-3 py-2 bg-darkBox border border-gray-600 rounded-md text-sm text-white focus:outline-none focus:border-primarioLogo"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="overflow-y-auto flex-1">
+            {filteredCountries.map((c) => (
+              <div
+                key={c.code}
+                className={`px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-white/5 transition-colors ${value === c.code ? "bg-white/10" : ""}`}
+                onClick={() => {
+                  onChange(c.code);
+                  setIsOpen(false);
+                  setSearch("");
+                }}
+              >
+                <span className="text-xl">{c.flag}</span>
+                <span>{c.name}</span>
+                {value === c.code && (
+                  <Check size={16} className="ml-auto text-primarioLogo" />
+                )}
+              </div>
+            ))}
+            {filteredCountries.length === 0 && (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                No countries found
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Initialize Stripe
@@ -414,6 +608,13 @@ function MainTopMenu({ user_info }) {
   const [selectedNotificationPost, setSelectedNotificationPost] =
     useState(null);
 
+  // Billing country state for tax calculation
+  const [billingCountry, setBillingCountry] = useState("US");
+  const [billingFirstName, setBillingFirstName] = useState("");
+  const [billingLastName, setBillingLastName] = useState("");
+  const [billingAddress, setBillingAddress] = useState("");
+  const [billingPostalCode, setBillingPostalCode] = useState("");
+
   // Token system states
   const [tokens, setTokens] = useState(0);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
@@ -693,33 +894,59 @@ function MainTopMenu({ user_info }) {
     setPaymentDetails(null);
   };
 
+  // Load billing info on mount
+  useEffect(() => {
+    getBillingInfo()
+      .then((response) => {
+        const data = response?.billing_info;
+        if (data) {
+          if (data.first_name) setBillingFirstName(data.first_name);
+          if (data.last_name) setBillingLastName(data.last_name);
+          if (data.address) setBillingAddress(data.address);
+          if (data.postal_code) setBillingPostalCode(data.postal_code);
+          if (data.country_code) setBillingCountry(data.country_code);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Calculate tokens from dollar amount (1 dollar = 100 tokens)
   const calculateTokens = (dollars) => dollars * 100;
 
-  // Calculate VAT (20%)
-  const calculateVAT = (amount) => {
-    const vatRate = 0.2; // 20%
-    return Number((amount * vatRate).toFixed(2));
+  // Calculate tax based on country: UK = 20% VAT, others = 15% Tax
+  const calculateTax = (amount) => {
+    const taxRate = billingCountry === "GB" ? 0.2 : 0.15;
+    return Number((amount * taxRate).toFixed(2));
   };
 
-  // Calculate total amount including VAT
-  const calculateTotalWithVAT = (baseAmount) => {
-    const vat = calculateVAT(baseAmount);
-    return Number((baseAmount + vat).toFixed(2));
+  const getTaxLabel = () => {
+    return billingCountry === "GB" ? "VAT (20%)" : "Tax (15%)";
   };
 
-  // Calculate subtotal, VAT, and total
+  // Calculate total amount including tax
+  const calculateTotalWithTax = (baseAmount) => {
+    const tax = calculateTax(baseAmount);
+    return Number((baseAmount + tax).toFixed(2));
+  };
+
+  // Calculate subtotal, tax, and total
   const getPaymentBreakdown = (baseAmount) => {
     const subtotal = Number(baseAmount) || 0;
-    const vat = calculateVAT(subtotal);
-    const total = calculateTotalWithVAT(subtotal);
+    const tax = calculateTax(subtotal);
+    const total = calculateTotalWithTax(subtotal);
     const tokens = calculateTokens(subtotal); // Tokens based on subtotal (before taxes)
+    const isUK = billingCountry === "GB";
 
     return {
       subtotal,
-      vat,
+      vat: tax, // Keep 'vat' key for compatibility
       total,
       tokens,
+      taxLabel: getTaxLabel(),
+      taxRate: isUK ? 0.2 : 0.15,
+      taxType: isUK ? "vat" : "tax",
+      vatAmount: isUK ? tax : 0,
+      taxAmount: !isUK ? tax : 0,
     };
   };
 
@@ -1136,10 +1363,20 @@ function MainTopMenu({ user_info }) {
             // Payment breakdown with VAT information
             payment_breakdown: {
               subtotal: breakdown.subtotal,
-              vat_rate: 0.2,
-              vat_amount: breakdown.vat,
+              vat_rate: breakdown.taxRate,
+              vat_amount: breakdown.vatAmount,
+              tax_amount: breakdown.taxAmount,
+              tax_rate: breakdown.taxRate * 100,
+              tax_type: breakdown.taxType,
               total_amount: breakdown.total,
               tokens_to_add: breakdown.tokens,
+            },
+            billing_details: {
+              first_name: billingFirstName,
+              last_name: billingLastName,
+              address: billingAddress,
+              postal_code: billingPostalCode,
+              country: billingCountry,
             },
             // 🔥 AGREGAR: Detalles adicionales para verificación backend
             capture_details: {
@@ -1236,10 +1473,20 @@ function MainTopMenu({ user_info }) {
             // Additional payment information
             payment_breakdown: {
               subtotal: breakdown.subtotal,
-              vat_rate: 0.2,
-              vat_amount: breakdown.vat,
+              vat_rate: breakdown.taxRate,
+              vat_amount: breakdown.vatAmount,
+              tax_amount: breakdown.taxAmount,
+              tax_rate: breakdown.taxRate * 100,
+              tax_type: breakdown.taxType,
               total_amount: breakdown.total,
               tokens_to_add: breakdown.tokens,
+            },
+            billing_details: {
+              first_name: billingFirstName,
+              last_name: billingLastName,
+              address: billingAddress,
+              postal_code: billingPostalCode,
+              country: billingCountry,
             },
           }),
         },
@@ -1268,33 +1515,63 @@ function MainTopMenu({ user_info }) {
 
         // Refresh user tokens from server
         await fetchUserTokens();
-      } else if (result.client_secret) {
-        // Payment requires additional action (3D Secure, etc.)
+      } else if (
+        result.requires_action &&
+        result.payment_intent_client_secret
+      ) {
+        // Payment requires 3D Secure authentication
+        console.log("3D Secure required, confirming card payment...");
         const { error: confirmError, paymentIntent } =
-          await stripe.confirmCardPayment(result.client_secret);
+          await stripe.confirmCardPayment(result.payment_intent_client_secret);
 
         if (confirmError) {
-          throw new Error(confirmError.message);
+          throw new Error(
+            confirmError.message || "3D Secure authentication failed.",
+          );
         }
 
-        if (paymentIntent.status === "succeeded") {
-          // Payment confirmed successfully
+        if (paymentIntent && paymentIntent.status === "succeeded") {
+          // 3DS completed - confirm with backend
+          console.log("3DS succeeded, confirming payment with backend...");
+          const confirmResponse = await fetch(
+            `${import.meta.env.VITE_APP_BACKEND_URL}payments/confirm-payment`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + Cookies.get("token"),
+              },
+              body: JSON.stringify({
+                payment_intent_id: paymentIntent.id,
+              }),
+            },
+          );
+
+          const confirmResult = await confirmResponse.json();
+          console.log("Confirm payment response:", confirmResult);
+
+          if (!confirmResponse.ok || !confirmResult.success) {
+            throw new Error(
+              confirmResult.message ||
+                "Failed to confirm payment after 3D Secure.",
+            );
+          }
+
+          // Payment confirmed successfully after 3DS
           setPaymentDetails({
             payment_intent_id: paymentIntent.id,
-            total_paid: breakdown.total, // Total with VAT
-            tokens_added: breakdown.tokens,
+            total_paid: confirmResult.total_paid || breakdown.total,
+            tokens_added: confirmResult.tokens_added || breakdown.tokens,
           });
 
           setTokenPurchaseStep("success");
-          setPaymentMessage("Payment successful");
+          setPaymentMessage(confirmResult.message || "Payment successful");
           setPaymentMessageType("success");
 
           // Refresh user tokens from server
           await fetchUserTokens();
         } else {
-          throw new Error(
-            `Payment failed with status: ${paymentIntent.status}`,
-          );
+          throw new Error("Payment was not completed. Please try again.");
         }
       } else {
         throw new Error(result.message || "Payment failed");
@@ -1397,10 +1674,20 @@ function MainTopMenu({ user_info }) {
             wallet_address: userPublicKey.toString(),
             payment_breakdown: {
               subtotal: breakdown.subtotal,
-              vat_rate: 0.2,
-              vat_amount: breakdown.vat,
+              vat_rate: breakdown.taxRate,
+              vat_amount: breakdown.vatAmount,
+              tax_amount: breakdown.taxAmount,
+              tax_rate: breakdown.taxRate * 100,
+              tax_type: breakdown.taxType,
               total_amount: breakdown.total,
               tokens_to_add: breakdown.tokens,
+            },
+            billing_details: {
+              first_name: billingFirstName,
+              last_name: billingLastName,
+              address: billingAddress,
+              postal_code: billingPostalCode,
+              country: billingCountry,
             },
           }),
         },
@@ -1823,6 +2110,65 @@ function MainTopMenu({ user_info }) {
                         />
                       </div>
 
+                      {/* Billing Address */}
+                      <div className="space-y-3 pt-2 pb-2 border-t border-gray-600">
+                        <h4 className="text-white text-sm font-medium">
+                          Billing Address
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          <input
+                            type="text"
+                            placeholder="First Name"
+                            value={billingFirstName}
+                            onChange={(e) =>
+                              setBillingFirstName(e.target.value)
+                            }
+                            className="w-full px-3 py-2 bg-darkBoxSub border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-primarioLogo transition-colors"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Last Name"
+                            value={billingLastName}
+                            onChange={(e) => setBillingLastName(e.target.value)}
+                            className="w-full px-3 py-2 bg-darkBoxSub border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-primarioLogo transition-colors"
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Address"
+                          value={billingAddress}
+                          onChange={(e) => setBillingAddress(e.target.value)}
+                          className="w-full px-3 py-2 bg-darkBoxSub border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-primarioLogo transition-colors"
+                        />
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-gray-400 text-xs mb-1">
+                              Country
+                            </label>
+                            <SearchableCountrySelect
+                              value={billingCountry}
+                              onChange={setBillingCountry}
+                              countries={COUNTRIES}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-400 text-xs mb-1">
+                              Postal Code
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Postal Code"
+                              value={billingPostalCode}
+                              onChange={(e) =>
+                                setBillingPostalCode(e.target.value)
+                              }
+                              className="w-full px-3 py-2 bg-darkBoxSub border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-primarioLogo transition-colors"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Price Breakdown */}
                       <div className="bg-darkBoxSub p-4 rounded-lg">
                         {(() => {
                           const breakdown = getPaymentBreakdown(
@@ -1838,7 +2184,7 @@ function MainTopMenu({ user_info }) {
                               </div>
                               <div className="flex justify-between items-center mt-1">
                                 <span className="text-gray-400">
-                                  VAT (20%):
+                                  {breakdown.taxLabel}:
                                 </span>
                                 <span className="text-white font-medium">
                                   ${breakdown.vat.toFixed(2)}
@@ -1901,7 +2247,9 @@ function MainTopMenu({ user_info }) {
                               </span>
                             </div>
                             <div className="flex justify-between items-center mt-1">
-                              <span className="text-gray-400">VAT (20%):</span>
+                              <span className="text-gray-400">
+                                {breakdown.taxLabel}:
+                              </span>
                               <span className="text-white font-medium">
                                 ${breakdown.vat.toFixed(2)}
                               </span>
@@ -2048,7 +2396,9 @@ function MainTopMenu({ user_info }) {
                               </span>
                             </div>
                             <div className="flex justify-between items-center mt-1">
-                              <span className="text-gray-400">VAT (20%):</span>
+                              <span className="text-gray-400">
+                                {breakdown.taxLabel}:
+                              </span>
                               <span className="text-white font-medium">
                                 ${breakdown.vat.toFixed(2)}
                               </span>

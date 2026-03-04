@@ -14,15 +14,20 @@ export async function createSubscription(data) {
       },
     );
 
-    if (response.status === 201) {
-      return response.json();
+    const responseData = await response.json();
+
+    if (response.status === 200 || response.status === 201) {
+      return responseData;
     }
 
     if (!response.ok) {
-      throw new Error(`Failed to create subscription: ${response.statusText}`);
+      // Backend returns { error: '...' } on 500 or { message: '...' } on 400
+      const serverMessage =
+        responseData?.error || responseData?.message || response.statusText;
+      throw new Error(serverMessage);
     }
 
-    return response.json();
+    return responseData;
   } catch (error) {
     console.error("Error creating subscription:", error);
     throw error;
@@ -94,15 +99,20 @@ export async function updateSubscription(data) {
       },
     );
 
+    const responseData = await response.json();
+
     if (response.status === 200 || response.status === 201) {
-      return response.json();
+      return responseData;
     }
 
     if (!response.ok) {
-      throw new Error(`Failed to update subscription: ${response.statusText}`);
+      // Backend returns { error: '...' } on 500 or { message: '...' } on 400
+      const serverMessage =
+        responseData?.error || responseData?.message || response.statusText;
+      throw new Error(serverMessage);
     }
 
-    return response.json();
+    return responseData;
   } catch (error) {
     console.error("Error updating subscription:", error);
     throw error;
@@ -128,8 +138,39 @@ export async function getBillingInfo() {
     return response.json();
   } catch (error) {
     console.error("Error fetching billing info:", error);
-    // Silent fail or rethrow? Usually better to just log and let form be empty if it fails.
-    // But keeping consistency with other functions that throw.
+    throw error;
+  }
+}
+
+export async function confirmSubscription(data) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_APP_BACKEND_URL}suscriptions/confirm`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + Cookies.get("token"),
+        },
+        body: JSON.stringify(data),
+      },
+    );
+
+    const responseData = await response.json();
+
+    if (response.status === 200 || response.status === 201) {
+      return responseData;
+    }
+
+    if (!response.ok) {
+      const serverMessage =
+        responseData?.error || responseData?.message || response.statusText;
+      throw new Error(serverMessage);
+    }
+
+    return responseData;
+  } catch (error) {
+    console.error("Error confirming subscription:", error);
     throw error;
   }
 }

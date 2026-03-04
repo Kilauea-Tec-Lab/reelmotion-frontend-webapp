@@ -22,13 +22,11 @@ import {
   createSubscription,
   updateSubscription,
   getBillingInfo,
+  confirmSubscription,
 } from "./functions";
 import { useNavigate, useOutletContext, useLocation } from "react-router-dom";
 
-const stripePromise = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
-    import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
-);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const COUNTRIES = [
   { code: "GB", name: "United Kingdom", flag: "🇬🇧" },
@@ -394,8 +392,9 @@ function CheckoutForm({
       setVatAmount(vat);
       setTotalAmount(basePrice + vat);
     } else {
-      setVatAmount(0);
-      setTotalAmount(basePrice);
+      const tax = basePrice * 0.15;
+      setVatAmount(tax);
+      setTotalAmount(basePrice + tax);
     }
   }, [country, price]);
 
@@ -419,10 +418,11 @@ function CheckoutForm({
       : null;
 
   // Apply VAT to proration estimate when applicable (e.g. UK)
+  const taxRate = country === "GB" ? 0.2 : 0.15;
   const estimatedProrationWithVat = estimatedProration
     ? (
         parseFloat(estimatedProration) +
-        (country === "GB" ? parseFloat(estimatedProration) * 0.2 : 0)
+        parseFloat(estimatedProration) * taxRate
       ).toFixed(2)
     : null;
 
@@ -510,10 +510,11 @@ function CheckoutForm({
         );
       }
 
+      const isUK = country === "GB";
       const subscriptionData = {
         plan: plan.name,
         billing_cycle: billingCycle,
-        price: totalAmount.toFixed(2), // Send the total with VAT
+        price: totalAmount.toFixed(2), // Send the total with taxes included
         payment_method: paymentMethod.id,
         price_id: priceId,
         billing_details: {
@@ -522,7 +523,10 @@ function CheckoutForm({
           address: address,
           postal_code: postalCode,
           country: country,
-          vat_amount: vatAmount.toFixed(2),
+          vat_amount: isUK ? vatAmount.toFixed(2) : "0.00",
+          tax_amount: !isUK ? vatAmount.toFixed(2) : "0.00",
+          tax_rate: isUK ? 20 : 15,
+          tax_type: isUK ? "vat" : "tax",
         },
       };
 
@@ -535,6 +539,55 @@ function CheckoutForm({
         });
       } else {
         response = await createSubscription(subscriptionData);
+      }
+
+      // Handle 3D Secure authentication
+      if (
+        response &&
+        response.requires_action &&
+        response.payment_intent_client_secret
+      ) {
+        const { error: confirmError, paymentIntent } =
+          await stripe.confirmCardPayment(
+            response.payment_intent_client_secret,
+          );
+
+        if (confirmError) {
+          throw new Error(
+            confirmError.message || "3D Secure authentication failed.",
+          );
+        }
+
+        if (paymentIntent && paymentIntent.status === "succeeded") {
+          // Confirm with backend after 3DS success
+          const confirmResponse = await confirmSubscription({
+            subscription_id: response.subscription_id,
+            payment_intent_id: paymentIntent.id,
+          });
+
+          if (
+            confirmResponse &&
+            (confirmResponse.message ===
+              "Suscription created/updated successfully" ||
+              confirmResponse.message === "Suscription updated successfully" ||
+              confirmResponse.message === "Subscription updated successfully" ||
+              confirmResponse.message ===
+                "Subscription confirmed successfully" ||
+              confirmResponse.message ===
+                "Subscription confirmed and activated successfully" ||
+              confirmResponse.status === "active")
+          ) {
+            onSuccess();
+            return;
+          } else {
+            throw new Error(
+              confirmResponse.message ||
+                "Failed to confirm subscription after 3D Secure.",
+            );
+          }
+        } else {
+          throw new Error("Payment was not completed. Please try again.");
+        }
       }
 
       if (
@@ -641,7 +694,9 @@ function CheckoutForm({
               </div>
               {vatAmount > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">VAT (20%)</span>
+                  <span className="text-gray-400">
+                    {country === "GB" ? "VAT (20%)" : "Tax (15%)"}
+                  </span>
                   <span>${vatAmount.toFixed(2)}</span>
                 </div>
               )}
@@ -673,7 +728,7 @@ function CheckoutForm({
                   {isUpdate && prorationBehavior === "prorate" && (
                     <p className="text-xs text-green-400 mt-1">
                       {estimatedProrationWithVat
-                        ? `Rough estimate *${vatAmount > 0 ? " (incl. VAT)" : ""}`
+                        ? `Rough estimate *${vatAmount > 0 ? (country === "GB" ? " (incl. VAT)" : " (incl. Tax)") : ""}`
                         : "Less unused time credit"}
                     </p>
                   )}
