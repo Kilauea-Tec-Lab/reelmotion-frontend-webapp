@@ -56,10 +56,7 @@ import {
 import { Channel } from "pusher-js";
 
 // Stripe initialization
-const stripePromise = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
-    import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
-);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const COUNTRIES = [
   { code: "GB", name: "United Kingdom", flag: "🇬🇧" },
@@ -1401,7 +1398,12 @@ function ChatMain({
       const vatRate = 0.2;
       return Number((amount * vatRate).toFixed(2));
     }
-    return 0;
+    const taxRate = 0.15;
+    return Number((amount * taxRate).toFixed(2));
+  };
+
+  const getTaxLabel = () => {
+    return country === "GB" ? "VAT (20%)" : "Tax (15%)";
   };
 
   const calculateTotalWithVAT = (baseAmount) => {
@@ -1414,12 +1416,18 @@ function ChatMain({
     const vat = calculateVAT(subtotal);
     const total = calculateTotalWithVAT(subtotal);
     const tokens = calculateTokens(subtotal);
+    const isUK = country === "GB";
 
     return {
       subtotal,
       vat,
       total,
       tokens,
+      taxLabel: getTaxLabel(),
+      taxRate: isUK ? 0.2 : 0.15,
+      taxType: isUK ? "vat" : "tax",
+      vatAmount: isUK ? vat : 0,
+      taxAmount: !isUK ? vat : 0,
     };
   };
 
@@ -1481,30 +1489,88 @@ function ChatMain({
             payment_method_id: paymentMethod.id,
             amount: breakdown.total,
             tokens: breakdown.tokens,
+            vat_amount: breakdown.vatAmount,
+            tax_amount: breakdown.taxAmount,
+            tax_rate: breakdown.taxRate * 100,
+            tax_type: breakdown.taxType,
             billing_details: {
               first_name: firstName,
               last_name: lastName,
               address: address,
               postal_code: postalCode,
               country: country,
-              vat_amount: breakdown.vat,
             },
           }),
         },
       );
 
       const result = await response.json();
+      console.log("Backend response:", result);
 
       if (result.success) {
+        // Payment successful - backend already processed everything
         setPaymentDetails(result.data);
         setTokens((prev) => prev + breakdown.tokens);
         setTokenPurchaseStep("success");
+      } else if (
+        result.requires_action &&
+        result.payment_intent_client_secret
+      ) {
+        // Payment requires 3D Secure authentication
+        console.log("3D Secure required, confirming card payment...");
+        const { error: confirmError, paymentIntent } =
+          await stripe.confirmCardPayment(result.payment_intent_client_secret);
+
+        if (confirmError) {
+          throw new Error(
+            confirmError.message || "3D Secure authentication failed.",
+          );
+        }
+
+        if (paymentIntent && paymentIntent.status === "succeeded") {
+          // 3DS completed - confirm with backend
+          console.log("3DS succeeded, confirming payment with backend...");
+          const confirmResponse = await fetch(
+            `${import.meta.env.VITE_APP_BACKEND_URL}payments/confirm-payment`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + Cookies.get("token"),
+              },
+              body: JSON.stringify({
+                payment_intent_id: paymentIntent.id,
+              }),
+            },
+          );
+
+          const confirmResult = await confirmResponse.json();
+          console.log("Confirm payment response:", confirmResult);
+
+          if (!confirmResponse.ok || !confirmResult.success) {
+            throw new Error(
+              confirmResult.message ||
+                "Failed to confirm payment after 3D Secure.",
+            );
+          }
+
+          // Payment confirmed successfully after 3DS
+          setPaymentDetails({
+            payment_intent_id: paymentIntent.id,
+            total_paid: confirmResult.total_paid || breakdown.total,
+            tokens_added: confirmResult.tokens_added || breakdown.tokens,
+          });
+          setTokens((prev) => prev + breakdown.tokens);
+          setTokenPurchaseStep("success");
+        } else {
+          throw new Error("Payment was not completed. Please try again.");
+        }
       } else {
-        setPaymentMessage(result.message || "Payment failed");
-        setTokenPurchaseStep("error");
+        throw new Error(result.message || "Payment failed");
       }
     } catch (error) {
-      setPaymentMessage("An error occurred during payment");
+      console.error("Error processing Stripe payment:", error);
+      setPaymentMessage(error.message || "An error occurred during payment");
       setTokenPurchaseStep("error");
     } finally {
       setIsProcessingPayment(false);
@@ -3314,16 +3380,14 @@ function ChatMain({
                                   ${breakdown.subtotal.toFixed(2)}
                                 </span>
                               </div>
-                              {breakdown.vat > 0 && (
-                                <div className="flex justify-between items-center mt-1">
-                                  <span className="text-gray-400">
-                                    VAT (20%):
-                                  </span>
-                                  <span className="text-white font-medium">
-                                    ${breakdown.vat.toFixed(2)}
-                                  </span>
-                                </div>
-                              )}
+                              <div className="flex justify-between items-center mt-1">
+                                <span className="text-gray-400">
+                                  {breakdown.taxLabel}:
+                                </span>
+                                <span className="text-white font-medium">
+                                  ${breakdown.vat.toFixed(2)}
+                                </span>
+                              </div>
                               <div className="border-t border-gray-600 mt-2 pt-2">
                                 <div className="flex justify-between items-center">
                                   <span className="text-white font-semibold">
@@ -3562,16 +3626,14 @@ function ChatMain({
                                     ${breakdown.subtotal.toFixed(2)}
                                   </span>
                                 </div>
-                                {breakdown.vat > 0 && (
-                                  <div className="flex justify-between items-center mt-1">
-                                    <span className="text-gray-400">
-                                      VAT (20%):
-                                    </span>
-                                    <span className="text-white font-medium">
-                                      ${breakdown.vat.toFixed(2)}
-                                    </span>
-                                  </div>
-                                )}
+                                <div className="flex justify-between items-center mt-1">
+                                  <span className="text-gray-400">
+                                    {breakdown.taxLabel}:
+                                  </span>
+                                  <span className="text-white font-medium">
+                                    ${breakdown.vat.toFixed(2)}
+                                  </span>
+                                </div>
                                 <div className="border-t border-gray-600 mt-2 pt-2">
                                   <div className="flex justify-between items-center">
                                     <span className="text-white font-semibold">
