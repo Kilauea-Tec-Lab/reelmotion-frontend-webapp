@@ -1826,6 +1826,7 @@ function ChatMain({
                 className="max-w-full max-h-[85vh] rounded-lg"
                 controls
                 autoPlay
+                preload="auto"
               />
             </div>
           )}
@@ -1918,6 +1919,7 @@ function ChatMain({
                 className="max-w-full max-h-[85vh] rounded-lg"
                 controls
                 autoPlay
+                preload="auto"
               />
             </div>
           )}
