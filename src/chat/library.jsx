@@ -820,6 +820,7 @@ function Library() {
                 className="max-w-full max-h-[85vh] rounded-lg"
                 controls
                 autoPlay
+                preload="auto"
               />
             </div>
           )}
