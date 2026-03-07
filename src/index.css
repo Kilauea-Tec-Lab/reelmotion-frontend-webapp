@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+/* Avalon Font */
+@font-face {
+  font-family: 'Avalon';
+  src: url('/fonts/avalon.woff2') format('woff2'),
+       url('/fonts/avalon.woff') format('woff'),
+       url('/fonts/avalon.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.font-avalon {
+  font-family: 'Avalon', 'Cinzel', serif;
+}
+
 /* Variables CSS para colores personalizados */
 :root {
   --color-primario-dark: #0C0C0D;

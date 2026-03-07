@@ -313,6 +313,21 @@ function Login() {
             onClick={() => setShowAuthModal(true)}
           />
         </div>
+        {/* Center Tagline - Desktop Only 
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 hidden md:flex items-center z-30">
+          <p
+            className="font-montserrat text-4xl tracking-widest whitespace-nowrap"
+            style={{
+              background: "linear-gradient(to right, #ffffff, #cccccc)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            The All-In-One AI Studio for Agencies and Creators
+          </p>
+        </div>*/}
+
         {/* Enter Button moved to top right (Desktop Only) */}
         <div className="absolute top-6 right-6 z-50 hidden md:block">
           <button
@@ -364,7 +379,7 @@ function Login() {
           */}
           <button
             onClick={() => setShowAuthModal(true)}
-            className="bg-[#DC569D] text-white text-xl px-8 py-1.5 mt-6 tracking-wider rounded-2xl font-semibold hover:bg-[#dc569ecc] hover:text-white transition-all shadow-lg hover:shadow-[#DC569D]/20 transform md:hidden flex items-center justify-center"
+            className="bg-[#DC569D] text-white text-xl px-8 py-1.5 mt-6 tracking-wider rounded-2xl font-semibold hover:bg-[#dc569ecc] hover:text-white transition-all shadow-lg hover:shadow-[#DC569D]/20 transform md:hidden flex items-center justify-center mx-auto"
           >
             SIGN IN
           </button>
