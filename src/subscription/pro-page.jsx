@@ -667,7 +667,7 @@ function CheckoutForm({
         Back to plans
       </button>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12">
         {/* Order Summary */}
         <div className="space-y-6">
           <h2 className="text-2xl font-bold">Order Summary</h2>
@@ -1053,11 +1053,11 @@ export default function ProPage() {
   }
 
   return (
-    <div className="flex-1 h-screen overflow-y-auto bg-[#212121] text-white p-6 md:p-12">
-      <div className="max-w-6xl mx-auto space-y-12">
+    <div className="flex-1 h-screen overflow-y-auto bg-[#212121] text-white p-4 md:p-12">
+      <div className="max-w-6xl mx-auto space-y-8 md:space-y-12">
         {/* Header */}
         <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent py-2">
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent py-2">
             Upgrade your plan
           </h1>
           <p className="text-gray-400 max-w-2xl mx-auto">
@@ -1101,7 +1101,7 @@ export default function ProPage() {
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
           {/* Free Tier */}
           <div className="bg-[#171717] rounded-2xl p-6 border border-gray-800 flex flex-col hover:border-gray-600 transition-colors">
             <div className="mb-6">

@@ -1593,7 +1593,7 @@ function ChatMain({
 
   return (
     <div
-      className="flex-1 flex flex-col relative"
+      className="flex-1 min-h-0 flex flex-col relative"
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -2172,14 +2172,14 @@ function ChatMain({
       {selectedChat ? (
         <>
           {/* Chat Header */}
-          <div className="h-16 border-b border-gray-800 flex items-center justify-between px-6">
-            <div className="flex items-center gap-3">
+          <div className="h-14 md:h-16 border-b border-gray-800 flex items-center justify-between px-3 md:px-6">
+            <div className="flex items-center gap-1 md:gap-3 min-w-0">
               <button
                 onClick={() => setDeleteConfirmChat(true)}
-                className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-[#2f2f2f] rounded-lg"
+                className="text-gray-400 hover:text-white transition-colors p-1.5 md:p-2 hover:bg-[#2f2f2f] rounded-lg flex-shrink-0"
                 title="Delete chat"
               >
-                <Trash2 size={20} />
+                <Trash2 size={18} />
               </button>
 
               <button
@@ -2187,40 +2187,42 @@ function ChatMain({
                   setEditChatTitle(chatTitle || selectedChat?.title || "");
                   setShowEditChatModal(true);
                 }}
-                className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-[#2f2f2f] rounded-lg"
+                className="text-gray-400 hover:text-white transition-colors p-1.5 md:p-2 hover:bg-[#2f2f2f] rounded-lg flex-shrink-0"
                 title="Edit chat"
               >
-                <Pencil size={20} />
+                <Pencil size={18} />
               </button>
 
               <button
                 onClick={() => setShowGallery(true)}
-                className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-[#2f2f2f] rounded-lg"
+                className="text-gray-400 hover:text-white transition-colors p-1.5 md:p-2 hover:bg-[#2f2f2f] rounded-lg flex-shrink-0"
                 title="View Gallery"
               >
-                <Images size={20} />
+                <Images size={18} />
               </button>
-              <h2 className="text-lg font-semibold">{chatTitle}</h2>
+              <h2 className="text-sm md:text-lg font-semibold truncate">{chatTitle}</h2>
             </div>
 
             {/* Tokens y Notificaciones */}
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-2 bg-[#2f2f2f] px-3 py-1.5 rounded-lg">
+            <div className="flex items-center gap-1.5 md:space-x-3 flex-shrink-0">
+              <div className="hidden sm:flex items-center space-x-2 bg-[#2f2f2f] px-3 py-1.5 rounded-lg">
                 <CreditCard className="h-4 w-4 text-[#DC569D]" />
                 <span className="text-white text-sm font-medium">
-                  Tokens:{" "}
                   {isLoadingTokens
                     ? "..."
                     : Math.floor(tokens).toLocaleString("en-US")}
                 </span>
               </div>
+              <div className="flex sm:hidden items-center bg-[#2f2f2f] px-2 py-1.5 rounded-lg">
+                <CreditCard className="h-4 w-4 text-[#DC569D]" />
+              </div>
 
               <button
                 onClick={handleOpenTokenModal}
-                className="px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1"
+                className="px-2 md:px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1"
               >
                 <DollarSign className="h-3 w-3" />
-                Buy Tokens
+                <span className="hidden sm:inline">Buy Tokens</span>
               </button>
 
               {/* Notificaciones */}
@@ -2239,7 +2241,7 @@ function ChatMain({
 
                 {/* Dropdown de Notificaciones */}
                 {showNotifications && (
-                  <div className="absolute top-12 right-0 bg-[#2f2f2f] rounded-lg shadow-xl border border-gray-700 w-80 max-h-96 overflow-y-auto z-50">
+                  <div className="absolute top-12 right-0 bg-[#2f2f2f] rounded-lg shadow-xl border border-gray-700 w-72 sm:w-80 max-h-96 overflow-y-auto z-50">
                     <div className="p-3 border-b border-gray-700">
                       <h3 className="text-white font-medium">Notifications</h3>
                     </div>
@@ -2287,7 +2289,7 @@ function ChatMain({
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 md:p-6">
             <div className="max-w-4xl mx-auto space-y-4">
               {messages.length > 0 ? (
                 messages.map((msg) => (
@@ -2645,7 +2647,7 @@ function ChatMain({
           {messages.length > 0 ? (
             /* Show messages when preview exists */
             <>
-              <div className="flex-1 overflow-y-auto p-6">
+              <div className="flex-1 min-h-0 overflow-y-auto p-3 md:p-6">
                 <div className="max-w-4xl mx-auto space-y-4">
                   {messages.map((msg) => (
                     <div
@@ -2943,8 +2945,8 @@ function ChatMain({
             /* Initial empty state */
             <div className="flex-1 flex flex-col relative">
               {/* Tokens y Notificaciones - Top Right */}
-              <div className="absolute top-4 right-6 flex items-center space-x-3 z-10">
-                <div className="flex items-center space-x-2 bg-[#2f2f2f] px-3 py-1.5 rounded-lg">
+              <div className="absolute top-4 right-3 md:right-6 flex items-center gap-1.5 md:space-x-3 z-10">
+                <div className="hidden sm:flex items-center space-x-2 bg-[#2f2f2f] px-3 py-1.5 rounded-lg">
                   <CreditCard className="h-4 w-4 text-[#DC569D]" />
                   <span className="text-white text-sm font-medium">
                     Tokens:{" "}
@@ -2953,13 +2955,16 @@ function ChatMain({
                       : Math.floor(tokens).toLocaleString("en-US")}
                   </span>
                 </div>
+                <div className="flex sm:hidden items-center bg-[#2f2f2f] px-2 py-1.5 rounded-lg">
+                  <CreditCard className="h-4 w-4 text-[#DC569D]" />
+                </div>
 
                 <button
                   onClick={handleOpenTokenModal}
-                  className="px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1"
+                  className="px-2 md:px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1"
                 >
                   <DollarSign className="h-3 w-3" />
-                  Buy Tokens
+                  <span className="hidden sm:inline">Buy Tokens</span>
                 </button>
 
                 {/* Notificaciones */}
@@ -2978,7 +2983,7 @@ function ChatMain({
 
                   {/* Dropdown de Notificaciones */}
                   {showNotifications && (
-                    <div className="absolute top-12 right-0 bg-[#2f2f2f] rounded-lg shadow-xl border border-gray-700 w-80 max-h-96 overflow-y-auto z-50">
+                    <div className="absolute top-12 right-0 bg-[#2f2f2f] rounded-lg shadow-xl border border-gray-700 w-72 sm:w-80 max-h-96 overflow-y-auto z-50">
                       <div className="p-3 border-b border-gray-700">
                         <h3 className="text-white font-medium">
                           Notifications
@@ -3027,8 +3032,8 @@ function ChatMain({
               </div>
 
               <div className="flex-1 flex items-center justify-center">
-                <div className="text-center max-w-3xl w-3xl px-6">
-                  <h1 className="text-4xl font-semibold mb-4">
+                <div className="text-center max-w-3xl w-full px-4 md:px-6">
+                  <h1 className="text-2xl md:text-4xl font-semibold mb-4">
                     How can I help you?
                   </h1>
 

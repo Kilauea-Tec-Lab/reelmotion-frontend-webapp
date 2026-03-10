@@ -158,10 +158,10 @@ export default function MySubscription() {
   }
 
   return (
-    <div className="flex-1 h-screen overflow-y-auto bg-[#212121] text-white p-6 md:p-12">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="flex-1 h-screen overflow-y-auto bg-[#212121] text-white p-4 md:p-12">
+      <div className="max-w-6xl mx-auto space-y-6 md:space-y-8">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+          <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
             My Subscription
           </h1>
         </div>
@@ -228,42 +228,42 @@ export default function MySubscription() {
               className="bg-[#171717] rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto border border-gray-800 flex flex-col animate-in fade-in zoom-in duration-200"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6 border-b border-gray-800 flex justify-between items-center sticky top-0 bg-[#171717] z-10">
+              <div className="p-4 md:p-6 border-b border-gray-800 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sticky top-0 bg-[#171717] z-10">
                 <div>
-                  <h2 className="text-2xl font-bold">Change your plan</h2>
+                  <h2 className="text-xl md:text-2xl font-bold">Change your plan</h2>
                   <p className="text-gray-400 text-sm">
                     Choose the plan that best fits your needs
                   </p>
                 </div>
 
-                {/* Billing Toggle for Upgrade Modal */}
-                <div className="flex items-center gap-3 bg-[#212121] p-1 rounded-full border border-gray-700">
-                  <button
-                    onClick={() => setModalBillingCycle("monthly")}
-                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
-                      modalBillingCycle === "monthly"
-                        ? "bg-[#DC569D] text-white shadow-lg"
-                        : "text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    Monthly
-                  </button>
-                  <button
-                    onClick={() => setModalBillingCycle("yearly")}
-                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
-                      modalBillingCycle === "yearly"
-                        ? "bg-[#DC569D] text-white shadow-lg"
-                        : "text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    Yearly
-                  </button>
-                </div>
+                <div className="flex items-center gap-3">
+                  {/* Billing Toggle for Upgrade Modal */}
+                  <div className="flex items-center gap-2 bg-[#212121] p-1 rounded-full border border-gray-700">
+                    <button
+                      onClick={() => setModalBillingCycle("monthly")}
+                      className={`px-3 md:px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                        modalBillingCycle === "monthly"
+                          ? "bg-[#DC569D] text-white shadow-lg"
+                          : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      Monthly
+                    </button>
+                    <button
+                      onClick={() => setModalBillingCycle("yearly")}
+                      className={`px-3 md:px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                        modalBillingCycle === "yearly"
+                          ? "bg-[#DC569D] text-white shadow-lg"
+                          : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      Yearly
+                    </button>
+                  </div>
 
-                <div className="flex justify-end">
                   <button
                     onClick={() => setShowChangePlanModal(false)}
-                    className="p-2 hover:bg-gray-800 rounded-lg transition-colors ml-4"
+                    className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
                   >
                     <X size={20} className="text-gray-400" />
                   </button>

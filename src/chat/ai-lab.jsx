@@ -89,7 +89,7 @@ function ModelCard({ model }) {
 
 function AiLab() {
   return (
-    <main className="flex-1 bg-[#212121] p-6 overflow-y-auto">
+    <main className="flex-1 bg-[#212121] p-4 md:p-6 overflow-y-auto">
       <div className="max-w-6xl mx-auto min-h-full flex flex-col">
         <div className="flex items-center gap-3 mb-5">
           <div className="p-2 rounded-xl bg-[#DC569D]/20">
