@@ -29,6 +29,8 @@ function ChatSidebar({
   user,
   subscription,
   onOpenAiLab,
+  isOpen = false,
+  onClose,
 }) {
   const { chatId } = useParams();
   const navigate = useNavigate();
@@ -173,7 +175,7 @@ function ChatSidebar({
   };
 
   return (
-    <div className="w-64 bg-[#171717] border-r border-gray-800 flex flex-col">
+    <div className={`fixed md:relative inset-y-0 left-0 z-30 w-64 bg-[#171717] border-r border-gray-800 flex flex-col transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
       {/* Edit Chat Modal */}
       {editChatId && (
         <div
@@ -301,6 +303,7 @@ function ChatSidebar({
       <div className="p-4 border-b border-gray-800">
         <Link
           to={"/"}
+          onClick={onClose}
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
           <MessageCirclePlus size={20} />
@@ -310,7 +313,7 @@ function ChatSidebar({
           </span>
         </Link>
         <button
-          onClick={onOpenAiLab}
+          onClick={() => { onOpenAiLab(); onClose?.(); }}
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
           <FlaskConical size={20} />
@@ -318,6 +321,7 @@ function ChatSidebar({
         </button>
         <Link
           to={"/editor"}
+          onClick={onClose}
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
           <Clapperboard size={20} />
@@ -325,12 +329,13 @@ function ChatSidebar({
         </Link>
         <Link
           to={"/library"}
+          onClick={onClose}
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
           <LibraryBig size={20} />
           <span className="font-medium">Library</span>
         </Link>
-        {/* 
+        {/*
         <Link
           to={"/discover"}
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
@@ -344,6 +349,7 @@ function ChatSidebar({
         subscription.suscription !== "free" ? (
           <Link
             to={"/my-subscription"}
+            onClick={onClose}
             className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
           >
             <Crown size={20} className="text-[#DC569D]" />
@@ -352,6 +358,7 @@ function ChatSidebar({
         ) : (
           <Link
             to={"/pro"}
+            onClick={onClose}
             className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
           >
             <Crown size={20} className="text-[#DC569D]" />
@@ -393,6 +400,7 @@ function ChatSidebar({
           <div key={chat.id} className="relative group">
             <Link
               to={`/${chat.id}`}
+              onClick={onClose}
               className={`w-full px-4 py-3 hover:bg-[#212121] transition-colors text-left border-l-2 block ${
                 chatId === chat.id
                   ? "border-[#DC569D] bg-[#212121]"

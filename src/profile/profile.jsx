@@ -323,7 +323,7 @@ function Profile() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-primarioDark p-6">
+    <div className="flex-1 overflow-y-auto w-full bg-primarioDark p-4 md:p-6">
       <div className="w-full mx-auto">
         {/* Rewards Link Widget 
         <div className="bg-darkBox border border-gray-600 rounded-lg p-4 mb-6">
@@ -363,8 +363,8 @@ function Profile() {
         </div>*/}
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-white montserrat-medium text-3xl tracking-wider">
+        <div className="flex items-center justify-between mb-6 md:mb-8">
+          <h1 className="text-white montserrat-medium text-2xl md:text-3xl tracking-wider">
             Profile
           </h1>
 
@@ -399,7 +399,7 @@ function Profile() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
           {/* Profile Image and Basic Info */}
           <div className="lg:col-span-1">
             <div className="bg-darkBox rounded-2xl p-6">
