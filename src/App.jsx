@@ -30,37 +30,21 @@ import { getChatInfo, getChatDetails, getLibrary } from "./chat/functions";
 // Component to handle editor redirection
 function EditorRedirect() {
   useEffect(() => {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    // Get token from cookies using js-cookie
+    const token = Cookies.get("token");
 
-    if (!isMobile && import.meta.env.VITE_EDITOR_URL) {
-      // Get token from cookies using js-cookie
-      const token = Cookies.get("token");
-
-      // Create URL with token as path parameter
-      const editorUrl = new URL(import.meta.env.VITE_EDITOR_URL);
-      if (token) {
-        // Add token directly to path: /editor/{token}
-        editorUrl.pathname = `/${token}`;
-      }
-
-      // Small delay to ensure logs are visible
-      setTimeout(() => {
-        window.location.href = editorUrl.toString();
-      }, 100);
+    // Create URL with token as path parameter
+    const editorUrl = new URL(import.meta.env.VITE_EDITOR_URL);
+    if (token) {
+      // Add token directly to path: /editor/{token}
+      editorUrl.pathname = `/${token}`;
     }
+
+    // Small delay to ensure logs are visible
+    setTimeout(() => {
+      window.location.href = editorUrl.toString();
+    }, 100);
   }, []);
-
-  // Check if mobile
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-  // If mobile or no VITE_EDITOR_URL, show the local editor
-  if (isMobile || !import.meta.env.VITE_EDITOR_URL) {
-    console.log("🔍 EditorRedirect - Showing local editor:", {
-      isMobile,
-      hasEditorUrl: !!import.meta.env.VITE_EDITOR_URL,
-    });
-    return <Editor />;
-  }
 
   // Show loading while redirecting
   return (
