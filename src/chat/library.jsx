@@ -659,7 +659,7 @@ function Library() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-primarioDark">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-primarioDark">
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div
@@ -937,7 +937,7 @@ function Library() {
       )}
 
       {/* Header */}
-      <div className="min-h-14 md:h-16 border-b border-gray-800 flex items-center justify-between px-4 md:px-6 py-3 md:py-0">
+      <div className="min-h-14 md:h-16 border-b border-gray-800 flex items-center justify-between px-4 md:px-6 py-3 md:py-0 shrink-0">
         <div className="flex items-center gap-3">
           <Images className="h-6 w-6 text-[#DC569D] flex-shrink-0" />
           <h2 className="text-lg md:text-xl font-semibold text-white">Media Library</h2>
@@ -948,7 +948,7 @@ function Library() {
       </div>
 
       {/* Filter Buttons and Search */}
-      <div className="flex flex-col gap-3 p-4 md:p-6 border-b border-gray-800">
+      <div className="flex flex-col gap-3 p-4 md:p-6 border-b border-gray-800 shrink-0">
         {/* Filter Buttons */}
         <div className="flex flex-wrap gap-2">
           <button

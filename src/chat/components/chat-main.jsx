@@ -2213,8 +2213,13 @@ function ChatMain({
                     : Math.floor(tokens).toLocaleString("en-US")}
                 </span>
               </div>
-              <div className="flex sm:hidden items-center bg-[#2f2f2f] px-2 py-1.5 rounded-lg">
+              <div className="flex sm:hidden items-center gap-1 bg-[#2f2f2f] px-2 py-1.5 rounded-lg">
                 <CreditCard className="h-4 w-4 text-[#DC569D]" />
+                <span className="text-white text-xs font-medium">
+                  {isLoadingTokens
+                    ? "..."
+                    : Math.floor(tokens).toLocaleString("en-US")}
+                </span>
               </div>
 
               <button
@@ -2222,7 +2227,7 @@ function ChatMain({
                 className="px-2 md:px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1"
               >
                 <DollarSign className="h-3 w-3" />
-                <span className="hidden sm:inline">Buy Tokens</span>
+                <span>Buy Tokens</span>
               </button>
 
               {/* Notificaciones */}
@@ -2955,8 +2960,13 @@ function ChatMain({
                       : Math.floor(tokens).toLocaleString("en-US")}
                   </span>
                 </div>
-                <div className="flex sm:hidden items-center bg-[#2f2f2f] px-2 py-1.5 rounded-lg">
+                <div className="flex sm:hidden items-center gap-1 bg-[#2f2f2f] px-2 py-1.5 rounded-lg">
                   <CreditCard className="h-4 w-4 text-[#DC569D]" />
+                  <span className="text-white text-xs font-medium">
+                    {isLoadingTokens
+                      ? "..."
+                      : Math.floor(tokens).toLocaleString("en-US")}
+                  </span>
                 </div>
 
                 <button
@@ -2964,7 +2974,7 @@ function ChatMain({
                   className="px-2 md:px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1"
                 >
                   <DollarSign className="h-3 w-3" />
-                  <span className="hidden sm:inline">Buy Tokens</span>
+                  <span>Buy Tokens</span>
                 </button>
 
                 {/* Notificaciones */}
