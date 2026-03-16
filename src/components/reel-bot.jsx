@@ -201,7 +201,7 @@ function ReelBot({ onClose }) {
   };
 
   return (
-    <div className="fixed bottom-6 right-24 z-50 bg-darkBox rounded-2xl shadow-2xl w-96 h-[500px] flex flex-col">
+    <div className="fixed inset-4 z-50 bg-darkBox rounded-2xl shadow-2xl flex flex-col md:inset-auto md:bottom-6 md:right-24 md:w-96 md:h-[500px]">
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">

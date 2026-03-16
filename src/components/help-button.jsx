@@ -61,8 +61,8 @@ function HelpButton() {
 
   return (
     <>
-      {/* Help Button */}
-      <div ref={menuRef} className="fixed bottom-6 right-6 z-50">
+      {/* Help Button - hidden when a component is active */}
+      <div ref={menuRef} className={`fixed bottom-6 right-6 z-50 ${activeComponent ? "hidden" : ""}`}>
         <button
           onClick={handleButtonClick}
           className="bg-[#2f2f2f] hover:bg-[#3a3a3a] text-white border border-gray-600 p-4 rounded-full shadow-2xl transition-all transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-gray-600 focus:ring-opacity-50 animate-pulse hover:animate-none"

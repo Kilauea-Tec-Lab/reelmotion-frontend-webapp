@@ -81,7 +81,7 @@ function SuggestionsForm({ onClose }) {
 
   if (submitted) {
     return (
-      <div className="fixed bottom-6 right-24 z-50 bg-darkBox rounded-2xl shadow-2xl w-96 p-6">
+      <div className="fixed inset-4 z-50 bg-darkBox rounded-2xl shadow-2xl p-6 flex flex-col justify-center md:inset-auto md:bottom-6 md:right-24 md:w-96">
         <div className="text-center">
           <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
@@ -110,7 +110,7 @@ function SuggestionsForm({ onClose }) {
   }
 
   return (
-    <div className="fixed bottom-6 right-24 z-50 bg-darkBox rounded-2xl shadow-2xl w-96 max-h-[600px] overflow-y-auto">
+    <div className="fixed inset-4 z-50 bg-darkBox rounded-2xl shadow-2xl overflow-y-auto md:inset-auto md:bottom-6 md:right-24 md:w-96 md:max-h-[600px]">
       {/* Header */}
       <div className="flex items-center justify-between p-4 sticky top-0 bg-darkBox">
         <div>

@@ -54,7 +54,7 @@ function ChatLayout() {
         onClose={() => setIsSidebarOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
         {/* Mobile top bar */}
         <div className="md:hidden flex items-center gap-3 px-4 h-12 border-b border-gray-800 bg-[#171717] flex-shrink-0">
           <button

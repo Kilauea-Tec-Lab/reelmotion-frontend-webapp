@@ -16,7 +16,7 @@ function Discover() {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(initialData?.data?.current_page || 1);
   const [hasMore, setHasMore] = useState(
-    initialData?.data?.length > 0 ? !!initialData?.data?.next_page_url : false
+    initialData?.data?.length > 0 ? !!initialData?.data?.next_page_url : false,
   );
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,8 +45,8 @@ function Discover() {
   const handlePostUpdate = useCallback((postId, updatedPost) => {
     setPosts((prev) =>
       prev.map((post) =>
-        post.id === postId ? { ...post, ...updatedPost } : post
-      )
+        post.id === postId ? { ...post, ...updatedPost } : post,
+      ),
     );
   }, []);
 
@@ -111,7 +111,7 @@ function Discover() {
         ))}
       </div>
     ),
-    []
+    [],
   );
 
   return (

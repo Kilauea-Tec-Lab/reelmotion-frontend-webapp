@@ -1054,14 +1054,14 @@ function MainTopMenu({ user_info }) {
                       },
                     },
                   },
-                  description: `${breakdown.tokens} ReelMotion Tokens (Subtotal: $${itemTotal} + VAT: $${taxTotal})`,
+                  description: `${breakdown.tokens} Reelmotion Tokens (Subtotal: $${itemTotal} + VAT: $${taxTotal})`,
                   custom_id: `tokens-${breakdown.tokens}-total-${total}`,
                 },
               ],
               application_context: {
                 shipping_preference: "NO_SHIPPING",
                 user_action: "PAY_NOW",
-                brand_name: "ReelMotion AI",
+                brand_name: "Reelmotion AI",
                 landing_page: "BILLING",
               },
             });
@@ -1176,14 +1176,14 @@ function MainTopMenu({ user_info }) {
                       },
                     },
                   },
-                  description: `${breakdown.tokens} ReelMotion Tokens (Subtotal: $${itemTotal} + VAT: $${taxTotal})`,
+                  description: `${breakdown.tokens} Reelmotion Tokens (Subtotal: $${itemTotal} + VAT: $${taxTotal})`,
                   custom_id: `tokens-${breakdown.tokens}-total-${total}`,
                 },
               ],
               application_context: {
                 shipping_preference: "NO_SHIPPING",
                 user_action: "PAY_NOW",
-                brand_name: "ReelMotion AI",
+                brand_name: "Reelmotion AI",
                 landing_page: "BILLING",
                 payment_method: {
                   payee_preferred: "IMMEDIATE_PAYMENT_REQUIRED",

@@ -1509,23 +1509,23 @@ function AiLabModal({ isOpen, onClose }) {
   const toggleModels = () => setShowModels(!showModels);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center pb-6">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center pb-0 md:pb-6">
       {/* Backdrop */}
       <div className="absolute inset-0 backdrop-blur-xs" onClick={onClose} />
 
       {/* Modal - dynamic height */}
       <div
         className={`
-          relative w-[95vw] max-w-4xl 
-          bg-[#1c1c1c]/60 backdrop-blur-xl 
-          rounded-2xl border border-white/10 shadow-2xl 
-          flex flex-col overflow-hidden 
+          relative w-full md:w-[95vw] max-w-4xl
+          bg-[#1c1c1c]/60 backdrop-blur-xl
+          rounded-t-2xl md:rounded-2xl border border-white/10 shadow-2xl
+          flex flex-col overflow-hidden
           transition-all duration-300 ease-in-out
-          ${showModels || isGenerating || generatedImages.length > 0 || activeTab === "voice" ? "h-[600px]" : "h-auto"}
+          ${showModels || isGenerating || generatedImages.length > 0 || activeTab === "voice" ? "h-[85vh] md:h-[600px]" : "h-auto max-h-[85vh]"}
         `}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800/60 shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-b border-gray-800/60 shrink-0">
           <h2 className="text-white text-lg font-semibold flex items-center gap-2">
             AI Lab
           </h2>
@@ -1541,7 +1541,7 @@ function AiLabModal({ isOpen, onClose }) {
         {activeTab === "voice" && (
           <div className="flex-1 overflow-hidden flex flex-col">
             {/* Top bar: tokens + selected voice badge */}
-            <div className="flex items-center justify-between px-6 py-3 border-b border-gray-800/40">
+            <div className="flex items-center justify-between px-3 py-2 md:px-6 md:py-3 border-b border-gray-800/40 flex-wrap gap-2">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5 bg-[#2a2a2a] px-3 py-1 rounded-full border border-gray-700/50">
                   <CreditCard size={12} className="text-[#DC569D]" />
@@ -1580,9 +1580,9 @@ function AiLabModal({ isOpen, onClose }) {
 
             {showVoiceCreator ? (
               /* ===== VOICE CREATOR: 2-column layout ===== */
-              <div className="flex-1 flex overflow-hidden">
+              <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
                 {/* LEFT COLUMN: Voice library */}
-                <div className="w-[340px] border-r border-gray-800/40 flex flex-col shrink-0">
+                <div className="w-full md:w-[340px] border-b md:border-b-0 md:border-r border-gray-800/40 flex flex-col shrink-0 max-h-[50%] md:max-h-none">
                   {/* Search & Filters */}
                   <div className="px-4 pt-3 pb-2 space-y-2">
                     <div className="relative">
@@ -1706,7 +1706,7 @@ function AiLabModal({ isOpen, onClose }) {
                 </div>
 
                 {/* RIGHT COLUMN: Config + Text + Generate */}
-                <div className="flex-1 flex flex-col overflow-y-auto px-5 py-3 custom-scrollbar">
+                <div className="flex-1 flex flex-col overflow-y-auto px-3 py-2 md:px-5 md:py-3 custom-scrollbar">
                   {/* Model & Settings - compact row */}
                   <div className="mb-4">
                     <div className="flex items-center gap-3 mb-3">
@@ -1856,10 +1856,10 @@ function AiLabModal({ isOpen, onClose }) {
               </div>
             ) : (
               /* ===== GENERATED VOICE PLAYER ===== */
-              <div className="flex-1 flex items-center justify-center px-6 py-6">
+              <div className="flex-1 flex items-center justify-center px-3 py-3 md:px-6 md:py-6">
                 <div className="w-full max-w-lg">
                   {/* Waveform-style player card */}
-                  <div className="bg-[#1a1a1a]/80 rounded-2xl p-6 border border-gray-700/40">
+                  <div className="bg-[#1a1a1a]/80 rounded-2xl p-4 md:p-6 border border-gray-700/40">
                     <div className="flex items-center gap-4 mb-5">
                       <button
                         onClick={toggleVoicePlayPause}
@@ -2010,10 +2010,10 @@ function AiLabModal({ isOpen, onClose }) {
         {activeTab !== "voice" &&
           generatedImages.length > 0 &&
           !isGenerating && (
-            <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto px-3 py-3 md:px-6 md:py-4 custom-scrollbar">
               {/* Token info bar */}
               {generationInfo && (
-                <div className="flex items-center gap-3 mb-4 text-xs">
+                <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4 text-xs flex-wrap">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#DC569D]/10 border border-[#DC569D]/30 text-[#DC569D]">
                     <Coins size={12} />
                     {generationInfo.tokensUsed} tokens used
@@ -2108,8 +2108,8 @@ function AiLabModal({ isOpen, onClose }) {
           <div
             className={`overflow-y-auto custom-scrollbar transition-all duration-300 ease-in-out ${
               showModels
-                ? "opacity-100 flex-1 px-6 py-4"
-                : "opacity-0 h-0 overflow-hidden py-0 px-6"
+                ? "opacity-100 flex-1 px-3 py-3 md:px-6 md:py-4"
+                : "opacity-0 h-0 overflow-hidden py-0 px-3 md:px-6"
             }`}
           >
             <div className="flex flex-col h-full">
@@ -2148,11 +2148,11 @@ function AiLabModal({ isOpen, onClose }) {
         )}
 
         {/* Bottom Area */}
-        <div className="border-t border-gray-800/60 px-6 py-4 shrink-0 z-20">
+        <div className="border-t border-gray-800/60 px-3 py-3 md:px-6 md:py-4 shrink-0 z-20">
           {/* Input row */}
-          <div className="flex items-end gap-3">
+          <div className="flex items-end gap-2 md:gap-3">
             {/* Left action buttons */}
-            <div className="flex flex-col gap-2 pb-1">
+            <div className="flex flex-col gap-1.5 md:gap-2 pb-1">
               <button
                 type="button"
                 onClick={() => handleTabChange("image")}
@@ -2199,7 +2199,7 @@ function AiLabModal({ isOpen, onClose }) {
                     isDragOver
                       ? "border-[#DC569D] bg-[#DC569D]/10"
                       : "border-gray-700/60 bg-[#2a2a2a]/60"
-                  } px-4 py-3 min-h-[120px] flex flex-col`}
+                  } px-3 py-2 md:px-4 md:py-3 min-h-[80px] md:min-h-[120px] flex flex-col`}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
@@ -2276,7 +2276,7 @@ function AiLabModal({ isOpen, onClose }) {
                           ? "Describe the video you want to create"
                           : "Describe the image you want to create"
                       }
-                      className="flex-1 bg-transparent text-white placeholder:text-gray-500 outline-none text-sm resize-none h-full min-h-[80px]"
+                      className="flex-1 bg-transparent text-white placeholder:text-gray-500 outline-none text-sm resize-none h-full min-h-[50px] md:min-h-[80px]"
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
@@ -2329,7 +2329,7 @@ function AiLabModal({ isOpen, onClose }) {
 
           {/* Bottom toolbar - model info & settings */}
           {activeTab !== "voice" && (
-            <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <div className="mt-2 md:mt-3 flex items-center gap-1.5 md:gap-2 flex-wrap">
               {/* Selected model pill */}
               <button
                 onClick={toggleModels}
