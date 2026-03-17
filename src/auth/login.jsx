@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, X } from "lucide-react";
 import { createAccount, login } from "./functions";
@@ -55,6 +55,7 @@ function Login() {
     useState(false);
 
   // Video source based on screen size
+  const videoRef = useRef(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
@@ -62,6 +63,27 @@ function Login() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Force autoplay on mobile (iOS Safari requires programmatic play)
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      video.load();
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // Retry play on user interaction as fallback
+          const handleInteraction = () => {
+            video.play();
+            document.removeEventListener("touchstart", handleInteraction);
+            document.removeEventListener("click", handleInteraction);
+          };
+          document.addEventListener("touchstart", handleInteraction);
+          document.addEventListener("click", handleInteraction);
+        });
+      }
+    }
+  }, [isMobile]);
 
   // Referral code states
   const [referralCode, setReferralCode] = useState("");
@@ -295,11 +317,13 @@ function Login() {
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black">
       <video
+        ref={videoRef}
         autoPlay
         loop
         muted
         playsInline
         webkit-playsinline=""
+        preload="auto"
         className="absolute top-0 left-0 w-full h-full object-cover z-0"
         src={isMobile ? "/videos/bg_loop_mobile.mp4" : "/videos/bg_loop_desktop.webm"}
       />
