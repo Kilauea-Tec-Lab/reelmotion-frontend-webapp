@@ -54,6 +54,15 @@ function Login() {
   const [showCreatePasswordConfirm, setShowCreatePasswordConfirm] =
     useState(false);
 
+  // Video source based on screen size
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Referral code states
   const [referralCode, setReferralCode] = useState("");
   const [isReferralMode, setIsReferralMode] = useState(false);
@@ -284,21 +293,16 @@ function Login() {
   }
 
   return (
-    <div className="relative h-screen w-full overflow-hidden">
+    <div className="relative h-screen w-full overflow-hidden bg-black">
       <video
         autoPlay
         loop
         muted
         playsInline
+        webkit-playsinline=""
         className="absolute top-0 left-0 w-full h-full object-cover z-0"
-      >
-        <source
-          src="/videos/bg_loop_mobile.mp4"
-          type="video/mp4"
-          media="(max-width: 767px)"
-        />
-        <source src="/videos/bg_loop_desktop.webm" type="video/mp4" />
-      </video>
+        src={isMobile ? "/videos/bg_loop_mobile.mp4" : "/videos/bg_loop_desktop.webm"}
+      />
 
       {/* Overlay */}
       <div className="absolute top-0 left-0 w-full h-full bg-black/20 z-10" />
