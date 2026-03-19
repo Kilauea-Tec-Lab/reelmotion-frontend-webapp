@@ -162,7 +162,7 @@ function ChatSidebar({
       }
 
       if (chatId === deleteChatId) {
-        navigate("/");
+        navigate("/app");
       }
 
       closeDeleteModal();
@@ -302,7 +302,7 @@ function ChatSidebar({
       {/* Header */}
       <div className="p-4 border-b border-gray-800">
         <Link
-          to={"/"}
+          to={"/app"}
           onClick={onClose}
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
@@ -320,7 +320,7 @@ function ChatSidebar({
           <span className="font-medium">AI Lab</span>
         </button>
         <Link
-          to={"/editor"}
+          to={"/app/editor"}
           onClick={onClose}
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
@@ -328,7 +328,7 @@ function ChatSidebar({
           <span className="font-medium">Editor</span>
         </Link>
         <Link
-          to={"/library"}
+          to={"/app/library"}
           onClick={onClose}
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
@@ -337,7 +337,7 @@ function ChatSidebar({
         </Link>
         {/*
         <Link
-          to={"/discover"}
+          to={"/app/discover"}
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
           <Images size={20} />
@@ -348,7 +348,7 @@ function ChatSidebar({
         subscription.suscription &&
         subscription.suscription !== "free" ? (
           <Link
-            to={"/my-subscription"}
+            to={"/app/my-subscription"}
             onClick={onClose}
             className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
           >
@@ -357,7 +357,7 @@ function ChatSidebar({
           </Link>
         ) : (
           <Link
-            to={"/pro"}
+            to={"/app/pro"}
             onClick={onClose}
             className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
           >
@@ -399,7 +399,7 @@ function ChatSidebar({
         {filteredChats.map((chat) => (
           <div key={chat.id} className="relative group">
             <Link
-              to={`/${chat.id}`}
+              to={`/app/${chat.id}`}
               onClick={onClose}
               className={`w-full px-4 py-3 hover:bg-[#212121] transition-colors text-left border-l-2 block ${
                 chatId === chat.id
@@ -487,7 +487,7 @@ function ChatSidebar({
         {showUserMenu && (
           <div className="absolute bottom-full left-4 right-4 mb-2 bg-[#2f2f2f] rounded-lg shadow-xl border border-gray-700 overflow-hidden">
             <Link
-              to="/profile"
+              to="/app/profile"
               className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-[#3a3a3a] transition-colors"
               onClick={() => setShowUserMenu(false)}
             >

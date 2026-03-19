@@ -68,7 +68,7 @@ function PostDetail() {
             The post you're looking for doesn't exist or has been removed.
           </p>
           <button
-            onClick={() => navigate("/discover")}
+            onClick={() => navigate("/app/discover")}
             className="bg-[#F2D543] text-primarioDark px-6 py-2 rounded-3xl montserrat-medium hover:bg-[#f2f243] transition-colors"
           >
             Back to Discover
@@ -89,7 +89,7 @@ function PostDetail() {
             className="sm:h-10 h-8"
           />
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/app")}
             className="bg-[#F2D543] text-primarioDark text-sm px-3 py-1 rounded-3xl montserrat-medium hover:bg-[#f2f243] transition-colors"
           >
             Sign In

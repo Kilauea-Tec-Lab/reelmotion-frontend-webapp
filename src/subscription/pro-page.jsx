@@ -971,7 +971,7 @@ export default function ProPage() {
   };
 
   const handleSuccessContinue = () => {
-    navigate("/my-subscription");
+    navigate("/app/my-subscription");
   };
 
   const features = {

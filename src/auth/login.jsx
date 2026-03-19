@@ -148,7 +148,7 @@ function Login() {
           cookieCheck ? "Found" : "Not found",
         );
 
-        window.location.replace("/");
+        window.location.replace("/app");
       } else {
         const errorData = await loginCall.json();
 
@@ -290,7 +290,7 @@ function Login() {
         cookieCheck ? "Found" : "Not found",
       );
 
-      window.location.replace("/");
+      window.location.replace("/app");
     } else {
       const errorData = await register.json();
 

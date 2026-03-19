@@ -292,7 +292,7 @@ function ModalExportEdit({
         }
         onClose();
         // Redirigir a la página de inicio después de la exportación exitosa
-        navigate("/");
+        navigate("/app");
       } else {
         const errorMessage =
           responseData.message ||

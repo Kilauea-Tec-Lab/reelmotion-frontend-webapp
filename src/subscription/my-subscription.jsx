@@ -71,7 +71,7 @@ export default function MySubscription() {
         // Redirigir a la página de planes si no hay suscripción
         // Asumiendo que /pro es la ruta para pro-page.jsx
         // Necesito confirmar la ruta en App.jsx, pero por el contexto parece ser una navegación lógica.
-        navigate("/pro");
+        navigate("/app/pro");
         return;
       }
 
@@ -448,7 +448,7 @@ export default function MySubscription() {
               <div className="space-y-4">
                 <button
                   onClick={() => {
-                    navigate("/pro", {
+                    navigate("/app/pro", {
                       state: {
                         ...pendingSelection,
                         prorationBehavior: "new_cycle",
@@ -475,7 +475,7 @@ export default function MySubscription() {
 
                 <button
                   onClick={() => {
-                    navigate("/pro", {
+                    navigate("/app/pro", {
                       state: {
                         ...pendingSelection,
                         prorationBehavior: "prorate",

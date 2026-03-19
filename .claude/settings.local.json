@@ -1,7 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(grep:*)",
+      "WebFetch(domain:labs.google)",
+      "WebFetch(domain:21st.dev)",
+      "Bash(ffmpeg:*)",
+      "Bash(where ffmpeg:*)",
+      "Bash(winget install:*)",
+      "Bash(export:*)",
+      "Bash(npm install:*)",
+      "WebFetch(domain:artlist.io)",
+      "WebFetch(domain:higgsfield.ai)",
+      "Bash(ls:*)",
+      "Bash(npm run:*)"
     ]
   }
 }
