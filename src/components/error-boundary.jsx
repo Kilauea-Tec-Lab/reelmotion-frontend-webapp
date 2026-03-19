@@ -22,7 +22,7 @@ function ErrorBoundary() {
             "An unexpected error occurred"}
         </h2>
         <button
-          onClick={() => window.location.assign("/")}
+          onClick={() => window.location.assign("/app")}
           className="bg-[#F2D543] text-primarioDark px-8 py-2 rounded-3xl font-medium hover:bg-[#f2f243] items-center gap-2 transition-colors"
         >
           Try Again

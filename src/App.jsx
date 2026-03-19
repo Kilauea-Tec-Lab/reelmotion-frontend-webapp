@@ -1,9 +1,8 @@
-import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import { RouterProvider, createBrowserRouter, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import Cookies from "js-cookie";
 import "./App.css";
 import Editor from "./editor/editor";
-import Login from "./auth/login";
 import ResetPassword from "./auth/reset-password";
 import VerifyEmail from "./auth/verify-email";
 import Home from "./dashboard/home";
@@ -26,6 +25,7 @@ import AiLab from "./chat/ai-lab";
 import ProPage from "./subscription/pro-page";
 import MySubscription from "./subscription/my-subscription";
 import { getChatInfo, getChatDetails, getLibrary } from "./chat/functions";
+import LandingPage from "./landing/landing-page";
 
 // Component to handle editor redirection
 function EditorRedirect() {
@@ -56,10 +56,16 @@ function EditorRedirect() {
   );
 }
 
+// Redirect /login to landing page (preserving query params for referral codes)
+function LoginRedirect() {
+  const search = window.location.search;
+  return <Navigate to={`/${search}`} replace />;
+}
+
 const router = createBrowserRouter([
   {
     path: "/login",
-    element: <Login />,
+    element: <LoginRedirect />,
     errorElement: <ErrorBoundary />,
   },
   {
@@ -78,6 +84,10 @@ const router = createBrowserRouter([
   },
   {
     path: "/",
+    element: <LandingPage />,
+  },
+  {
+    path: "/app",
     element: <ChatLayout />,
     loader: getChatInfo,
     errorElement: <ErrorBoundary />,

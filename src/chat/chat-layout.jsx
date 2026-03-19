@@ -127,7 +127,7 @@ function ChatLayout() {
               <button
                 onClick={() => {
                   handleCloseWelcome();
-                  navigate("/pro");
+                  navigate("/app/pro");
                 }}
                 className="w-full bg-gradient-to-r from-[#DC569D] to-[#c9458b] text-white py-3.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-lg shadow-[#DC569D]/20 flex items-center justify-center gap-2"
               >
@@ -137,7 +137,7 @@ function ChatLayout() {
               <button
                 onClick={() => {
                   handleCloseWelcome();
-                  navigate("/my-subscription");
+                  navigate("/app/my-subscription");
                 }}
                 className="w-full bg-[#F2D543] text-[#161619] py-3.5 rounded-xl font-bold hover:bg-[#f2f243] transition-all flex items-center justify-center gap-2"
               >

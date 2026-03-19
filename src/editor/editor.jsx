@@ -4785,7 +4785,7 @@ function Editor() {
             {/* Menu Icons - Always Visible */}
             <div className="w-[64px] min-w-[64px]">
               <Link
-                to="/"
+                to="/app"
                 className={
                   "text-white text-center flex items-center justify-center h-16 cursor-pointer hover:bg-primarioLogo"
                 }

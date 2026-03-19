@@ -1940,7 +1940,7 @@ function MainTopMenu({ user_info }) {
           {showUserMenu && (
             <div className="absolute top-12 right-0 bg-darkBoxSub rounded-lg shadow-lg z-10 min-w-[160px]">
               <Link
-                to="/profile"
+                to="/app/profile"
                 className="w-full text-left flex items-center gap-2 px-4 py-3 text-sm text-white montserrat-light hover:bg-darkBox transition-colors rounded-lg"
               >
                 <Cog size={16} />
