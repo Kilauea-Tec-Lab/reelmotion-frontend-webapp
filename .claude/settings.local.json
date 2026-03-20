@@ -13,7 +13,10 @@
       "WebFetch(domain:artlist.io)",
       "WebFetch(domain:higgsfield.ai)",
       "Bash(ls:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__plugin_playwright_playwright__browser_evaluate"
     ]
   }
 }

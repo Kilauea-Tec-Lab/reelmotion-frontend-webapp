@@ -351,7 +351,7 @@ export default function TermsPage() {
       {/* Header */}
       <div className="max-w-3xl mx-auto px-6 pt-16 pb-10">
         <div className="flex items-center gap-3 mb-6">
-          <img src="/logos/icon_reelmotion_ai.png" alt="Reelmotion AI" className="h-8" />
+          <img src="/logos/logo_reelmotion_new.webp" alt="Reelmotion AI" className="h-8" />
           <span className="text-xs font-mono text-gray-600 uppercase tracking-widest">{t.badge}</span>
         </div>
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">{t.title}</h1>

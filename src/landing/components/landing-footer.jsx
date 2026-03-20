@@ -50,9 +50,9 @@ const LandingFooter = () => {
           <div className="md:col-span-2 flex flex-col gap-5">
             <div className="flex items-center gap-3">
               <img
-                src="/logos/icon_reelmotion_ai.png"
+                src="/logos/logo_reelmotion_new.webp"
                 alt="Reelmotion AI"
-                className="h-9"
+                className="h-8 w-auto"
               />
             </div>
 

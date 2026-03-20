@@ -40,9 +40,9 @@ const LandingNavbar = ({ scrollRef, onOpenAuth }) => {
             {/* Logo */}
             <Link to="/" className="flex-shrink-0">
               <img
-                src="/logos/icon_reelmotion_ai.png"
+                src="/logos/logo_reelmotion_new.webp"
                 alt="Reelmotion AI"
-                className="h-9"
+                className="h-8 w-auto"
               />
             </Link>
 
