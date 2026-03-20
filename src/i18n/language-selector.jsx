@@ -8,13 +8,21 @@ export default function LanguageSelector() {
     setLocale(locale === "en" ? "es" : "en");
   };
 
+  const isEn = locale === "en";
+
   return (
     <button
       onClick={toggle}
-      className="bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg px-3 py-1.5 text-sm text-white transition-colors"
+      className="bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg px-3 py-1.5 text-sm text-white transition-colors flex items-center gap-1.5"
       aria-label="Toggle language"
     >
-      {locale === "en" ? "\u{1F1FA}\u{1F1F8} EN" : "\u{1F1EA}\u{1F1F8} ES"}
+      <img
+        src={isEn ? "https://flagcdn.com/w20/us.png" : "https://flagcdn.com/w20/es.png"}
+        width="20"
+        alt={isEn ? "US" : "ES"}
+        className="rounded-sm"
+      />
+      {isEn ? "EN" : "ES"}
     </button>
   );
 }
