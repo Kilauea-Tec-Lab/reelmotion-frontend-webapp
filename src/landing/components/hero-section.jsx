@@ -4,8 +4,6 @@ import WebGLShader from "./webgl-shader";
 import { LiquidButton } from "../../components/ui/liquid-glass-button";
 import { motion } from "framer-motion";
 import { ChevronDown, Play, Sparkles } from "lucide-react";
-import Cookies from "js-cookie";
-import { Link } from "react-router-dom";
 
 const models = [
   "Sora 2", "Kling V3", "Veo 3.1", "Runway 4.5",
@@ -15,17 +13,13 @@ const models = [
 
 const HeroSection = ({ onOpenAuth }) => {
   const { t } = useI18n();
-  const isLoggedIn = !!Cookies.get("token");
-
   const handleScrollToDemo = (e) => {
     e.preventDefault();
     const el = document.getElementById("demo");
     if (el) el.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleCTA = (e) => {
-    if (isLoggedIn) return;
-    e.preventDefault();
+  const handleCTA = () => {
     onOpenAuth?.();
   };
 
@@ -116,21 +110,13 @@ const HeroSection = ({ onOpenAuth }) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
         >
-          {isLoggedIn ? (
-            <Link to="/app">
-              <LiquidButton size="xl" className="text-white border border-white/30 rounded-full font-bold">
-                {t("hero.go-to-dashboard")}
-              </LiquidButton>
-            </Link>
-          ) : (
-            <LiquidButton
-              size="xl"
-              onClick={handleCTA}
-              className="text-white border border-[#DC569D]/60 rounded-full font-bold bg-[#DC569D]/20"
-            >
-              {t("hero.cta-primary")}
-            </LiquidButton>
-          )}
+          <LiquidButton
+            size="xl"
+            onClick={handleCTA}
+            className="text-white border border-[#DC569D]/60 rounded-full font-bold bg-[#DC569D]/20"
+          >
+            {t("hero.cta-primary")}
+          </LiquidButton>
 
           <a
             href="#demo"
