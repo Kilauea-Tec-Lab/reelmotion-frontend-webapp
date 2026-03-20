@@ -7,7 +7,6 @@ import {
 } from "framer-motion";
 import { useI18n } from "../../i18n/i18n-context";
 import LanguageSelector from "../../i18n/language-selector";
-import Cookies from "js-cookie";
 import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
@@ -26,11 +25,7 @@ const LandingNavbar = ({ scrollRef, onOpenAuth }) => {
   const bgOpacity = useTransform(scrollY, [0, 100], [0, 0.95]);
   const bg = useMotionTemplate`rgba(12, 12, 13, ${bgOpacity})`;
 
-  const isLoggedIn = !!Cookies.get("token");
-
-  const handleCTA = (e) => {
-    if (isLoggedIn) return; // Let the Link navigate
-    e.preventDefault();
+  const handleCTA = () => {
     onOpenAuth?.();
   };
 
@@ -73,21 +68,12 @@ const LandingNavbar = ({ scrollRef, onOpenAuth }) => {
             <div className="flex items-center gap-3">
               <LanguageSelector />
 
-              {isLoggedIn ? (
-                <Link
-                  to="/app"
-                  className="hidden md:inline-flex bg-[#DC569D] hover:bg-[#c44a87] text-white text-sm font-semibold px-5 py-2 rounded-lg transition-all"
-                >
-                  {t("nav.go-to-dashboard")}
-                </Link>
-              ) : (
-                <button
-                  onClick={handleCTA}
-                  className="hidden md:inline-flex bg-[#DC569D] hover:bg-[#c44a87] text-white text-sm font-semibold px-5 py-2 rounded-lg transition-all"
-                >
-                  {t("nav.get-started")}
-                </button>
-              )}
+              <button
+                onClick={handleCTA}
+                className="hidden md:inline-flex bg-[#DC569D] hover:bg-[#c44a87] text-white text-sm font-semibold px-5 py-2 rounded-lg transition-all"
+              >
+                {t("nav.get-started")}
+              </button>
 
               {/* Mobile hamburger */}
               <button
@@ -128,25 +114,15 @@ const LandingNavbar = ({ scrollRef, onOpenAuth }) => {
                 {t(link.labelKey)}
               </a>
             ))}
-            {isLoggedIn ? (
-              <Link
-                to="/app"
-                className="bg-[#DC569D] hover:bg-[#c44a87] text-white text-sm font-semibold px-5 py-2 rounded-lg transition-all text-center"
-                onClick={() => setMobileOpen(false)}
-              >
-                {t("nav.go-to-dashboard")}
-              </Link>
-            ) : (
-              <button
-                onClick={() => {
-                  setMobileOpen(false);
-                  onOpenAuth?.();
-                }}
-                className="bg-[#DC569D] hover:bg-[#c44a87] text-white text-sm font-semibold px-5 py-2 rounded-lg transition-all text-center"
-              >
-                {t("nav.get-started")}
-              </button>
-            )}
+            <button
+              onClick={() => {
+                setMobileOpen(false);
+                onOpenAuth?.();
+              }}
+              className="bg-[#DC569D] hover:bg-[#c44a87] text-white text-sm font-semibold px-5 py-2 rounded-lg transition-all text-center"
+            >
+              {t("nav.get-started")}
+            </button>
           </div>
         </motion.div>
       </div>

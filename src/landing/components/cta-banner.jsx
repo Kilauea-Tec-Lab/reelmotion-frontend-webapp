@@ -2,14 +2,11 @@ import React from "react";
 import { motion } from "framer-motion";
 import { useI18n } from "../../i18n/i18n-context";
 import { ArrowRight, Sparkles } from "lucide-react";
-import Cookies from "js-cookie";
-import { Link } from "react-router-dom";
 
 const CtaBanner = ({ onOpenAuth }) => {
   const { t } = useI18n();
-  const isLoggedIn = !!Cookies.get("token");
   const handleCTA = () => {
-    if (!isLoggedIn) onOpenAuth?.();
+    onOpenAuth?.();
   };
 
   return (
@@ -71,47 +68,25 @@ const CtaBanner = ({ onOpenAuth }) => {
 
           {/* CTA Button */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            {isLoggedIn ? (
-              <Link
-                to="/app"
-                className="group flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-white text-lg transition-all duration-300"
-                style={{
-                  background: "linear-gradient(135deg, #DC569D, #c44a87)",
-                  boxShadow: "0 0 30px rgba(220,86,157,0.3), 0 8px 30px rgba(0,0,0,0.3)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = "0 0 50px rgba(220,86,157,0.5), 0 8px 30px rgba(0,0,0,0.3)";
-                  e.currentTarget.style.transform = "translateY(-2px)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = "0 0 30px rgba(220,86,157,0.3), 0 8px 30px rgba(0,0,0,0.3)";
-                  e.currentTarget.style.transform = "translateY(0)";
-                }}
-              >
-                {t("nav.go-to-dashboard")}
-                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-              </Link>
-            ) : (
-              <button
-                onClick={handleCTA}
-                className="group flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-white text-lg transition-all duration-300"
-                style={{
-                  background: "linear-gradient(135deg, #DC569D, #c44a87)",
-                  boxShadow: "0 0 30px rgba(220,86,157,0.3), 0 8px 30px rgba(0,0,0,0.3)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = "0 0 50px rgba(220,86,157,0.5), 0 8px 30px rgba(0,0,0,0.3)";
-                  e.currentTarget.style.transform = "translateY(-2px)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = "0 0 30px rgba(220,86,157,0.3), 0 8px 30px rgba(0,0,0,0.3)";
-                  e.currentTarget.style.transform = "translateY(0)";
-                }}
-              >
-                {t("cta.button")}
-                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-              </button>
-            )}
+            <button
+              onClick={handleCTA}
+              className="group flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-white text-lg transition-all duration-300"
+              style={{
+                background: "linear-gradient(135deg, #DC569D, #c44a87)",
+                boxShadow: "0 0 30px rgba(220,86,157,0.3), 0 8px 30px rgba(0,0,0,0.3)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = "0 0 50px rgba(220,86,157,0.5), 0 8px 30px rgba(0,0,0,0.3)";
+                e.currentTarget.style.transform = "translateY(-2px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = "0 0 30px rgba(220,86,157,0.3), 0 8px 30px rgba(0,0,0,0.3)";
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+            >
+              {t("cta.button")}
+              <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+            </button>
 
             <span className="text-xs text-gray-600 font-mono">
               {t("cta.note")}

@@ -26,6 +26,8 @@ import ProPage from "./subscription/pro-page";
 import MySubscription from "./subscription/my-subscription";
 import { getChatInfo, getChatDetails, getLibrary } from "./chat/functions";
 import LandingPage from "./landing/landing-page";
+import TermsPage from "./legal/terms";
+import PrivacyPage from "./legal/privacy";
 
 // Component to handle editor redirection
 function EditorRedirect() {
@@ -85,6 +87,14 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <LandingPage />,
+  },
+  {
+    path: "/terms",
+    element: <TermsPage />,
+  },
+  {
+    path: "/privacy",
+    element: <PrivacyPage />,
   },
   {
     path: "/app",
