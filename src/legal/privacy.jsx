@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useI18n } from "../i18n/i18n-context";
 import LanguageSelector from "../i18n/language-selector";
+import SEO from "../components/seo";
 
 function Section({ number, title, children }) {
   return (
@@ -332,6 +333,12 @@ export default function PrivacyPage() {
 
   return (
     <div className="bg-[#0C0C0D] text-white">
+      <SEO
+        title="Privacy Policy — Reelmotion AI"
+        description="Privacy Policy for Reelmotion AI. Learn how we collect, use, and protect your personal data on our AI content creation platform."
+        url="https://reelmotion.ai/privacy"
+        lang={locale}
+      />
       {/* Top bar */}
       <div className="sticky top-0 z-10 border-b border-white/5 bg-[#0C0C0D]/95 backdrop-blur-sm">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">

@@ -31,6 +31,7 @@ const LandingNavbar = ({ scrollRef, onOpenAuth }) => {
 
   return (
     <motion.nav
+      aria-label="Main navigation"
       style={{ backgroundColor: bg }}
       className="fixed top-0 w-full z-50 transition-all"
     >

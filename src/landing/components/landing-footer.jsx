@@ -35,7 +35,7 @@ const LandingFooter = () => {
   };
 
   return (
-    <footer style={{ background: "#060608", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+    <footer aria-label="Footer navigation" style={{ background: "#060608", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
       {/* Top glow line */}
       <div
         className="h-px w-full"

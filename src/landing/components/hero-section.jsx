@@ -24,7 +24,7 @@ const HeroSection = ({ onOpenAuth }) => {
   };
 
   return (
-    <section className="relative h-screen flex items-center justify-center overflow-hidden">
+    <section aria-label="Hero" className="relative h-screen flex items-center justify-center overflow-hidden">
       {/* Layer 0: Dot grid overlay */}
       <div
         className="absolute inset-0 z-[1] pointer-events-none"
@@ -95,7 +95,7 @@ const HeroSection = ({ onOpenAuth }) => {
 
         {/* Subtitle */}
         <motion.p
-          className="text-base md:text-lg text-gray-300 max-w-2xl mx-auto text-center mt-4 mb-7 font-light leading-relaxed"
+          className="hero-subtitle text-base md:text-lg text-gray-300 max-w-2xl mx-auto text-center mt-4 mb-7 font-light leading-relaxed"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}

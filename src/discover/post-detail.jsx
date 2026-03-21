@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import PostCard from "./components/post-card";
 import { getDiscoverPosts } from "./functions";
+import SEO from "../components/seo";
 
 function PostDetail() {
   const { id } = useParams();
@@ -80,7 +81,14 @@ function PostDetail() {
 
   return (
     <div className="min-h-screen bg-primarioDark">
-      /* Header */
+      <SEO
+        title={`${post.user?.name || "Creator"}'s AI Creation — Reelmotion AI`}
+        description={post.prompt || "AI-generated content created with Reelmotion AI"}
+        image={post.thumbnail || post.image_url || post.video_url}
+        url={`https://reelmotion.ai/discover/post/${id}`}
+        type="article"
+      />
+      {/* Header */}
       <div className="sticky top-0 bg-primarioDark border-b border-darkBoxSub z-10 p-0 w-full">
         <div className="flex items-center justify-between px-4">
           <img

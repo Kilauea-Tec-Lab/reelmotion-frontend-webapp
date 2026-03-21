@@ -5,6 +5,11 @@
     <link rel="icon" type="image/png" href="/logos/icon_reelmotion_ai.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#DC569D" />
+    <meta name="author" content="Kilauea Tec Lab" />
+    <meta name="application-name" content="Reelmotion AI" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="apple-touch-icon" href="/logos/icon_reelmotion_ai.png" />
+    <link rel="manifest" href="/manifest.json" />
 
     <!-- Primary SEO -->
     <title>Reelmotion AI — Create Professional Videos, Images & Audio with AI</title>
@@ -40,46 +45,141 @@
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Reelmotion AI",
-      "description": "AI-powered platform to generate professional videos, images, and voiceovers with guided prompt building. No expertise required.",
-      "url": "https://reelmotion.ai",
-      "applicationCategory": "MultimediaApplication",
-      "operatingSystem": "Web",
-      "offers": [
+      "@graph": [
         {
-          "@type": "Offer",
-          "name": "Free",
-          "price": "0",
-          "priceCurrency": "USD"
+          "@type": "Organization",
+          "@id": "https://reelmotion.ai/#organization",
+          "name": "Kilauea Tec Lab",
+          "url": "https://reelmotion.ai",
+          "logo": "https://reelmotion.ai/logos/logo_reelmotion_new.png",
+          "sameAs": [
+            "https://x.com/ReelmotionAI",
+            "https://www.instagram.com/reelmotion_ai/",
+            "https://www.youtube.com/playlist?list=PLus6MnxFx_4XkYHEAy5XhfiJr9F3tkIBZ",
+            "https://www.linkedin.com/company/reelmotion-ai/"
+          ]
         },
         {
-          "@type": "Offer",
-          "name": "Pro",
-          "price": "17.99",
-          "priceCurrency": "USD",
-          "billingIncrement": "P1M"
+          "@type": "WebSite",
+          "@id": "https://reelmotion.ai/#website",
+          "url": "https://reelmotion.ai",
+          "name": "Reelmotion AI",
+          "publisher": { "@id": "https://reelmotion.ai/#organization" },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://reelmotion.ai/?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          },
+          "inLanguage": ["en", "es"]
         },
         {
-          "@type": "Offer",
-          "name": "Elite",
-          "price": "47.99",
-          "priceCurrency": "USD",
-          "billingIncrement": "P1M"
+          "@type": "WebPage",
+          "@id": "https://reelmotion.ai/#webpage",
+          "url": "https://reelmotion.ai",
+          "name": "Reelmotion AI — Create Professional Videos, Images & Audio with AI",
+          "isPartOf": { "@id": "https://reelmotion.ai/#website" },
+          "about": { "@id": "https://reelmotion.ai/#organization" },
+          "speakable": {
+            "@type": "SpeakableSpecification",
+            "cssSelector": ["h1", ".hero-subtitle", ".social-proof"]
+          },
+          "inLanguage": "en"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "Reelmotion AI",
+          "description": "AI-powered platform to generate professional videos, images, and voiceovers with guided prompt building. No expertise required.",
+          "url": "https://reelmotion.ai",
+          "applicationCategory": "MultimediaApplication",
+          "operatingSystem": "Web",
+          "offers": [
+            {
+              "@type": "Offer",
+              "name": "Free",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            {
+              "@type": "Offer",
+              "name": "Pro",
+              "price": "17.99",
+              "priceCurrency": "USD",
+              "billingIncrement": "P1M"
+            },
+            {
+              "@type": "Offer",
+              "name": "Elite",
+              "price": "47.99",
+              "priceCurrency": "USD",
+              "billingIncrement": "P1M"
+            }
+          ],
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.8",
+            "ratingCount": "10000"
+          },
+          "creator": { "@id": "https://reelmotion.ai/#organization" }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://reelmotion.ai/" },
+            { "@type": "ListItem", "position": 2, "name": "Terms of Service", "item": "https://reelmotion.ai/terms" },
+            { "@type": "ListItem", "position": 3, "name": "Privacy Policy", "item": "https://reelmotion.ai/privacy" }
+          ]
+        },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is Reelmotion AI?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Reelmotion AI is an AI-powered platform that lets you create professional videos, images, and voiceovers using 15+ AI models including Sora 2, Veo 3.1, and Kling V3. No prompting expertise required — ReelBot, an AI agent, guides you step by step through the entire creative process."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How does Reelmotion AI work?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Reelmotion uses an AI agent called ReelBot that guides you through content creation. You describe what you want in natural language, and ReelBot helps you select the right AI model, craft the optimal prompt, and generate studio-quality output — no technical skills needed."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How much does Reelmotion AI cost?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Reelmotion offers three plans: Free ($0/month with 50 tokens for basic image generation), Pro ($17.99/month with 2,500 tokens and access to all models including video generation), and Elite ($47.99/month with 10,000 tokens, priority rendering, and commercial license). Annual billing saves up to 10%."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What AI models does Reelmotion support?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Reelmotion integrates 15+ AI models including Sora 2, Kling V3, Veo 3.1, Runway Gen-4.5, Luma Dream Machine, Nano Banana 2, GPT-4o Vision, Freepik Mystic, Kling 03, and ElevenLabs TTS for voice generation."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I use Reelmotion AI for free?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Reelmotion offers a free-forever plan with 50 tokens per month and access to basic AI image generation models. No credit card required to get started."
+              }
+            }
+          ]
         }
-      ],
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "4.8",
-        "ratingCount": "10000"
-      },
-      "creator": {
-        "@type": "Organization",
-        "name": "Kilauea Tec Lab",
-        "url": "https://reelmotion.ai"
-      }
+      ]
     }
     </script>
+
+    <!-- Resource hints -->
+    <link rel="preload" href="/logos/logo_reelmotion_new.webp" as="image" type="image/webp" />
 
     <!-- Google Fonts - Montserrat -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
