@@ -1,0 +1,16 @@
+{
+  "name": "Reelmotion AI",
+  "short_name": "Reelmotion",
+  "description": "Create professional AI videos, images & audio",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0C0C0D",
+  "theme_color": "#DC569D",
+  "icons": [
+    {
+      "src": "/logos/icon_reelmotion_ai.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

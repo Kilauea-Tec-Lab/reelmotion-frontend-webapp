@@ -28,7 +28,7 @@ const SocialProofSection = () => {
       {/* Stats row */}
       <div className="border-y border-white/5 py-16 md:py-20">
         <AnimatedSection className="max-w-6xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 text-center">
+          <div className="social-proof grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 text-center">
             {stats.map((stat) => {
               const Icon = stat.icon;
               return (

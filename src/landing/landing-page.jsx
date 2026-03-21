@@ -10,10 +10,13 @@ import PricingSection from "./components/pricing-section";
 import LandingFooter from "./components/landing-footer";
 import AuthModal from "../auth/auth-modal";
 import CtaBanner from "./components/cta-banner";
+import SEO from "../components/seo";
+import { useI18n } from "../i18n/i18n-context";
 
 function LandingPage() {
   const scrollRef = useRef(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const { locale } = useI18n();
 
   // Auto-open auth modal if referral code in URL
   useEffect(() => {
@@ -29,6 +32,7 @@ function LandingPage() {
       className="bg-[#0C0C0D] text-white h-screen overflow-y-auto overflow-x-hidden"
       style={{ scrollBehavior: 'smooth' }}
     >
+      <SEO lang={locale} />
       <LandingNavbar scrollRef={scrollRef} onOpenAuth={() => setShowAuthModal(true)} />
       <HeroSection onOpenAuth={() => setShowAuthModal(true)} />
       <SocialProofSection />

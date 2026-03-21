@@ -1,8 +1,41 @@
 # Reelmotion AI - robots.txt
+
+# Standard search engines
 User-agent: *
 Allow: /
 Disallow: /app/
 Disallow: /api/
+
+# Google AI / SGE
+User-agent: Google-Extended
+Allow: /
+
+# Bing / Microsoft Copilot
+User-agent: Bingbot
+Allow: /
+
+# OpenAI — GPTBot (training + browsing)
+User-agent: GPTBot
+Allow: /
+
+# OpenAI — ChatGPT browsing
+User-agent: ChatGPT-User
+Allow: /
+
+# Perplexity AI
+User-agent: PerplexityBot
+Allow: /
+
+# Anthropic — Claude
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+# Apple — Siri / Spotlight
+User-agent: Applebot-Extended
+Allow: /
 
 # Sitemap
 Sitemap: https://reelmotion.ai/sitemap.xml
