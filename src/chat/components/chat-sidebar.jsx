@@ -320,7 +320,7 @@ function ChatSidebar({
           <span className="font-medium">AI Lab</span>
         </button>
         <Link
-          to={"/app/editor"}
+          to={"/editor"}
           onClick={onClose}
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
