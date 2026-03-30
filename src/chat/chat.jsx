@@ -94,7 +94,7 @@ function Chat() {
         // Revalidate to refresh chat list in sidebar
         await revalidator.revalidate();
         // Navigate to new chat
-        navigate(`/${response.chat_id}`);
+        navigate(`/app/${response.chat_id}`);
       }
     } catch (error) {
       if (error.name === "AbortError") {
