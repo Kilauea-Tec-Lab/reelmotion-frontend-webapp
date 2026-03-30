@@ -1,4 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
+import { Navigate } from "react-router-dom";
+import Cookies from "js-cookie";
 import LandingNavbar from "./components/landing-navbar";
 import HeroSection from "./components/hero-section";
 import SocialProofSection from "./components/social-proof-section";
@@ -17,6 +19,10 @@ function LandingPage() {
   const scrollRef = useRef(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const { locale } = useI18n();
+
+  if (Cookies.get("token")) {
+    return <Navigate to="/app" replace />;
+  }
 
   // Auto-open auth modal if referral code in URL
   useEffect(() => {
