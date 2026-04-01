@@ -43,7 +43,7 @@ const LandingNavbar = ({ scrollRef, onOpenAuth }) => {
               <img
                 src="/logos/logo_reelmotion_new.webp"
                 alt="Reelmotion AI"
-                className="h-8 w-auto"
+                className="h-13 w-auto"
               />
             </Link>
 

@@ -28,6 +28,7 @@ import { getChatInfo, getChatDetails, getLibrary } from "./chat/functions";
 import LandingPage from "./landing/landing-page";
 import TermsPage from "./legal/terms";
 import PrivacyPage from "./legal/privacy";
+import ContactPage from "./landing/contact-page";
 
 // Component to handle editor redirection
 function EditorRedirect() {
@@ -95,6 +96,10 @@ const router = createBrowserRouter([
   {
     path: "/privacy",
     element: <PrivacyPage />,
+  },
+  {
+    path: "/contact",
+    element: <ContactPage />,
   },
   {
     path: "/app",

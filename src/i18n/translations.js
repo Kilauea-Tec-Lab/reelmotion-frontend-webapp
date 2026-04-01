@@ -12,8 +12,8 @@ const translations = {
     "hero.title":
       "From Idea to Professional Video — No Prompt Skills Required.",
     "hero.subtitle":
-      "Tell Reelmotion AI what you want in plain words. Our AI agent builds the perfect prompt, picks the best model, and delivers studio-quality videos, images, and voiceovers — in seconds.",
-    "hero.cta-primary": "Start Creating Free",
+      "Describe your idea in simple terms and let Reelmotion AI take care of everything — from prompt creation to model selection to delivering studio-quality videos, images, and voiceovers in seconds.",
+    "hero.cta-primary": "Start Creating",
     "hero.cta-secondary": "See It in Action",
     "hero.go-to-dashboard": "Go to Dashboard",
 
@@ -25,24 +25,23 @@ const translations = {
 
     // Features
     "features.title":
-      "You Don't Need to Be an Expert — The AI Does the Hard Part",
+      "You don't need to be an expert — the AI does the hard part",
     "features.subtitle":
-      "Other AI tools expect you to already know prompt engineering. Reelmotion flips the script: our agent interviews you, crafts the prompt, and generates content that looks like a pro made it.",
+      "Other AI tools expect you to already know prompt engineering. Reelmotion AI flips the script: our agent walks you through it, crafts the prompt, and generates content that looks like a pro made it.",
     "features.video.title": "AI Video Generation",
     "features.video.description":
-      "Describe your scene in plain English. ReelBot writes the prompt and lets you choose from the best models on the planet: Sora 2, Veo 3.1, Kling V3, Runway 4.5, and more.",
+      "Describe your scene. Our AI agent writes the prompt and lets you choose from the best models: Sora 2, Veo 3.1, Kling V3, Runway 4.5, and more.",
     "features.image.title": "AI Image Generation",
     "features.image.description":
-      "Say what you see in your head. ReelBot turns it into a pixel-perfect prompt and generates 4K images with Nano Banana 2, GPT-4o Vision, or Freepik Mystic.",
+      "Type what you want your image to look like. Our AI turns it into a pixel-perfect prompt and generates 4K images with Nano Banana 2, GPT-4o Vision, or Freepik Mystic.",
     "features.audio.title": "AI Voice & Audio",
     "features.audio.description":
-      "Paste your script, pick a voice, hit generate. ElevenLabs multi-language TTS delivers broadcast-ready narration — no mic, no studio, no editing.",
+      "Write your script, pick a voice, hit generate. ElevenLabs multi-language TTS delivers broadcast-ready narration — no mic, no studio, no editing.",
 
     // ReelBot
-    "reelbot.title":
-      "ReelBot: Your AI Creative Partner — Not Just Another Tool",
+    "reelbot.title": "Your AI Creative Partner — Not Just Another Tool",
     "reelbot.subtitle":
-      "Forget prompt engineering. ReelBot asks the right questions, builds the perfect prompt for you, and generates results that look like they came from a professional studio.",
+      "Forget prompt engineering. Our AI asks the right questions, builds the perfect prompt for you, and generates results that look like they came from a professional studio.",
     "reelbot.feat.imageGen": "Image Generation",
     "reelbot.feat.imageGenDesc":
       "Text-to-image and image-to-image with Nano Banana 2, GPT-4o, and Freepik",
@@ -53,13 +52,13 @@ const translations = {
     "reelbot.feat.ttsDesc": "Multi-language voices powered by ElevenLabs",
     "reelbot.feat.vision": "Visual Analysis",
     "reelbot.feat.visionDesc":
-      "Drop an image or video and ReelBot understands it instantly — no manual descriptions needed",
+      "Drop an image or video and our AI understands it instantly — no manual descriptions needed",
     "reelbot.feat.prompts": "Guided Prompt Builder",
     "reelbot.feat.promptsDesc":
-      "ReelBot asks one question at a time to build the exact prompt that nails the result you want — zero guesswork",
+      "Our AI asks one question at a time to build the exact prompt that nails the result you want — zero guesswork",
     "reelbot.step1.title": "Describe your idea in your own words",
     "reelbot.step1.desc":
-      "No prompt knowledge needed. Just tell ReelBot what you're imagining.",
+      "No prompt knowledge needed. Just tell our AI what you're imagining.",
     "reelbot.step2.title": "ReelBot crafts your prompt",
     "reelbot.step2.desc":
       "The agent asks smart follow-up questions, then writes a production-grade prompt for you.",
@@ -74,19 +73,19 @@ const translations = {
       "Your content is ready in seconds. Download it or send it straight to the editor.",
 
     // Chat Demo
-    "demo.title": "No Prompts. No Learning Curve. Just Results.",
+    "demo.title": "No Learning Curve. Just Results.",
     "demo.subtitle":
-      "Chat with ReelBot like you'd talk to a colleague — it handles the prompt engineering so you get professional content on your first try.",
+      "We guide you through the entire process to ensure you get the result that you need, regardless of your experience.",
     "demo.caption":
-      "From rough idea to polished content — watch ReelBot do the work",
-    "demo.showcaseTitle": "Created with Reelmotion AI",
+      "From rough idea to polished content — watch our AI agent do the work",
+    "demo.showcaseTitle": "Create with Reelmotion AI",
     "demo.showcaseAlt": "AI-generated content",
 
     // Editor
     "editor.title":
       "Generate. Edit. Publish — All Without Leaving Your Browser.",
     "editor.subtitle":
-      "A full professional video editor built into the same platform where you create your AI content. One tab, zero app-switching.",
+      "A full professional-grade video editor built into the same platform where you can create your AI  content. One tab, zero app-switching.",
     "editor.feat.timeline": "Multi-track Timeline",
     "editor.feat.timelineDesc":
       "Drag, drop, and zoom frame-by-frame — full precision editing at your fingertips",
@@ -102,9 +101,9 @@ const translations = {
     "editor.feat.stock": "Unlimited Stock Media",
     "editor.feat.stockDesc":
       "Millions of royalty-free images and videos via Pexels — built right in",
-    "editor.feat.cloud": "Cloud Rendering",
+    "editor.feat.cloud": "Video Rendering",
     "editor.feat.cloudDesc":
-      "Export in high quality on the cloud — your laptop does zero heavy lifting",
+      "Export in high quality on the video — your laptop does zero heavy lifting",
     "editor.feat.autosave": "Auto-save & Projects",
     "editor.feat.autosaveDesc":
       "Every change saved automatically. Pick up any project exactly where you left off.",
@@ -115,7 +114,7 @@ const translations = {
     // Pricing
     "pricing.title": "Simple, Transparent Pricing",
     "pricing.subtitle":
-      "One subscription covers AI generation, guided prompts, cloud editing, and publishing. No hidden fees. Upgrade or cancel anytime.",
+      "One subscription covers AI generation, guided prompts, video editing, and publishing. No hidden fees. Upgrade or cancel anytime.",
     "pricing.monthly": "Monthly",
     "pricing.yearly": "Yearly",
     "pricing.month": "month",
@@ -132,16 +131,16 @@ const translations = {
     "pricing.free.feature5": "Video generation",
     "pricing.free.feature6": "Premium AI models",
     "pricing.free.feature7": "Priority rendering",
-    "pricing.free.feature8": "Cloud editor",
+    "pricing.free.feature8": "vIDEO editor",
     "pricing.free.cta": "Start for Free",
     "pricing.pro.name": "Pro",
     "pricing.pro.feature1": "2,500 tokens/month",
     "pricing.pro.feature2": "Video + image generation",
     "pricing.pro.feature3": "All AI models (Sora 2, Veo 3.1, Kling V3...)",
     "pricing.pro.feature4": "Priority rendering",
-    "pricing.pro.feature5": "Cloud video editor",
+    "pricing.pro.feature5": "Video editor",
     "pricing.pro.feature6": "Media library",
-    "pricing.pro.feature7": "ReelBot AI Agent",
+    "pricing.pro.feature7": "AI Agent",
     "pricing.pro.cta": "Go Pro",
     "pricing.elite.name": "Elite",
     "pricing.elite.feature1": "10,000 tokens/month",
@@ -156,9 +155,9 @@ const translations = {
     // CTA Banner
     "cta.title": "Your next video is one conversation away.",
     "cta.subtitle":
-      "Join thousands of creators already producing professional content with AI. No credit card, no time limit — free forever.",
-    "cta.button": "Start Creating Free",
-    "cta.note": "No credit card · Free forever",
+      "Join thousands of creators already producing professional content with AI. No credit card needed. Start free — Upgrade anytime.",
+    "cta.button": "Start Creating",
+    "cta.note": "No credit card needed. Start free — Upgrade anytime.",
 
     // Auth Modal
     "auth.tab.signin": "Sign In",
@@ -211,8 +210,7 @@ const translations = {
     "footer.terms": "Terms of Service",
     "footer.privacy": "Privacy Policy",
     "footer.contact": "Contact Us",
-    "footer.tagline":
-      "From idea to published content — powered by AI.",
+    "footer.tagline": "From idea to published content — powered by AI.",
     "footer.copyright": "\u00a9 2026 Reelmotion AI. All rights reserved.",
     "footer.builtWith":
       "Built with React \u00b7 Tailwind CSS \u00b7 Framer Motion \u00b7 Stripe \u00b7 ElevenLabs \u00b7 Pusher \u00b7 Solana",
@@ -258,8 +256,7 @@ const translations = {
       "Pega tu guion, elige una voz, genera. ElevenLabs TTS multiling\u00fce entrega narraci\u00f3n lista para transmitir — sin micr\u00f3fono, sin estudio, sin edici\u00f3n.",
 
     // ReelBot
-    "reelbot.title":
-      "ReelBot: tu socio creativo con IA — no solo otra herramienta",
+    "reelbot.title": "Tu socio creativo con IA — no solo otra herramienta",
     "reelbot.subtitle":
       "Olv\u00eddate de la ingenier\u00eda de prompts. ReelBot hace las preguntas correctas, construye el prompt perfecto por ti y genera resultados con calidad de estudio profesional.",
     "reelbot.feat.imageGen": "Generaci\u00f3n de Im\u00e1genes",
@@ -302,8 +299,7 @@ const translations = {
     "demo.showcaseAlt": "Contenido generado con IA",
 
     // Editor
-    "editor.title":
-      "Genera. Edita. Publica — sin salir de tu navegador.",
+    "editor.title": "Genera. Edita. Publica — sin salir de tu navegador.",
     "editor.subtitle":
       "Un editor de video profesional completo integrado en la misma plataforma donde creas tu contenido con IA. Una pesta\u00f1a, cero cambios de app.",
     "editor.feat.timeline": "Timeline Multipista",
@@ -373,7 +369,8 @@ const translations = {
     "pricing.elite.cta": "Hazte Elite",
 
     // CTA Banner
-    "cta.title": "Tu pr\u00f3ximo video est\u00e1 a una conversaci\u00f3n de distancia.",
+    "cta.title":
+      "Tu pr\u00f3ximo video est\u00e1 a una conversaci\u00f3n de distancia.",
     "cta.subtitle":
       "\u00danete a miles de creadores que ya producen contenido profesional con IA. Sin tarjeta, sin l\u00edmite de tiempo — gratis para siempre.",
     "cta.button": "Empieza Gratis",
@@ -393,7 +390,8 @@ const translations = {
     "auth.signin.invalid-credentials":
       "El email o nombre de usuario es incorrecto",
     "auth.register.title": "Crear Cuenta",
-    "auth.register.subtitle": "\u00danete a la nueva era de la creaci\u00f3n de contenido",
+    "auth.register.subtitle":
+      "\u00danete a la nueva era de la creaci\u00f3n de contenido",
     "auth.register.username-placeholder": "Nombre de usuario",
     "auth.register.name-placeholder": "Nombre completo",
     "auth.register.email-placeholder": "Correo electr\u00f3nico",
@@ -436,8 +434,7 @@ const translations = {
     "footer.terms": "T\u00e9rminos de Servicio",
     "footer.privacy": "Pol\u00edtica de Privacidad",
     "footer.contact": "Cont\u00e1ctanos",
-    "footer.tagline":
-      "De la idea al contenido publicado — impulsado por IA.",
+    "footer.tagline": "De la idea al contenido publicado — impulsado por IA.",
     "footer.copyright":
       "\u00a9 2026 Reelmotion AI. Todos los derechos reservados.",
     "footer.builtWith":

@@ -181,7 +181,7 @@ const EditorSection = () => {
                 {/* Video content */}
                 <video
                   ref={videoRef}
-                  src="/landing/showcase-stock-1.mp4"
+                  src="/landing/editing-tool.webm"
                   muted
                   loop
                   playsInline
