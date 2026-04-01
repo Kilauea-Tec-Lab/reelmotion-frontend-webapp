@@ -15,11 +15,36 @@ import {
 } from "lucide-react";
 
 const features = [
-  { icon: Image, titleKey: "reelbot.feat.imageGen", descKey: "reelbot.feat.imageGenDesc", accent: "#A78BFA" },
-  { icon: Video, titleKey: "reelbot.feat.videoGen", descKey: "reelbot.feat.videoGenDesc", accent: "#DC569D" },
-  { icon: Mic, titleKey: "reelbot.feat.tts", descKey: "reelbot.feat.ttsDesc", accent: "#F2D543" },
-  { icon: Eye, titleKey: "reelbot.feat.vision", descKey: "reelbot.feat.visionDesc", accent: "#34D399" },
-  { icon: Sparkles, titleKey: "reelbot.feat.prompts", descKey: "reelbot.feat.promptsDesc", accent: "#60A5FA" },
+  {
+    icon: Image,
+    titleKey: "reelbot.feat.imageGen",
+    descKey: "reelbot.feat.imageGenDesc",
+    accent: "#A78BFA",
+  },
+  {
+    icon: Video,
+    titleKey: "reelbot.feat.videoGen",
+    descKey: "reelbot.feat.videoGenDesc",
+    accent: "#DC569D",
+  },
+  {
+    icon: Mic,
+    titleKey: "reelbot.feat.tts",
+    descKey: "reelbot.feat.ttsDesc",
+    accent: "#F2D543",
+  },
+  {
+    icon: Eye,
+    titleKey: "reelbot.feat.vision",
+    descKey: "reelbot.feat.visionDesc",
+    accent: "#34D399",
+  },
+  {
+    icon: Sparkles,
+    titleKey: "reelbot.feat.prompts",
+    descKey: "reelbot.feat.promptsDesc",
+    accent: "#60A5FA",
+  },
 ];
 
 const steps = [
@@ -43,7 +68,8 @@ const ReelbotSection = () => {
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.035) 1px, transparent 1px)",
+          backgroundImage:
+            "radial-gradient(circle, rgba(255,255,255,0.035) 1px, transparent 1px)",
           backgroundSize: "28px 28px",
         }}
       />
@@ -52,7 +78,8 @@ const ReelbotSection = () => {
       <div
         className="absolute top-1/2 left-0 -translate-y-1/2 w-[400px] h-[400px] pointer-events-none"
         style={{
-          background: "radial-gradient(ellipse at left, rgba(167,139,250,0.08) 0%, transparent 70%)",
+          background:
+            "radial-gradient(ellipse at left, rgba(167,139,250,0.08) 0%, transparent 70%)",
           filter: "blur(40px)",
         }}
       />
@@ -62,16 +89,6 @@ const ReelbotSection = () => {
         <AnimatedSection direction="left">
           {/* Badge */}
           <div className="flex items-center gap-2 mb-6">
-            <div
-              className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center"
-              style={{ background: "rgba(220,86,157,0.1)", border: "1px solid rgba(220,86,157,0.2)" }}
-            >
-              <img
-                src="/logos/reelbot.png"
-                alt="ReelBot"
-                className="w-8 h-8 object-contain"
-              />
-            </div>
             <span
               className="text-[10px] font-mono uppercase tracking-[3px] px-3 py-1 rounded-full"
               style={{
@@ -87,7 +104,8 @@ const ReelbotSection = () => {
           <h2
             className="text-3xl md:text-4xl font-bold"
             style={{
-              background: "linear-gradient(135deg, #ffffff 0%, #ffffff 55%, rgba(255,255,255,0.55) 100%)",
+              background:
+                "linear-gradient(135deg, #ffffff 0%, #ffffff 55%, rgba(255,255,255,0.55) 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
@@ -118,11 +136,18 @@ const ReelbotSection = () => {
                       border: `1px solid ${feat.accent}25`,
                     }}
                   >
-                    <Icon className="w-3.5 h-3.5" style={{ color: feat.accent }} />
+                    <Icon
+                      className="w-3.5 h-3.5"
+                      style={{ color: feat.accent }}
+                    />
                   </div>
                   <div>
-                    <p className="text-white font-medium text-sm">{t(feat.titleKey)}</p>
-                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{t(feat.descKey)}</p>
+                    <p className="text-white font-medium text-sm">
+                      {t(feat.titleKey)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                      {t(feat.descKey)}
+                    </p>
                   </div>
                 </motion.div>
               );
@@ -138,7 +163,8 @@ const ReelbotSection = () => {
               background: "rgba(20,20,22,0.8)",
               border: "1px solid rgba(255,255,255,0.07)",
               backdropFilter: "blur(12px)",
-              boxShadow: "0 0 40px rgba(220,86,157,0.05), 0 20px 60px rgba(0,0,0,0.4)",
+              boxShadow:
+                "0 0 40px rgba(220,86,157,0.05), 0 20px 60px rgba(0,0,0,0.4)",
             }}
           >
             {/* Terminal header */}
@@ -156,14 +182,18 @@ const ReelbotSection = () => {
                   <div className="w-3 h-3 rounded-full bg-green-500/70" />
                 </div>
                 <Terminal size={12} className="text-white/30 ml-2" />
-                <span className="text-xs font-mono text-white/30">reelbot — workflow</span>
+                <span className="text-xs font-mono text-white/30">
+                  reelbot — workflow
+                </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" />
                 </span>
-                <span className="text-[10px] font-mono text-green-400/70">ACTIVE</span>
+                <span className="text-[10px] font-mono text-green-400/70">
+                  ACTIVE
+                </span>
               </div>
             </div>
 
@@ -183,7 +213,8 @@ const ReelbotSection = () => {
                     <div
                       className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-mono font-bold transition-all duration-300 group-hover:scale-110"
                       style={{
-                        background: "linear-gradient(135deg, rgba(220,86,157,0.8), rgba(242,213,67,0.7))",
+                        background:
+                          "linear-gradient(135deg, rgba(220,86,157,0.8), rgba(242,213,67,0.7))",
                         boxShadow: "0 0 12px rgba(220,86,157,0.3)",
                         color: "white",
                       }}
@@ -195,7 +226,8 @@ const ReelbotSection = () => {
                         className="w-px mt-1"
                         style={{
                           height: "28px",
-                          background: "linear-gradient(to bottom, rgba(220,86,157,0.4), transparent)",
+                          background:
+                            "linear-gradient(to bottom, rgba(220,86,157,0.4), transparent)",
                         }}
                       />
                     )}
@@ -203,8 +235,12 @@ const ReelbotSection = () => {
 
                   {/* Step content */}
                   <div className={i < steps.length - 1 ? "pb-5" : ""}>
-                    <p className="text-white font-medium text-sm leading-tight">{t(step.titleKey)}</p>
-                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">{t(step.descKey)}</p>
+                    <p className="text-white font-medium text-sm leading-tight">
+                      {t(step.titleKey)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      {t(step.descKey)}
+                    </p>
                   </div>
                 </motion.div>
               ))}
@@ -218,7 +254,9 @@ const ReelbotSection = () => {
                 }}
               >
                 <span className="text-green-400/70">✓</span>
-                <span className="text-gray-500 ml-2">Content generated successfully</span>
+                <span className="text-gray-500 ml-2">
+                  Content generated successfully
+                </span>
                 <span className="text-[#DC569D]/60 ml-2">— 3.2s</span>
               </div>
             </div>

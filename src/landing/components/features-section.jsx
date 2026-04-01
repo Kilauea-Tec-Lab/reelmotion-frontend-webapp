@@ -154,70 +154,73 @@ const FeaturesSection = () => {
           {features.map((feature, index) => {
             const Icon = feature.icon;
             return (
-              <AnimatedSection key={feature.titleKey} delay={index * 0.1}>
-                <motion.div whileHover={{ y: -6 }} transition={{ duration: 0.3 }}>
-                  <GlowCard glowColor="pink" customSize className="w-full p-0 overflow-hidden">
-                    {/* Terminal header bar */}
-                    <div
-                      className="flex items-center justify-between px-4 py-2.5"
-                      style={{
-                        background: "rgba(0,0,0,0.4)",
-                        borderBottom: "1px solid rgba(255,255,255,0.06)",
-                      }}
-                    >
-                      <div className="flex gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
-                      </div>
-                      <span
-                        className="text-[9px] font-mono uppercase tracking-[3px] px-2 py-0.5 rounded"
-                        style={{
-                          background: `${feature.accent}15`,
-                          border: `1px solid ${feature.accent}30`,
-                          color: feature.accent,
-                        }}
-                      >
-                        {feature.label}
-                      </span>
-                    </div>
-
-                    {/* Video preview */}
-                    <div className="overflow-hidden">
-                      <LazyVideo src={feature.video} />
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-5">
+              <AnimatedSection key={feature.titleKey} delay={index * 0.1} className="h-full">
+                <motion.div whileHover={{ y: -6 }} transition={{ duration: 0.3 }} className="h-full">
+                  <GlowCard glowColor="pink" customSize className="w-full h-full p-0 overflow-hidden">
+                    {/* Single flex container to avoid GlowCard's grid-rows interfering */}
+                    <div className="flex flex-col h-full">
+                      {/* Terminal header bar */}
                       <div
-                        className="w-9 h-9 rounded-xl flex items-center justify-center mb-3"
+                        className="flex items-center justify-between px-4 py-2.5 shrink-0"
                         style={{
-                          background: `${feature.accent}15`,
-                          border: `1px solid ${feature.accent}25`,
+                          background: "rgba(0,0,0,0.4)",
+                          borderBottom: "1px solid rgba(255,255,255,0.06)",
                         }}
                       >
-                        <Icon size={18} style={{ color: feature.accent }} />
+                        <div className="flex gap-1.5">
+                          <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
+                        </div>
+                        <span
+                          className="text-[9px] font-mono uppercase tracking-[3px] px-2 py-0.5 rounded"
+                          style={{
+                            background: `${feature.accent}15`,
+                            border: `1px solid ${feature.accent}30`,
+                            color: feature.accent,
+                          }}
+                        >
+                          {feature.label}
+                        </span>
                       </div>
-                      <h3 className="text-lg font-bold text-white">
-                        {t(feature.titleKey)}
-                      </h3>
-                      <p className="text-sm text-gray-500 mt-2 leading-relaxed">
-                        {t(feature.descKey)}
-                      </p>
-                      <div className="flex flex-wrap gap-1.5 mt-4">
-                        {feature.models.map((model) => (
-                          <span
-                            key={model}
-                            className="text-[10px] font-mono px-2 py-0.5 rounded"
-                            style={{
-                              background: "rgba(255,255,255,0.04)",
-                              border: "1px solid rgba(255,255,255,0.08)",
-                              color: "rgba(255,255,255,0.45)",
-                            }}
-                          >
-                            {model}
-                          </span>
-                        ))}
+
+                      {/* Video preview */}
+                      <div className="overflow-hidden shrink-0">
+                        <LazyVideo src={feature.video} />
+                      </div>
+
+                      {/* Content */}
+                      <div className="p-5 flex flex-col flex-1">
+                        <div
+                          className="w-9 h-9 rounded-xl flex items-center justify-center mb-3"
+                          style={{
+                            background: `${feature.accent}15`,
+                            border: `1px solid ${feature.accent}25`,
+                          }}
+                        >
+                          <Icon size={18} style={{ color: feature.accent }} />
+                        </div>
+                        <h3 className="text-lg font-bold text-white">
+                          {t(feature.titleKey)}
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-2 leading-relaxed flex-1">
+                          {t(feature.descKey)}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 mt-4">
+                          {feature.models.map((model) => (
+                            <span
+                              key={model}
+                              className="text-[10px] font-mono px-2 py-0.5 rounded"
+                              style={{
+                                background: "rgba(255,255,255,0.04)",
+                                border: "1px solid rgba(255,255,255,0.08)",
+                                color: "rgba(255,255,255,0.45)",
+                              }}
+                            >
+                              {model}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </GlowCard>

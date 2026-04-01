@@ -21,14 +21,14 @@ const PricingSection = ({ onOpenAuth }) => {
   const ctaLabel = isEs ? "Comenzar" : "Get Started";
 
   const COMPARISON_FEATURES = [
-    { label: isEs ? "Tokens / mes"             : "Tokens / month",     values: ["50", "2,500", "10,000"] },
+    { label: isEs ? "Tokens / mes"             : "Tokens / month",     values: ["20", "1,000", "4,000"] },
     { label: isEs ? "Generación de video"      : "Video generation",   values: [false, true, true] },
     { label: isEs ? "Generación de imágenes"   : "Image generation",   values: [true, true, true] },
     { label: isEs ? "Modelos de IA"            : "AI models",          values: [isEs ? "Básicos" : "Basic", isEs ? "Todos" : "All", isEs ? "Todos" : "All"] },
     { label: isEs ? "Prioridad de renderizado" : "Rendering priority", values: [isEs ? "Estándar" : "Standard", isEs ? "Prioritario" : "Priority", isEs ? "Máxima" : "Highest"] },
-    { label: isEs ? "Editor en la nube"        : "Cloud editor",       values: [false, true, true] },
-    { label: isEs ? "Biblioteca de medios"     : "Media library",      values: [false, true, true] },
-    { label: "ReelBot AI Agent",                                        values: [false, true, true] },
+    { label: isEs ? "Editor de video"          : "Video editor",       values: [{ checkLabel: "Limited" }, true, true] },
+    { label: isEs ? "Biblioteca de medios"     : "Media library",      values: [{ checkLabel: "Limited" }, true, true] },
+    { label: isEs ? "AI Agent"                 : "AI Agent",           values: [{ checkLabel: "Limited" }, true, true] },
     { label: isEs ? "Duración de video"        : "Video duration",     values: [isEs ? "Corta" : "Short", isEs ? "Estándar" : "Standard", isEs ? "Extendida" : "Extended"] },
     { label: isEs ? "Acceso anticipado"        : "Early model access", values: [false, false, true] },
     { label: isEs ? "Soporte"                  : "Support",            values: [isEs ? "Comunidad" : "Community", isEs ? "Estándar" : "Standard", isEs ? "Dedicado" : "Dedicated"] },
@@ -78,6 +78,14 @@ const PricingSection = ({ onOpenAuth }) => {
   const renderFeatureValue = (value, accentColor) => {
     if (value === true)  return <Check size={16} style={{ color: accentColor }} />;
     if (value === false) return <Minus size={16} className="text-white/20" />;
+    if (value && typeof value === "object" && value.checkLabel) {
+      return (
+        <span className="inline-flex items-center gap-1.5">
+          <Check size={16} style={{ color: accentColor }} />
+          <span className="text-white/40 text-xs">{value.checkLabel}</span>
+        </span>
+      );
+    }
     return <span className="text-white/70 text-sm">{value}</span>;
   };
 
@@ -124,6 +132,7 @@ const PricingSection = ({ onOpenAuth }) => {
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
+              paddingBottom: "0.2em",
             }}
           >
             {t("pricing.title")}
@@ -271,7 +280,12 @@ const PricingSection = ({ onOpenAuth }) => {
                   </PricingTableHead>
                   {feature.values.map((value, i) => (
                     <PricingTableCell key={i} className="text-white/70 text-sm">
-                      {value}
+                      {value && typeof value === "object" && value.checkLabel ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC569D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          <span className="text-white/40 text-xs">{value.checkLabel}</span>
+                        </span>
+                      ) : value}
                     </PricingTableCell>
                   ))}
                 </PricingTableRow>
