@@ -191,6 +191,16 @@ const router = createBrowserRouter([
   },
 ]);
 
+// Track SPA page views in Google Analytics
+router.subscribe((state) => {
+  if (state.navigation.state === "idle" && window.gtag) {
+    window.gtag("event", "page_view", {
+      page_path: state.location.pathname + state.location.search,
+      page_title: document.title,
+    });
+  }
+});
+
 function App() {
   return (
     <>
