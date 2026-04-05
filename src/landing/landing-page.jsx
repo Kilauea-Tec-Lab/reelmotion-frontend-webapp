@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import LandingNavbar from "./components/landing-navbar";
+import VideoHero from "./components/video-hero";
 import HeroSection from "./components/hero-section";
 import SocialProofSection from "./components/social-proof-section";
 import FeaturesSection from "./components/features-section";
@@ -18,6 +19,7 @@ import { useI18n } from "../i18n/i18n-context";
 function LandingPage() {
   const scrollRef = useRef(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [navVisible, setNavVisible] = useState(false);
   const { locale } = useI18n();
 
   if (Cookies.get("token")) {
@@ -32,6 +34,17 @@ function LandingPage() {
     }
   }, []);
 
+  // Show navbar only after scrolling past the video hero
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const handleScroll = () => {
+      setNavVisible(container.scrollTop > window.innerHeight * 0.7);
+    };
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <div
       ref={scrollRef}
@@ -39,7 +52,13 @@ function LandingPage() {
       style={{ scrollBehavior: 'smooth' }}
     >
       <SEO lang={locale} />
-      <LandingNavbar scrollRef={scrollRef} onOpenAuth={() => setShowAuthModal(true)} />
+      <div
+        className="transition-opacity duration-500"
+        style={{ opacity: navVisible ? 1 : 0, pointerEvents: navVisible ? "auto" : "none" }}
+      >
+        <LandingNavbar scrollRef={scrollRef} onOpenAuth={() => setShowAuthModal(true)} />
+      </div>
+      <VideoHero scrollRef={scrollRef} />
       <HeroSection onOpenAuth={() => setShowAuthModal(true)} />
       <SocialProofSection />
       <FeaturesSection />

@@ -18,7 +18,9 @@
       "mcp__plugin_playwright_playwright__browser_take_screenshot",
       "mcp__plugin_playwright_playwright__browser_evaluate",
       "Bash(npm ls:*)",
-      "Bash(npm i:*)"
+      "Bash(npm i:*)",
+      "Bash(cp \"C:/Users/Victor/Downloads/Showreel+Horizontal.webm\" \"C:/Users/Victor/Documents/Proyectos/reelmotion-frontend-webapp/public/videos/showreel-desktop.webm\")",
+      "Bash(cp \"C:/Users/Victor/Downloads/Showreel Vertical.webm\" \"C:/Users/Victor/Documents/Proyectos/reelmotion-frontend-webapp/public/videos/showreel-mobile.webm\")"
     ]
   }
 }
