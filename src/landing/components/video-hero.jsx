@@ -27,10 +27,39 @@ const VideoHero = ({ scrollRef }) => {
     return unsubscribe;
   }, [scrollY]);
 
-  // Ensure autoplay on mount
+  // Ensure autoplay on mount — iOS needs canplay + touch fallback
   useEffect(() => {
-    desktopVideoRef.current?.play().catch(() => {});
-    mobileVideoRef.current?.play().catch(() => {});
+    const videos = [desktopVideoRef.current, mobileVideoRef.current].filter(Boolean);
+
+    const tryPlay = (video) => {
+      if (video && video.paused) {
+        video.play().catch(() => {});
+      }
+    };
+
+    // Try immediately
+    videos.forEach(tryPlay);
+
+    // Retry when video is ready to play
+    const handlers = videos.map((video) => {
+      const handler = () => tryPlay(video);
+      video.addEventListener("canplay", handler);
+      return { video, handler };
+    });
+
+    // iOS fallback: play on first user touch
+    const onTouch = () => {
+      videos.forEach(tryPlay);
+      document.removeEventListener("touchstart", onTouch);
+    };
+    document.addEventListener("touchstart", onTouch, { once: true });
+
+    return () => {
+      handlers.forEach(({ video, handler }) =>
+        video.removeEventListener("canplay", handler)
+      );
+      document.removeEventListener("touchstart", onTouch);
+    };
   }, []);
 
   const handleScrollDown = () => {
@@ -57,7 +86,7 @@ const VideoHero = ({ scrollRef }) => {
         muted
         loop
         playsInline
-        preload="metadata"
+        preload="auto"
       />
       {/* Mobile video */}
       <video
@@ -68,7 +97,7 @@ const VideoHero = ({ scrollRef }) => {
         muted
         loop
         playsInline
-        preload="metadata"
+        preload="auto"
       />
 
       {/* Dark overlay for readability */}
