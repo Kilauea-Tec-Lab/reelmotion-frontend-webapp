@@ -155,7 +155,7 @@ const translations = {
     // CTA Banner
     "cta.title": "Your next video is one conversation away.",
     "cta.subtitle":
-      "Join thousands of creators already producing professional content with AI. No credit card needed. Start free — Upgrade anytime.",
+      "Join thousands of creators already producing professional content with AI.",
     "cta.button": "Start Creating",
     "cta.note": "No credit card needed. Start free — Upgrade anytime.",
 
@@ -372,7 +372,7 @@ const translations = {
     "cta.title":
       "Tu pr\u00f3ximo video est\u00e1 a una conversaci\u00f3n de distancia.",
     "cta.subtitle":
-      "\u00danete a miles de creadores que ya producen contenido profesional con IA. Sin tarjeta, sin l\u00edmite de tiempo — gratis para siempre.",
+      "\u00danete a miles de creadores que ya producen contenido profesional con IA.",
     "cta.button": "Empieza Gratis",
     "cta.note": "Sin tarjeta \u00b7 Gratis para siempre",
 

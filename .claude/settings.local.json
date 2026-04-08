@@ -20,7 +20,19 @@
       "Bash(npm ls:*)",
       "Bash(npm i:*)",
       "Bash(cp \"C:/Users/Victor/Downloads/Showreel+Horizontal.webm\" \"C:/Users/Victor/Documents/Proyectos/reelmotion-frontend-webapp/public/videos/showreel-desktop.webm\")",
-      "Bash(cp \"C:/Users/Victor/Downloads/Showreel Vertical.webm\" \"C:/Users/Victor/Documents/Proyectos/reelmotion-frontend-webapp/public/videos/showreel-mobile.webm\")"
+      "Bash(cp \"C:/Users/Victor/Downloads/Showreel Vertical.webm\" \"C:/Users/Victor/Documents/Proyectos/reelmotion-frontend-webapp/public/videos/showreel-mobile.webm\")",
+      "Bash(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"C:/Users/Victor/Documents/Proyectos/reelmotion-frontend-webapp/public/videos/showreel-desktop.webm\")",
+      "Bash(ffprobe -v error -show_entries stream=width,height,codec_name,bit_rate -of default=noprint_wrappers=1 \"C:/Users/Victor/Documents/Proyectos/reelmotion-frontend-webapp/public/videos/showreel-desktop.webm\")",
+      "Bash(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"C:/Users/Victor/Documents/Proyectos/reelmotion-frontend-webapp/public/videos/showreel-mobile.webm\")",
+      "Bash(ffprobe -v error -show_entries stream=width,height,codec_name,bit_rate -of default=noprint_wrappers=1 \"C:/Users/Victor/Documents/Proyectos/reelmotion-frontend-webapp/public/videos/showreel-mobile.webm\")",
+      "Bash(ffprobe:*)",
+      "Bash(tasklist)",
+      "Bash(cp public/videos/showreel-desktop.webm public/videos/showreel-desktop-original.webm)",
+      "Bash(cp public/videos/showreel-desktop-opt.webm public/videos/showreel-desktop.webm)",
+      "Bash(cp public/videos/showreel-mobile.webm public/videos/showreel-mobile-original.webm)",
+      "Bash(cp public/videos/showreel-mobile-opt.webm public/videos/showreel-mobile.webm)",
+      "Bash(cp public/landing/demo-reelmotion-new.mp4 public/landing/demo-reelmotion.mp4)",
+      "Bash(cd:*)"
     ]
   }
 }

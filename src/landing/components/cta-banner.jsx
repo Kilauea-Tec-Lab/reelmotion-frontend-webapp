@@ -87,10 +87,6 @@ const CtaBanner = ({ onOpenAuth }) => {
               {t("cta.button")}
               <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
             </button>
-
-            <span className="text-xs text-gray-600 font-mono">
-              {t("cta.note")}
-            </span>
           </div>
         </motion.div>
 

@@ -117,7 +117,7 @@ const GlowCard = ({
     backgroundAttachment: 'fixed',
     border: 'var(--border-size) solid var(--backup-border)',
     position: 'relative',
-    touchAction: 'none',
+    touchAction: 'pan-y',
     ...(width !== undefined ? { width: typeof width === 'number' ? `${width}px` : width } : {}),
     ...(height !== undefined ? { height: typeof height === 'number' ? `${height}px` : height } : {}),
   };

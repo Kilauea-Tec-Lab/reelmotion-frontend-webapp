@@ -13,7 +13,16 @@ const VideoHero = ({ scrollRef }) => {
 
   useEffect(() => {
     const unsubscribe = scrollY.on("change", (v) => {
-      setIsVisible(v < window.innerHeight);
+      const visible = v < window.innerHeight;
+      setIsVisible(visible);
+      // Pause video when scrolled past to free resources
+      if (!visible) {
+        desktopVideoRef.current?.pause();
+        mobileVideoRef.current?.pause();
+      } else {
+        desktopVideoRef.current?.play().catch(() => {});
+        mobileVideoRef.current?.play().catch(() => {});
+      }
     });
     return unsubscribe;
   }, [scrollY]);
@@ -37,7 +46,7 @@ const VideoHero = ({ scrollRef }) => {
     <motion.section
       ref={sectionRef}
       style={{ opacity }}
-      className="relative h-screen w-full flex items-center justify-center overflow-hidden flex-shrink-0"
+      className="relative h-dvh w-full flex items-center justify-center overflow-hidden flex-shrink-0"
     >
       {/* Desktop video */}
       <video
@@ -48,6 +57,7 @@ const VideoHero = ({ scrollRef }) => {
         muted
         loop
         playsInline
+        preload="metadata"
       />
       {/* Mobile video */}
       <video
@@ -58,6 +68,7 @@ const VideoHero = ({ scrollRef }) => {
         muted
         loop
         playsInline
+        preload="metadata"
       />
 
       {/* Dark overlay for readability */}
