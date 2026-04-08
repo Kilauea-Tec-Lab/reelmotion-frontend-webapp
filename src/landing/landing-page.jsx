@@ -48,7 +48,7 @@ function LandingPage() {
   return (
     <div
       ref={scrollRef}
-      className="bg-[#0C0C0D] text-white h-screen overflow-y-auto overflow-x-hidden"
+      className="bg-[#0C0C0D] text-white h-dvh overflow-y-auto overflow-x-hidden"
       style={{ scrollBehavior: 'smooth' }}
     >
       <SEO lang={locale} />

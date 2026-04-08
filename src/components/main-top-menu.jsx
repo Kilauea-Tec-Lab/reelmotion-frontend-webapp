@@ -857,7 +857,7 @@ function MainTopMenu({ user_info }) {
       console.log(`💰 [FETCH TOKENS] Response received, parsing data...`);
 
       const data = await response.json();
-      const newTokens = data.data || 0;
+      const newTokens = Number(data.data) || 0;
       setTokens(newTokens);
 
       console.log(`💰 [FETCH TOKENS] Tokens updated: ${newTokens}`);
@@ -2653,7 +2653,7 @@ function MainTopMenu({ user_info }) {
                             New Token Balance:
                           </span>
                           <span className="text-primarioLogo font-semibold text-lg">
-                            {tokens} tokens
+                            {Number(tokens).toLocaleString()} tokens
                           </span>
                         </div>
                       </div>
@@ -2724,7 +2724,7 @@ function MainTopMenu({ user_info }) {
                             Current Balance:
                           </span>
                           <span className="text-primarioLogo font-semibold">
-                            {tokens} tokens
+                            {Number(tokens).toLocaleString()} tokens
                           </span>
                         </div>
                       </div>

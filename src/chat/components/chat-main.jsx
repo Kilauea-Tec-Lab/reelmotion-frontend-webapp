@@ -1092,7 +1092,7 @@ function ChatMain({
 
       if (response.ok) {
         const data = await response.json();
-        setTokens(data.data || 0);
+        setTokens(Number(data.data) || 0);
       }
     } catch (error) {
       console.error("Error fetching tokens:", error);
@@ -1510,7 +1510,7 @@ function ChatMain({
       if (result.success) {
         // Payment successful - backend already processed everything
         setPaymentDetails(result.data);
-        setTokens((prev) => prev + breakdown.tokens);
+        setTokens((prev) => Number(prev) + Number(breakdown.tokens));
         setTokenPurchaseStep("success");
       } else if (
         result.requires_action &&
@@ -1560,7 +1560,7 @@ function ChatMain({
             total_paid: confirmResult.total_paid || breakdown.total,
             tokens_added: confirmResult.tokens_added || breakdown.tokens,
           });
-          setTokens((prev) => prev + breakdown.tokens);
+          setTokens((prev) => Number(prev) + Number(breakdown.tokens));
           setTokenPurchaseStep("success");
         } else {
           throw new Error("Payment was not completed. Please try again.");
@@ -3736,7 +3736,7 @@ function ChatMain({
                       <div className="flex justify-between items-center">
                         <span className="text-gray-400">New Balance:</span>
                         <span className="text-[#DC569D] font-semibold text-lg">
-                          {tokens} tokens
+                          {Number(tokens).toLocaleString()} tokens
                         </span>
                       </div>
                     </div>

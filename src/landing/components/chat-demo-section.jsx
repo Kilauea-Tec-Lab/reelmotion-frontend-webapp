@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import AnimatedSection from "./animated-section";
 import { useI18n } from "../../i18n/i18n-context";
 import { motion } from "framer-motion";
@@ -21,27 +21,30 @@ const showcaseItems = [
 
 const LazyVideo = ({ src }) => {
   const videoRef = useRef(null);
+  const containerRef = useRef(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
+          setShouldLoad(true);
           videoRef.current?.play();
         } else {
           videoRef.current?.pause();
         }
       },
-      { threshold: 0.3 }
+      { threshold: 0.1, rootMargin: "200px" }
     );
-    if (videoRef.current) observer.observe(videoRef.current);
+    if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, []);
 
   return (
-    <div className="relative group overflow-hidden rounded-xl">
+    <div ref={containerRef} className="relative group overflow-hidden rounded-xl">
       <video
         ref={videoRef}
-        src={src}
+        src={shouldLoad ? src : undefined}
         muted
         loop
         playsInline
@@ -150,6 +153,7 @@ const ChatDemoSection = () => {
                 <video
                   src="/landing/demo-reelmotion.mp4"
                   controls
+                  preload="none"
                   className="w-full"
                 />
               </div>
