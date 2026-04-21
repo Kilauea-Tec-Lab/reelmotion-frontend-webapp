@@ -21,6 +21,7 @@ import {
 import { Link, useParams, useNavigate, useRevalidator } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import Cookies from "js-cookie";
+import { useI18n } from "../../i18n/i18n-context";
 
 function ChatSidebar({
   chats,
@@ -35,6 +36,7 @@ function ChatSidebar({
   const { chatId } = useParams();
   const navigate = useNavigate();
   const revalidator = useRevalidator();
+  const { t, locale, setLocale } = useI18n();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef(null);
 
@@ -191,7 +193,7 @@ function ChatSidebar({
                 <div className="bg-[#DC569D]/20 rounded-full p-3">
                   <Pencil className="h-6 w-6 text-[#DC569D]" />
                 </div>
-                <h3 className="text-xl font-semibold text-white">Edit Chat</h3>
+                <h3 className="text-xl font-semibold text-white">{t("sidebar.edit-chat")}</h3>
               </div>
               <button
                 onClick={closeEditModal}
@@ -203,14 +205,14 @@ function ChatSidebar({
             </div>
 
             <label className="block text-sm text-gray-400 mb-2">
-              Chat name
+              {t("sidebar.chat-name")}
             </label>
             <input
               type="text"
               value={editChatTitle}
               onChange={(e) => setEditChatTitle(e.target.value)}
               className="w-full px-4 py-2 bg-[#2f2f2f] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#DC569D] focus:ring-1 focus:ring-[#DC569D] transition-all"
-              placeholder="Enter chat name"
+              placeholder={t("sidebar.enter-chat-name")}
               autoFocus
             />
 
@@ -220,7 +222,7 @@ function ChatSidebar({
                 disabled={isSavingChatTitle}
                 className="px-4 py-2 bg-[#2f2f2f] text-gray-300 rounded-lg hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
               >
-                Cancel
+                {t("sidebar.cancel")}
               </button>
               <button
                 onClick={handleEditChat}
@@ -230,12 +232,12 @@ function ChatSidebar({
                 {isSavingChatTitle ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Saving...
+                    {t("sidebar.saving")}
                   </>
                 ) : (
                   <>
                     <Pencil className="h-4 w-4" />
-                    Save
+                    {t("sidebar.save")}
                   </>
                 )}
               </button>
@@ -258,11 +260,10 @@ function ChatSidebar({
               <div className="bg-[#DC569D]/20 rounded-full p-3">
                 <Trash2 className="h-6 w-6 text-[#DC569D]" />
               </div>
-              <h3 className="text-xl font-semibold text-white">Delete Chat</h3>
+              <h3 className="text-xl font-semibold text-white">{t("sidebar.delete-chat")}</h3>
             </div>
             <p className="text-gray-400 mb-6">
-              Are you sure you want to delete this chat? This action cannot be
-              undone.
+              {t("sidebar.delete-confirm")}
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -270,7 +271,7 @@ function ChatSidebar({
                 disabled={isDeletingChat}
                 className="px-4 py-2 bg-[#2f2f2f] text-gray-300 rounded-lg hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
               >
-                Cancel
+                {t("sidebar.cancel")}
               </button>
               <button
                 onClick={handleDeleteChat}
@@ -280,12 +281,12 @@ function ChatSidebar({
                 {isDeletingChat ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Deleting...
+                    {t("sidebar.deleting")}
                   </>
                 ) : (
                   <>
                     <Trash2 className="h-4 w-4" />
-                    Delete
+                    {t("sidebar.delete")}
                   </>
                 )}
               </button>
@@ -307,7 +308,7 @@ function ChatSidebar({
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
           <MessageCirclePlus size={20} />
-          <span className="font-medium">New chat</span>
+          <span className="font-medium">{t("sidebar.new-chat")}</span>
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F2D543] text-black uppercase tracking-wide">
             Beta
           </span>
@@ -317,7 +318,7 @@ function ChatSidebar({
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
           <FlaskConical size={20} />
-          <span className="font-medium">AI Lab</span>
+          <span className="font-medium">{t("sidebar.ai-lab")}</span>
         </button>
         <Link
           to={"/editor"}
@@ -325,7 +326,7 @@ function ChatSidebar({
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
           <Clapperboard size={20} />
-          <span className="font-medium">Editor</span>
+          <span className="font-medium">{t("sidebar.editor")}</span>
         </Link>
         <Link
           to={"/app/library"}
@@ -333,7 +334,7 @@ function ChatSidebar({
           className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
         >
           <LibraryBig size={20} />
-          <span className="font-medium">Library</span>
+          <span className="font-medium">{t("sidebar.library")}</span>
         </Link>
         {/*
         <Link
@@ -353,7 +354,7 @@ function ChatSidebar({
             className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
           >
             <Crown size={20} className="text-[#DC569D]" />
-            <span className="font-medium">My Subscription</span>
+            <span className="font-medium">{t("sidebar.my-subscription")}</span>
           </Link>
         ) : (
           <Link
@@ -362,7 +363,7 @@ function ChatSidebar({
             className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
           >
             <Crown size={20} className="text-[#DC569D]" />
-            <span className="font-medium">Pro</span>
+            <span className="font-medium">{t("sidebar.pro")}</span>
           </Link>
         )}
       </div>
@@ -376,7 +377,7 @@ function ChatSidebar({
           />
           <input
             type="text"
-            placeholder="Search chats"
+            placeholder={t("sidebar.search-chats")}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full bg-[#212121] border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gray-600"
@@ -387,7 +388,7 @@ function ChatSidebar({
       {/* Section Title */}
       <div className="px-4 py-2">
         <h3 className="text-xs text-gray-500 font-semibold uppercase flex items-center gap-2">
-          Your chats
+          {t("sidebar.your-chats")}
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F2D543] text-black uppercase tracking-wide">
             Beta
           </span>
@@ -486,13 +487,32 @@ function ChatSidebar({
         {/* Dropdown Menu */}
         {showUserMenu && (
           <div className="absolute bottom-full left-4 right-4 mb-2 bg-[#2f2f2f] rounded-lg shadow-xl border border-gray-700 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-xs text-gray-500">{locale === "es" ? "Idioma" : "Language"}</span>
+              <div className="flex items-center bg-[#212121] rounded-full p-0.5 gap-0.5">
+                <button
+                  onClick={() => setLocale("en")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-200 ${locale === "en" ? "bg-[#3a3a3a] text-white" : "text-gray-600 hover:text-gray-400"}`}
+                >
+                  <span>🇺🇸</span>
+                  <span>EN</span>
+                </button>
+                <button
+                  onClick={() => setLocale("es")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-200 ${locale === "es" ? "bg-[#3a3a3a] text-white" : "text-gray-600 hover:text-gray-400"}`}
+                >
+                  <span>🇪🇸</span>
+                  <span>ES</span>
+                </button>
+              </div>
+            </div>
             <Link
               to="/app/profile"
-              className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-[#3a3a3a] transition-colors"
+              className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-[#3a3a3a] transition-colors border-t border-gray-700"
               onClick={() => setShowUserMenu(false)}
             >
               <User size={16} />
-              My Profile
+              {t("sidebar.my-profile")}
             </Link>
             <button
               onClick={() => {
@@ -502,7 +522,7 @@ function ChatSidebar({
               className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-[#3a3a3a] transition-colors border-t border-gray-700"
             >
               <LogOut size={16} />
-              Log Out
+              {t("sidebar.log-out")}
             </button>
           </div>
         )}

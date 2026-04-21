@@ -4,12 +4,19 @@ import translations from "./translations";
 const I18nContext = createContext();
 
 export function I18nProvider({ children }) {
-  const [locale, setLocale] = useState(() => {
+  const [locale, setLocaleState] = useState(() => {
+    const saved = typeof localStorage !== "undefined" && localStorage.getItem("locale");
+    if (saved === "en" || saved === "es") return saved;
     if (typeof navigator !== "undefined" && navigator.language) {
       return navigator.language.startsWith("es") ? "es" : "en";
     }
     return "en";
   });
+
+  const setLocale = (lang) => {
+    if (typeof localStorage !== "undefined") localStorage.setItem("locale", lang);
+    setLocaleState(lang);
+  };
 
   const t = useCallback(
     (key) => {
