@@ -349,8 +349,11 @@ function SearchableCountrySelect({ value, onChange, countries }) {
 }
 
 // PayPal configuration
-let paypalClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
 let paypalEnvironment = import.meta.env.VITE_PAYPAL_ENVIRONMENT;
+let paypalClientId =
+  paypalEnvironment === "sandbox"
+    ? import.meta.env.VITE_PAYPAL_CLIENT_ID_TEST
+    : import.meta.env.VITE_PAYPAL_CLIENT_ID;
 
 // Solana configuration
 const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
@@ -678,6 +681,7 @@ function ChatMain({
   const [paymentDetails, setPaymentDetails] = useState(null);
   const [paypalLoaded, setPaypalLoaded] = useState(false);
   const [paypalContainerReady, setPaypalContainerReady] = useState(false);
+  const [paypalInstance, setPaypalInstance] = useState(null);
 
   // Gallery states
   const [showGallery, setShowGallery] = useState(false);
@@ -1394,6 +1398,9 @@ function ChatMain({
     setPaymentMessage("");
     setPaymentMessageType("");
     setPaymentDetails(null);
+    setPaypalLoaded(false);
+    setPaypalContainerReady(false);
+    setPaypalInstance(null);
   };
 
   const calculateTokens = (dollars) => dollars * 100;
@@ -1455,6 +1462,283 @@ function ChatMain({
       setTokenPurchaseStep("select-gateway");
     }
   };
+
+  const handlePaypalPayment = async (order) => {
+    setPaymentMessage("");
+    setPaymentMessageType("");
+    setPaymentDetails(null);
+
+    try {
+      const breakdown = getPaymentBreakdown(Number(purchaseAmount) || 0);
+
+      if (order.status !== "COMPLETED") {
+        setTokenPurchaseStep("error");
+        setPaymentMessage(`Payment not completed. Status: ${order.status}`);
+        setPaymentMessageType("error");
+        return;
+      }
+
+      const purchaseUnits = order.purchase_units;
+      if (!purchaseUnits || purchaseUnits.length === 0) {
+        setTokenPurchaseStep("error");
+        setPaymentMessage("Invalid payment structure - no purchase units");
+        setPaymentMessageType("error");
+        return;
+      }
+
+      const captures = purchaseUnits[0]?.payments?.captures;
+      if (!captures || captures.length === 0) {
+        setTokenPurchaseStep("error");
+        setPaymentMessage("Payment was not captured successfully");
+        setPaymentMessageType("error");
+        return;
+      }
+
+      const captureStatus = captures[0]?.status;
+      const captureAmount = captures[0]?.amount?.value;
+      const captureCurrency = captures[0]?.amount?.currency_code;
+      const captureId = captures[0]?.id;
+
+      if (captureStatus !== "COMPLETED") {
+        setTokenPurchaseStep("error");
+        setPaymentMessage(`Payment capture failed. Status: ${captureStatus}`);
+        setPaymentMessageType("error");
+        return;
+      }
+
+      if (parseFloat(captureAmount) !== parseFloat(breakdown.total)) {
+        setTokenPurchaseStep("error");
+        setPaymentMessage(
+          `Amount mismatch: Expected $${breakdown.total}, captured $${captureAmount}`,
+        );
+        setPaymentMessageType("error");
+        return;
+      }
+
+      if (captureCurrency !== "USD") {
+        setTokenPurchaseStep("error");
+        setPaymentMessage(
+          `Invalid currency: ${captureCurrency}. Only USD is accepted.`,
+        );
+        setPaymentMessageType("error");
+        return;
+      }
+
+      const payer = order.payer;
+      const paypalBreakdown = captures[0]?.seller_receivable_breakdown;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BACKEND_URL}payments/process-paypal`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + Cookies.get("token"),
+          },
+          body: JSON.stringify({
+            amount: breakdown.subtotal,
+            currency: "USD",
+            gateway: "paypal",
+            order_id: order.id,
+            payment_details: order,
+            tokens_to_add: breakdown.tokens,
+            payment_breakdown: {
+              subtotal: breakdown.subtotal,
+              vat_rate: breakdown.taxRate,
+              vat_amount: breakdown.vatAmount,
+              tax_amount: breakdown.taxAmount,
+              tax_rate: breakdown.taxRate * 100,
+              tax_type: breakdown.taxType,
+              total_amount: breakdown.total,
+              tokens_to_add: breakdown.tokens,
+            },
+            billing_details: {
+              first_name: firstName,
+              last_name: lastName,
+              address: address,
+              postal_code: postalCode,
+              country: country,
+            },
+            capture_details: {
+              capture_id: captureId,
+              capture_status: captureStatus,
+              capture_amount: captureAmount,
+              capture_currency: captureCurrency,
+              paypal_fee: paypalBreakdown?.paypal_fee,
+              net_amount: paypalBreakdown?.net_amount,
+            },
+            environment: paypalEnvironment,
+            payer_details: payer
+              ? {
+                  payer_id: payer.payer_id,
+                  email: payer.email_address,
+                  country: payer.address?.country_code,
+                }
+              : null,
+          }),
+        },
+      );
+      const result = await response.json();
+
+      if (result.success) {
+        setTokenPurchaseStep("success");
+        setPaymentMessage(result.message || "Payment successful");
+        setPaymentMessageType("success");
+        setPaymentDetails({
+          tokens_added: result.data?.tokens_added ?? breakdown.tokens,
+          total_paid: result.data?.amount_paid ?? breakdown.total,
+          currency: result.data?.currency ?? "USD",
+          payment_id: result.data?.transaction_id ?? order.id,
+          new_token_balance: result.data?.new_token_balance,
+        });
+        await fetchUserTokens();
+      } else {
+        setTokenPurchaseStep("error");
+        setPaymentMessage(result.message || "Payment failed");
+        setPaymentMessageType("error");
+      }
+    } catch (error) {
+      console.error("Error processing PayPal payment:", error);
+      setTokenPurchaseStep("error");
+      setPaymentMessage(`Payment failed: ${error.message}`);
+      setPaymentMessageType("error");
+    }
+  };
+
+  const loadPaypalPaymentForm = async () => {
+    try {
+      if (!paypalClientId) {
+        setPaymentMessage(
+          "PayPal is currently unavailable. Please choose another payment method.",
+        );
+        setPaymentMessageType("error");
+        setTokenPurchaseStep("select-gateway");
+        return;
+      }
+
+      if (!window.paypal) {
+        const script = document.createElement("script");
+        script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=USD&intent=capture&components=buttons`;
+        script.async = true;
+        document.head.appendChild(script);
+
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = reject;
+        });
+      }
+
+      setPaypalLoaded(true);
+      setPaypalContainerReady(true);
+
+      const container = document.querySelector(
+        "#paypal-button-container-chat",
+      );
+      if (!container) {
+        throw new Error("PayPal container not found");
+      }
+      container.innerHTML = "";
+
+      const buttons = window.paypal.Buttons({
+        style: {
+          layout: "vertical",
+          color: "blue",
+          shape: "rect",
+          label: "paypal",
+        },
+        fundingSource: window.paypal.FUNDING.PAYPAL,
+        createOrder: (data, actions) => {
+          const breakdown = getPaymentBreakdown(Number(purchaseAmount) || 0);
+          const itemTotal = Number(breakdown.subtotal.toFixed(2));
+          const taxTotal = Number(breakdown.vat.toFixed(2));
+          const total = Number(breakdown.total.toFixed(2));
+
+          return actions.order.create({
+            purchase_units: [
+              {
+                amount: {
+                  value: total.toString(),
+                  currency_code: "USD",
+                  breakdown: {
+                    item_total: {
+                      currency_code: "USD",
+                      value: itemTotal.toString(),
+                    },
+                    tax_total: {
+                      currency_code: "USD",
+                      value: taxTotal.toString(),
+                    },
+                  },
+                },
+                description: `${breakdown.tokens} Reelmotion Tokens (Subtotal: $${itemTotal} + Tax: $${taxTotal})`,
+                custom_id: `tokens-${breakdown.tokens}-total-${total}`,
+              },
+            ],
+            application_context: {
+              shipping_preference: "NO_SHIPPING",
+              user_action: "PAY_NOW",
+              brand_name: "Reelmotion AI",
+              landing_page: "BILLING",
+              payment_method: {
+                payee_preferred: "IMMEDIATE_PAYMENT_REQUIRED",
+                payer_selected: "PAYPAL",
+              },
+            },
+          });
+        },
+        onApprove: async (data, actions) => {
+          setIsProcessingPayment(true);
+          try {
+            const order = await actions.order.capture();
+            await handlePaypalPayment(order);
+          } catch (error) {
+            console.error("Error capturing PayPal order:", error);
+            setTokenPurchaseStep("error");
+            setPaymentMessage("Payment capture failed. Please try again.");
+            setPaymentMessageType("error");
+          } finally {
+            setIsProcessingPayment(false);
+          }
+        },
+        onError: (err) => {
+          console.error("PayPal error:", err);
+          setTokenPurchaseStep("error");
+          setPaymentMessage("PayPal payment failed. Please try again.");
+          setPaymentMessageType("error");
+        },
+      });
+
+      await buttons.render("#paypal-button-container-chat");
+      setPaypalInstance(buttons);
+    } catch (error) {
+      console.error("Error loading PayPal Payment Form:", error);
+      setPaypalLoaded(false);
+      setPaypalContainerReady(false);
+    }
+  };
+
+  useEffect(() => {
+    if (
+      selectedGateway === "paypal" &&
+      tokenPurchaseStep === "payment-method" &&
+      !paypalLoaded
+    ) {
+      const timer = setTimeout(() => {
+        loadPaypalPaymentForm();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedGateway, tokenPurchaseStep, paypalLoaded]);
+
+  useEffect(() => {
+    if (tokenPurchaseStep === "select-gateway") {
+      setPaypalLoaded(false);
+      setPaypalContainerReady(false);
+      if (paypalInstance) {
+        setPaypalInstance(null);
+      }
+    }
+  }, [selectedGateway, tokenPurchaseStep]);
 
   const handleStripePayment = async (stripe, elements) => {
     setIsProcessingPayment(true);
@@ -3495,6 +3779,48 @@ function ChatMain({
                         </div>
                       </div>
 
+                      {/* PayPal Account Option */}
+                      <div
+                        onClick={() => {
+                          if (!paypalClientId) {
+                            console.warn(
+                              "PayPal disabled: VITE_PAYPAL_CLIENT_ID is not set.",
+                            );
+                            return;
+                          }
+                          setSelectedGateway("paypal");
+                        }}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          !paypalClientId
+                            ? "cursor-not-allowed opacity-50 border-gray-700"
+                            : selectedGateway === "paypal"
+                              ? "cursor-pointer border-[#DC569D] bg-[#DC569D] bg-opacity-10"
+                              : "cursor-pointer border-gray-600 hover:border-gray-500"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                            <svg
+                              className="w-5 h-5 text-white"
+                              fill="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 4.814-4.622 6.969-8.956 6.969H8.563c-.34 0-.62.24-.669.566l-.284 1.793-.13.919c-.028.213-.174.339-.386.339z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <div className="text-white font-medium">
+                              PayPal Account
+                            </div>
+                            <div className="text-gray-400 text-sm">
+                              {paypalClientId
+                                ? "Login to your PayPal account or create one"
+                                : "PayPal is not configured (contact support)"}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       {MERCHANT_WALLET && (
                         <div
                           onClick={() => setSelectedGateway("crypto")}
@@ -3673,6 +3999,172 @@ function ChatMain({
                           className="w-full px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 mt-4"
                         >
                           {t("chat.quick.back")}
+                        </button>
+                      </div>
+                    )}
+
+                    {selectedGateway === "paypal" && (
+                      <div className="space-y-4">
+                        <h3 className="text-white font-medium">
+                          PayPal Account Payment
+                        </h3>
+
+                        {/* Billing Info */}
+                        <div className="space-y-4 pt-2 pb-6 border-b border-gray-700">
+                          <h3 className="text-lg font-semibold text-white">
+                            {t("chat.tokens.billing")}
+                          </h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <label className="block text-gray-300 text-sm font-medium">
+                                {t("chat.tokens.first-name")}
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={firstName}
+                                onChange={(e) => setFirstName(e.target.value)}
+                                className="w-full p-3 border border-gray-700 rounded-lg bg-[#3a3a3a] text-white focus:outline-none focus:border-[#DC569D] transition-colors"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="block text-gray-300 text-sm font-medium">
+                                {t("chat.tokens.last-name")}
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={lastName}
+                                onChange={(e) => setLastName(e.target.value)}
+                                className="w-full p-3 border border-gray-700 rounded-lg bg-[#3a3a3a] text-white focus:outline-none focus:border-[#DC569D] transition-colors"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="block text-gray-300 text-sm font-medium">
+                              {t("chat.tokens.address")}
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={address}
+                              onChange={(e) => setAddress(e.target.value)}
+                              className="w-full p-3 border border-gray-700 rounded-lg bg-[#3a3a3a] text-white focus:outline-none focus:border-[#DC569D] transition-colors"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <label className="block text-gray-300 text-sm font-medium">
+                                {t("chat.tokens.country")}
+                              </label>
+                              <div className="relative">
+                                <SearchableCountrySelect
+                                  value={country}
+                                  onChange={setCountry}
+                                  countries={COUNTRIES}
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="block text-gray-300 text-sm font-medium">
+                                {t("chat.tokens.postal")}
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={postalCode}
+                                onChange={(e) => setPostalCode(e.target.value)}
+                                className="w-full p-3 border border-gray-700 rounded-lg bg-[#3a3a3a] text-white focus:outline-none focus:border-[#DC569D] transition-colors"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-[#3a3a3a] p-4 rounded-lg border border-blue-500/30">
+                          <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                            <svg
+                              className="w-5 h-5 text-blue-500"
+                              fill="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 4.814-4.622 6.969-8.956 6.969H8.563c-.34 0-.62.24-.669.566l-.284 1.793-.13.919c-.028.213-.174.339-.386.339z" />
+                            </svg>
+                            Login to PayPal Account
+                          </h4>
+
+                          {!paypalContainerReady && (
+                            <div className="text-center py-4 mb-4">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#DC569D] mx-auto mb-2"></div>
+                              <p className="text-gray-400 text-sm">
+                                Loading PayPal payment options...
+                              </p>
+                            </div>
+                          )}
+
+                          <div
+                            id="paypal-button-container-chat"
+                            className={
+                              !paypalContainerReady
+                                ? "opacity-50 pointer-events-none"
+                                : ""
+                            }
+                            style={{ minHeight: "50px" }}
+                          ></div>
+
+                          <div className="mt-3 text-center">
+                            <p className="text-gray-400 text-xs">
+                              Login to your existing PayPal account or create a
+                              new one
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="bg-[#3a3a3a] p-4 rounded-lg mt-4">
+                          {(() => {
+                            const breakdown = getPaymentBreakdown(
+                              Number(purchaseAmount) || 0,
+                            );
+                            return (
+                              <>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-gray-400">
+                                    {t("chat.tokens.subtotal")}
+                                  </span>
+                                  <span className="text-white font-medium">
+                                    ${breakdown.subtotal.toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center mt-1">
+                                  <span className="text-gray-400">
+                                    {breakdown.taxLabel}:
+                                  </span>
+                                  <span className="text-white font-medium">
+                                    ${breakdown.vat.toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="border-t border-gray-600 mt-2 pt-2">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-white font-semibold">
+                                      {t("chat.tokens.total")}
+                                    </span>
+                                    <span className="text-[#DC569D] font-bold text-lg">
+                                      ${breakdown.total.toFixed(2)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+
+                        <button
+                          onClick={() => setTokenPurchaseStep("select-gateway")}
+                          disabled={isProcessingPayment}
+                          className="w-full px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 mt-4"
+                        >
+                          {t("chat.tokens.back")}
                         </button>
                       </div>
                     )}

@@ -205,7 +205,7 @@ export default function MySubscription() {
         <div className="bg-[#171717] rounded-2xl p-6 border border-gray-800 shadow-xl">
           <div className="flex flex-col md:flex-row justify-between md:items-center gap-6">
             <div>
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3 mb-2 flex-wrap">
                 <h2 className="text-2xl font-bold capitalize">
                   {subscription.plan_name || "Free Tier"}
                 </h2>
@@ -218,6 +218,23 @@ export default function MySubscription() {
                 >
                   {subscription.status || "Active"}
                 </span>
+                {subscription.provider === "paypal" ? (
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 flex items-center gap-1.5">
+                    <svg
+                      className="w-3 h-3"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 4.814-4.622 6.969-8.956 6.969H8.563c-.34 0-.62.24-.669.566l-.284 1.793-.13.919c-.028.213-.174.339-.386.339z" />
+                    </svg>
+                    PayPal
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 flex items-center gap-1.5">
+                    <CreditCard size={12} />
+                    Stripe
+                  </span>
+                )}
               </div>
               <p className="text-gray-400 flex items-center gap-2">
                 <Calendar size={16} />
@@ -357,6 +374,13 @@ export default function MySubscription() {
                           currentPeriodEnd:
                             subscription.current_period_end_date,
                           currentPrice: subscription.price,
+                          currentProvider:
+                            subscription.provider || "stripe",
+                          currentSubscriptionId:
+                            subscription.paypal_subscription_id ||
+                            subscription.stripe_subscription_id ||
+                            subscription.subscription_id ||
+                            null,
                         });
                         setShowProrationModal(true);
                       }}
@@ -427,6 +451,13 @@ export default function MySubscription() {
                           currentPeriodEnd:
                             subscription.current_period_end_date,
                           currentPrice: subscription.price,
+                          currentProvider:
+                            subscription.provider || "stripe",
+                          currentSubscriptionId:
+                            subscription.paypal_subscription_id ||
+                            subscription.stripe_subscription_id ||
+                            subscription.subscription_id ||
+                            null,
                         });
                         setShowProrationModal(true);
                       }}

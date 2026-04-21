@@ -24,10 +24,77 @@ import {
   updateSubscription,
   getBillingInfo,
   confirmSubscription,
+  createPaypalSubscription,
+  capturePaypalSubscription,
+  updatePaypalSubscription,
+  switchSubscriptionProvider,
+  forceResetPaypalSubscription,
 } from "./functions";
 import { useNavigate, useOutletContext, useLocation } from "react-router-dom";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+
+const PAYPAL_IS_SANDBOX =
+  import.meta.env.VITE_PAYPAL_ENVIRONMENT === "sandbox";
+
+const PAYPAL_CLIENT_ID = PAYPAL_IS_SANDBOX
+  ? import.meta.env.VITE_PAYPAL_CLIENT_ID_TEST
+  : import.meta.env.VITE_PAYPAL_CLIENT_ID;
+
+const PAYPAL_PLAN_IDS = PAYPAL_IS_SANDBOX
+  ? {
+      pro: {
+        monthly: import.meta.env.VITE_PAYPAL_PLAN_PRO_MONTHLY_ID_TEST,
+        yearly: import.meta.env.VITE_PAYPAL_PLAN_PRO_YEARLY_ID_TEST,
+      },
+      elite: {
+        monthly: import.meta.env.VITE_PAYPAL_PLAN_ELITE_MONTHLY_ID_TEST,
+        yearly: import.meta.env.VITE_PAYPAL_PLAN_ELITE_YEARLY_ID_TEST,
+      },
+    }
+  : {
+      pro: {
+        monthly: import.meta.env.VITE_PAYPAL_PLAN_PRO_MONTHLY_ID,
+        yearly: import.meta.env.VITE_PAYPAL_PLAN_PRO_YEARLY_ID,
+      },
+      elite: {
+        monthly: import.meta.env.VITE_PAYPAL_PLAN_ELITE_MONTHLY_ID,
+        yearly: import.meta.env.VITE_PAYPAL_PLAN_ELITE_YEARLY_ID,
+      },
+    };
+
+function resolvePaypalPlanId(planName, billingCycle) {
+  const p = planName?.toLowerCase();
+  const c = billingCycle?.toLowerCase();
+  return PAYPAL_PLAN_IDS?.[p]?.[c] || null;
+}
+
+async function ensurePaypalSdkLoaded(clientId) {
+  if (typeof window === "undefined") return null;
+  if (window.paypal && window.paypal.Buttons) return window.paypal;
+
+  // Remove any prior checkout-only SDK (intent=capture) to avoid conflicts
+  const existing = document.querySelector('script[data-paypal-sdk="subscription"]');
+  if (!existing) {
+    const script = document.createElement("script");
+    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&vault=true&intent=subscription&components=buttons`;
+    script.async = true;
+    script.dataset.paypalSdk = "subscription";
+    document.head.appendChild(script);
+    await new Promise((resolve, reject) => {
+      script.onload = resolve;
+      script.onerror = () =>
+        reject(new Error("Failed to load PayPal SDK"));
+    });
+  } else {
+    // Wait until the already-injected script finishes loading
+    await new Promise((resolve) => {
+      if (window.paypal) return resolve();
+      existing.addEventListener("load", resolve, { once: true });
+    });
+  }
+  return window.paypal || null;
+}
 
 const COUNTRIES = [
   { code: "GB", name: "United Kingdom", flag: "🇬🇧" },
@@ -340,6 +407,319 @@ function SuccessMessage({ onContinue }) {
   );
 }
 
+function PayPalSubscriptionButton({
+  plan,
+  billingCycle,
+  isUpdate,
+  currentProvider,
+  currentSubscriptionId,
+  billingDetails,
+  isBillingComplete,
+  onSuccess,
+  onError,
+}) {
+  const containerRef = useRef(null);
+  const buttonsInstanceRef = useRef(null);
+  const [sdkStatus, setSdkStatus] = useState("idle"); // idle | loading | ready | error
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [approvalUrl, setApprovalUrl] = useState(null);
+  const [reviseLoading, setReviseLoading] = useState(false);
+  const [orphanedSubscription, setOrphanedSubscription] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const paypalPlanId = resolvePaypalPlanId(plan?.name, billingCycle);
+  const needsSwitch =
+    isUpdate && currentProvider && currentProvider !== "paypal";
+  const isPaypalUpdate = isUpdate && currentProvider === "paypal";
+
+  // PayPal → PayPal updates use the "revise" flow (native button + redirect),
+  // NOT the PayPal Buttons SDK. Mounting the SDK for this case would force us
+  // to throw inside createSubscription, which the SDK logs as create_order_error.
+  function isOrphanedSubscriptionError(err) {
+    // Check top-level error message
+    const msg = String(err?.message || err || "").toUpperCase();
+    if (
+      msg.includes("RESOURCE_NOT_FOUND") ||
+      msg.includes("INVALID_RESOURCE_ID") ||
+      msg.includes("THE SPECIFIED RESOURCE DOES NOT EXIST")
+    ) {
+      return true;
+    }
+    // Check nested PayPal error payload (backend format: { error, paypal: { name, details } })
+    const paypalErr = err?.response?.paypal;
+    if (paypalErr) {
+      if (paypalErr.name === "RESOURCE_NOT_FOUND") return true;
+      if (Array.isArray(paypalErr.details)) {
+        return paypalErr.details.some(
+          (d) => d?.issue === "INVALID_RESOURCE_ID",
+        );
+      }
+    }
+    return false;
+  }
+
+  async function handleReviseClick() {
+    setReviseLoading(true);
+    setOrphanedSubscription(false);
+    try {
+      const res = await updatePaypalSubscription({
+        current_paypal_subscription_id: currentSubscriptionId,
+        new_plan_id: paypalPlanId,
+        proration_behavior: "prorate",
+      });
+      if (res?.requires_approval && res?.approval_url) {
+        setApprovalUrl(res.approval_url);
+        window.open(res.approval_url, "_blank", "noopener,noreferrer");
+      } else {
+        onSuccess?.();
+      }
+    } catch (err) {
+      if (isOrphanedSubscriptionError(err)) {
+        setOrphanedSubscription(true);
+      } else {
+        onError?.(err?.message || "Failed to update PayPal subscription.");
+      }
+    } finally {
+      setReviseLoading(false);
+    }
+  }
+
+  async function handleResetOrphaned() {
+    setResetLoading(true);
+    try {
+      await forceResetPaypalSubscription();
+      setOrphanedSubscription(false);
+      // Reload so the page re-fetches the now-cleared subscription state
+      // and treats the user as a new subscriber
+      window.location.href = "/app/pro";
+    } catch (err) {
+      onError?.(
+        err?.message ||
+          "Could not reset subscription. Please contact support and provide subscription ID " +
+            currentSubscriptionId +
+            ".",
+      );
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    // Skip Buttons SDK mount for paypal→paypal update flow
+    if (isPaypalUpdate) {
+      setSdkStatus("idle");
+      return;
+    }
+
+    let cancelled = false;
+
+    async function mount() {
+      if (!PAYPAL_CLIENT_ID) {
+        setSdkStatus("error");
+        onError?.("PayPal is not configured.");
+        return;
+      }
+      if (!paypalPlanId) {
+        setSdkStatus("error");
+        onError?.(
+          `PayPal plan ID missing for ${plan?.name}/${billingCycle}. Configure VITE_PAYPAL_PLAN_* env vars.`,
+        );
+        return;
+      }
+      if (!isBillingComplete) {
+        // Wait for billing address to be filled before mounting buttons
+        setSdkStatus("idle");
+        return;
+      }
+
+      try {
+        setSdkStatus("loading");
+        const paypal = await ensurePaypalSdkLoaded(PAYPAL_CLIENT_ID);
+        if (cancelled || !paypal) return;
+
+        if (!containerRef.current) return;
+        containerRef.current.innerHTML = "";
+
+        const buttons = paypal.Buttons({
+          style: {
+            shape: "rect",
+            color: "gold",
+            layout: "vertical",
+            label: "subscribe",
+          },
+          createSubscription: async () => {
+            // If switching from Stripe to PayPal, cancel the old sub first
+            if (needsSwitch) {
+              await switchSubscriptionProvider({
+                target_provider: "paypal",
+                new_plan_id: paypalPlanId,
+                current_subscription_id: currentSubscriptionId,
+              });
+            }
+
+            const res = await createPaypalSubscription({
+              plan: plan.name,
+              billing_cycle: billingCycle,
+              paypal_plan_id: paypalPlanId,
+              billing_details: billingDetails,
+              is_update: Boolean(isUpdate),
+              is_switch: needsSwitch,
+            });
+
+            if (!res?.paypal_subscription_id) {
+              const msg =
+                res?.message ||
+                "Backend did not return a PayPal subscription ID.";
+              onError?.(msg);
+              throw new Error(msg);
+            }
+            return res.paypal_subscription_id;
+          },
+          onApprove: async (data) => {
+            setIsProcessing(true);
+            try {
+              const res = await capturePaypalSubscription({
+                subscription_id: data.subscriptionID,
+              });
+              if (res?.success || res?.status === "active") {
+                onSuccess?.();
+              } else {
+                onError?.(
+                  res?.message ||
+                    "PayPal subscription was approved but not yet active. You'll be notified once it activates.",
+                );
+              }
+            } catch (err) {
+              onError?.(err?.message || "Failed to finalize PayPal subscription.");
+            } finally {
+              setIsProcessing(false);
+            }
+          },
+          onError: (err) => {
+            console.error("PayPal Buttons error", err);
+            onError?.("PayPal encountered an error. Please try again.");
+          },
+          onCancel: () => {
+            onError?.("PayPal checkout was cancelled.");
+          },
+        });
+
+        buttonsInstanceRef.current = buttons;
+        await buttons.render(containerRef.current);
+        if (!cancelled) setSdkStatus("ready");
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) {
+          setSdkStatus("error");
+          onError?.(err?.message || "Failed to load PayPal.");
+        }
+      }
+    }
+
+    mount();
+
+    return () => {
+      cancelled = true;
+      try {
+        buttonsInstanceRef.current?.close?.();
+      } catch {
+        /* noop */
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paypalPlanId, isBillingComplete, needsSwitch, isPaypalUpdate]);
+
+  if (isPaypalUpdate) {
+    if (orphanedSubscription) {
+      return (
+        <div className="space-y-3">
+          <div className="bg-amber-500/10 border border-amber-500/40 rounded-lg p-4 space-y-2">
+            <div className="text-amber-400 font-semibold text-sm">
+              Your PayPal subscription is no longer valid
+            </div>
+            <div className="text-gray-300 text-xs leading-relaxed">
+              Subscription{" "}
+              <code className="bg-black/30 px-1 py-0.5 rounded">
+                {currentSubscriptionId}
+              </code>{" "}
+              was not found on PayPal. This usually happens when a test
+              subscription carries over to a different environment. Reset it to
+              subscribe fresh — no charges apply until you approve the new
+              subscription.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleResetOrphaned}
+            disabled={resetLoading}
+            className="w-full py-3 px-4 bg-[#DC569D] text-white font-bold rounded-lg hover:bg-[#c9458b] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {resetLoading ? "Resetting..." : "Reset and resubscribe"}
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        <button
+          type="button"
+          onClick={handleReviseClick}
+          disabled={reviseLoading || !paypalPlanId}
+          className="w-full py-3 px-4 bg-[#0070ba] text-white font-bold rounded-lg hover:bg-[#005ea6] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {reviseLoading ? "Preparing plan change..." : "Change plan on PayPal"}
+        </button>
+        {approvalUrl && (
+          <a
+            href={approvalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full text-center py-3 px-4 bg-[#0070ba]/20 border border-[#0070ba] text-white rounded-lg hover:bg-[#0070ba]/30 transition-all"
+          >
+            Re-open approval on PayPal
+          </a>
+        )}
+        <div className="text-center text-xs text-gray-500 leading-relaxed">
+          PayPal may ask you to re-approve the new plan amount. After approving,
+          come back to this page.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {!isBillingComplete && (
+        <div className="text-xs text-gray-400 bg-[#212121] border border-gray-700 rounded-lg p-3">
+          Complete your billing address above to enable the PayPal button.
+        </div>
+      )}
+      {sdkStatus === "loading" && (
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          Loading PayPal...
+        </div>
+      )}
+      <div
+        ref={containerRef}
+        id="paypal-subscription-container"
+        className="min-h-[50px]"
+      />
+      {isProcessing && (
+        <div className="text-sm text-gray-400 flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          Finalizing subscription...
+        </div>
+      )}
+      <div className="text-center text-xs text-gray-500 leading-relaxed">
+        By subscribing with PayPal you authorize ReelMotion to charge your
+        PayPal account on a recurring basis until you cancel.
+      </div>
+    </div>
+  );
+}
+
 function CheckoutForm({
   plan,
   billingCycle,
@@ -350,6 +730,8 @@ function CheckoutForm({
   prorationBehavior = "prorate",
   currentPeriodEnd,
   currentPlanPrice,
+  currentProvider,
+  currentSubscriptionId,
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -358,6 +740,12 @@ function CheckoutForm({
   const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
   const [cardCvcComplete, setCardCvcComplete] = useState(false);
   const [cardErrors, setCardErrors] = useState({});
+
+  // Payment provider selector: "stripe" | "paypal"
+  // Defaults to whatever the user is currently subscribed with (if any), otherwise stripe.
+  const [paymentProvider, setPaymentProvider] = useState(
+    currentProvider === "paypal" ? "paypal" : "stripe",
+  );
 
   // Billing Details State
   const [firstName, setFirstName] = useState("");
@@ -469,6 +857,14 @@ function CheckoutForm({
     setCardErrors({}); // Clear previous errors
 
     try {
+      // If the user is switching from PayPal to Stripe, cancel PayPal first
+      if (isUpdate && currentProvider === "paypal") {
+        await switchSubscriptionProvider({
+          target_provider: "stripe",
+          current_subscription_id: currentSubscriptionId,
+        });
+      }
+
       // 1. Create Payment Method with Stripe
       const cardElement = elements.getElement(CardNumberElement);
       const { error, paymentMethod } = await stripe.createPaymentMethod({
@@ -532,15 +928,21 @@ function CheckoutForm({
         },
       };
 
+      const isSwitchFromPaypal =
+        isUpdate && currentProvider === "paypal";
+
       let response;
-      if (isUpdate) {
+      if (isUpdate && !isSwitchFromPaypal) {
         response = await updateSubscription({
           ...subscriptionData,
           proration_behavior: prorationBehavior,
           prorate_amount: estimatedProration,
         });
       } else {
-        response = await createSubscription(subscriptionData);
+        response = await createSubscription({
+          ...subscriptionData,
+          is_switch: isSwitchFromPaypal,
+        });
       }
 
       // Handle 3D Secure authentication
@@ -779,6 +1181,93 @@ function CheckoutForm({
             onSubmit={handleSubmit}
             className="space-y-6 bg-[#171717] p-6 rounded-xl border border-gray-800 shadow-xl"
           >
+            {/* Payment Method Selector */}
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-white">
+                Payment Method
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPaymentProvider("stripe")}
+                  className={`p-3 rounded-lg border-2 transition-all text-left ${
+                    paymentProvider === "stripe"
+                      ? "border-[#DC569D] bg-[#DC569D]/10"
+                      : "border-gray-700 hover:border-gray-500"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <svg
+                        className="w-4 h-4 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                      >
+                        <rect x="2" y="5" width="20" height="14" rx="2" />
+                        <path d="M2 10h20" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="text-white font-medium text-sm">
+                        Credit/Debit Card
+                      </div>
+                      <div className="text-gray-400 text-xs">
+                        Powered by Stripe
+                      </div>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!PAYPAL_CLIENT_ID}
+                  onClick={() => PAYPAL_CLIENT_ID && setPaymentProvider("paypal")}
+                  className={`p-3 rounded-lg border-2 transition-all text-left ${
+                    !PAYPAL_CLIENT_ID
+                      ? "border-gray-700 opacity-50 cursor-not-allowed"
+                      : paymentProvider === "paypal"
+                        ? "border-[#DC569D] bg-[#DC569D]/10"
+                        : "border-gray-700 hover:border-gray-500"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <svg
+                        className="w-5 h-5 text-white"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 4.814-4.622 6.969-8.956 6.969H8.563c-.34 0-.62.24-.669.566l-.284 1.793-.13.919c-.028.213-.174.339-.386.339z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="text-white font-medium text-sm">
+                        PayPal
+                      </div>
+                      <div className="text-gray-400 text-xs">
+                        {PAYPAL_CLIENT_ID
+                          ? "Pay with your PayPal account"
+                          : "Unavailable"}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              </div>
+              {isUpdate &&
+                currentProvider &&
+                currentProvider !== paymentProvider && (
+                  <div className="text-xs text-yellow-300 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                    You are switching payment providers. Your current{" "}
+                    {currentProvider === "paypal" ? "PayPal" : "Stripe"}{" "}
+                    subscription will be cancelled at the end of the current
+                    period and replaced with a{" "}
+                    {paymentProvider === "paypal" ? "PayPal" : "Stripe"} one.
+                  </div>
+                )}
+            </div>
+
             {/* Billing Info */}
             <div className="space-y-4 pt-2 pb-6 border-b border-gray-700">
               <h3 className="text-lg font-semibold text-white">
@@ -852,70 +1341,104 @@ function CheckoutForm({
               </div>
             </div>
 
-            {/* Card Number */}
-            <div className="space-y-2">
-              <label className="block text-gray-300 text-sm font-medium">
-                Card Number
-              </label>
-              <div className="p-3 border border-gray-700 rounded-lg bg-[#212121] focus-within:border-[#DC569D] transition-colors">
-                <CardNumberElement
-                  onChange={handleCardNumberChange}
-                  options={elementStyle}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="block text-gray-300 text-sm font-medium">
-                  Expiry Date
-                </label>
-                <div className="p-3 border border-gray-700 rounded-lg bg-[#212121] focus-within:border-[#DC569D] transition-colors">
-                  <CardExpiryElement
-                    onChange={handleCardExpiryChange}
-                    options={elementStyle}
-                  />
+            {paymentProvider === "stripe" && (
+              <>
+                {/* Card Number */}
+                <div className="space-y-2">
+                  <label className="block text-gray-300 text-sm font-medium">
+                    Card Number
+                  </label>
+                  <div className="p-3 border border-gray-700 rounded-lg bg-[#212121] focus-within:border-[#DC569D] transition-colors">
+                    <CardNumberElement
+                      onChange={handleCardNumberChange}
+                      options={elementStyle}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <label className="block text-gray-300 text-sm font-medium">
-                  CVC
-                </label>
-                <div className="p-3 border border-gray-700 rounded-lg bg-[#212121] focus-within:border-[#DC569D] transition-colors">
-                  <CardCvcElement
-                    onChange={handleCardCvcChange}
-                    options={elementStyle}
-                  />
-                </div>
-              </div>
-            </div>
 
-            {(cardErrors.cardNumber ||
-              cardErrors.cardExpiry ||
-              cardErrors.cardCvc ||
-              cardErrors.apiError) && (
-              <div className="text-red-400 text-sm p-3 bg-red-500/10 rounded-lg border border-red-500/20">
-                {cardErrors.apiError ||
-                  cardErrors.cardNumber ||
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-gray-300 text-sm font-medium">
+                      Expiry Date
+                    </label>
+                    <div className="p-3 border border-gray-700 rounded-lg bg-[#212121] focus-within:border-[#DC569D] transition-colors">
+                      <CardExpiryElement
+                        onChange={handleCardExpiryChange}
+                        options={elementStyle}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-gray-300 text-sm font-medium">
+                      CVC
+                    </label>
+                    <div className="p-3 border border-gray-700 rounded-lg bg-[#212121] focus-within:border-[#DC569D] transition-colors">
+                      <CardCvcElement
+                        onChange={handleCardCvcChange}
+                        options={elementStyle}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {(cardErrors.cardNumber ||
                   cardErrors.cardExpiry ||
-                  cardErrors.cardCvc}
-              </div>
+                  cardErrors.cardCvc ||
+                  cardErrors.apiError) && (
+                  <div className="text-red-400 text-sm p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+                    {cardErrors.apiError ||
+                      cardErrors.cardNumber ||
+                      cardErrors.cardExpiry ||
+                      cardErrors.cardCvc}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={!stripe || isProcessing || !allFieldsComplete}
+                  className="w-full py-3 px-4 bg-[#DC569D] text-white font-bold rounded-lg hover:bg-[#c44a87] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#DC569D]/20 mt-4 flex justify-center items-center gap-2"
+                >
+                  {isProcessing && (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  )}
+                  {isProcessing
+                    ? "Processing..."
+                    : isUpdate
+                      ? "Update Subscription"
+                      : `Pay $${totalAmount.toFixed(2)}`}
+                </button>
+              </>
             )}
 
-            <button
-              type="submit"
-              disabled={!stripe || isProcessing || !allFieldsComplete}
-              className="w-full py-3 px-4 bg-[#DC569D] text-white font-bold rounded-lg hover:bg-[#c44a87] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#DC569D]/20 mt-4 flex justify-center items-center gap-2"
-            >
-              {isProcessing && (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              )}
-              {isProcessing
-                ? "Processing..."
-                : isUpdate
-                  ? "Update Subscription"
-                  : `Pay $${totalAmount.toFixed(2)}`}
-            </button>
+            {paymentProvider === "paypal" && (
+              <PayPalSubscriptionButton
+                plan={plan}
+                billingCycle={billingCycle}
+                isUpdate={isUpdate}
+                currentProvider={currentProvider}
+                currentSubscriptionId={currentSubscriptionId}
+                billingDetails={{
+                  first_name: firstName,
+                  last_name: lastName,
+                  address: address,
+                  postal_code: postalCode,
+                  country: country,
+                  vat_amount:
+                    country === "GB" ? vatAmount.toFixed(2) : "0.00",
+                  tax_amount:
+                    country !== "GB" ? vatAmount.toFixed(2) : "0.00",
+                  tax_rate: country === "GB" ? 20 : 15,
+                  tax_type: country === "GB" ? "vat" : "tax",
+                }}
+                isBillingComplete={Boolean(
+                  firstName && lastName && address && postalCode,
+                )}
+                onSuccess={onSuccess}
+                onError={(msg) =>
+                  setCardErrors((prev) => ({ ...prev, apiError: msg }))
+                }
+              />
+            )}
 
             <div className="text-center text-xs text-gray-500 mt-4 leading-relaxed">
               By confirming your subscription, you allow ReelMotion to charge
@@ -944,6 +1467,8 @@ export default function ProPage() {
   const prorationBehavior = location.state?.prorationBehavior || "prorate";
   const currentPeriodEnd = location.state?.currentPeriodEnd;
   const currentPlanPrice = location.state?.currentPrice;
+  const currentProvider = location.state?.currentProvider;
+  const currentSubscriptionId = location.state?.currentSubscriptionId;
 
   // Inicializar estado si vienen parámetros de navegación (ej. desde my-subscription "Upgrade")
   useEffect(() => {
@@ -1040,6 +1565,8 @@ export default function ProPage() {
             prorationBehavior={prorationBehavior}
             currentPeriodEnd={currentPeriodEnd}
             currentPlanPrice={currentPlanPrice}
+            currentProvider={currentProvider}
+            currentSubscriptionId={currentSubscriptionId}
             onBack={() => {
               setSelectedPlan(null);
               // Limpiar estado de navegación por si cancela
