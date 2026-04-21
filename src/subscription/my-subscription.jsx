@@ -26,9 +26,11 @@ export default function MySubscription() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [infoModal, setInfoModal] = useState(null); // { type: 'info'|'error', title, message }
   const [showChangePlanModal, setShowChangePlanModal] = useState(false);
   const [showProrationModal, setShowProrationModal] = useState(false);
   const [pendingSelection, setPendingSelection] = useState(null);
+  const [pendingCancellation, setPendingCancellation] = useState(null);
   // Estado local para alternar ciclo dentro del modal de cambio de plan
   const [modalBillingCycle, setModalBillingCycle] = useState(null);
   const navigate = useNavigate();
@@ -79,6 +81,7 @@ export default function MySubscription() {
 
       setSubscription(formatSubscriptionData(data.suscription));
       setInvoices(data.invoices || []);
+      setPendingCancellation(data.pending_cancellation || null);
     } catch (error) {
       console.error("Error loading subscription", error);
     } finally {
@@ -136,11 +139,19 @@ export default function MySubscription() {
         loadSubscription();
         if (revalidate) revalidate();
       } else {
-        alert("Could not cancel subscription: " + data.message);
+        setInfoModal({
+          type: "info",
+          title: "Subscription Scheduled for Cancellation",
+          message: data.message,
+        });
       }
     } catch (error) {
       console.error("Error cancelling subscription", error);
-      alert("Error cancelling subscription");
+      setInfoModal({
+        type: "error",
+        title: "Something went wrong",
+        message: "We couldn't cancel your subscription. Please try again or contact support.",
+      });
     } finally {
       setLoading(false);
     }
@@ -167,6 +178,28 @@ export default function MySubscription() {
             {t("subscription.title")}
           </h1>
         </div>
+
+        {/* Pending Cancellation Banner */}
+        {pendingCancellation?.will_be_cancelled && (
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-start gap-3">
+            <AlertCircle size={20} className="text-yellow-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-yellow-400 font-semibold text-sm">
+                {t("subscription.pending-cancel-title").replace(
+                  "{date}",
+                  new Date(pendingCancellation.cut_off_date).toLocaleDateString(undefined, {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })
+                )}
+              </p>
+              <p className="text-yellow-400/70 text-xs mt-0.5">
+                {t("subscription.pending-cancel-body")}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Subscription Card */}
         <div className="bg-[#171717] rounded-2xl p-6 border border-gray-800 shadow-xl">
@@ -210,14 +243,18 @@ export default function MySubscription() {
                   onClick={() => setShowChangePlanModal(true)}
                   className="px-4 py-2 bg-[#DC569D] hover:bg-[#c44a87] text-white rounded-lg text-sm font-bold transition-colors shadow-lg shadow-[#DC569D]/20"
                 >
-                  {t("subscription.change-plan")}
+                  {pendingCancellation?.will_be_cancelled
+                    ? t("subscription.reactivate-plan")
+                    : t("subscription.change-plan")}
                 </button>
-                <button
-                  onClick={() => setShowCancelModal(true)}
-                  className="px-4 py-2 bg-[#2f2f2f] hover:bg-[#3a3a3a] text-gray-300 rounded-lg text-sm font-medium transition-colors border border-gray-700"
-                >
-                  {t("subscription.cancel")}
-                </button>
+                {!pendingCancellation?.will_be_cancelled && (
+                  <button
+                    onClick={() => setShowCancelModal(true)}
+                    className="px-4 py-2 bg-[#2f2f2f] hover:bg-[#3a3a3a] text-gray-300 rounded-lg text-sm font-medium transition-colors border border-gray-700"
+                  >
+                    {t("subscription.cancel")}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -536,6 +573,46 @@ export default function MySubscription() {
                   className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-colors"
                 >
                   {t("subscription.cancel-btn")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Info / Error Modal */}
+        {infoModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div
+              className="bg-[#1a1a1a] rounded-2xl max-w-sm w-full border border-gray-800 p-6 shadow-2xl animate-in fade-in zoom-in duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex flex-col items-center text-center gap-4">
+                <div
+                  className={`p-4 rounded-full ${
+                    infoModal.type === "error"
+                      ? "bg-red-500/10 text-red-400"
+                      : "bg-yellow-400/10 text-yellow-400"
+                  }`}
+                >
+                  {infoModal.type === "error" ? (
+                    <AlertCircle size={32} />
+                  ) : (
+                    <Clock size={32} />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    {infoModal.title}
+                  </h3>
+                  <p className="text-sm text-gray-400 leading-relaxed">
+                    {infoModal.message}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setInfoModal(null)}
+                  className="w-full mt-2 px-4 py-2 bg-[#DC569D] hover:bg-[#c44d8e] text-white rounded-xl font-semibold transition-colors"
+                >
+                  Got it
                 </button>
               </div>
             </div>

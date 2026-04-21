@@ -304,6 +304,9 @@ const translations = {
     "subscription.next-billing": "Next billing",
     "subscription.go-pro": "Go Pro",
     "subscription.manage": "Manage",
+    "subscription.pending-cancel-title": "Your subscription will be cancelled on {date}",
+    "subscription.pending-cancel-body": "After that date you will be moved to the free plan. You can reactivate your plan at any time.",
+    "subscription.reactivate-plan": "Reactivate Plan",
 
     // Chat main
     "chat.placeholder": "Describe what you want to create...",
@@ -712,6 +715,9 @@ const translations = {
     "subscription.next-billing": "Próxima facturación",
     "subscription.go-pro": "Hazte Pro",
     "subscription.manage": "Administrar",
+    "subscription.pending-cancel-title": "Tu suscripción será cancelada el {date}",
+    "subscription.pending-cancel-body": "Después de esa fecha pasarás al plan gratuito. Puedes reactivar tu plan en cualquier momento.",
+    "subscription.reactivate-plan": "Reactivar Plan",
 
     // Chat main
     "chat.placeholder": "Describe lo que quieres crear...",
