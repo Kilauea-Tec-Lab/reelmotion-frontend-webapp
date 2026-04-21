@@ -45,8 +45,11 @@ import {
 } from "@solana/spl-token";
 
 // PayPal configuration
-let paypalClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
 let paypalEnvironment = import.meta.env.VITE_PAYPAL_ENVIRONMENT;
+let paypalClientId =
+  paypalEnvironment === "sandbox"
+    ? import.meta.env.VITE_PAYPAL_CLIENT_ID_TEST
+    : import.meta.env.VITE_PAYPAL_CLIENT_ID;
 
 // Solana configuration
 const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"); // USDC Mainnet
@@ -979,6 +982,18 @@ function MainTopMenu({ user_info }) {
   // Load PayPal SDK and initialize payment buttons
   const loadPaypalPaymentForm = async () => {
     try {
+      if (!paypalClientId) {
+        console.error(
+          "PayPal Client ID not found. Please set VITE_PAYPAL_CLIENT_ID environment variable.",
+        );
+        setPaymentMessage(
+          "PayPal is currently unavailable. Please choose another payment method.",
+        );
+        setPaymentMessageType("error");
+        setTokenPurchaseStep("select-gateway");
+        return;
+      }
+
       // Load PayPal SDK if not already loaded
       if (!window.paypal) {
         const script = document.createElement("script");
@@ -993,12 +1008,6 @@ function MainTopMenu({ user_info }) {
         });
       }
 
-      if (!paypalClientId) {
-        console.error(
-          "PayPal Client ID not found. Please set VITE_PAYPAL_CLIENT_ID environment variable.",
-        );
-        return;
-      }
       setPaypalLoaded(true);
       setPaypalContainerReady(true);
 
@@ -2307,11 +2316,21 @@ function MainTopMenu({ user_info }) {
 
                       {/* PayPal Account Option */}
                       <div
-                        onClick={() => setSelectedGateway("paypal")}
-                        className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
-                          selectedGateway === "paypal"
-                            ? "border-primarioLogo bg-primarioLogo bg-opacity-10"
-                            : "border-gray-600 hover:border-gray-500"
+                        onClick={() => {
+                          if (!paypalClientId) {
+                            console.warn(
+                              "PayPal disabled: VITE_PAYPAL_CLIENT_ID is not set.",
+                            );
+                            return;
+                          }
+                          setSelectedGateway("paypal");
+                        }}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          !paypalClientId
+                            ? "cursor-not-allowed opacity-50 border-gray-700"
+                            : selectedGateway === "paypal"
+                              ? "cursor-pointer border-primarioLogo bg-primarioLogo bg-opacity-10"
+                              : "cursor-pointer border-gray-600 hover:border-gray-500"
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -2329,7 +2348,9 @@ function MainTopMenu({ user_info }) {
                               PayPal Account
                             </div>
                             <div className="text-gray-400 text-sm">
-                              Login to your PayPal account or create one
+                              {paypalClientId
+                                ? "Login to your PayPal account or create one"
+                                : "PayPal is not configured (contact support)"}
                             </div>
                           </div>
                         </div>
