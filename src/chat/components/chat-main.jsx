@@ -256,6 +256,7 @@ const COUNTRIES = [
 ];
 
 function SearchableCountrySelect({ value, onChange, countries }) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const wrapperRef = useRef(null);
