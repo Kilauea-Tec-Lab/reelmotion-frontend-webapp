@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useI18n } from "../i18n/i18n-context";
 import {
   Copy,
   Check,
@@ -20,6 +21,7 @@ import { getMySubscription, cancelSubscription } from "./functions";
 import { useNavigate, useOutletContext } from "react-router-dom";
 
 export default function MySubscription() {
+  const { t } = useI18n();
   const [subscription, setSubscription] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -162,7 +164,7 @@ export default function MySubscription() {
       <div className="max-w-6xl mx-auto space-y-6 md:space-y-8">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            My Subscription
+            {t("subscription.title")}
           </h1>
         </div>
 
@@ -186,7 +188,7 @@ export default function MySubscription() {
               </div>
               <p className="text-gray-400 flex items-center gap-2">
                 <Calendar size={16} />
-                Next billing date:{" "}
+                {t("subscription.next-billing")}:{" "}
                 <span className="text-white font-medium">
                   {subscription.next_billing_date || "N/A"}
                 </span>
@@ -208,13 +210,13 @@ export default function MySubscription() {
                   onClick={() => setShowChangePlanModal(true)}
                   className="px-4 py-2 bg-[#DC569D] hover:bg-[#c44a87] text-white rounded-lg text-sm font-bold transition-colors shadow-lg shadow-[#DC569D]/20"
                 >
-                  Change Plan
+                  {t("subscription.change-plan")}
                 </button>
                 <button
                   onClick={() => setShowCancelModal(true)}
                   className="px-4 py-2 bg-[#2f2f2f] hover:bg-[#3a3a3a] text-gray-300 rounded-lg text-sm font-medium transition-colors border border-gray-700"
                 >
-                  Cancel Plan
+                  {t("subscription.cancel")}
                 </button>
               </div>
             </div>
@@ -230,9 +232,9 @@ export default function MySubscription() {
             >
               <div className="p-4 md:p-6 border-b border-gray-800 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sticky top-0 bg-[#171717] z-10">
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold">Change your plan</h2>
+                  <h2 className="text-xl md:text-2xl font-bold">{t("subscription.change-plan")}</h2>
                   <p className="text-gray-400 text-sm">
-                    Choose the plan that best fits your needs
+                    {t("subscription.change-plan")}
                   </p>
                 </div>
 
@@ -247,7 +249,7 @@ export default function MySubscription() {
                           : "text-gray-400 hover:text-white"
                       }`}
                     >
-                      Monthly
+                      {t("subscription.monthly")}
                     </button>
                     <button
                       onClick={() => setModalBillingCycle("yearly")}
@@ -257,7 +259,7 @@ export default function MySubscription() {
                           : "text-gray-400 hover:text-white"
                       }`}
                     >
-                      Yearly
+                      {t("subscription.yearly")}
                     </button>
                   </div>
 
@@ -278,7 +280,7 @@ export default function MySubscription() {
                   {subscription.plan_name === "pro" &&
                     subscription.billing_cycle === modalBillingCycle && (
                       <div className="absolute top-4 right-4 bg-[#DC569D]/20 text-[#DC569D] text-xs font-bold px-2 py-1 rounded">
-                        Current Plan
+                        {t("subscription.plan")}
                       </div>
                     )}
                   <div className="mb-6">
@@ -325,8 +327,8 @@ export default function MySubscription() {
                     >
                       {subscription.plan_name === "pro" &&
                       subscription.billing_cycle === modalBillingCycle
-                        ? "Current Plan"
-                        : "Select Plan"}
+                        ? t("subscription.plan")
+                        : t("subscription.upgrade")}
                     </button>
                   </div>
                   <div className="flex-1 space-y-3">
@@ -348,7 +350,7 @@ export default function MySubscription() {
                   {subscription.plan_name === "elite" &&
                     subscription.billing_cycle === modalBillingCycle && (
                       <div className="absolute top-4 right-4 bg-[#DC569D]/20 text-[#DC569D] text-xs font-bold px-2 py-1 rounded">
-                        Current Plan
+                        {t("subscription.plan")}
                       </div>
                     )}
                   <div className="mb-6">
@@ -395,8 +397,8 @@ export default function MySubscription() {
                     >
                       {subscription.plan_name === "elite" &&
                       subscription.billing_cycle === modalBillingCycle
-                        ? "Current Plan"
-                        : "Select Plan"}
+                        ? t("subscription.plan")
+                        : t("subscription.upgrade")}
                     </button>
                   </div>
                   <div className="flex-1 space-y-3">
@@ -514,16 +516,12 @@ export default function MySubscription() {
               <div className="flex items-center gap-4 mb-4 text-red-500">
                 <AlertCircle size={32} />
                 <h3 className="text-xl font-bold text-white">
-                  Cancel Subscription?
+                  {t("subscription.cancel")}
                 </h3>
               </div>
 
               <p className="text-gray-300 mb-6">
-                Are you sure you want to cancel your subscription?{" "}
-                <span className="font-bold text-white">
-                  At this moment you will return to the free plan
-                </span>{" "}
-                and lose access to premium features immediately.
+                {t("subscription.cancel-confirm")}
               </p>
 
               <div className="flex gap-3 justify-end">
@@ -531,13 +529,13 @@ export default function MySubscription() {
                   onClick={() => setShowCancelModal(false)}
                   className="px-4 py-2 bg-[#2f2f2f] hover:bg-[#3a3a3a] text-white rounded-lg font-medium transition-colors"
                 >
-                  Keep Plan
+                  {t("subscription.keep")}
                 </button>
                 <button
                   onClick={handleCancelSubscription}
                   className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-colors"
                 >
-                  Confirm Cancellation
+                  {t("subscription.cancel-btn")}
                 </button>
               </div>
             </div>
@@ -546,17 +544,17 @@ export default function MySubscription() {
 
         {/* Invoices Section */}
         <div className="space-y-4">
-          <h2 className="text-xl font-bold">Billing History</h2>
+          <h2 className="text-xl font-bold">{t("subscription.invoices")}</h2>
 
           <div className="bg-[#171717] rounded-xl border border-gray-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-[#1e1e1e] text-gray-400 text-sm">
                   <tr>
-                    <th className="p-4 font-medium">Date</th>
+                    <th className="p-4 font-medium">{t("subscription.date")}</th>
                     <th className="p-4 font-medium">Description</th>
-                    <th className="p-4 font-medium">Amount</th>
-                    <th className="p-4 font-medium">Status</th>
+                    <th className="p-4 font-medium">{t("subscription.amount")}</th>
+                    <th className="p-4 font-medium">{t("subscription.status")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800">
@@ -588,7 +586,7 @@ export default function MySubscription() {
                         </td>
                         <td className="p-4">
                           <span className="px-2 py-1 rounded text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
-                            Paid
+                            {t("subscription.paid")}
                           </span>
                         </td>
                       </tr>

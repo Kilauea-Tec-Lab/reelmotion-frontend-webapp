@@ -29,6 +29,7 @@ import {
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router-dom";
 import Cookies from "js-cookie";
+import { useI18n } from "../../i18n/i18n-context";
 import { getUserNotifications, deleteNotification } from "../../auth/functions";
 import { getBillingInfo } from "../../subscription/functions";
 import { createPusherClient } from "@/pusher";
@@ -308,7 +309,7 @@ function SearchableCountrySelect({ value, onChange, countries }) {
               />
               <input
                 type="text"
-                placeholder="Search country..."
+                placeholder={t("chat.search-country") || "Search country..."}
                 className="w-full pl-9 pr-3 py-2 bg-[#3a3a3a] border border-gray-700 rounded-md text-sm text-white focus:outline-none focus:border-[#DC569D]"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -381,6 +382,7 @@ try {
 function CardInput({ onPaymentProcess, isProcessing, totalAmount }) {
   const stripe = useStripe();
   const elements = useElements();
+  const { t } = useI18n();
   const [cardNumberComplete, setCardNumberComplete] = useState(false);
   const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
   const [cardCvcComplete, setCardCvcComplete] = useState(false);
@@ -438,7 +440,7 @@ function CardInput({ onPaymentProcess, isProcessing, totalAmount }) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <label className="block text-white text-sm font-medium">
-          Card Number
+          {t("chat.tokens.card-number")}
         </label>
         <div className="p-4 border border-gray-600 rounded-lg bg-[#2f2f2f]">
           <CardNumberElement
@@ -488,10 +490,10 @@ function CardInput({ onPaymentProcess, isProcessing, totalAmount }) {
           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
         )}
         {isProcessing
-          ? "Processing..."
+          ? t("chat.tokens.processing")
           : !allFieldsComplete
-            ? "Enter card details"
-            : `Pay $${Number(totalAmount).toFixed(2)}`}
+            ? t("chat.tokens.enter-card")
+            : `${t("chat.tokens.pay")} $${Number(totalAmount).toFixed(2)}`}
       </button>
     </form>
   );
@@ -499,6 +501,7 @@ function CardInput({ onPaymentProcess, isProcessing, totalAmount }) {
 
 // Crypto payment component with Phantom Wallet
 function CryptoInput({ onPaymentProcess, isProcessing, totalAmount }) {
+  const { t } = useI18n();
   const [walletAddress, setWalletAddress] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [phantomProvider, setPhantomProvider] = useState(null);
@@ -533,10 +536,10 @@ function CryptoInput({ onPaymentProcess, isProcessing, totalAmount }) {
           </svg>
         </div>
         <h4 className="text-white font-medium mb-2">
-          Crypto Payments Unavailable
+          {t("chat.tokens.crypto-unavailable")}
         </h4>
         <p className="text-gray-400 text-sm">
-          Crypto payments are temporarily unavailable.
+          {t("chat.tokens.crypto-unavailable-desc")}
         </p>
       </div>
     );
@@ -579,22 +582,22 @@ function CryptoInput({ onPaymentProcess, isProcessing, totalAmount }) {
         <div className="text-center py-6">
           <Wallet className="w-12 h-12 text-purple-500 mx-auto mb-4" />
           <h4 className="text-white font-medium mb-2">
-            Phantom Wallet Required
+            {t("chat.tokens.phantom-required")}
           </h4>
           <p className="text-gray-400 text-sm mb-4">
-            You need Phantom wallet to pay with USDC on Solana
+            {t("chat.tokens.phantom-desc")}
           </p>
         </div>
       ) : !walletAddress ? (
         <div className="text-center py-6">
           <Wallet className="w-12 h-12 text-purple-500 mx-auto mb-4" />
-          <h4 className="text-white font-medium mb-2">Connect Your Wallet</h4>
+          <h4 className="text-white font-medium mb-2">{t("chat.tokens.connect-wallet")}</h4>
           <button
             onClick={connectWallet}
             disabled={isConnecting}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
           >
-            {isConnecting ? "Connecting..." : "Connect Phantom Wallet"}
+            {isConnecting ? t("chat.tokens.connecting") : t("chat.tokens.connect-btn")}
           </button>
         </div>
       ) : (
@@ -602,7 +605,7 @@ function CryptoInput({ onPaymentProcess, isProcessing, totalAmount }) {
           <div className="bg-gray-700 p-4 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="text-white font-medium">Wallet Connected</h4>
+                <h4 className="text-white font-medium">{t("chat.tokens.wallet-connected")}</h4>
                 <p className="text-gray-400 text-sm">
                   {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
                 </p>
@@ -611,7 +614,7 @@ function CryptoInput({ onPaymentProcess, isProcessing, totalAmount }) {
                 onClick={disconnectWallet}
                 className="text-red-400 hover:text-red-300 text-sm"
               >
-                Disconnect
+                {t("chat.tokens.disconnect")}
               </button>
             </div>
           </div>
@@ -622,8 +625,8 @@ function CryptoInput({ onPaymentProcess, isProcessing, totalAmount }) {
             className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
           >
             {isProcessing
-              ? "Processing Payment..."
-              : `Pay $${Number(totalAmount).toFixed(2)} with USDC`}
+              ? t("chat.tokens.processing-payment")
+              : `${t("chat.tokens.pay")} $${Number(totalAmount).toFixed(2)} USDC`}
           </button>
         </div>
       )}
@@ -645,6 +648,7 @@ function ChatMain({
 }) {
   const navigate = useNavigate();
   const revalidator = useRevalidator();
+  const { t } = useI18n();
   const selectedChatId =
     typeof selectedChat === "object" ? selectedChat?.id : selectedChat;
   const messagesEndRef = useRef(null);
@@ -1628,18 +1632,18 @@ function ChatMain({
               <div className="bg-[#DC569D]/20 rounded-full p-3">
                 <Pencil className="h-6 w-6 text-[#DC569D]" />
               </div>
-              <h3 className="text-xl font-semibold text-white">Edit Chat</h3>
+              <h3 className="text-xl font-semibold text-white">{t("sidebar.edit-chat")}</h3>
             </div>
 
             <label className="block text-sm text-gray-400 mb-2">
-              Chat name
+              {t("sidebar.chat-name")}
             </label>
             <input
               type="text"
               value={editChatTitle}
               onChange={(e) => setEditChatTitle(e.target.value)}
               className="w-full px-4 py-2 bg-[#2f2f2f] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#DC569D] focus:ring-1 focus:ring-[#DC569D] transition-all"
-              placeholder="Enter chat name"
+              placeholder={t("sidebar.enter-chat-name")}
               autoFocus
             />
 
@@ -1649,7 +1653,7 @@ function ChatMain({
                 disabled={isSavingChatTitle}
                 className="px-4 py-2 bg-[#2f2f2f] text-gray-300 rounded-lg hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
               >
-                Cancel
+                {t("sidebar.cancel")}
               </button>
               <button
                 onClick={handleSaveChatTitle}
@@ -1659,12 +1663,12 @@ function ChatMain({
                 {isSavingChatTitle ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Saving...
+                    {t("sidebar.saving")}
                   </>
                 ) : (
                   <>
                     <Pencil className="h-4 w-4" />
-                    Save
+                    {t("sidebar.save")}
                   </>
                 )}
               </button>
@@ -1687,11 +1691,10 @@ function ChatMain({
               <div className="bg-[#DC569D]/20 rounded-full p-3">
                 <Trash2 className="h-6 w-6 text-[#DC569D]" />
               </div>
-              <h3 className="text-xl font-semibold text-white">Delete Chat</h3>
+              <h3 className="text-xl font-semibold text-white">{t("sidebar.delete-chat")}</h3>
             </div>
             <p className="text-gray-400 mb-6">
-              Are you sure you want to delete this chat? This action cannot be
-              undone.
+              {t("sidebar.delete-confirm")}
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -1699,7 +1702,7 @@ function ChatMain({
                 disabled={isDeletingChat}
                 className="px-4 py-2 bg-[#2f2f2f] text-gray-300 rounded-lg hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
               >
-                Cancel
+                {t("sidebar.cancel")}
               </button>
               <button
                 onClick={handleDeleteChat}
@@ -1709,12 +1712,12 @@ function ChatMain({
                 {isDeletingChat ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Deleting...
+                    {t("sidebar.deleting")}
                   </>
                 ) : (
                   <>
                     <Trash2 className="h-4 w-4" />
-                    Delete
+                    {t("sidebar.delete")}
                   </>
                 )}
               </button>
@@ -1738,12 +1741,11 @@ function ChatMain({
                 <Trash2 className="h-6 w-6 text-[#DC569D]" />
               </div>
               <h3 className="text-xl font-semibold text-white">
-                Delete Attachment
+                {t("library.delete-title")}
               </h3>
             </div>
             <p className="text-gray-400 mb-6">
-              Are you sure you want to delete this attachment? This action
-              cannot be undone.
+              {t("library.delete-confirm")}
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -1751,7 +1753,7 @@ function ChatMain({
                 disabled={isDeletingGallery}
                 className="px-4 py-2 bg-[#2f2f2f] text-gray-300 rounded-lg hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
               >
-                Cancel
+                {t("sidebar.cancel")}
               </button>
               <button
                 onClick={() =>
@@ -1763,12 +1765,12 @@ function ChatMain({
                 {isDeletingGallery ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Deleting...
+                    {t("sidebar.deleting")}
                   </>
                 ) : (
                   <>
                     <Trash2 className="h-4 w-4" />
-                    Delete
+                    {t("sidebar.delete")}
                   </>
                 )}
               </button>
@@ -1944,7 +1946,7 @@ function ChatMain({
                     value={editingGalleryName}
                     onChange={(e) => setEditingGalleryName(e.target.value)}
                     className="flex-1 px-3 py-2 bg-[#2f2f2f] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#DC569D] focus:ring-1 focus:ring-[#DC569D] transition-all text-sm"
-                    placeholder="Enter file name..."
+                    placeholder={t("library.rename-placeholder")}
                     maxLength={255}
                     autoFocus
                   />
@@ -2227,7 +2229,7 @@ function ChatMain({
                 className="px-2 md:px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1"
               >
                 <DollarSign className="h-3 w-3" />
-                <span>Buy Tokens</span>
+                <span>{t("chat.buy-tokens")}</span>
               </button>
 
               {/* Notificaciones */}
@@ -2248,7 +2250,7 @@ function ChatMain({
                 {showNotifications && (
                   <div className="absolute top-12 right-0 bg-[#2f2f2f] rounded-lg shadow-xl border border-gray-700 w-72 sm:w-80 max-h-96 overflow-y-auto z-50">
                     <div className="p-3 border-b border-gray-700">
-                      <h3 className="text-white font-medium">Notifications</h3>
+                      <h3 className="text-white font-medium">{t("chat.notifications")}</h3>
                     </div>
                     {notificationsInfo.length > 0 ? (
                       <div className="py-2">
@@ -2284,7 +2286,7 @@ function ChatMain({
                       </div>
                     ) : (
                       <div className="px-4 py-8 text-center text-gray-400 text-sm">
-                        No notifications
+                        {t("chat.no-notifications")}
                       </div>
                     )}
                   </div>
@@ -2317,7 +2319,7 @@ function ChatMain({
                           <button
                             onClick={() => handleCopyToClipboard(msg)}
                             className="bg-gray-700 hover:bg-gray-600 rounded-full p-1.5 transition-colors"
-                            title="Copy to clipboard"
+                            title={t("chat.copy-clipboard")}
                           >
                             <Copy size={14} className="text-white" />
                           </button>
@@ -2571,7 +2573,7 @@ function ChatMain({
                 />
                 <textarea
                   ref={messageInputRef}
-                  placeholder="Ask anything..."
+                  placeholder={t("chat.placeholder")}
                   value={message}
                   onChange={(e) => {
                     onMessageChange(e.target.value);
@@ -2615,7 +2617,7 @@ function ChatMain({
                   <button
                     onClick={onCancel}
                     className="bg-red-500/10 hover:bg-red-500/20 text-red-500 p-2 rounded-lg transition-colors ml-2 border border-red-500/50"
-                    title="Stop generation"
+                    title={t("chat.stop")}
                   >
                     <Square size={18} fill="currentColor" className="p-0.5" />
                   </button>
@@ -2674,7 +2676,7 @@ function ChatMain({
                             <button
                               onClick={() => handleCopyToClipboard(msg)}
                               className="bg-gray-700 hover:bg-gray-600 rounded-full p-1.5 transition-colors"
-                              title="Copy to clipboard"
+                              title={t("chat.copy-clipboard")}
                             >
                               <Copy size={14} className="text-white" />
                             </button>
@@ -2892,7 +2894,7 @@ function ChatMain({
                     />
                     <textarea
                       ref={messageInputRef}
-                      placeholder="Ask anything..."
+                      placeholder={t("chat.placeholder")}
                       value={message}
                       onChange={(e) => {
                         onMessageChange(e.target.value);
@@ -2937,7 +2939,7 @@ function ChatMain({
                       <button
                         onClick={onCancel}
                         className="bg-red-500/10 hover:bg-red-500/20 text-red-500 p-2 rounded-lg transition-colors ml-2 border border-red-500/50"
-                        title="Stop generation"
+                        title={t("chat.stop")}
                       >
                         <Square size={22} fill="currentColor" className="p-1" />
                       </button>
@@ -2974,7 +2976,7 @@ function ChatMain({
                   className="px-2 md:px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1"
                 >
                   <DollarSign className="h-3 w-3" />
-                  <span>Buy Tokens</span>
+                  <span>{t("chat.buy-tokens")}</span>
                 </button>
 
                 {/* Notificaciones */}
@@ -3033,7 +3035,7 @@ function ChatMain({
                         </div>
                       ) : (
                         <div className="px-4 py-8 text-center text-gray-400 text-sm">
-                          No notifications
+                          {t("chat.no-notifications")}
                         </div>
                       )}
                     </div>
@@ -3044,7 +3046,7 @@ function ChatMain({
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center max-w-3xl w-full px-4 md:px-6">
                   <h1 className="text-2xl md:text-4xl font-semibold mb-4">
-                    How can I help you?
+                    {t("chat.welcome")}
                   </h1>
 
                   {/* Quick Actions */}
@@ -3055,7 +3057,7 @@ function ChatMain({
                         className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-2 self-center"
                       >
                         <ChevronLeft size={20} />
-                        <span>Back</span>
+                        <span>{t("chat.quick.back")}</span>
                       </button>
                     )}
 
@@ -3068,7 +3070,7 @@ function ChatMain({
                             className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Plus className="h-5 w-5 text-[#DC569D]" />
-                            <span>Create</span>
+                            <span>{t("chat.quick.create")}</span>
                           </button>
 
                           <button
@@ -3077,7 +3079,7 @@ function ChatMain({
                             className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Pencil className="h-5 w-5 text-[#DC569D]" />
-                            <span>Edit</span>
+                            <span>{t("chat.quick.edit")}</span>
                           </button>
 
                           <button
@@ -3086,7 +3088,7 @@ function ChatMain({
                             className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Search className="h-5 w-5 text-[#DC569D]" />
-                            <span>Analyze</span>
+                            <span>{t("chat.quick.analyze")}</span>
                           </button>
                         </>
                       )}
@@ -3101,7 +3103,7 @@ function ChatMain({
                             className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Image className="h-5 w-5 text-[#DC569D]" />
-                            <span>Create AI Image</span>
+                            <span>{t("chat.quick.create-image")}</span>
                           </button>
 
                           <button
@@ -3112,7 +3114,7 @@ function ChatMain({
                             className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Video className="h-5 w-5 text-[#DC569D]" />
-                            <span>Create AI Video</span>
+                            <span>{t("chat.quick.create-video")}</span>
                           </button>
 
                           <button
@@ -3123,7 +3125,7 @@ function ChatMain({
                             className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Plus className="h-5 w-5 text-[#DC569D]" />
-                            <span>Create Project</span>
+                            <span>{t("chat.quick.create-project")}</span>
                           </button>
 
                           <button
@@ -3134,7 +3136,7 @@ function ChatMain({
                             className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Mic className="h-5 w-5 text-[#DC569D]" />
-                            <span>Create Voice</span>
+                            <span>{t("chat.quick.create-voice")}</span>
                           </button>
                         </>
                       )}
@@ -3149,7 +3151,7 @@ function ChatMain({
                             className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Image className="h-5 w-5 text-[#DC569D]" />
-                            <span>Edit Image</span>
+                            <span>{t("chat.quick.edit-image")}</span>
                           </button>
 
                           <button
@@ -3160,7 +3162,7 @@ function ChatMain({
                             className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Video className="h-5 w-5 text-[#DC569D]" />
-                            <span>Edit Video</span>
+                            <span>{t("chat.quick.edit-video")}</span>
                           </button>
                         </>
                       )}
@@ -3175,7 +3177,7 @@ function ChatMain({
                             className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Image className="h-5 w-5 text-[#DC569D]" />
-                            <span>Analyze Image</span>
+                            <span>{t("chat.quick.analyze-image")}</span>
                           </button>
 
                           <button
@@ -3186,7 +3188,7 @@ function ChatMain({
                             className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Video className="h-5 w-5 text-[#DC569D]" />
-                            <span>Analyze Video</span>
+                            <span>{t("chat.quick.analyze-video")}</span>
                           </button>
                         </>
                       )}
@@ -3271,7 +3273,7 @@ function ChatMain({
                       />
                       <textarea
                         ref={messageInputRef}
-                        placeholder="Ask anything..."
+                        placeholder={t("chat.placeholder")}
                         value={message}
                         onChange={(e) => {
                           onMessageChange(e.target.value);
@@ -3316,7 +3318,7 @@ function ChatMain({
                         <button
                           onClick={onCancel}
                           className="bg-red-500/10 hover:bg-red-500/20 text-red-500 p-2 rounded-lg transition-colors ml-2 border border-red-500/50"
-                          title="Stop generation"
+                          title={t("chat.stop")}
                         >
                           <Square
                             size={22}
@@ -3342,12 +3344,11 @@ function ChatMain({
               {/* Modal Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-700">
                 <h2 className="text-xl font-semibold text-white">
-                  {tokenPurchaseStep === "select-amount" && "Buy Tokens"}
-                  {tokenPurchaseStep === "select-gateway" &&
-                    "Select Payment Gateway"}
-                  {tokenPurchaseStep === "payment-method" && "Payment Method"}
-                  {tokenPurchaseStep === "success" && "Purchase Successful"}
-                  {tokenPurchaseStep === "error" && "Payment Error"}
+                  {tokenPurchaseStep === "select-amount" && t("chat.tokens.title")}
+                  {tokenPurchaseStep === "select-gateway" && t("chat.tokens.gateway")}
+                  {tokenPurchaseStep === "payment-method" && t("chat.tokens.method")}
+                  {tokenPurchaseStep === "success" && t("chat.tokens.success")}
+                  {tokenPurchaseStep === "error" && t("chat.tokens.error")}
                 </h2>
                 <button
                   onClick={handleCloseTokenModal}
@@ -3363,14 +3364,13 @@ function ChatMain({
                 {tokenPurchaseStep === "select-amount" && (
                   <div className="space-y-6">
                     <p className="text-gray-300 text-sm">
-                      Enter the amount you want to spend. Each dollar gives you
-                      100 tokens. Minimum purchase is $6.
+                      {t("chat.tokens.description")}
                     </p>
 
                     <div className="space-y-4">
                       <div>
                         <label className="block text-white text-sm font-medium mb-2">
-                          Amount (USD)
+                          {t("chat.tokens.amount")}
                         </label>
                         <input
                           type="number"
@@ -3392,7 +3392,7 @@ function ChatMain({
                           return (
                             <>
                               <div className="flex justify-between items-center">
-                                <span className="text-gray-400">Subtotal:</span>
+                                <span className="text-gray-400">{t("chat.tokens.subtotal")}</span>
                                 <span className="text-white font-medium">
                                   ${breakdown.subtotal.toFixed(2)}
                                 </span>
@@ -3408,7 +3408,7 @@ function ChatMain({
                               <div className="border-t border-gray-600 mt-2 pt-2">
                                 <div className="flex justify-between items-center">
                                   <span className="text-white font-semibold">
-                                    Total Amount:
+                                    {t("chat.tokens.total")}
                                   </span>
                                   <span className="text-[#DC569D] font-bold text-lg">
                                     ${breakdown.total.toFixed(2)}
@@ -3417,7 +3417,7 @@ function ChatMain({
                               </div>
                               <div className="flex justify-between items-center mt-3 pt-2 border-t border-gray-600">
                                 <span className="text-gray-400">
-                                  Tokens you'll receive:
+                                  {t("chat.tokens.receive")}
                                 </span>
                                 <span className="text-[#DC569D] font-semibold">
                                   {breakdown.tokens} tokens
@@ -3434,7 +3434,7 @@ function ChatMain({
                       disabled={!purchaseAmount || Number(purchaseAmount) < 6}
                       className="w-full px-4 py-2 bg-[#DC569D] text-white rounded-lg hover:bg-[#c9458b] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Continue to Payment
+                      {t("chat.tokens.continue")}
                     </button>
                   </div>
                 )}
@@ -3450,13 +3450,13 @@ function ChatMain({
                         return (
                           <div className="space-y-2">
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Total:</span>
+                              <span className="text-gray-400">{t("chat.tokens.total-label")}</span>
                               <span className="text-[#DC569D] font-bold">
                                 ${breakdown.total.toFixed(2)}
                               </span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Tokens:</span>
+                              <span className="text-gray-400">{t("chat.tokens.tokens-label")}</span>
                               <span className="text-white">
                                 {breakdown.tokens} tokens
                               </span>
@@ -3468,7 +3468,7 @@ function ChatMain({
 
                     <div className="space-y-3">
                       <h3 className="text-white font-medium">
-                        Choose Payment Method
+                        {t("chat.tokens.choose-method")}
                       </h3>
 
                       <div
@@ -3485,10 +3485,10 @@ function ChatMain({
                           </div>
                           <div>
                             <div className="text-white font-medium">
-                              Credit/Debit Card
+                              {t("chat.tokens.card")}
                             </div>
                             <div className="text-gray-400 text-sm">
-                              Pay directly with your card
+                              {t("chat.tokens.card-desc")}
                             </div>
                           </div>
                         </div>
@@ -3509,10 +3509,10 @@ function ChatMain({
                             </div>
                             <div>
                               <div className="text-white font-medium">
-                                Pay with Crypto
+                                {t("chat.tokens.crypto")}
                               </div>
                               <div className="text-gray-400 text-sm">
-                                USDC on Solana via Phantom
+                                {t("chat.tokens.crypto-desc")}
                               </div>
                             </div>
                           </div>
@@ -3525,13 +3525,13 @@ function ChatMain({
                         onClick={() => setTokenPurchaseStep("select-amount")}
                         className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
                       >
-                        Back
+                        {t("chat.tokens.back")}
                       </button>
                       <button
                         onClick={() => setTokenPurchaseStep("payment-method")}
                         className="flex-1 px-4 py-2 bg-[#DC569D] text-white rounded-lg hover:bg-[#c9458b] transition-colors"
                       >
-                        Continue
+                        {t("chat.tokens.continue-btn")}
                       </button>
                     </div>
                   </div>
@@ -3543,18 +3543,18 @@ function ChatMain({
                     {selectedGateway === "card" && (
                       <div className="space-y-4">
                         <h3 className="text-white font-medium">
-                          Credit/Debit Card Payment
+                          {t("chat.tokens.card-payment")}
                         </h3>
 
                         {/* Billing Info */}
                         <div className="space-y-4 pt-2 pb-6 border-b border-gray-700">
                           <h3 className="text-lg font-semibold text-white">
-                            Billing Address
+                            {t("chat.tokens.billing")}
                           </h3>
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <label className="block text-gray-300 text-sm font-medium">
-                                First Name
+                                {t("chat.tokens.first-name")}
                               </label>
                               <input
                                 type="text"
@@ -3566,7 +3566,7 @@ function ChatMain({
                             </div>
                             <div className="space-y-2">
                               <label className="block text-gray-300 text-sm font-medium">
-                                Last Name
+                                {t("chat.tokens.last-name")}
                               </label>
                               <input
                                 type="text"
@@ -3580,7 +3580,7 @@ function ChatMain({
 
                           <div className="space-y-2">
                             <label className="block text-gray-300 text-sm font-medium">
-                              Address
+                              {t("chat.tokens.address")}
                             </label>
                             <input
                               type="text"
@@ -3594,7 +3594,7 @@ function ChatMain({
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <label className="block text-gray-300 text-sm font-medium">
-                                Country
+                                {t("chat.tokens.country")}
                               </label>
                               <div className="relative">
                                 <SearchableCountrySelect
@@ -3606,7 +3606,7 @@ function ChatMain({
                             </div>
                             <div className="space-y-2">
                               <label className="block text-gray-300 text-sm font-medium">
-                                Postal Code
+                                {t("chat.tokens.postal")}
                               </label>
                               <input
                                 type="text"
@@ -3637,7 +3637,7 @@ function ChatMain({
                               <>
                                 <div className="flex justify-between items-center">
                                   <span className="text-gray-400">
-                                    Subtotal:
+                                    {t("chat.tokens.subtotal")}
                                   </span>
                                   <span className="text-white font-medium">
                                     ${breakdown.subtotal.toFixed(2)}
@@ -3654,7 +3654,7 @@ function ChatMain({
                                 <div className="border-t border-gray-600 mt-2 pt-2">
                                   <div className="flex justify-between items-center">
                                     <span className="text-white font-semibold">
-                                      Total Amount:
+                                      {t("chat.tokens.total")}
                                     </span>
                                     <span className="text-[#DC569D] font-bold text-lg">
                                       ${breakdown.total.toFixed(2)}
@@ -3671,7 +3671,7 @@ function ChatMain({
                           disabled={isProcessingPayment}
                           className="w-full px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 mt-4"
                         >
-                          Back
+                          {t("chat.quick.back")}
                         </button>
                       </div>
                     )}
@@ -3679,7 +3679,7 @@ function ChatMain({
                     {selectedGateway === "crypto" && (
                       <div className="space-y-4">
                         <h3 className="text-white font-medium">
-                          Crypto Payment
+                          {t("chat.tokens.crypto-payment")}
                         </h3>
 
                         <CryptoInput
@@ -3696,7 +3696,7 @@ function ChatMain({
                           disabled={isProcessingPayment}
                           className="w-full px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
                         >
-                          Back
+                          {t("chat.tokens.back")}
                         </button>
                       </div>
                     )}
@@ -3724,17 +3724,16 @@ function ChatMain({
 
                     <div>
                       <h3 className="text-white text-xl font-semibold mb-2">
-                        Purchase Successful!
+                        {t("chat.tokens.success-title")}
                       </h3>
                       <p className="text-gray-300">
-                        {calculateTokens(purchaseAmount)} tokens have been added
-                        to your account.
+                        {calculateTokens(purchaseAmount)} {t("chat.tokens.success-desc")}
                       </p>
                     </div>
 
                     <div className="bg-[#3a3a3a] p-4 rounded-lg space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-400">New Balance:</span>
+                        <span className="text-gray-400">{t("chat.tokens.new-balance")}</span>
                         <span className="text-[#DC569D] font-semibold text-lg">
                           {Number(tokens).toLocaleString()} tokens
                         </span>
@@ -3745,7 +3744,7 @@ function ChatMain({
                       onClick={handleCloseTokenModal}
                       className="w-full px-4 py-2 bg-[#DC569D] text-white rounded-lg hover:bg-[#c9458b] transition-colors"
                     >
-                      Continue
+                      {t("chat.tokens.close")}
                     </button>
                   </div>
                 )}
@@ -3771,7 +3770,7 @@ function ChatMain({
 
                     <div>
                       <h3 className="text-white text-xl font-semibold mb-2">
-                        Payment Failed
+                        {t("chat.tokens.failed")}
                       </h3>
                       <p className="text-gray-300 mb-4">{paymentMessage}</p>
                     </div>
@@ -3781,13 +3780,13 @@ function ChatMain({
                         onClick={() => setTokenPurchaseStep("select-amount")}
                         className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500 transition-colors"
                       >
-                        Try Again
+                        {t("chat.tokens.try-again")}
                       </button>
                       <button
                         onClick={handleCloseTokenModal}
                         className="flex-1 px-4 py-2 bg-[#DC569D] text-white rounded-lg hover:bg-[#c9458b] transition-colors"
                       >
-                        Close
+                        {t("chat.tokens.close")}
                       </button>
                     </div>
                   </div>

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useI18n } from "../i18n/i18n-context";
 import {
   Camera,
   Settings,
@@ -21,6 +22,7 @@ import { useLoaderData } from "react-router-dom";
 import { updateUserProfile } from "./functions";
 
 function Profile() {
+  const { t } = useI18n();
   const initialUser = useLoaderData();
   const [user, setUser] = useState(initialUser);
   const [profileImage, setProfileImage] = useState(user?.data?.image || null);
@@ -365,7 +367,7 @@ function Profile() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6 md:mb-8">
           <h1 className="text-white montserrat-medium text-2xl md:text-3xl tracking-wider">
-            Profile
+            {t("profile.title")}
           </h1>
 
           {/* Edit/Save/Cancel Buttons */}
@@ -375,7 +377,7 @@ function Profile() {
               className="flex items-center gap-2 bg-darkBox hover:bg-darkBoxSub transition-colors px-4 py-2 rounded-lg text-white"
             >
               <Edit3 size={18} />
-              Edit
+              {t("profile.edit")}
             </button>
           ) : (
             <div className="flex items-center gap-3">
@@ -385,7 +387,7 @@ function Profile() {
                 className="flex items-center gap-2 bg-[#F2D543] hover:bg-[#f2f243] transition-colors px-4 py-2 rounded-lg text-primarioDark font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save size={18} />
-                {isUploading ? "Saving..." : "Save"}
+                {isUploading ? t("profile.saving") : t("profile.save")}
               </button>
               <button
                 onClick={handleEditToggle}
@@ -393,7 +395,7 @@ function Profile() {
                 className="flex items-center gap-2 bg-primarioLogo transition-colors px-4 py-2 rounded-lg text-white disabled:opacity-50"
               >
                 <X size={18} />
-                Cancel
+                {t("profile.cancel")}
               </button>
             </div>
           )}
@@ -489,7 +491,7 @@ function Profile() {
           <div className="lg:col-span-2">
             <div className="bg-darkBox rounded-2xl p-6">
               <h3 className="text-white montserrat-medium text-xl mb-6">
-                Personal Information
+                {t("profile.settings")}
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -500,7 +502,7 @@ function Profile() {
                   </div>
                   <div className="flex-1">
                     <p className="text-gray-400 montserrat-light text-sm">
-                      Email
+                      {t("profile.email")}
                     </p>
                     {isEditing ? (
                       <>
@@ -597,7 +599,7 @@ function Profile() {
                     </div>
                     <div className="flex-1">
                       <p className="text-gray-400 montserrat-light text-sm">
-                        New Password
+                        {t("profile.password")}
                       </p>
                       <div className="relative">
                         <input

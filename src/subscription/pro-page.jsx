@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useI18n } from "../i18n/i18n-context";
 import {
   Check,
   X,
@@ -317,22 +318,23 @@ function SearchableCountrySelect({ value, onChange, countries }) {
 }
 
 function SuccessMessage({ onContinue }) {
+  const { t } = useI18n();
   return (
     <div className="max-w-2xl mx-auto pt-16 text-center space-y-8 animate-in fade-in duration-500">
       <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
         <ShieldCheck size={48} className="text-green-500" />
       </div>
       <div>
-        <h2 className="text-3xl font-bold mb-4">Thank you for subscribing!</h2>
+        <h2 className="text-3xl font-bold mb-4">{t("pricing.pro.name")} - {t("subscription.active")}</h2>
         <p className="text-gray-400 text-lg">
-          Your subscription has been successfully created. Welcome to the team!
+          {t("subscription.title")}
         </p>
       </div>
       <button
         onClick={onContinue}
         className="px-8 py-3 bg-[#DC569D] text-white font-bold rounded-lg hover:bg-[#c44a87] transition-all"
       >
-        View My Subscription
+        {t("subscription.manage")}
       </button>
     </div>
   );
@@ -928,6 +930,7 @@ function CheckoutForm({
 }
 
 export default function ProPage() {
+  const { t } = useI18n();
   const [billingCycle, setBillingCycle] = useState("monthly"); // "monthly" | "yearly"
   const [selectedPlan, setSelectedPlan] = useState(null); // { name: 'pro' | 'elite', price: number }
   const [showSuccess, setShowSuccess] = useState(false);
@@ -1058,7 +1061,7 @@ export default function ProPage() {
         {/* Header */}
         <div className="text-center space-y-4">
           <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent py-2">
-            Upgrade your plan
+            {t("pricing.title")}
           </h1>
           <p className="text-gray-400 max-w-2xl mx-auto">
             Get more credits, better quality, and unlock all features.
@@ -1071,7 +1074,7 @@ export default function ProPage() {
                 billingCycle === "monthly" ? "text-white" : "text-gray-400"
               }`}
             >
-              Monthly
+              {t("pricing.monthly")}
             </span>
             <button
               onClick={() =>
@@ -1092,9 +1095,9 @@ export default function ProPage() {
                 billingCycle === "yearly" ? "text-white" : "text-gray-400"
               }`}
             >
-              Yearly{" "}
+              {t("pricing.yearly")}{" "}
               <span className="text-[#DC569D] text-xs font-bold">
-                (Save 10%)
+                ({t("pricing.save10")})
               </span>
             </span>
           </div>

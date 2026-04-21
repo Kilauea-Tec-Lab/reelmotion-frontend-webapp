@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import { useLoaderData } from "react-router-dom";
+import { useI18n } from "../i18n/i18n-context";
 import {
   Images,
   Loader2,
@@ -200,6 +201,7 @@ const GalleryItem = memo(
 GalleryItem.displayName = "GalleryItem";
 
 function Library() {
+  const { t } = useI18n();
   const libraryData = useLoaderData();
   const [loadedMedia, setLoadedMedia] = useState(new Set());
   const [galleryFilter, setGalleryFilter] = useState("all");
@@ -675,15 +677,11 @@ function Library() {
                 <Trash2 className="h-6 w-6 text-[#DC569D]" />
               </div>
               <h3 className="text-xl font-semibold text-white">
-                {deleteConfirm.sourceType === "project"
-                  ? "Delete Project"
-                  : "Delete File"}
+                {t("library.delete-title")}
               </h3>
             </div>
             <p className="text-gray-400 mb-6">
-              {deleteConfirm.sourceType === "project"
-                ? "Are you sure you want to delete this project? This action cannot be undone."
-                : "Are you sure you want to delete this file? This action cannot be undone."}
+              {t("library.delete-confirm")}
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -691,7 +689,7 @@ function Library() {
                 disabled={isDeleting}
                 className="px-4 py-2 bg-[#2f2f2f] text-gray-300 rounded-lg hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
               >
-                Cancel
+                {t("library.cancel")}
               </button>
               <button
                 onClick={handleDeleteAttachment}
@@ -701,12 +699,12 @@ function Library() {
                 {isDeleting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Deleting...
+                    {t("sidebar.deleting")}
                   </>
                 ) : (
                   <>
                     <Trash2 className="h-4 w-4" />
-                    Delete
+                    {t("library.delete")}
                   </>
                 )}
               </button>
@@ -850,8 +848,8 @@ function Library() {
                       )}
                       <span className="text-sm text-gray-300">
                         {currentAttachment.project_type === "public"
-                          ? "Public"
-                          : "Private"}
+                          ? t("library.public")
+                          : t("library.private")}
                       </span>
                     </div>
                     <button
@@ -864,12 +862,12 @@ function Library() {
                       ) : currentAttachment.project_type === "public" ? (
                         <>
                           <Lock className="h-3 w-3" />
-                          Make Private
+                          {t("library.make-private")}
                         </>
                       ) : (
                         <>
                           <Globe className="h-3 w-3" />
-                          Make Public
+                          {t("library.make-public")}
                         </>
                       )}
                     </button>
@@ -884,11 +882,7 @@ function Library() {
                     value={editingName}
                     onChange={(e) => setEditingName(e.target.value)}
                     className="flex-1 px-3 py-2 bg-[#2f2f2f] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#DC569D] focus:ring-1 focus:ring-[#DC569D] transition-all text-sm"
-                    placeholder={
-                      currentAttachment.sourceType === "project"
-                        ? "Enter project name..."
-                        : "Enter file name..."
-                    }
+                    placeholder={t("library.rename-placeholder")}
                     maxLength={255}
                     autoFocus
                   />
@@ -940,7 +934,7 @@ function Library() {
       <div className="min-h-14 md:h-16 border-b border-gray-800 flex items-center justify-between px-4 md:px-6 py-3 md:py-0 shrink-0">
         <div className="flex items-center gap-3">
           <Images className="h-6 w-6 text-[#DC569D] flex-shrink-0" />
-          <h2 className="text-lg md:text-xl font-semibold text-white">Media Library</h2>
+          <h2 className="text-lg md:text-xl font-semibold text-white">{t("library.title")}</h2>
           <span className="text-sm text-gray-400">
             ({sortedAttachments.length} items)
           </span>
@@ -959,7 +953,7 @@ function Library() {
                 : "bg-[#2f2f2f] text-gray-400 hover:bg-[#3a3a3a] hover:text-white"
             }`}
           >
-            All
+            {t("library.all")}
           </button>
           <button
             onClick={() => setGalleryFilter("ai")}
@@ -970,7 +964,7 @@ function Library() {
             }`}
           >
             <Sparkles className="h-4 w-4 flex-shrink-0" />
-            <span>AI Generated</span>
+            <span>{t("library.ai-generated")}</span>
           </button>
           <button
             onClick={() => setGalleryFilter("uploads")}
@@ -980,7 +974,7 @@ function Library() {
                 : "bg-[#2f2f2f] text-gray-400 hover:bg-[#3a3a3a] hover:text-white"
             }`}
           >
-            Uploads
+            {t("library.uploads")}
           </button>
           <button
             onClick={() => setGalleryFilter("projects")}
@@ -990,7 +984,7 @@ function Library() {
                 : "bg-[#2f2f2f] text-gray-400 hover:bg-[#3a3a3a] hover:text-white"
             }`}
           >
-            Projects
+            {t("library.projects")}
           </button>
         </div>
 
@@ -1000,7 +994,7 @@ function Library() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by chat name..."
+              placeholder={t("library.search")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-[#2f2f2f] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#DC569D] focus:ring-1 focus:ring-[#DC569D] transition-all"
@@ -1022,7 +1016,7 @@ function Library() {
         {sortedAttachments.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400">
             <Images className="h-16 w-16 mb-4 opacity-50" />
-            <p>No media files in this category</p>
+            <p>{t("library.empty")}</p>
           </div>
         ) : (
           <div className="max-w-7xl mx-auto">
