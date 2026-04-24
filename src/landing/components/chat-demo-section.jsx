@@ -152,8 +152,12 @@ const ChatDemoSection = () => {
 
                 <video
                   src="/landing/demo-reelmotion.mp4"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
                   controls
-                  preload="none"
+                  preload="metadata"
                   className="w-full"
                 />
               </div>
