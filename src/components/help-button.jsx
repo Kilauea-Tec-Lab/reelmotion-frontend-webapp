@@ -9,8 +9,10 @@ import {
 import ReelBot from "./reel-bot";
 import SuggestionsForm from "./suggestions-form";
 import TutorialModal from "./tutorial-modal";
+import { useI18n } from "../i18n/i18n-context";
 
 function HelpButton() {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [activeComponent, setActiveComponent] = useState(null);
   const [hasBeenClicked, setHasBeenClicked] = useState(false);
@@ -83,10 +85,10 @@ function HelpButton() {
               />
               <div>
                 <span className="montserrat-medium text-sm block text-white">
-                  Reelbot
+                  {t("help.reelbot")}
                 </span>
                 <span className="montserrat-light text-xs text-gray-400">
-                  Support Chat
+                  {t("help.reelbot-subtitle")}
                 </span>
               </div>
             </button>
@@ -101,10 +103,10 @@ function HelpButton() {
               />
               <div>
                 <span className="montserrat-medium text-sm block">
-                  Suggestions
+                  {t("help.suggestions")}
                 </span>
                 <span className="montserrat-light text-xs text-gray-400">
-                  Help us improve
+                  {t("help.suggestions-subtitle")}
                 </span>
               </div>
             </button>

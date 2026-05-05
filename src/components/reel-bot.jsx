@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Send, Bot, User } from "lucide-react";
 import Cookies from "js-cookie";
+import { useI18n } from "../i18n/i18n-context";
 
 function ReelBot({ onClose }) {
+  const { t } = useI18n();
   // Load conversation from cookies
   const loadConversationFromCookies = () => {
     try {
@@ -22,7 +24,7 @@ function ReelBot({ onClose }) {
       {
         id: 1,
         type: "bot",
-        text: "Hi! I'm Reelbot, your support assistant. How can I help you today?",
+        text: t("reelbot.greeting"),
         timestamp: new Date(),
       },
     ];
@@ -112,7 +114,7 @@ function ReelBot({ onClose }) {
         text:
           data.message ||
           data.response ||
-          "I'm sorry, I couldn't process your request at the moment. Please try again.",
+          t("reelbot.error-default"),
         timestamp: new Date(),
       };
 
@@ -124,7 +126,7 @@ function ReelBot({ onClose }) {
       const botResponse = {
         id: messages.length + 2,
         type: "bot",
-        text: "I'm sorry, I'm having trouble connecting right now. Please try again later or contact our support team.",
+        text: t("reelbot.error-connection"),
         timestamp: new Date(),
       };
 
@@ -214,8 +216,8 @@ function ReelBot({ onClose }) {
             />
           </div>
           <div>
-            <h3 className="text-white montserrat-medium text-sm">Reelbot</h3>
-            <p className="text-green-400 montserrat-light text-xs">Online</p>
+            <h3 className="text-white montserrat-medium text-sm">{t("help.reelbot")}</h3>
+            <p className="text-green-400 montserrat-light text-xs">{t("reelbot.online")}</p>
           </div>
         </div>
         <button
@@ -307,7 +309,7 @@ function ReelBot({ onClose }) {
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Type your message..."
+            placeholder={t("reelbot.placeholder")}
             className="flex-1 bg-darkBoxSub text-white placeholder-gray-400 px-4 py-2 rounded-full montserrat-regular text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
             disabled={isTyping}
           />

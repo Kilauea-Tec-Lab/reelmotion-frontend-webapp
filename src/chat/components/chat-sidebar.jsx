@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Link, useParams, useNavigate, useRevalidator } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Cookies from "js-cookie";
 import { useI18n } from "../../i18n/i18n-context";
 
@@ -178,8 +179,8 @@ function ChatSidebar({
 
   return (
     <div className={`fixed md:relative inset-y-0 left-0 z-30 w-64 bg-[#171717] border-r border-gray-800 flex flex-col transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
-      {/* Edit Chat Modal */}
-      {editChatId && (
+      {/* Edit Chat Modal (portaled to body to escape sidebar transform) */}
+      {editChatId && createPortal(
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4"
           onClick={closeEditModal}
@@ -243,11 +244,12 @@ function ChatSidebar({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Delete Chat Modal */}
-      {deleteChatId && (
+      {/* Delete Chat Modal (portaled to body to escape sidebar transform) */}
+      {deleteChatId && createPortal(
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4"
           onClick={closeDeleteModal}
@@ -292,7 +294,8 @@ function ChatSidebar({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <img

@@ -1461,6 +1461,11 @@ export default function ProPage() {
   const navigate = useNavigate();
   const context = useOutletContext();
   const revalidate = context?.revalidate;
+  const subscription = context?.subscription;
+  const hasActiveSubscription =
+    subscription &&
+    subscription.suscription &&
+    subscription.suscription !== "free";
 
   // Detectar modo update desde navegación
   const isUpdate = location.state?.isUpdate || false;
@@ -1549,6 +1554,36 @@ export default function ProPage() {
     return (
       <div className="flex-1 h-screen overflow-y-auto bg-[#212121] text-white p-6 md:p-12">
         <SuccessMessage onContinue={handleSuccessContinue} />
+      </div>
+    );
+  }
+
+  if (
+    hasActiveSubscription &&
+    !selectedPlan &&
+    !isUpdate &&
+    !location.state?.selectedPlan
+  ) {
+    return (
+      <div className="flex-1 h-screen overflow-y-auto bg-[#212121] text-white p-6 md:p-12">
+        <div className="max-w-xl mx-auto flex flex-col items-center text-center mt-12 md:mt-24">
+          <div className="w-16 h-16 rounded-2xl bg-[#DC569D]/15 flex items-center justify-center mb-6">
+            <Crown size={32} className="text-[#DC569D]" />
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold mb-3">
+            {t("pricing.already-subscribed.title")}
+          </h1>
+          <p className="text-gray-400 leading-relaxed mb-8">
+            {t("pricing.already-subscribed.body")}
+          </p>
+          <button
+            onClick={() => navigate("/app/my-subscription")}
+            className="inline-flex items-center justify-center gap-2 bg-[#DC569D] hover:bg-[#c44a87] text-white font-semibold px-6 py-3 rounded-xl transition-colors shadow-lg shadow-[#DC569D]/20"
+          >
+            <Crown size={18} />
+            {t("pricing.already-subscribed.cta")}
+          </button>
+        </div>
       </div>
     );
   }

@@ -34,7 +34,12 @@
       "Bash(cp public/landing/demo-reelmotion-new.mp4 public/landing/demo-reelmotion.mp4)",
       "Bash(cd:*)",
       "Bash(git fetch *)",
-      "Bash(MSYS_NO_PATHCONV=1 git show origin/main:.env)"
+      "Bash(MSYS_NO_PATHCONV=1 git show origin/main:.env)",
+      "Bash(node *)",
+      "Bash(npx eslint *)",
+      "Bash(npx --yes esbuild --bundle=false --loader=jsx --log-level=error src/chat/components/chat-main.jsx)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(npx --yes esbuild --bundle=false --loader=jsx src/chat/components/chat-main.jsx)"
     ]
   }
 }

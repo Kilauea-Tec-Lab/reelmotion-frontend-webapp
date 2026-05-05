@@ -69,7 +69,12 @@ function ChatLayout() {
             className="h-6"
           />
         </div>
-        <Outlet context={{ revalidate: revalidator.revalidate }} />
+        <Outlet
+          context={{
+            revalidate: revalidator.revalidate,
+            subscription: chatData?.suscription || null,
+          }}
+        />
       </div>
 
       {!chatId && <HelpButton />}
