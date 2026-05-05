@@ -27,38 +27,48 @@ const VideoHero = ({ scrollRef }) => {
     return unsubscribe;
   }, [scrollY]);
 
-  // Ensure autoplay on mount — iOS needs canplay + touch fallback
+  // Ensure autoplay on mount — iOS Safari requires muted + playsInline + a supported codec.
+  // We listen on loadedmetadata/canplay and retry, plus a passive scroll/touch fallback.
   useEffect(() => {
     const videos = [desktopVideoRef.current, mobileVideoRef.current].filter(Boolean);
 
     const tryPlay = (video) => {
-      if (video && video.paused) {
-        video.play().catch(() => {});
+      if (!video) return;
+      // Force-mute imperatively — some iOS versions ignore the attribute when set via React
+      video.muted = true;
+      video.defaultMuted = true;
+      video.playsInline = true;
+      if (video.paused) {
+        const p = video.play();
+        if (p && typeof p.catch === "function") p.catch(() => {});
       }
     };
 
     // Try immediately
     videos.forEach(tryPlay);
 
-    // Retry when video is ready to play
-    const handlers = videos.map((video) => {
-      const handler = () => tryPlay(video);
-      video.addEventListener("canplay", handler);
-      return { video, handler };
+    // Retry on multiple readiness events — iOS sometimes only honors play() after metadata
+    const events = ["loadedmetadata", "loadeddata", "canplay"];
+    const cleanups = [];
+    videos.forEach((video) => {
+      events.forEach((evt) => {
+        const handler = () => tryPlay(video);
+        video.addEventListener(evt, handler);
+        cleanups.push(() => video.removeEventListener(evt, handler));
+      });
     });
 
-    // iOS fallback: play on first user touch
-    const onTouch = () => {
+    // iOS fallback: play on first user gesture (touch or scroll)
+    const onGesture = () => {
       videos.forEach(tryPlay);
-      document.removeEventListener("touchstart", onTouch);
     };
-    document.addEventListener("touchstart", onTouch, { once: true });
+    document.addEventListener("touchstart", onGesture, { once: true, passive: true });
+    document.addEventListener("scroll", onGesture, { once: true, passive: true, capture: true });
 
     return () => {
-      handlers.forEach(({ video, handler }) =>
-        video.removeEventListener("canplay", handler)
-      );
-      document.removeEventListener("touchstart", onTouch);
+      cleanups.forEach((fn) => fn());
+      document.removeEventListener("touchstart", onGesture);
+      document.removeEventListener("scroll", onGesture, true);
     };
   }, []);
 
@@ -77,28 +87,40 @@ const VideoHero = ({ scrollRef }) => {
       style={{ opacity }}
       className="relative h-dvh w-full flex items-center justify-center overflow-hidden flex-shrink-0"
     >
-      {/* Desktop video */}
+      {/* Desktop video — MP4 first so iOS/Safari pick a supported source */}
       <video
         ref={desktopVideoRef}
         className="absolute inset-0 w-full h-full object-cover hidden md:block"
-        src="/videos/showreel-desktop.webm"
         autoPlay
         muted
+        defaultMuted
         loop
         playsInline
+        webkit-playsinline="true"
         preload="auto"
-      />
-      {/* Mobile video */}
+        disablePictureInPicture
+        disableRemotePlayback
+      >
+        <source src="/videos/showreel-desktop.mp4" type="video/mp4" />
+        <source src="/videos/showreel-desktop.webm" type="video/webm" />
+      </video>
+      {/* Mobile video — MP4 first so iOS/Safari pick a supported source */}
       <video
         ref={mobileVideoRef}
         className="absolute inset-0 w-full h-full object-cover md:hidden"
-        src="/videos/showreel-mobile.webm"
         autoPlay
         muted
+        defaultMuted
         loop
         playsInline
+        webkit-playsinline="true"
         preload="auto"
-      />
+        disablePictureInPicture
+        disableRemotePlayback
+      >
+        <source src="/videos/showreel-mobile.mp4" type="video/mp4" />
+        <source src="/videos/showreel-mobile.webm" type="video/webm" />
+      </video>
 
       {/* Dark overlay for readability */}
       <div className="absolute inset-0 bg-black/30 z-[1]" />

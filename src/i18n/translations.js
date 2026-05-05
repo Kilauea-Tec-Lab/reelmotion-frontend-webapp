@@ -151,6 +151,10 @@ const translations = {
     "pricing.elite.feature6": "Dedicated support",
     "pricing.elite.feature7": "Full commercial license",
     "pricing.elite.cta": "Go Elite",
+    "pricing.already-subscribed.title": "You already have an active subscription",
+    "pricing.already-subscribed.body":
+      "You're already enjoying a paid plan. To change your plan, update billing, or cancel, head to your subscription dashboard.",
+    "pricing.already-subscribed.cta": "Manage my subscription",
 
     // CTA Banner
     "cta.title": "Your next video is one conversation away.",
@@ -328,6 +332,27 @@ const translations = {
     "chat.notifications": "Notifications",
     "chat.no-notifications": "No notifications",
     "chat.copy-clipboard": "Copy to clipboard",
+    "chat.report-tooltip": "Report content",
+    "chat.report-title": "Report content",
+    "chat.report-description": "Help us keep Reelmotion safe. Reports are reviewed by our moderation team and acted on within 24 hours.",
+    "chat.report-reason": "Reason",
+    "chat.report-reason.sexual": "Sexual or explicit content",
+    "chat.report-reason.csam": "Child sexual abuse material (CSAM)",
+    "chat.report-reason.violence": "Violence or graphic content",
+    "chat.report-reason.hate": "Hate speech or discrimination",
+    "chat.report-reason.harassment": "Harassment or bullying",
+    "chat.report-reason.self-harm": "Self-harm or suicide",
+    "chat.report-reason.illegal": "Illegal activity",
+    "chat.report-reason.misinformation": "Misinformation or scam",
+    "chat.report-reason.other": "Other",
+    "chat.report-details": "Additional details (optional)",
+    "chat.report-details-placeholder": "Describe the issue with this content...",
+    "chat.report-submit": "Submit report",
+    "chat.report-submitting": "Submitting...",
+    "chat.report-required": "Please select a reason to continue.",
+    "chat.report-success-title": "Report submitted",
+    "chat.report-success": "Thank you. Our moderation team will review this content and take appropriate action within 24 hours. Users who repeatedly violate our policies will have their accounts suspended.",
+    "chat.report-close": "Close",
     "chat.search-country": "Search country...",
     "chat.welcome": "How can I help you?",
     "chat.quick.create": "Create",
@@ -391,6 +416,52 @@ const translations = {
     "chat.tokens.close": "Close",
     "chat.tokens.failed": "Payment Failed",
     "chat.tokens.try-again": "Try Again",
+
+    // Help Button menu
+    "help.reelbot": "Reelbot",
+    "help.reelbot-subtitle": "Support Chat",
+    "help.suggestions": "Suggestions",
+    "help.suggestions-subtitle": "Help us improve",
+
+    // Reelbot widget
+    "reelbot.online": "Online",
+    "reelbot.greeting":
+      "Hi! I'm Reelbot, your support assistant. How can I help you today?",
+    "reelbot.placeholder": "Type your message...",
+    "reelbot.error-default":
+      "I'm sorry, I couldn't process your request at the moment. Please try again.",
+    "reelbot.error-connection":
+      "I'm sorry, I'm having trouble connecting right now. Please try again later or contact our support team.",
+
+    // Suggestions form
+    "suggestions.title": "Suggestions",
+    "suggestions.subtitle": "Help us improve Reelmotion",
+    "suggestions.category": "Category",
+    "suggestions.select-category": "Select a category",
+    "suggestions.cat.ui": "User Interface",
+    "suggestions.cat.ai": "AI Generation",
+    "suggestions.cat.performance": "Performance",
+    "suggestions.cat.features": "New Features",
+    "suggestions.cat.documentation": "Documentation",
+    "suggestions.cat.support": "Support",
+    "suggestions.cat.other": "Other",
+    "suggestions.rating": "Overall rating",
+    "suggestions.your-suggestion": "Your suggestion",
+    "suggestions.placeholder":
+      "Tell us what we can improve or what new features you'd like to see...",
+    "suggestions.email": "Email",
+    "suggestions.email-placeholder": "your@email.com",
+    "suggestions.email-help":
+      "We need your email to follow up on your suggestion",
+    "suggestions.send": "Send Suggestion",
+    "suggestions.sending": "Sending...",
+    "suggestions.thanks-title": "Thank you for your feedback!",
+    "suggestions.thanks-desc":
+      "Your suggestion has been sent and will help us improve Reelmotion.",
+    "suggestions.alert-fill":
+      "Please fill in all required fields with valid information.",
+    "suggestions.alert-error":
+      "Error sending suggestion. Please try again.",
 
     // Footer
     "footer.rights": "All rights reserved.",
@@ -554,6 +625,10 @@ const translations = {
     "pricing.elite.feature6": "Soporte dedicado",
     "pricing.elite.feature7": "Licencia comercial completa",
     "pricing.elite.cta": "Hazte Elite",
+    "pricing.already-subscribed.title": "Ya tienes una suscripción activa",
+    "pricing.already-subscribed.body":
+      "Ya estás disfrutando de un plan de pago. Para cambiar de plan, actualizar tu facturación o cancelar, ve al panel de tu suscripción.",
+    "pricing.already-subscribed.cta": "Gestionar mi suscripción",
 
     // CTA Banner
     "cta.title":
@@ -739,6 +814,27 @@ const translations = {
     "chat.notifications": "Notificaciones",
     "chat.no-notifications": "Sin notificaciones",
     "chat.copy-clipboard": "Copiar al portapapeles",
+    "chat.report-tooltip": "Denunciar contenido",
+    "chat.report-title": "Denunciar contenido",
+    "chat.report-description": "Ayúdanos a mantener Reelmotion seguro. Las denuncias son revisadas por nuestro equipo de moderación y se actúa en menos de 24 horas.",
+    "chat.report-reason": "Motivo",
+    "chat.report-reason.sexual": "Contenido sexual o explícito",
+    "chat.report-reason.csam": "Material de abuso sexual infantil (CSAM)",
+    "chat.report-reason.violence": "Violencia o contenido gráfico",
+    "chat.report-reason.hate": "Discurso de odio o discriminación",
+    "chat.report-reason.harassment": "Acoso o intimidación",
+    "chat.report-reason.self-harm": "Autolesiones o suicidio",
+    "chat.report-reason.illegal": "Actividad ilegal",
+    "chat.report-reason.misinformation": "Desinformación o estafa",
+    "chat.report-reason.other": "Otro",
+    "chat.report-details": "Detalles adicionales (opcional)",
+    "chat.report-details-placeholder": "Describe el problema con este contenido...",
+    "chat.report-submit": "Enviar denuncia",
+    "chat.report-submitting": "Enviando...",
+    "chat.report-required": "Por favor selecciona un motivo para continuar.",
+    "chat.report-success-title": "Denuncia enviada",
+    "chat.report-success": "Gracias. Nuestro equipo de moderación revisará este contenido y tomará las medidas apropiadas en menos de 24 horas. Los usuarios que infrinjan repetidamente nuestras políticas verán sus cuentas suspendidas.",
+    "chat.report-close": "Cerrar",
     "chat.search-country": "Buscar país...",
     "chat.welcome": "¿En qué puedo ayudarte?",
     "chat.quick.create": "Crear",
@@ -802,6 +898,52 @@ const translations = {
     "chat.tokens.close": "Cerrar",
     "chat.tokens.failed": "Pago Fallido",
     "chat.tokens.try-again": "Intentar de Nuevo",
+
+    // Help Button menu
+    "help.reelbot": "Reelbot",
+    "help.reelbot-subtitle": "Chat de Soporte",
+    "help.suggestions": "Sugerencias",
+    "help.suggestions-subtitle": "Ayúdanos a mejorar",
+
+    // Reelbot widget
+    "reelbot.online": "En línea",
+    "reelbot.greeting":
+      "¡Hola! Soy Reelbot, tu asistente de soporte. ¿En qué puedo ayudarte hoy?",
+    "reelbot.placeholder": "Escribe tu mensaje...",
+    "reelbot.error-default":
+      "Lo siento, no pude procesar tu solicitud en este momento. Por favor inténtalo de nuevo.",
+    "reelbot.error-connection":
+      "Lo siento, estoy teniendo problemas de conexión en este momento. Por favor inténtalo de nuevo más tarde o contacta a nuestro equipo de soporte.",
+
+    // Suggestions form
+    "suggestions.title": "Sugerencias",
+    "suggestions.subtitle": "Ayúdanos a mejorar Reelmotion",
+    "suggestions.category": "Categoría",
+    "suggestions.select-category": "Selecciona una categoría",
+    "suggestions.cat.ui": "Interfaz de Usuario",
+    "suggestions.cat.ai": "Generación IA",
+    "suggestions.cat.performance": "Rendimiento",
+    "suggestions.cat.features": "Nuevas Funciones",
+    "suggestions.cat.documentation": "Documentación",
+    "suggestions.cat.support": "Soporte",
+    "suggestions.cat.other": "Otro",
+    "suggestions.rating": "Calificación general",
+    "suggestions.your-suggestion": "Tu sugerencia",
+    "suggestions.placeholder":
+      "Cuéntanos qué podemos mejorar o qué nuevas funciones te gustaría ver...",
+    "suggestions.email": "Correo electrónico",
+    "suggestions.email-placeholder": "tu@email.com",
+    "suggestions.email-help":
+      "Necesitamos tu correo para dar seguimiento a tu sugerencia",
+    "suggestions.send": "Enviar Sugerencia",
+    "suggestions.sending": "Enviando...",
+    "suggestions.thanks-title": "¡Gracias por tu opinión!",
+    "suggestions.thanks-desc":
+      "Tu sugerencia ha sido enviada y nos ayudará a mejorar Reelmotion.",
+    "suggestions.alert-fill":
+      "Por favor completa todos los campos requeridos con información válida.",
+    "suggestions.alert-error":
+      "Error al enviar la sugerencia. Por favor inténtalo de nuevo.",
 
     // Footer
     "footer.rights": "Todos los derechos reservados.",

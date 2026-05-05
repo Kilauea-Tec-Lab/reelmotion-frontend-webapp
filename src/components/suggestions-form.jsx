@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { X, Send, Star } from "lucide-react";
 import { submitSuggestion } from "./help-functions";
+import { useI18n } from "../i18n/i18n-context";
 
 function SuggestionsForm({ onClose }) {
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     category: "",
     rating: 0,
@@ -13,13 +15,13 @@ function SuggestionsForm({ onClose }) {
   const [submitted, setSubmitted] = useState(false);
 
   const categories = [
-    "User Interface",
-    "AI Generation",
-    "Performance",
-    "New Features",
-    "Documentation",
-    "Support",
-    "Other",
+    { value: "User Interface", label: t("suggestions.cat.ui") },
+    { value: "AI Generation", label: t("suggestions.cat.ai") },
+    { value: "Performance", label: t("suggestions.cat.performance") },
+    { value: "New Features", label: t("suggestions.cat.features") },
+    { value: "Documentation", label: t("suggestions.cat.documentation") },
+    { value: "Support", label: t("suggestions.cat.support") },
+    { value: "Other", label: t("suggestions.cat.other") },
   ];
 
   const handleInputChange = (e) => {
@@ -52,7 +54,7 @@ function SuggestionsForm({ onClose }) {
 
     // Validación adicional antes de enviar
     if (!isFormValid()) {
-      alert("Please fill in all required fields with valid information.");
+      alert(t("suggestions.alert-fill"));
       return;
     }
 
@@ -73,7 +75,7 @@ function SuggestionsForm({ onClose }) {
       }
     } catch (error) {
       console.error("Error submitting suggestion:", error);
-      alert("Error sending suggestion. Please try again.");
+      alert(t("suggestions.alert-error"));
     } finally {
       setIsSubmitting(false);
     }
@@ -99,10 +101,10 @@ function SuggestionsForm({ onClose }) {
             </svg>
           </div>
           <h3 className="text-white montserrat-medium text-lg mb-2">
-            Thank you for your feedback!
+            {t("suggestions.thanks-title")}
           </h3>
           <p className="text-gray-400 montserrat-regular text-sm">
-            Your suggestion has been sent and will help us improve Reelmotion.
+            {t("suggestions.thanks-desc")}
           </p>
         </div>
       </div>
@@ -114,9 +116,9 @@ function SuggestionsForm({ onClose }) {
       {/* Header */}
       <div className="flex items-center justify-between p-4 sticky top-0 bg-darkBox">
         <div>
-          <h3 className="text-white montserrat-medium text-lg">Suggestions</h3>
+          <h3 className="text-white montserrat-medium text-lg">{t("suggestions.title")}</h3>
           <p className="text-gray-400 montserrat-light text-sm">
-            Help us improve Reelmotion
+            {t("suggestions.subtitle")}
           </p>
         </div>
         <button
@@ -132,7 +134,7 @@ function SuggestionsForm({ onClose }) {
         {/* Category */}
         <div>
           <label className="block text-white montserrat-medium text-sm mb-2">
-            Category *
+            {t("suggestions.category")} *
           </label>
           <select
             name="category"
@@ -141,10 +143,10 @@ function SuggestionsForm({ onClose }) {
             className="w-full bg-darkBoxSub text-white border border-gray-600 rounded-lg px-3 py-2 montserrat-regular text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
             required
           >
-            <option value="">Select a category</option>
+            <option value="">{t("suggestions.select-category")}</option>
             {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
+              <option key={category.value} value={category.value}>
+                {category.label}
               </option>
             ))}
           </select>
@@ -153,7 +155,7 @@ function SuggestionsForm({ onClose }) {
         {/* Rating */}
         <div>
           <label className="block text-white montserrat-medium text-sm mb-2">
-            Overall rating *
+            {t("suggestions.rating")} *
           </label>
           <div className="flex items-center gap-1">
             {[1, 2, 3, 4, 5].map((star) => (
@@ -182,13 +184,13 @@ function SuggestionsForm({ onClose }) {
         {/* Suggestion */}
         <div>
           <label className="block text-white montserrat-medium text-sm mb-2">
-            Your suggestion *
+            {t("suggestions.your-suggestion")} *
           </label>
           <textarea
             name="suggestion"
             value={formData.suggestion}
             onChange={handleInputChange}
-            placeholder="Tell us what we can improve or what new features you'd like to see..."
+            placeholder={t("suggestions.placeholder")}
             rows={4}
             className="w-full bg-darkBoxSub text-white border border-gray-600 rounded-lg px-3 py-2 montserrat-regular text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent resize-none"
             required
@@ -198,19 +200,19 @@ function SuggestionsForm({ onClose }) {
         {/* Email */}
         <div>
           <label className="block text-white montserrat-medium text-sm mb-2">
-            Email *
+            {t("suggestions.email")} *
           </label>
           <input
             type="email"
             name="email"
             value={formData.email}
             onChange={handleInputChange}
-            placeholder="your@email.com"
+            placeholder={t("suggestions.email-placeholder")}
             className="w-full bg-darkBoxSub text-white border border-gray-600 rounded-lg px-3 py-2 montserrat-regular text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
             required
           />
           <p className="text-gray-500 montserrat-light text-xs mt-1">
-            We need your email to follow up on your suggestion
+            {t("suggestions.email-help")}
           </p>
         </div>
 
@@ -223,12 +225,12 @@ function SuggestionsForm({ onClose }) {
           {isSubmitting ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              Sending...
+              {t("suggestions.sending")}
             </>
           ) : (
             <>
               <Send size={16} />
-              Send Suggestion
+              {t("suggestions.send")}
             </>
           )}
         </button>

@@ -151,7 +151,7 @@ const ChatDemoSection = () => {
                 </div>
 
                 <video
-                  src="/landing/demo-reelmotion.mp4"
+                  src="/landing/demo-reelmotion-2026.mp4"
                   autoPlay
                   muted
                   loop
