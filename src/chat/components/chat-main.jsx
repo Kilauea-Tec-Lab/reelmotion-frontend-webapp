@@ -1128,10 +1128,15 @@ function ChatMain({
     const diffHrs = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHrs / 24);
 
-    if (diffMins < 1) return "hace menos de 1 min";
-    if (diffMins < 60) return `hace ${diffMins} min`;
-    if (diffHrs < 24) return `hace ${diffHrs} ${diffHrs === 1 ? "hr" : "hrs"}`;
-    return `hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
+    if (diffMins < 1) return t("chat.time.just-now");
+    if (diffMins < 60)
+      return t("chat.time.minutes-ago").replace("{n}", diffMins);
+    if (diffHrs < 24) {
+      const key = diffHrs === 1 ? "chat.time.hour-ago" : "chat.time.hours-ago";
+      return t(key).replace("{n}", diffHrs);
+    }
+    const key = diffDays === 1 ? "chat.time.day-ago" : "chat.time.days-ago";
+    return t(key).replace("{n}", diffDays);
   }
 
   // Manejar click en notificación
@@ -3521,7 +3526,7 @@ function ChatMain({
                     <div className="absolute top-12 right-0 bg-[#2f2f2f] rounded-lg shadow-xl border border-gray-700 w-72 sm:w-80 max-h-96 overflow-y-auto z-50">
                       <div className="p-3 border-b border-gray-700">
                         <h3 className="text-white font-medium">
-                          Notifications
+                          {t("chat.notifications")}
                         </h3>
                       </div>
                       {notificationsInfo.length > 0 ? (

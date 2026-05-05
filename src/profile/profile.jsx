@@ -457,7 +457,7 @@ function Profile() {
                         handleInputChange("name", e.target.value)
                       }
                       className="bg-darkBoxSub rounded-lg px-3 py-2 text-white text-xl text-center montserrat-medium mb-2 w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
-                      placeholder="Enter your name"
+                      placeholder={t("profile.enter-name")}
                     />
                     {validationErrors.name && (
                       <p className="text-red-400 montserrat-light text-xs mt-1 text-center">
@@ -467,20 +467,20 @@ function Profile() {
                   </>
                 ) : (
                   <h2 className="text-white montserrat-medium text-xl mb-2">
-                    {user?.data?.name || "User Name"}
+                    {user?.data?.name || t("profile.user-name")}
                   </h2>
                 )}
                 <p className="text-gray-400 montserrat-light text-sm">
-                  Content Creator
+                  {t("profile.role.content-creator")}
                 </p>
                 {isUploading && (
                   <p className="text-[#F2D543] montserrat-light text-xs mt-2">
-                    Saving changes...
+                    {t("profile.saving-changes")}
                   </p>
                 )}
                 {previewImage && !isUploading && (
                   <p className="text-blue-400 montserrat-light text-xs mt-2">
-                    New image selected
+                    {t("profile.new-image-selected")}
                   </p>
                 )}
               </div>
@@ -513,7 +513,7 @@ function Profile() {
                             handleInputChange("email", e.target.value)
                           }
                           className="bg-darkBoxSub rounded-lg px-3 py-2 text-white montserrat-regular w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
-                          placeholder="Enter your email"
+                          placeholder={t("profile.enter-email")}
                         />
                         {validationErrors.email && (
                           <p className="text-red-400 montserrat-light text-xs mt-1">
@@ -523,7 +523,7 @@ function Profile() {
                       </>
                     ) : (
                       <p className="text-white montserrat-regular">
-                        {user?.data?.email || "Not provided"}
+                        {user?.data?.email || t("profile.not-provided")}
                       </p>
                     )}
                   </div>
@@ -536,10 +536,10 @@ function Profile() {
                   </div>
                   <div>
                     <p className="text-gray-400 montserrat-light text-sm">
-                      Username
+                      {t("profile.username")}
                     </p>
                     <p className="text-white montserrat-regular">
-                      {user?.data?.username || "Username"}
+                      {user?.data?.username || t("profile.username")}
                     </p>
                   </div>
                 </div>
@@ -551,12 +551,12 @@ function Profile() {
                   </div>
                   <div>
                     <p className="text-gray-400 montserrat-light text-sm">
-                      Member Since
+                      {t("profile.member-since")}
                     </p>
                     <p className="text-white montserrat-regular">
                       {user?.data?.created_at
                         ? new Date(user.data.created_at).toLocaleDateString()
-                        : "Not available"}
+                        : t("profile.not-available")}
                     </p>
                   </div>
                 </div>
@@ -609,7 +609,7 @@ function Profile() {
                             handleInputChange("password", e.target.value)
                           }
                           className="bg-darkBoxSub rounded-lg px-3 py-2 pr-10 text-white montserrat-regular w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
-                          placeholder="Enter new password (optional)"
+                          placeholder={t("profile.enter-new-password")}
                         />
                         <button
                           type="button"
@@ -635,7 +635,7 @@ function Profile() {
                     </div>
                     <div className="flex-1">
                       <p className="text-gray-400 montserrat-light text-sm">
-                        Confirm Password
+                        {t("profile.confirm-password")}
                       </p>
                       <div className="relative">
                         <input
@@ -645,7 +645,7 @@ function Profile() {
                             handleInputChange("confirmPassword", e.target.value)
                           }
                           className="bg-darkBoxSub rounded-lg px-3 py-2 pr-10 text-white montserrat-regular w-full focus:outline-none focus:ring-2 focus:ring-[#F2D543]"
-                          placeholder="Confirm new password"
+                          placeholder={t("profile.confirm-new-password")}
                         />
                         <button
                           type="button"
@@ -678,7 +678,7 @@ function Profile() {
               {/* Stats Section */}
               <div className="mt-8 pt-6">
                 <h4 className="text-white montserrat-medium text-lg mb-4">
-                  Activity Stats
+                  {t("profile.activity-stats")}
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -687,7 +687,7 @@ function Profile() {
                       {user?.projects || 0}
                     </p>
                     <p className="text-gray-400 montserrat-light text-sm">
-                      Total Projects
+                      {t("profile.total-projects")}
                     </p>
                   </div>
 
@@ -696,7 +696,7 @@ function Profile() {
                       {user?.projects_complete || 0}
                     </p>
                     <p className="text-gray-400 montserrat-light text-sm">
-                      Completed
+                      {t("profile.completed")}
                     </p>
                   </div>
                 </div>

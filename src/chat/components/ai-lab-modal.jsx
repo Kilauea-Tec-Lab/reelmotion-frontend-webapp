@@ -30,6 +30,7 @@ import {
   getElevenLabsVoices,
   generateElevenLabsSpeech,
 } from "../../create_elements/functions";
+import { useI18n } from "../../i18n/i18n-context";
 
 // Map frontend model IDs to backend model names
 const MODEL_MAP = {
@@ -612,6 +613,7 @@ const FilePreview = ({ file, onRemove }) => {
 };
 
 function AiLabModal({ isOpen, onClose }) {
+  const { t } = useI18n();
   const [selectedModel, setSelectedModel] = useState("nano-banana-pro");
   const [selectedVideoModel, setSelectedVideoModel] = useState("sora-2-pro");
   const [showModels, setShowModels] = useState(false);
@@ -1549,7 +1551,7 @@ function AiLabModal({ isOpen, onClose }) {
                     {isLoadingVoiceTokens
                       ? "..."
                       : Math.floor(voiceTokens).toLocaleString("en-US")}{" "}
-                    tokens
+                    {t("ailab.tokens")}
                   </span>
                 </div>
                 {selectedVoice && (
@@ -1565,14 +1567,14 @@ function AiLabModal({ isOpen, onClose }) {
                 <div className="flex items-center gap-2">
                   {uploadedVoiceUrl && (
                     <span className="text-[10px] text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full border border-green-400/20 font-medium">
-                      Uploaded
+                      {t("ailab.uploaded")}
                     </span>
                   )}
                   <button
                     onClick={handleDiscardVoice}
                     className="px-3 py-1 bg-gray-700/80 text-white rounded-full hover:bg-gray-600 transition-colors text-xs font-medium flex items-center gap-1"
                   >
-                    <X className="w-3 h-3" /> New
+                    <X className="w-3 h-3" /> {t("ailab.new")}
                   </button>
                 </div>
               )}
@@ -1589,7 +1591,7 @@ function AiLabModal({ isOpen, onClose }) {
                       <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-500 w-3.5 h-3.5" />
                       <input
                         type="text"
-                        placeholder="Search voices..."
+                        placeholder={t("ailab.search-voices")}
                         value={voiceSearchTerm}
                         onChange={(e) => setVoiceSearchTerm(e.target.value)}
                         className="w-full pl-8 pr-3 py-1.5 bg-[#2a2a2a] border border-gray-700/50 rounded-lg text-white placeholder-gray-500 focus:border-[#DC569D] focus:outline-none text-xs"
@@ -1601,7 +1603,7 @@ function AiLabModal({ isOpen, onClose }) {
                         onChange={(e) => setLanguageFilter(e.target.value)}
                         className="flex-1 px-2 py-1 bg-[#2a2a2a] border border-gray-700/50 rounded-lg text-white text-[10px] focus:border-[#DC569D] focus:outline-none"
                       >
-                        <option value="">Language</option>
+                        <option value="">{t("ailab.filter.language")}</option>
                         {getUniqueVoiceValues("language").map((lang) => (
                           <option key={lang} value={lang}>
                             {lang}
@@ -1613,7 +1615,7 @@ function AiLabModal({ isOpen, onClose }) {
                         onChange={(e) => setGenderFilter(e.target.value)}
                         className="flex-1 px-2 py-1 bg-[#2a2a2a] border border-gray-700/50 rounded-lg text-white text-[10px] focus:border-[#DC569D] focus:outline-none"
                       >
-                        <option value="">Gender</option>
+                        <option value="">{t("ailab.filter.gender")}</option>
                         {getUniqueVoiceValues("gender").map((g) => (
                           <option key={g} value={g}>
                             {g}
@@ -1625,7 +1627,7 @@ function AiLabModal({ isOpen, onClose }) {
                         onChange={(e) => setAgeFilter(e.target.value)}
                         className="flex-1 px-2 py-1 bg-[#2a2a2a] border border-gray-700/50 rounded-lg text-white text-[10px] focus:border-[#DC569D] focus:outline-none"
                       >
-                        <option value="">Age</option>
+                        <option value="">{t("ailab.filter.age")}</option>
                         {getUniqueVoiceValues("age").map((a) => (
                           <option key={a} value={a}>
                             {a}
@@ -1697,7 +1699,9 @@ function AiLabModal({ isOpen, onClose }) {
                             disabled={isLoadingMoreVoices}
                             className="w-full mt-2 px-3 py-1.5 bg-[#2a2a2a] text-gray-400 rounded-lg hover:bg-[#333] hover:text-white transition-colors text-xs font-medium disabled:opacity-50"
                           >
-                            {isLoadingMoreVoices ? "Loading..." : "Load more"}
+                            {isLoadingMoreVoices
+                              ? t("ailab.loading")
+                              : t("ailab.load-more")}
                           </button>
                         )}
                       </div>
@@ -1738,7 +1742,7 @@ function AiLabModal({ isOpen, onClose }) {
                           }
                           className="accent-[#DC569D] w-3 h-3"
                         />
-                        Boost
+                        {t("ailab.boost")}
                       </label>
                     </div>
 
@@ -1746,7 +1750,7 @@ function AiLabModal({ isOpen, onClose }) {
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-[10px] text-gray-500 mb-1">
-                          Stability{" "}
+                          {t("ailab.stability")}{" "}
                           <span className="text-gray-600">
                             {voiceSettings.stability}
                           </span>
@@ -1766,7 +1770,7 @@ function AiLabModal({ isOpen, onClose }) {
                       </div>
                       <div>
                         <label className="block text-[10px] text-gray-500 mb-1">
-                          Similarity{" "}
+                          {t("ailab.similarity")}{" "}
                           <span className="text-gray-600">
                             {voiceSettings.similarity_boost}
                           </span>
@@ -1786,7 +1790,7 @@ function AiLabModal({ isOpen, onClose }) {
                       </div>
                       <div>
                         <label className="block text-[10px] text-gray-500 mb-1">
-                          Style{" "}
+                          {t("ailab.style")}{" "}
                           <span className="text-gray-600">
                             {voiceSettings.style}
                           </span>
@@ -1810,7 +1814,7 @@ function AiLabModal({ isOpen, onClose }) {
                   {/* Text Input */}
                   <div className="flex-1 flex flex-col mb-3">
                     <textarea
-                      placeholder="Enter the text you want to convert to speech..."
+                      placeholder={t("ailab.enter-tts-text")}
                       value={textToSpeak}
                       onChange={(e) => handleVoiceTextChange(e.target.value)}
                       className="flex-1 min-h-[120px] p-3 bg-[#2a2a2a]/60 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:border-[#DC569D] focus:outline-none resize-none text-sm leading-relaxed"
@@ -1820,10 +1824,10 @@ function AiLabModal({ isOpen, onClose }) {
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />~
                           {Math.ceil(estimatedTime * 2)}s · {textToSpeak.length}{" "}
-                          chars
+                          {t("ailab.chars")}
                         </span>
                         <span className="text-[#DC569D] font-medium">
-                          {calculateRequiredVoiceTokens()} tokens
+                          {calculateRequiredVoiceTokens()} {t("ailab.tokens")}
                         </span>
                       </div>
                     )}
@@ -1844,11 +1848,11 @@ function AiLabModal({ isOpen, onClose }) {
                     {isGeneratingVoice ? (
                       <>
                         <Loader2 size={14} className="animate-spin" />
-                        Generating...
+                        {t("ailab.generating")}
                       </>
                     ) : (
                       <>
-                        <Mic className="w-4 h-4" /> Generate Voice
+                        <Mic className="w-4 h-4" /> {t("ailab.generate-voice")}
                       </>
                     )}
                   </button>
@@ -1880,7 +1884,7 @@ function AiLabModal({ isOpen, onClose }) {
                         <p className="text-white font-semibold text-sm">
                           {selectedVoice
                             ? getVoiceName(selectedVoice)
-                            : "Generated Voice"}
+                            : t("ailab.generated-voice")}
                         </p>
                         <p className="text-gray-500 text-xs mt-0.5">
                           {elevenLabsModel
@@ -1895,7 +1899,7 @@ function AiLabModal({ isOpen, onClose }) {
                             href={generatedAudioUrl}
                             download={`voice-${Date.now()}.mp3`}
                             className="p-2 rounded-full bg-gray-700/60 text-gray-300 hover:bg-gray-600 hover:text-white transition-colors"
-                            title="Download"
+                            title={t("ailab.tooltip.download")}
                           >
                             <Download className="w-4 h-4" />
                           </a>
@@ -1939,7 +1943,7 @@ function AiLabModal({ isOpen, onClose }) {
                   {uploadedVoiceUrl && (
                     <div className="mt-3 p-3 bg-green-400/5 rounded-xl border border-green-400/20">
                       <p className="text-[10px] text-green-400 font-medium mb-0.5">
-                        Saved to attachments
+                        {t("ailab.saved-attachments")}
                       </p>
                       <p className="text-[10px] text-gray-500 truncate">
                         {uploadedVoiceUrl}
@@ -1970,10 +1974,10 @@ function AiLabModal({ isOpen, onClose }) {
             </div>
             <div className="text-center">
               <p className="text-white font-medium text-sm">
-                {uploadingStatus || "Processing..."}
+                {uploadingStatus || t("ailab.processing")}
               </p>
               <p className="text-gray-500 text-xs mt-1">
-                This may take a moment
+                {t("ailab.this-may-take")}
               </p>
             </div>
           </div>
@@ -1993,7 +1997,7 @@ function AiLabModal({ isOpen, onClose }) {
                   }}
                   className="px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
                 >
-                  Buy Tokens
+                  {t("ailab.buy-tokens")}
                 </button>
               )}
               <button
@@ -2016,11 +2020,17 @@ function AiLabModal({ isOpen, onClose }) {
                 <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4 text-xs flex-wrap">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#DC569D]/10 border border-[#DC569D]/30 text-[#DC569D]">
                     <Coins size={12} />
-                    {generationInfo.tokensUsed} tokens used
+                    {t("ailab.tokens-used").replace(
+                      "{n}",
+                      generationInfo.tokensUsed,
+                    )}
                   </span>
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-800 border border-gray-700 text-gray-300">
                     <Coins size={12} />
-                    {generationInfo.remainingTokens} remaining
+                    {t("ailab.tokens-remaining").replace(
+                      "{n}",
+                      generationInfo.remainingTokens,
+                    )}
                   </span>
                 </div>
               )}
@@ -2070,7 +2080,7 @@ function AiLabModal({ isOpen, onClose }) {
                             type="button"
                             onClick={() => handleRemoveGeneratedImage(index)}
                             className="h-8 w-8 rounded-lg bg-red-500/80 backdrop-blur-sm flex items-center justify-center text-white hover:bg-red-600 transition-colors"
-                            title="Remove"
+                            title={t("ailab.tooltip.remove")}
                           >
                             <X size={14} />
                           </button>
@@ -2081,7 +2091,7 @@ function AiLabModal({ isOpen, onClose }) {
                               type="button"
                               onClick={() => setPreviewImage(url)}
                               className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-colors"
-                              title="Preview"
+                              title={t("ailab.tooltip.preview")}
                             >
                               <Image size={14} />
                             </button>
@@ -2090,7 +2100,7 @@ function AiLabModal({ isOpen, onClose }) {
                             type="button"
                             onClick={() => handleDownloadImage(url, index)}
                             className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-colors"
-                            title="Download"
+                            title={t("ailab.tooltip.download")}
                           >
                             <Download size={14} />
                           </button>
@@ -2114,7 +2124,9 @@ function AiLabModal({ isOpen, onClose }) {
           >
             <div className="flex flex-col h-full">
               <h3 className="text-gray-400 text-sm font-medium mb-3 shrink-0">
-                Select {activeTab === "video" ? "Video " : "Image "} Model
+                {activeTab === "video"
+                  ? t("ailab.select-video-model")
+                  : t("ailab.select-image-model")}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-4">
                 {currentModels.map((model) => (
@@ -2161,7 +2173,7 @@ function AiLabModal({ isOpen, onClose }) {
                     ? "border-[#DC569D] text-[#DC569D] bg-[#DC569D]/10"
                     : "border-gray-700 text-gray-400 hover:bg-[#2a2a2a] hover:text-white"
                 }`}
-                title="Generate Image"
+                title={t("ailab.tooltip.image")}
               >
                 <Image size={16} />
               </button>
@@ -2173,7 +2185,7 @@ function AiLabModal({ isOpen, onClose }) {
                     ? "border-[#DC569D] text-[#DC569D] bg-[#DC569D]/10"
                     : "border-gray-700 text-gray-400 hover:bg-[#2a2a2a] hover:text-white"
                 }`}
-                title="Generate Video"
+                title={t("ailab.tooltip.video")}
               >
                 <Video size={16} />
               </button>
@@ -2185,7 +2197,7 @@ function AiLabModal({ isOpen, onClose }) {
                     ? "border-[#DC569D] text-[#DC569D] bg-[#DC569D]/10"
                     : "border-gray-700 text-gray-400 hover:bg-[#2a2a2a] hover:text-white"
                 }`}
-                title="Create Voice"
+                title={t("ailab.tooltip.voice")}
               >
                 <Mic size={16} />
               </button>
@@ -2208,13 +2220,13 @@ function AiLabModal({ isOpen, onClose }) {
                   {showNegativePrompt && (
                     <div className="mb-3 pb-3 border-b border-gray-700/50">
                       <label className="text-gray-400 text-xs mb-1.5 block font-medium">
-                        Negative Prompt
+                        {t("ailab.negative-prompt")}
                       </label>
                       <input
                         type="text"
                         value={negativePrompt}
                         onChange={(e) => setNegativePrompt(e.target.value)}
-                        placeholder="List what to exclude from your video (e.g. if you don't want trees, type 'trees')"
+                        placeholder={t("ailab.negative-prompt-placeholder")}
                         className="w-full bg-[#1a1a1a] text-white placeholder:text-gray-600 outline-none text-sm px-3 py-2 rounded-lg border border-gray-700/50 focus:border-[#DC569D]/50 transition-colors"
                       />
                     </div>
@@ -2254,16 +2266,21 @@ function AiLabModal({ isOpen, onClose }) {
                         className="h-8 w-8 rounded-lg border border-dashed border-gray-600 text-gray-500 flex items-center justify-center hover:border-gray-400 hover:text-gray-300 transition-colors"
                         title={
                           activeTab === "video"
-                            ? "Upload reference (video/image)"
-                            : `Upload reference image (max ${getMaxImagesForModel()})`
+                            ? t("ailab.upload-ref-video")
+                            : t("ailab.upload-ref-image").replace(
+                                "{n}",
+                                getMaxImagesForModel(),
+                              )
                         }
                       >
                         <ImagePlus size={16} />
                       </button>
                       {activeTab === "image" && (
                         <span className="text-[9px] text-gray-500 whitespace-nowrap">
-                          Max {getMaxImagesForModel()} img
-                          {getMaxImagesForModel() > 1 ? "s" : ""}
+                          {(getMaxImagesForModel() > 1
+                            ? t("ailab.max-imgs")
+                            : t("ailab.max-img")
+                          ).replace("{n}", getMaxImagesForModel())}
                         </span>
                       )}
                     </div>
@@ -2273,8 +2290,8 @@ function AiLabModal({ isOpen, onClose }) {
                       onChange={(e) => setPrompt(e.target.value)}
                       placeholder={
                         activeTab === "video"
-                          ? "Describe the video you want to create"
-                          : "Describe the image you want to create"
+                          ? t("ailab.describe-video")
+                          : t("ailab.describe-image")
                       }
                       className="flex-1 bg-transparent text-white placeholder:text-gray-500 outline-none text-sm resize-none h-full min-h-[50px] md:min-h-[80px]"
                       onKeyDown={(e) => {
@@ -2298,7 +2315,7 @@ function AiLabModal({ isOpen, onClose }) {
                               : "bg-gray-600 text-gray-400 cursor-not-allowed"
                         }`}
                         disabled={!prompt.trim() || isGenerating}
-                        title="Generate"
+                        title={t("ailab.tooltip.generate")}
                       >
                         {isGenerating ? (
                           <Loader2 size={15} className="animate-spin" />
@@ -2317,7 +2334,7 @@ function AiLabModal({ isOpen, onClose }) {
                           className="mx-auto text-[#DC569D] mb-2"
                         />
                         <p className="text-white font-medium">
-                          Drop images here
+                          {t("ailab.drop-images")}
                         </p>
                       </div>
                     </div>
@@ -2352,7 +2369,7 @@ function AiLabModal({ isOpen, onClose }) {
                     selectedModelData?.icon || "●"
                   )}
                 </span>
-                {selectedModelData?.name || "Select model"}
+                {selectedModelData?.name || t("ailab.select-model")}
               </button>
 
               {/* Negative Prompt Toggle */}
@@ -2364,10 +2381,10 @@ function AiLabModal({ isOpen, onClose }) {
                     ? "bg-[#DC569D] border-[#DC569D] text-white"
                     : "bg-[#2a2a2a] text-gray-300 border-gray-700/50 hover:bg-[#333]"
                 }`}
-                title="Negative Prompt"
+                title={t("ailab.negative-prompt")}
               >
                 <Ban size={12} />
-                Negative Prompt
+                {t("ailab.negative-prompt")}
               </button>
 
               {/* Video Duration Selector */}
@@ -2376,11 +2393,11 @@ function AiLabModal({ isOpen, onClose }) {
                   {selectedVideoModel === "runway-aleph" ? (
                     <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-[#2a2a2a] text-gray-300 border border-gray-700/50 cursor-not-allowed opacity-80">
                       <span className="text-[10px] uppercase font-bold text-gray-500">
-                        DUR:
+                        {t("ailab.duration-label")}
                       </span>
                       {uploadedVideoDuration > 0
                         ? `${uploadedVideoDuration}s`
-                        : "Auto"}
+                        : t("ailab.duration-auto")}
                     </div>
                   ) : (
                     <>
@@ -2390,7 +2407,7 @@ function AiLabModal({ isOpen, onClose }) {
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-[#2a2a2a] text-gray-300 border border-gray-700/50 cursor-pointer hover:bg-[#333] transition-colors"
                       >
                         <span className="text-[10px] uppercase font-bold text-gray-500">
-                          DUR:
+                          {t("ailab.duration-label")}
                         </span>
                         {duration}s
                       </button>
@@ -2437,19 +2454,27 @@ function AiLabModal({ isOpen, onClose }) {
                 <Coins size={32} className="text-[#DC569D]" />
               </div>
               <h3 className="text-white text-xl font-semibold mb-2">
-                Confirm Generation
+                {t("ailab.confirm-generation")}
               </h3>
               <p className="text-gray-400 text-sm mb-6">
-                This {activeTab} generation will use
+                {activeTab === "video"
+                  ? t("ailab.confirm-cost-video")
+                  : activeTab === "voice"
+                    ? t("ailab.confirm-cost-voice")
+                    : t("ailab.confirm-cost-image")}
               </p>
               <div className="bg-[#DC569D]/10 border border-[#DC569D]/30 rounded-xl px-6 py-4 mb-6">
                 <p className="text-[#DC569D] text-3xl font-bold">
                   {Math.floor(calculateTokenCost()).toLocaleString("en-US")}{" "}
-                  Tokens
+                  {t("ailab.tokens-suffix")}
                 </p>
                 {activeTab === "video" && (
                   <p className="text-gray-400 text-xs mt-1">
-                    {selectedModelData?.cost || 0} tokens/sec ×{" "}
+                    {t("ailab.tokens-per-sec").replace(
+                      "{n}",
+                      selectedModelData?.cost || 0,
+                    )}{" "}
+                    ×{" "}
                     {selectedVideoModel === "runway-aleph"
                       ? uploadedVideoDuration || 5
                       : duration}
@@ -2458,7 +2483,9 @@ function AiLabModal({ isOpen, onClose }) {
                 )}
                 {activeTab === "image" && imageCount > 1 && (
                   <p className="text-gray-400 text-xs mt-1">
-                    {selectedModelData?.cost || 10} tokens × {imageCount} images
+                    {t("ailab.tokens-per-image")
+                      .replace("{cost}", selectedModelData?.cost || 10)
+                      .replace("{count}", imageCount)}
                   </p>
                 )}
               </div>
@@ -2467,14 +2494,14 @@ function AiLabModal({ isOpen, onClose }) {
                   onClick={() => setShowConfirmGeneration(false)}
                   className="flex-1 px-4 py-2.5 rounded-xl bg-gray-700/50 text-white hover:bg-gray-700 transition-colors font-medium"
                 >
-                  Cancel
+                  {t("ailab.confirm-cancel")}
                 </button>
                 <button
                   onClick={handleConfirmGeneration}
                   className="flex-1 px-4 py-2.5 rounded-xl bg-[#DC569D] text-white hover:bg-[#c44d8b] transition-colors font-medium flex items-center justify-center gap-2"
                 >
                   <Check size={16} />
-                  Confirm
+                  {t("ailab.confirm-btn")}
                 </button>
               </div>
             </div>
