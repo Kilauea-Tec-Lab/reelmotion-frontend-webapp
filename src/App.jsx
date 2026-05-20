@@ -191,13 +191,19 @@ const router = createBrowserRouter([
   },
 ]);
 
-// Track SPA page views in Google Analytics
+// Track SPA page views in Google Analytics and TikTok Pixel
 router.subscribe((state) => {
-  if (state.navigation.state === "idle" && window.gtag) {
+  if (state.navigation.state !== "idle") return;
+
+  if (window.gtag) {
     window.gtag("event", "page_view", {
       page_path: state.location.pathname + state.location.search,
       page_title: document.title,
     });
+  }
+
+  if (window.ttq) {
+    window.ttq.page();
   }
 });
 
