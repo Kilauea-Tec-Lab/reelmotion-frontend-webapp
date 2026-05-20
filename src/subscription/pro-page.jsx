@@ -1500,6 +1500,15 @@ export default function ProPage() {
     } else {
       price = monthlyPrice;
     }
+    if (window.ttq) {
+      window.ttq.track("InitiateCheckout", {
+        value: Number(price) || 0,
+        currency: "USD",
+        content_id: `${planName}_${billingCycle}`,
+        content_name: `Reelmotion ${planName} (${billingCycle})`,
+        content_type: "subscription",
+      });
+    }
     setSelectedPlan({ name: planName, price: price });
   };
 
@@ -1608,6 +1617,16 @@ export default function ProPage() {
               navigate(location.pathname, { replace: true, state: {} });
             }}
             onSuccess={() => {
+              if (window.ttq && selectedPlan) {
+                const eventName = isUpdate ? "PlaceAnOrder" : "Subscribe";
+                window.ttq.track(eventName, {
+                  value: Number(selectedPlan.price) || 0,
+                  currency: "USD",
+                  content_id: `${selectedPlan.name}_${billingCycle}`,
+                  content_name: `Reelmotion ${selectedPlan.name} (${billingCycle})`,
+                  content_type: "subscription",
+                });
+              }
               setShowSuccess(true);
               if (revalidate) revalidate();
             }}

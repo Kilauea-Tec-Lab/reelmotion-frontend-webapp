@@ -199,6 +199,12 @@ function AuthModal({ isOpen, onClose }) {
       const loginResponse = await register.json();
       const token = loginResponse.data.token;
       Cookies.set("token", token);
+      if (window.ttq) {
+        window.ttq.track("CompleteRegistration", {
+          content_name: "signup",
+          status: "success",
+        });
+      }
       window.location.replace("/app");
     } else {
       const errorData = await register.json();
