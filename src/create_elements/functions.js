@@ -238,8 +238,7 @@ export async function searchProjects(projectName) {
 }
 
 // ELEVENLABS API FUNCTIONS
-const ELEVENLABS_API_KEY =
-  "***REMOVED***";
+const ELEVENLABS_API_KEY = import.meta.env.VITE_ELEVENLAB_KEY;
 const ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1";
 
 // Obtener voces disponibles de ElevenLabs
