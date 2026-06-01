@@ -23,6 +23,7 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Cookies from "js-cookie";
 import { useI18n } from "../../i18n/i18n-context";
+import { notifyAppLogout } from "../../utils/nativeBridge";
 
 function ChatSidebar({
   chats,
@@ -60,6 +61,7 @@ function ChatSidebar({
 
   const handleLogOut = () => {
     Cookies.remove("token");
+    notifyAppLogout("user");
     navigate("/login", { replace: true });
   };
 
