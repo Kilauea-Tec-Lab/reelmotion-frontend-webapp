@@ -1,4 +1,5 @@
 import Cookies from "js-cookie";
+import { notifyAppLogout } from "../utils/nativeBridge";
 
 export async function getAccountInfo() {
   try {
@@ -102,6 +103,7 @@ export async function userInfoLoader() {
     // Si el token es inválido o expiró
     if (response.status === 401) {
       Cookies.remove("token");
+      notifyAppLogout("session_revoked");
       throw new Response("Token expired", {
         status: 401,
         statusText: "Token expired or invalid",
@@ -119,6 +121,7 @@ export async function userInfoLoader() {
 
     if (!data?.success) {
       Cookies.remove("token");
+      notifyAppLogout("session_revoked");
       throw new Response("Authentication failed", {
         status: 401,
         statusText: "Invalid response from server",

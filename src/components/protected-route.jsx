@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLoaderData } from "react-router-dom";
 import Cookies from "js-cookie";
+import { notifyAppLogout } from "../utils/nativeBridge";
 
 function ProtectedRoute({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
@@ -39,11 +40,18 @@ function ProtectedRoute({ children }) {
         );
 
         if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            Cookies.remove("token");
+            notifyAppLogout("session_revoked");
+          }
           setIsAuthenticated(false);
           return;
         }
 
         const data = await response.json();
+        if (data?.success !== true) {
+          notifyAppLogout("session_revoked");
+        }
         setIsAuthenticated(data?.success === true);
       } catch (error) {
         console.error("Auth check failed:", error);
