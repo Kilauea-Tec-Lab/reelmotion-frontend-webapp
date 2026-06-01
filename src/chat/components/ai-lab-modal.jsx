@@ -51,8 +51,6 @@ function buildApiUrl(path) {
 
 // Duraciones por modelo - se actualiza dinámicamente según el modelo seleccionado
 const MODEL_DURATIONS = {
-  "sora-2": [4, 8, 12],
-  "sora-2-pro": [4, 8, 12],
   runway: [5, 10],
   "runway-aleph": [5, 10],
   "runway-4.5": [5, 8, 10],
@@ -64,6 +62,14 @@ const MODEL_DURATIONS = {
   //"kling-v1": [5, 10],
   "kling-v3-omni-pro": [3, 5, 8, 10, 15],
   "kling-v3-omni-std": [3, 5, 8, 10, 15],
+  "seedance-2.0": [4, 5, 6, 8, 10, 12, 15],
+  "seedance-2.0-fast": [4, 5, 6, 8, 10, 12, 15],
+};
+
+// Seedance 2.0 video resolutions (pricing depends on resolution)
+const SEEDANCE_RESOLUTIONS = {
+  "seedance-2.0": ["480p", "720p", "1080p"],
+  "seedance-2.0-fast": ["480p", "720p"],
 };
 
 // Upload media (image/video) to backend and return uploaded file URL
@@ -151,6 +157,65 @@ async function generateVideoAPI({
 
   const data = await response.json();
   if (data.video_url) {
+    return data;
+  }
+  throw new Error(data.message || data.error || "Error generating video");
+}
+
+// Call the Seedance 2.0 video generation endpoint (single endpoint, auto-detects mode)
+// Modes: text-to-video (prompt only), image-to-video (media_url),
+// reference-to-video (reference_images/videos/audios).
+async function generateVideoSeedance2API({
+  model,
+  prompt,
+  resolution,
+  aspectRatio,
+  duration,
+  generateAudio,
+  mediaUrl,
+  endFrame,
+  referenceImages,
+  referenceVideos,
+  referenceAudios,
+}) {
+  const body = {
+    ai_model: model,
+    prompt,
+    resolution,
+    aspect_ratio: aspectRatio || "auto",
+    video_duration: duration,
+    generate_audio: generateAudio,
+  };
+
+  // Image-to-video
+  if (mediaUrl) {
+    body.media_url = mediaUrl;
+  }
+  if (endFrame) {
+    body.end_frame = endFrame;
+  }
+  // Reference-to-video (arrays)
+  if (referenceImages && referenceImages.length > 0) {
+    body.reference_images = referenceImages;
+  }
+  if (referenceVideos && referenceVideos.length > 0) {
+    body.reference_videos = referenceVideos;
+  }
+  if (referenceAudios && referenceAudios.length > 0) {
+    body.reference_audios = referenceAudios;
+  }
+
+  const response = await fetch(buildApiUrl("ai/generate-video"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + Cookies.get("token"),
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json();
+  if (data.success && data.video_url) {
     return data;
   }
   throw new Error(data.message || data.error || "Error generating video");
@@ -322,16 +387,37 @@ const IMAGE_MODELS = [
 
 const VIDEO_MODELS = [
   {
-    id: "sora-2-pro",
-    name: "Sora 2 Pro",
-    iconComponent: Logos.OpenAI,
-    iconColor: "text-green-400",
-    description: "Cinematic video generation from text or image",
-    badges: ["4-12s"],
-    cost: 33,
+    id: "seedance-2.0",
+    name: "Seedance 2.0",
+    iconComponent: Logos.Kling,
+    iconColor: "text-cyan-400",
+    description:
+      "High-quality generation up to 1080p. Text, image or reference driven",
+    badges: ["4-15s", "Up to 1080p"],
+    cost: 32, // representative (720p tok/s); real cost depends on resolution
     isNew: true,
     type: "video",
-    capabilities: ["text-to-video", "image-to-video"],
+    isSeedance2: true,
+    capabilities: ["text-to-video", "image-to-video", "reference-to-video"],
+    // tok/s per resolution
+    pricing: { "480p": 15, "720p": 32, "1080p": 72 },
+    // tok/s per resolution when a reference video is provided (-40% discount)
+    referencePricing: { "480p": 9, "720p": 20, "1080p": 43 },
+  },
+  {
+    id: "seedance-2.0-fast",
+    name: "Seedance 2.0 Fast",
+    iconComponent: Logos.Kling,
+    iconColor: "text-cyan-400",
+    description: "Fast and cost-effective generation up to 720p",
+    badges: ["4-15s", "Up to 720p", "Fast"],
+    cost: 26, // representative (720p tok/s); real cost depends on resolution
+    isNew: true,
+    type: "video",
+    isSeedance2: true,
+    capabilities: ["text-to-video", "image-to-video", "reference-to-video"],
+    pricing: { "480p": 12, "720p": 26 },
+    referencePricing: { "480p": 7, "720p": 16 },
   },
   {
     id: "veo-3.1-ultra",
@@ -392,18 +478,6 @@ const VIDEO_MODELS = [
     isNew: false,
     type: "video",
     capabilities: ["video-to-video"],
-  },
-  {
-    id: "sora-2",
-    name: "Sora 2",
-    iconComponent: Logos.OpenAI,
-    iconColor: "text-green-400",
-    description: "Standard cinematic generation, cost-effective",
-    badges: ["4-12s"],
-    cost: 11,
-    isNew: false,
-    type: "video",
-    capabilities: ["text-to-video", "image-to-video"],
   },
   {
     id: "veo-3.1",
@@ -615,7 +689,7 @@ const FilePreview = ({ file, onRemove }) => {
 function AiLabModal({ isOpen, onClose }) {
   const { t } = useI18n();
   const [selectedModel, setSelectedModel] = useState("nano-banana-pro");
-  const [selectedVideoModel, setSelectedVideoModel] = useState("sora-2-pro");
+  const [selectedVideoModel, setSelectedVideoModel] = useState("seedance-2.0");
   const [showModels, setShowModels] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
@@ -625,6 +699,9 @@ function AiLabModal({ isOpen, onClose }) {
   const [imageCount, setImageCount] = useState(1);
   const [duration, setDuration] = useState(5);
   const [availableDurations, setAvailableDurations] = useState([5, 10]);
+  const [videoResolution, setVideoResolution] = useState("720p");
+  const [generateAudio, setGenerateAudio] = useState(true);
+  const [showResolutionMenu, setShowResolutionMenu] = useState(false);
   const [activeTab, setActiveTab] = useState("image"); // "image" | "video" | "voice"
   const [files, setFiles] = useState([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -1260,7 +1337,34 @@ function AiLabModal({ isOpen, onClose }) {
     if (!durations.includes(duration)) {
       setDuration(durations[0]);
     }
+    // Validar resolución para modelos Seedance (fast no tiene 1080p)
+    const resolutions = SEEDANCE_RESOLUTIONS[modelId];
+    if (resolutions && !resolutions.includes(videoResolution)) {
+      setVideoResolution(
+        resolutions.includes("720p") ? "720p" : resolutions[0],
+      );
+    }
+    setShowResolutionMenu(false);
     setShowModels(false);
+  };
+
+  // Tokens per second for the selected video model.
+  // Seedance models price per resolution, and apply a -40% discount when a
+  // reference video is provided.
+  const getVideoPerSecondCost = () => {
+    const model = VIDEO_MODELS.find((m) => m.id === selectedVideoModel);
+    if (!model) return 0;
+    if (model.isSeedance2) {
+      const hasReferenceVideo = files.some((f) =>
+        f.type.startsWith("video/"),
+      );
+      const table =
+        hasReferenceVideo && model.referencePricing
+          ? model.referencePricing
+          : model.pricing;
+      return table?.[videoResolution] ?? model.cost ?? 0;
+    }
+    return model.cost || 0;
   };
 
   const calculateTokenCost = () => {
@@ -1268,11 +1372,11 @@ function AiLabModal({ isOpen, onClose }) {
       const model = IMAGE_MODELS.find((m) => m.id === selectedModel);
       return (model?.cost || 10) * imageCount;
     } else if (activeTab === "video") {
-      const model = VIDEO_MODELS.find((m) => m.id === selectedVideoModel);
+      const perSecond = getVideoPerSecondCost();
       if (selectedVideoModel === "runway-aleph") {
-        return (model?.cost || 10) * (uploadedVideoDuration || 5);
+        return perSecond * (uploadedVideoDuration || 5);
       }
-      return (model?.cost || 10) * duration;
+      return perSecond * duration;
     } else if (activeTab === "voice") {
       return calculateRequiredVoiceTokens();
     }
@@ -1388,80 +1492,49 @@ function AiLabModal({ isOpen, onClose }) {
         });
       } else {
         // --- VIDEO GENERATION ---
-        let referenceImage = null;
-        let referenceVideo = null;
-        let mediaUrl = null;
-
         const selectedModelData = VIDEO_MODELS.find(
           (m) => m.id === selectedVideoModel,
         );
-        const capabilities = selectedModelData?.capabilities || [];
+        let result;
 
-        if (files.length > 0) {
-          setUploadingStatus("Uploading reference media...");
-          const file = files[0];
-          const isVideo = file.type.startsWith("video/");
+        if (selectedModelData?.isSeedance2) {
+          // --- SEEDANCE 2.0 FLOW (single endpoint, auto-detects mode) ---
+          let mediaUrl = null;
+          let referenceVideos = null;
 
-          // Validar que el modelo soporte el tipo de entrada
-          if (isVideo && !capabilities.includes("video-to-video")) {
-            throw new Error(
-              `${selectedModelData.name} does not support video-to-video. Please select an image or use a V2V model.`,
+          if (files.length > 0) {
+            setUploadingStatus("Uploading reference media...");
+            const file = files[0];
+            const isVideo = file.type.startsWith("video/");
+            const uploadedUrl = await uploadMediaToGCS(
+              file,
+              isVideo ? "video" : "image",
             );
-          }
-
-          const uploadedUrl = await uploadMediaToGCS(
-            file,
-            isVideo ? "video" : "image",
-          );
-
-          // Asignar al campo correcto según el modelo
-          if (isVideo) {
-            // Video-to-video
-            if (selectedVideoModel === "runway-aleph") {
-              referenceVideo = uploadedUrl;
-            } else if (
-              selectedVideoModel === "kling-v3-omni-std" ||
-              selectedVideoModel === "kling-v3-omni-pro"
-            ) {
-              mediaUrl = uploadedUrl;
+            // Video → reference-to-video (gets -40% discount).
+            // Image → image-to-video.
+            if (isVideo) {
+              referenceVideos = [uploadedUrl];
             } else {
-              referenceVideo = uploadedUrl; // fallback
+              mediaUrl = uploadedUrl;
             }
-          } else {
-            // Image-to-video
-            referenceImage = uploadedUrl;
           }
-        }
 
-        // Validar requisitos de modelos específicos
-        if (selectedVideoModel === "runway-aleph" && !referenceVideo) {
-          throw new Error(
-            "Runway Aleph requires a video input (Video-to-Video only).",
-          );
+          setUploadingStatus("Generating video...");
+          result = await generateVideoSeedance2API({
+            model: selectedVideoModel,
+            prompt: finalPrompt,
+            resolution: videoResolution,
+            duration,
+            generateAudio,
+            mediaUrl,
+            referenceVideos,
+          });
+        } else {
+          result = await generateNonSeedanceVideo({
+            finalPrompt,
+            selectedModelData,
+          });
         }
-        if (selectedVideoModel === "runway" && !referenceImage) {
-          throw new Error(
-            "Runway requires an image input (Image-to-Video only).",
-          );
-        }
-
-        setUploadingStatus("Generating video...");
-
-        // Determine effective duration for model
-        let effectiveDuration = duration;
-        if (selectedVideoModel === "runway-aleph" && uploadedVideoDuration) {
-          effectiveDuration = uploadedVideoDuration;
-        }
-
-        const result = await generateVideoAPI({
-          model: selectedVideoModel,
-          prompt: finalPrompt,
-          referenceImage,
-          referenceVideo,
-          mediaUrl,
-          aspectRatio,
-          duration: effectiveDuration,
-        });
 
         // La respuesta del backend debe tener video_url
         const videoUrl = result.video_url;
@@ -1506,6 +1579,78 @@ function AiLabModal({ isOpen, onClose }) {
       setIsGenerating(false);
       setUploadingStatus("");
     }
+  };
+
+  // Existing (non-Seedance) video generation flow via ai/mcp-video-generation.
+  const generateNonSeedanceVideo = async ({ finalPrompt, selectedModelData }) => {
+    let referenceImage = null;
+    let referenceVideo = null;
+    let mediaUrl = null;
+    const capabilities = selectedModelData?.capabilities || [];
+
+    if (files.length > 0) {
+      setUploadingStatus("Uploading reference media...");
+      const file = files[0];
+      const isVideo = file.type.startsWith("video/");
+
+      // Validar que el modelo soporte el tipo de entrada
+      if (isVideo && !capabilities.includes("video-to-video")) {
+        throw new Error(
+          `${selectedModelData.name} does not support video-to-video. Please select an image or use a V2V model.`,
+        );
+      }
+
+      const uploadedUrl = await uploadMediaToGCS(
+        file,
+        isVideo ? "video" : "image",
+      );
+
+      // Asignar al campo correcto según el modelo
+      if (isVideo) {
+        // Video-to-video
+        if (selectedVideoModel === "runway-aleph") {
+          referenceVideo = uploadedUrl;
+        } else if (
+          selectedVideoModel === "kling-v3-omni-std" ||
+          selectedVideoModel === "kling-v3-omni-pro"
+        ) {
+          mediaUrl = uploadedUrl;
+        } else {
+          referenceVideo = uploadedUrl; // fallback
+        }
+      } else {
+        // Image-to-video
+        referenceImage = uploadedUrl;
+      }
+    }
+
+    // Validar requisitos de modelos específicos
+    if (selectedVideoModel === "runway-aleph" && !referenceVideo) {
+      throw new Error(
+        "Runway Aleph requires a video input (Video-to-Video only).",
+      );
+    }
+    if (selectedVideoModel === "runway" && !referenceImage) {
+      throw new Error("Runway requires an image input (Image-to-Video only).");
+    }
+
+    setUploadingStatus("Generating video...");
+
+    // Determine effective duration for model
+    let effectiveDuration = duration;
+    if (selectedVideoModel === "runway-aleph" && uploadedVideoDuration) {
+      effectiveDuration = uploadedVideoDuration;
+    }
+
+    return await generateVideoAPI({
+      model: selectedVideoModel,
+      prompt: finalPrompt,
+      referenceImage,
+      referenceVideo,
+      mediaUrl,
+      aspectRatio,
+      duration: effectiveDuration,
+    });
   };
 
   const toggleModels = () => setShowModels(!showModels);
@@ -2413,7 +2558,7 @@ function AiLabModal({ isOpen, onClose }) {
                       </button>
 
                       {showDurationMenu && (
-                        <div className="absolute bottom-full mb-2 left-0 w-24 bg-[#1c1c1c] border border-gray-700 rounded-xl shadow-xl overflow-hidden py-1 z-50">
+                        <div className="absolute bottom-full mb-2 left-0 w-24 bg-[#1c1c1c] border border-gray-700 rounded-xl shadow-xl max-h-[180px] overflow-y-auto custom-scrollbar py-1 z-50">
                           {availableDurations.map((opt) => (
                             <button
                               key={opt}
@@ -2436,6 +2581,63 @@ function AiLabModal({ isOpen, onClose }) {
                     </>
                   )}
                 </div>
+              )}
+
+              {/* Seedance Resolution Selector (pricing depends on resolution) */}
+              {activeTab === "video" && selectedModelData?.isSeedance2 && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowResolutionMenu(!showResolutionMenu)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-[#2a2a2a] text-gray-300 border border-gray-700/50 cursor-pointer hover:bg-[#333] transition-colors"
+                  >
+                    <span className="text-[10px] uppercase font-bold text-gray-500">
+                      {t("ailab.resolution-label")}
+                    </span>
+                    {videoResolution}
+                  </button>
+
+                  {showResolutionMenu && (
+                    <div className="absolute bottom-full mb-2 left-0 w-24 bg-[#1c1c1c] border border-gray-700 rounded-xl shadow-xl max-h-[180px] overflow-y-auto custom-scrollbar py-1 z-50">
+                      {(
+                        SEEDANCE_RESOLUTIONS[selectedVideoModel] || ["720p"]
+                      ).map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => {
+                            setVideoResolution(opt);
+                            setShowResolutionMenu(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors ${
+                            videoResolution === opt
+                              ? "text-[#DC569D] font-medium"
+                              : "text-gray-300"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Seedance Audio Toggle */}
+              {activeTab === "video" && selectedModelData?.isSeedance2 && (
+                <button
+                  type="button"
+                  onClick={() => setGenerateAudio(!generateAudio)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border font-medium transition-colors ${
+                    generateAudio
+                      ? "bg-[#DC569D] border-[#DC569D] text-white"
+                      : "bg-[#2a2a2a] text-gray-300 border-gray-700/50 hover:bg-[#333]"
+                  }`}
+                  title={t("ailab.audio")}
+                >
+                  <Volume2 size={12} />
+                  {t("ailab.audio")}
+                </button>
               )}
 
               {/* Image count */}
@@ -2472,13 +2674,16 @@ function AiLabModal({ isOpen, onClose }) {
                   <p className="text-gray-400 text-xs mt-1">
                     {t("ailab.tokens-per-sec").replace(
                       "{n}",
-                      selectedModelData?.cost || 0,
+                      getVideoPerSecondCost() || 0,
                     )}{" "}
                     ×{" "}
                     {selectedVideoModel === "runway-aleph"
                       ? uploadedVideoDuration || 5
                       : duration}
                     s
+                    {selectedModelData?.isSeedance2
+                      ? ` · ${videoResolution}`
+                      : ""}
                   </p>
                 )}
                 {activeTab === "image" && imageCount > 1 && (
