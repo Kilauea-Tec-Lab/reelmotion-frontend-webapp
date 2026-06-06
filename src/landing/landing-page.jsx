@@ -66,8 +66,8 @@ function LandingPage() {
       <ReelbotSection />
       <ChatDemoSection />
       <EditorSection />
-      <PricingSection onOpenAuth={() => setShowAuthModal(true)} />
       <CtaBanner onOpenAuth={() => setShowAuthModal(true)} />
+      <PricingSection onOpenAuth={() => setShowAuthModal(true)} />
       <LandingFooter />
 
       <DownloadAppButton />
