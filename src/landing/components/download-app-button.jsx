@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { Download } from "lucide-react";
 import { useI18n } from "../../i18n/i18n-context";
 
 const STORE_LINKS = {
@@ -32,7 +31,7 @@ const DownloadAppButton = () => {
   if (!platform) return null;
 
   const isEs = locale === "es";
-  const label = isEs ? "Descargar app" : "Download app";
+  const label = isEs ? "Abrir app" : "Open app";
   const href = STORE_LINKS[platform];
 
   return (
@@ -41,13 +40,20 @@ const DownloadAppButton = () => {
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105"
+      className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-4 text-sm font-semibold text-white backdrop-blur-md transition-all duration-200 hover:bg-white/15 active:scale-95"
       style={{
-        background: "#DC569D",
-        boxShadow: "0 8px 24px rgba(220,86,157,0.4)",
+        background: "rgba(40,40,40,0.75)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
       }}
     >
-      <Download size={18} />
+      <span
+        className="w-2.5 h-2.5 rounded-full animate-bounce"
+        style={{
+          background: "#DC569D",
+          boxShadow: "0 0 8px 2px rgba(220,86,157,0.7)",
+        }}
+      />
       <span>{label}</span>
     </a>
   );
