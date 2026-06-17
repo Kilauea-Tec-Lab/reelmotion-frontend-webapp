@@ -1301,6 +1301,49 @@ function ChatMain({
     }
   };
 
+  // Renderiza botones de acción según msg.actions (ej. "editor", "tokens_sale")
+  const renderMessageActions = (msg) => {
+    if (msg.role !== "assistant") return null;
+    if (!Array.isArray(msg.actions) || msg.actions.length === 0) return null;
+
+    const hasEditor = msg.actions.includes("editor");
+    const hasTokensSale = msg.actions.includes("tokens_sale");
+
+    if (!hasEditor && !hasTokensSale) return null;
+
+    return (
+      <div className="mt-3 flex flex-wrap gap-2">
+        {hasEditor && (
+          <button
+            onClick={() => navigate("/editor")}
+            className="px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+          >
+            <Pencil size={14} />
+            <span>{t("chat.actions.go-to-editor")}</span>
+          </button>
+        )}
+        {hasTokensSale && (
+          <>
+            <button
+              onClick={() => navigate("/pro")}
+              className="px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <Sparkles size={14} />
+              <span>{t("chat.actions.subscribe")}</span>
+            </button>
+            <button
+              onClick={handleOpenTokenModal}
+              className="px-3 py-1.5 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <DollarSign size={14} />
+              <span>{t("chat.actions.buy-tokens")}</span>
+            </button>
+          </>
+        )}
+      </div>
+    );
+  };
+
   const handleCopyToClipboard = async (msg) => {
     try {
       await navigator.clipboard.writeText(msg.content);
@@ -2992,6 +3035,7 @@ function ChatMain({
                         }`}
                       >
                         <p className="whitespace-pre-wrap">{msg.content}</p>
+                        {renderMessageActions(msg)}
                       </div>
                     </div>
                   </div>
@@ -3316,6 +3360,7 @@ function ChatMain({
                           }`}
                         >
                           <p className="whitespace-pre-wrap">{msg.content}</p>
+                          {renderMessageActions(msg)}
                         </div>
                       </div>
                     </div>
