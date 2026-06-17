@@ -25,12 +25,14 @@ import {
   Clock,
   Search,
   CreditCard,
+  Flag,
 } from "lucide-react";
 import {
   getElevenLabsVoices,
   generateElevenLabsSpeech,
 } from "../../create_elements/functions";
 import { useI18n } from "../../i18n/i18n-context";
+import ReportContentModal from "../../components/report-content-modal";
 
 // Map frontend model IDs to backend model names
 const MODEL_MAP = {
@@ -715,6 +717,8 @@ function AiLabModal({ isOpen, onClose }) {
   const [showDurationMenu, setShowDurationMenu] = useState(false);
   const [showConfirmGeneration, setShowConfirmGeneration] = useState(false);
   const [uploadedVideoDuration, setUploadedVideoDuration] = useState(0);
+  // Report content (Play Store AI-content policy compliance)
+  const [reportTarget, setReportTarget] = useState(null);
   const fileInputRef = useRef(null);
 
   // ====== VOICE TAB STATES ======
@@ -1676,12 +1680,36 @@ function AiLabModal({ isOpen, onClose }) {
           <h2 className="text-white text-lg font-semibold flex items-center gap-2">
             AI Lab
           </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-800"
-          >
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            {activeTab !== "voice" &&
+              generatedImages.length > 0 &&
+              !isGenerating && (
+                <button
+                  onClick={() =>
+                    setReportTarget({
+                      source: "ai_lab",
+                      content_type: activeTab === "video" ? "video" : "image",
+                      content_url: generatedImages
+                        .map((i) => (typeof i === "string" ? i : i.url))
+                        .filter(Boolean)
+                        .join(", "),
+                    })
+                  }
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[#2a2a2a] text-gray-200 hover:bg-[#DC569D] hover:text-white border border-gray-700/60 transition-colors"
+                  title={t("chat.report-tooltip")}
+                  aria-label={t("chat.report-tooltip")}
+                >
+                  <Flag size={14} />
+                  {t("chat.report-action")}
+                </button>
+              )}
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-800"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* ====== VOICE TAB CONTENT ====== */}
@@ -2230,7 +2258,7 @@ function AiLabModal({ isOpen, onClose }) {
                             <X size={14} />
                           </button>
                         </div>
-                        <div className="flex justify-end gap-2 pointer-events-auto mb-12">
+                        <div className="flex justify-end gap-2 pointer-events-auto">
                           {!isVideo && (
                             <button
                               type="button"
@@ -2750,6 +2778,19 @@ function AiLabModal({ isOpen, onClose }) {
                 Download
               </button>
               <button
+                onClick={() =>
+                  setReportTarget({
+                    source: "ai_lab",
+                    content_url: previewImage,
+                    content_type: "image",
+                  })
+                }
+                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-[#DC569D] text-white rounded-full transition-colors backdrop-blur-md"
+              >
+                <Flag size={16} />
+                {t("chat.report-action")}
+              </button>
+              <button
                 onClick={() => setPreviewImage(null)}
                 className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors backdrop-blur-md"
               >
@@ -2760,6 +2801,13 @@ function AiLabModal({ isOpen, onClose }) {
           </div>
         </div>
       )}
+
+      {/* Report Content Modal (Play Store AI-content policy compliance) */}
+      <ReportContentModal
+        isOpen={!!reportTarget}
+        onClose={() => setReportTarget(null)}
+        meta={reportTarget || {}}
+      />
     </div>
   );
 }

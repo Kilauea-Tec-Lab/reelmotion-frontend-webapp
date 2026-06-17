@@ -15,14 +15,19 @@ import {
   Play,
   Pause,
   Send,
+  Flag,
 } from "lucide-react";
 import { likePost, addComment, getPostById } from "../functions";
 import CommentsSection from "./comments-section";
 import ShareModal from "./share-modal";
 import { createPusherClient } from "../../pusher";
 import CustomSlider from "../../components/CustomSlider";
+import ReportContentModal from "../../components/report-content-modal";
+import { useI18n } from "../../i18n/i18n-context";
 
 function PostCard({ post, onUpdate, public_post }) {
+  const { t } = useI18n();
+  const [showReportModal, setShowReportModal] = useState(false);
   const [likesCount, setLikesCount] = useState(post?.likes_count || 0);
   const [showComments, setShowComments] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -403,6 +408,15 @@ function PostCard({ post, onUpdate, public_post }) {
               >
                 <Share size={24} />
               </button>
+
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="text-gray-400 hover:text-[#DC569D] transition-colors"
+                title={t("chat.report-tooltip")}
+                aria-label={t("chat.report-tooltip")}
+              >
+                <Flag size={24} />
+              </button>
             </div>
           ) : (
             <div className="flex items-center gap-4">
@@ -485,6 +499,18 @@ function PostCard({ post, onUpdate, public_post }) {
         showShare={showShareModal}
         isSameUser={isSameUser}
         videoUrl={postInfo?.video_url}
+      />
+
+      {/* Report Content Modal (Play Store AI-content policy compliance) */}
+      <ReportContentModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        meta={{
+          source: "discover",
+          post_id: postInfo?.id,
+          content_url: postInfo?.video_url || postInfo?.image_url,
+          content_type: postInfo?.video_url ? "video" : "image",
+        }}
       />
     </div>
   );
