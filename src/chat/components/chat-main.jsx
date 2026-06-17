@@ -1325,7 +1325,7 @@ function ChatMain({
         {hasTokensSale && (
           <>
             <button
-              onClick={() => navigate("/pro")}
+              onClick={() => navigate("/app/pro")}
               className="px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
             >
               <Sparkles size={14} />
