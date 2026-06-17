@@ -201,6 +201,7 @@ function ChatView() {
             id: Date.now() + 1,
             role: "assistant",
             content: response.message,
+            actions: Array.isArray(response.actions) ? response.actions : null,
             attachments:
               responseAttachments.length > 0
                 ? responseAttachments
