@@ -18,8 +18,10 @@ import {
   Pencil,
   Globe,
   Lock,
+  Flag,
 } from "lucide-react";
 import Cookies from "js-cookie";
+import ReportContentModal from "../components/report-content-modal";
 
 const GalleryItem = memo(
   ({ attachment, idx, onClick, onDelete, isLoaded, onLoad }) => {
@@ -225,6 +227,8 @@ function Library() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [isSavingName, setIsSavingName] = useState(false);
   const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
+  // Report content (Play Store AI-content policy compliance)
+  const [reportTarget, setReportTarget] = useState(null);
 
   // Stable callback for media load events (avoids re-creating inline functions)
   const handleMediaLoad = useCallback((id) => {
@@ -662,6 +666,13 @@ function Library() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-primarioDark">
+      {/* Report Content Modal (Play Store AI-content policy compliance) */}
+      <ReportContentModal
+        isOpen={!!reportTarget}
+        onClose={() => setReportTarget(null)}
+        meta={reportTarget || {}}
+      />
+
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div
@@ -719,6 +730,24 @@ function Library() {
           className="fixed inset-0 bg-black/40 backdrop-blur-2xl z-[100] flex items-center justify-center p-4"
           onClick={() => setCurrentIndex(null)}
         >
+          {/* Report Button (preview) */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setReportTarget({
+                source: "library",
+                content_url: currentAttachment.url,
+                content_type: currentAttachment.file_type,
+                attachment_id: currentAttachment.id,
+              });
+            }}
+            className="absolute top-4 right-40 bg-white/10 hover:bg-[#DC569D] text-white rounded-full p-2 z-20 transition-colors"
+            title={t("chat.report-tooltip")}
+            aria-label={t("chat.report-tooltip")}
+          >
+            <Flag size={24} />
+          </button>
+
           {/* Delete Button (preview) */}
           <button
             onClick={(e) => {
