@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Cookies from "js-cookie";
 import {
   X,
@@ -33,11 +33,15 @@ import {
 } from "../../create_elements/functions";
 import { useI18n } from "../../i18n/i18n-context";
 import ReportContentModal from "../../components/report-content-modal";
+import { createPusherClient } from "@/pusher";
+import { getUserInfo } from "../../auth/functions";
 
-// Map frontend model IDs to backend model names
+// Map frontend model IDs to backend model names (case-sensitive — must match
+// the strings the backend accepts). Freepik was removed from the backend.
 const MODEL_MAP = {
+  seedream: "Seedream",
   "nano-banana-pro": "Nano Banana",
-  freepik: "Freepik",
+  midjourney: "Midjourney",
   "gpt-image-1.5": "GPT",
 };
 
@@ -61,9 +65,11 @@ const MODEL_DURATIONS = {
   "veo-3.1-ultra": [8],
   //"luma-labs": [5],
   //"seedance-pro": [5],
-  //"kling-v1": [5, 10],
-  "kling-v3-omni-pro": [3, 5, 8, 10, 15],
-  "kling-v3-omni-std": [3, 5, 8, 10, 15],
+  // Kling (Evolink) — duration is an integer in seconds; the server clamps to
+  // the model/route range (3–15s; O3 reference 3–10s).
+  "kling-v3": [3, 5, 8, 10, 15],
+  "kling-v3-turbo": [3, 5, 8, 10, 15],
+  "kling-o3": [3, 5, 8, 10, 15],
   "seedance-2.0": [4, 5, 6, 8, 10, 12, 15],
   "seedance-2.0-fast": [4, 5, 6, 8, 10, 12, 15],
 };
@@ -73,6 +79,78 @@ const SEEDANCE_RESOLUTIONS = {
   "seedance-2.0": ["480p", "720p", "1080p"],
   "seedance-2.0-fast": ["480p", "720p"],
 };
+
+// ====== KLING (Evolink) ======
+// Three models replace the old kling-v1 / kling-v3-omni-* keys.
+const KLING_MODEL_IDS = ["kling-v3", "kling-v3-turbo", "kling-o3"];
+const isKlingModel = (id) => KLING_MODEL_IDS.includes(id);
+
+// Selectable qualities per model. Routes the server caps at 1080p (turbo,
+// motion-control, O3 reference/edit) are clamped server-side; for the
+// turbo model — which never reaches 4k — we simply hide it.
+const KLING_QUALITIES = {
+  "kling-v3": ["720p", "1080p", "4k"],
+  "kling-v3-turbo": ["720p", "1080p"],
+  "kling-o3": ["720p", "1080p", "4k"],
+};
+
+const KLING_ASPECT_RATIOS = ["16:9", "9:16", "1:1"];
+
+// tokens/sec matrix (mirrors the backend; the server is authoritative and
+// clamps quality/audio/duration). Cost = video_duration(s) × tokens/sec.
+const KLING_PRICING = {
+  // V3 / O3 — text-to-video & image-to-video (audio is a paid add-on)
+  standard: {
+    "720p": { off: 9, on: 12 },
+    "1080p": { off: 12, on: 14 },
+    "4k": { off: 42, on: 42 },
+  },
+  // V3 Turbo — t2v / i2v (no audio, no 4k)
+  turbo: { "720p": 12, "1080p": 14 },
+  // O3 — reference-to-video & video-edit (no audio, no 4k)
+  o3Advanced: { "720p": 13, "1080p": 17 },
+  // V3 — motion-control (provisional, no audio, no 4k)
+  motion: { "720p": 13, "1080p": 17 },
+};
+
+// Mirror the backend auto-router so the client can show the right price and
+// send the media in the field the server expects. The server classifies media
+// as video by extension; here we classify the single upload by MIME type.
+function getKlingRoute(model, { hasImage, hasVideo, mode }) {
+  if (model === "kling-v3-turbo") {
+    return hasImage ? "image-to-video" : "text-to-video";
+  }
+  if (model === "kling-v3") {
+    if (mode === "motion" || hasVideo) return "motion-control";
+    if (hasImage) return "image-to-video";
+    return "text-to-video";
+  }
+  // kling-o3
+  if (mode === "edit" || (hasVideo && mode !== "reference")) return "video-edit";
+  if (mode === "reference") return "reference-to-video";
+  if (hasImage) return "image-to-video";
+  return "text-to-video";
+}
+
+// tokens/sec for a Kling generation. The server clamps quality (e.g.
+// motion/reference/edit top at 1080p), so fall back to the table's top tier.
+function getKlingPerSecondCost(model, quality, audioOn, route) {
+  if (model === "kling-v3-turbo") {
+    return KLING_PRICING.turbo[quality] ?? KLING_PRICING.turbo["1080p"];
+  }
+  if (route === "motion-control") {
+    return KLING_PRICING.motion[quality] ?? KLING_PRICING.motion["1080p"];
+  }
+  if (route === "reference-to-video" || route === "video-edit") {
+    return (
+      KLING_PRICING.o3Advanced[quality] ?? KLING_PRICING.o3Advanced["1080p"]
+    );
+  }
+  // standard t2v / i2v for V3 / O3
+  const tier = KLING_PRICING.standard[quality] || KLING_PRICING.standard["720p"];
+  const audioApplies = audioOn && quality !== "4k";
+  return audioApplies ? tier.on : tier.off;
+}
 
 // Upload media (image/video) to backend and return uploaded file URL
 async function uploadMediaToGCS(file, type = "image") {
@@ -158,10 +236,53 @@ async function generateVideoAPI({
   });
 
   const data = await response.json();
+
+  // Hybrid delivery (Runway 4.5) — branch by HTTP status, not by model:
+  //   200 = video ready (sync, like every other model)
+  //   202 = slow / dropped connection → job keeps running, track it
+  //   422 (or any other !ok, e.g. 402 insufficient tokens) = real error
+  if (!response.ok && response.status !== 202) {
+    throw new Error(data.message || data.error || "Error generating video");
+  }
+
+  // 202 → the job keeps running in the background; the video is NOT ready yet.
+  if (response.status === 202 || data.status === "processing") {
+    // { generation_id, task_id, poll_url, estimated_tokens, remaining_tokens, ... }
+    return { async: true, ...data };
+  }
+
+  // 200 → video ready, same as the rest of the (synchronous) models.
   if (data.video_url) {
     return data;
   }
   throw new Error(data.message || data.error || "Error generating video");
+}
+
+// Call the Kling (Evolink) DIRECT video endpoint (ai/generate-video).
+// Hybrid delivery, branch by HTTP status — same contract as the rest:
+//   200 = video ready, 202 = processing (poll / Pusher), 4xx = error
+//   (402 no tokens, 422 failed+refunded, 400 invalid input).
+// The body is built by the caller (model in ai_model, media routed to the
+// field the server's auto-router expects).
+async function generateKlingVideoAPI(body) {
+  const response = await fetch(buildApiUrl("ai/generate-video"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + Cookies.get("token"),
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok && response.status !== 202) {
+    throw new Error(data.error || data.message || "Error generating video");
+  }
+  if (response.status === 202 || data.status === "processing") {
+    return { async: true, ...data };
+  }
+  return data; // { success, status:"completed", video_url, tokens_used, ... }
 }
 
 // Call the Seedance 2.0 video generation endpoint (single endpoint, auto-detects mode)
@@ -223,21 +344,27 @@ async function generateVideoSeedance2API({
   throw new Error(data.message || data.error || "Error generating video");
 }
 
-// Call the AI image generation endpoint
+// Call the AI image generation endpoint (MCP — supports every model:
+// Seedream, Midjourney, Nano Banana, Nano Banana 2, GPT).
+//
+// Hybrid delivery — the API waits up to ~55s trying to return the image inline:
+//   200 = image(s) ready
+//   202 = still processing → caller tracks via Pusher + polling
+//   422 = failed (tokens already refunded), 402 = insufficient tokens
 async function generateImagesAPI({
   model,
-  type,
   prompt,
   referenceImage,
   referenceImages,
-  quantity,
+  aspectRatio,
+  quality,
 }) {
-  const body = { model, type, prompt, quantity };
-
-  if (type === 2 && referenceImage) {
-    body.reference_image = referenceImage;
-  }
-  if (type === 3 && referenceImages) {
+  const body = { model, prompt };
+  if (aspectRatio) body.aspect_ratio = aspectRatio;
+  // quality only applies to Seedream ("2K" | "3K"); ignored by other models.
+  if (quality && model === "Seedream") body.quality = quality;
+  if (referenceImage) body.reference_image = referenceImage;
+  if (referenceImages && referenceImages.length > 0) {
     body.reference_images = referenceImages;
   }
 
@@ -251,10 +378,37 @@ async function generateImagesAPI({
   });
 
   const data = await response.json();
-  if (data.success) {
-    return data;
+
+  // 202 (or status:"processing") → keep generating in the background; the image
+  // is NOT ready yet. Anything else that isn't ok is a real error
+  // (402 insufficient tokens, 422 failed/refunded, 400 invalid, 500).
+  if (!response.ok && response.status !== 202) {
+    throw new Error(data.error || data.message || "Error generating images");
   }
-  throw new Error(data.message || "Error generating images");
+  if (response.status === 202 || data.status === "processing") {
+    return { async: true, ...data };
+  }
+  return data;
+}
+
+// Normalize an image-generation response into a list the gallery can render.
+// Midjourney returns 4 variants in all_result_urls; the rest return a single
+// image (images[0] / image_url).
+function extractGeneratedImages(data, isMidjourney) {
+  if (
+    isMidjourney &&
+    Array.isArray(data.all_result_urls) &&
+    data.all_result_urls.length > 0
+  ) {
+    return data.all_result_urls;
+  }
+  if (Array.isArray(data.images) && data.images.length > 0) {
+    return data.images;
+  }
+  if (data.image_url) {
+    return [data.image_url];
+  }
+  return [];
 }
 
 const Logos = {
@@ -344,9 +498,50 @@ const Logos = {
       />
     </svg>
   ),
+  Seedream: () => (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect width="24" height="24" rx="6" fill="#7C3AED" />
+      <path
+        d="M12 6l1.6 3.6L17 11l-3.4 1.4L12 16l-1.6-3.6L7 11l3.4-1.4L12 6z"
+        fill="white"
+      />
+    </svg>
+  ),
+  Midjourney: () => (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect width="24" height="24" rx="4" fill="black" />
+      <path d="M12.5 5L17 14.5H12.5V5Z" fill="white" />
+      <path d="M11 7.5L7 14.5H11V7.5Z" fill="white" />
+      <path d="M5 16H19L17.2 19H6.8L5 16Z" fill="white" />
+    </svg>
+  ),
 };
 
 const IMAGE_MODELS = [
+  {
+    id: "seedream",
+    name: "Seedream 5.0 Lite",
+    iconComponent: Logos.Seedream,
+    iconColor: "text-purple-400",
+    description: "Fast, high-fidelity image generation up to 3K",
+    badges: ["Up to 3K", "Fast"],
+    isNew: true,
+    type: "image",
+    cost: 4, // tokens per image
+    maxImages: 14, // supports multiple reference images
+  },
   {
     id: "nano-banana-pro",
     name: "Nano Banana 2",
@@ -361,16 +556,18 @@ const IMAGE_MODELS = [
     maxImages: 14, // Up to 14 reference images
   },
   {
-    id: "freepik",
-    name: "Freepik",
-    iconComponent: Logos.Freepik,
-    iconColor: "text-blue-500",
-    description: "High-quality assets and creative resources",
-    badges: ["Creative", "Assets"],
-    isNew: false,
+    id: "midjourney",
+    name: "Midjourney V8.1",
+    iconComponent: Logos.Midjourney,
+    iconColor: "text-white",
+    description:
+      "Artistic, highly stylized images — returns 4 variations per prompt",
+    badges: ["4 Variations", "Artistic"],
+    isNew: true,
     type: "image",
-    cost: 1, // tokens per image
-    maxImages: 1, // Single reference image only
+    cost: 9, // tokens per request (1 main image + 3 variants)
+    // img2img references must be public URLs (uploads handle this) — not data URIs
+    maxImages: 5,
   },
   {
     id: "gpt-image-1.5",
@@ -458,28 +655,51 @@ const VIDEO_MODELS = [
     capabilities: ["video-to-video"],
   },
   {
-    id: "kling-v3-omni-pro",
-    name: "Kling V3 Omni Pro",
+    id: "kling-v3",
+    name: "Kling V3",
     iconComponent: Logos.Kling,
     iconColor: "text-orange-400",
-    description: "Professional grade, 3-15s flexible duration",
-    badges: ["3-15s"],
-    cost: 26,
+    description:
+      "Text, image & motion-control video up to 4K with optional native audio",
+    badges: ["3-15s", "Up to 4K", "Audio"],
+    // representative (720p no-audio tok/s); real cost depends on route/quality/audio
+    cost: 9,
     isNew: true,
     type: "video",
+    isKling: true,
+    capabilities: ["text-to-video", "image-to-video", "motion-control"],
+  },
+  {
+    id: "kling-v3-turbo",
+    name: "Kling V3 Turbo",
+    iconComponent: Logos.Kling,
+    iconColor: "text-orange-400",
+    description: "Fast text & image-to-video up to 1080p",
+    badges: ["3-15s", "Up to 1080p", "Fast"],
+    cost: 12,
+    isNew: true,
+    type: "video",
+    isKling: true,
     capabilities: ["text-to-video", "image-to-video"],
   },
   {
-    id: "kling-v3-omni-std",
-    name: "Kling V3 Omni Std",
+    id: "kling-o3",
+    name: "Kling O3",
     iconComponent: Logos.Kling,
     iconColor: "text-orange-400",
-    description: "Video-to-video editing with V3 technology",
-    badges: ["V2V"],
-    cost: 19,
-    isNew: false,
+    description:
+      "Text, image, reference & video-edit up to 4K with optional native audio",
+    badges: ["3-15s", "Up to 4K", "Reference", "Edit"],
+    cost: 9,
+    isNew: true,
     type: "video",
-    capabilities: ["video-to-video"],
+    isKling: true,
+    capabilities: [
+      "text-to-video",
+      "image-to-video",
+      "reference-to-video",
+      "video-edit",
+    ],
   },
   {
     id: "veo-3.1",
@@ -704,6 +924,11 @@ function AiLabModal({ isOpen, onClose }) {
   const [videoResolution, setVideoResolution] = useState("720p");
   const [generateAudio, setGenerateAudio] = useState(true);
   const [showResolutionMenu, setShowResolutionMenu] = useState(false);
+  // Kling (Evolink) advanced controls
+  const [klingMode, setKlingMode] = useState("auto"); // auto | reference | edit (O3)
+  const [videoAspect, setVideoAspect] = useState("16:9"); // 16:9 | 9:16 | 1:1
+  const [showVideoAspectMenu, setShowVideoAspectMenu] = useState(false);
+  const [showKlingModeMenu, setShowKlingModeMenu] = useState(false);
   const [activeTab, setActiveTab] = useState("image"); // "image" | "video" | "voice"
   const [files, setFiles] = useState([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -720,6 +945,15 @@ function AiLabModal({ isOpen, onClose }) {
   // Report content (Play Store AI-content policy compliance)
   const [reportTarget, setReportTarget] = useState(null);
   const fileInputRef = useRef(null);
+
+  // ====== ASYNC VIDEO GENERATION TRACKING (Runway 4.5) ======
+  // userId is required to subscribe to the private generation-status channel.
+  const [userId, setUserId] = useState(null);
+  // The generation we're currently tracking, and a one-shot guard so Pusher and
+  // the polling fallback don't both resolve the same generation.
+  const activeGenerationRef = useRef(null);
+  const trackingDoneRef = useRef(false);
+  const pusherClient = useMemo(() => createPusherClient(), []);
 
   // ====== VOICE TAB STATES ======
   const [voiceName, setVoiceName] = useState("");
@@ -1167,6 +1401,135 @@ function AiLabModal({ isOpen, onClose }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  // ====== ASYNC VIDEO GENERATION TRACKING (Runway 4.5) ======
+  // Terminal handler shared by Pusher (primary) and polling (fallback).
+  // Idempotent via trackingDoneRef: whichever path resolves first wins.
+  // Defined before the `!isOpen` early return so the Pusher handler (a hook
+  // below) always captures an initialized binding.
+  const finalizeGeneration = (status, resultUrl, errorMsg) => {
+    if (trackingDoneRef.current) return;
+    trackingDoneRef.current = true;
+
+    if (status === "completed" && resultUrl) {
+      setGeneratedImages([resultUrl]);
+    } else {
+      setError(
+        errorMsg || "La generación falló. Tus tokens fueron reembolsados.",
+      );
+    }
+    setIsGenerating(false);
+    setUploadingStatus("");
+    // Refresh the real balance (covers automatic token refunds on failure).
+    fetchVoiceTokens();
+  };
+
+  // Background tracker for async / dropped generations.
+  // Pusher is the primary channel; this HTTP polling is the fallback when we
+  // have a generation_id (202 case). When we DON'T have an id (a long sync
+  // request cut by the proxy/CDN), we can't poll, so we just wait for the
+  // Pusher event — but still honor the timeout so the loader never hangs.
+  const trackGeneration = async (generationId) => {
+    const trackedId = generationId || null;
+    trackingDoneRef.current = false;
+    activeGenerationRef.current = trackedId;
+
+    const started = Date.now();
+    const MAX_MS = 15 * 60 * 1000; // 15 min cap
+    let delay = 5000; // 5s, then ramp to 10–15s
+
+    while (Date.now() - started < MAX_MS) {
+      await new Promise((r) => setTimeout(r, delay));
+      delay = Math.min(delay + 5000, 15000);
+
+      if (trackingDoneRef.current) return; // Pusher resolved it first
+      if (activeGenerationRef.current !== trackedId) return; // superseded
+      if (!trackedId) continue; // no id → wait for the Pusher event only
+
+      try {
+        const res = await fetch(
+          buildApiUrl(`ai/generation-status/${trackedId}`),
+          { headers: { Authorization: "Bearer " + Cookies.get("token") } },
+        );
+        if (!res.ok) continue;
+        const g = await res.json();
+        if (g.status === "completed" && g.result_url) {
+          finalizeGeneration("completed", g.result_url, null);
+          return;
+        }
+        if (g.status === "failed") {
+          finalizeGeneration("failed", null, g.error);
+          return;
+        }
+        // queued | processing → keep polling
+      } catch {
+        // transient network error → keep polling
+      }
+    }
+
+    // Timed out without reaching a terminal state.
+    if (!trackingDoneRef.current) {
+      trackingDoneRef.current = true;
+      setError(
+        "La generación está tardando más de lo esperado. Revisa tu biblioteca en unos minutos.",
+      );
+      setIsGenerating(false);
+      setUploadingStatus("");
+    }
+  };
+
+  // Fetch the current user id the first time AI Lab opens (needed for the
+  // private Pusher channel). Cached afterwards so it survives close/reopen.
+  useEffect(() => {
+    if (userId || !isOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const info = await getUserInfo();
+        const id = info?.data?.id;
+        if (!cancelled && id) setUserId(id);
+      } catch (e) {
+        console.error("Failed to load user id for generation tracking:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, isOpen]);
+
+  // Subscribe to the private generation-status channel (primary delivery).
+  // Stays subscribed while the component is mounted so completion events still
+  // arrive even if the user closed the modal mid-generation.
+  useEffect(() => {
+    if (!pusherClient || !userId) return;
+
+    const channelName = `private-generation-status.${userId}`;
+    const channel = pusherClient.subscribe(channelName);
+
+    const handleStatus = ({ generation_id, status, result_url, error }) => {
+      // Once we're tracking a specific generation, ignore events for others.
+      if (
+        activeGenerationRef.current &&
+        generation_id &&
+        generation_id !== activeGenerationRef.current
+      ) {
+        return;
+      }
+      if (status === "completed") {
+        finalizeGeneration("completed", result_url, null);
+      } else if (status === "failed") {
+        finalizeGeneration("failed", null, error);
+      }
+    };
+
+    channel.bind("generation-status", handleStatus);
+
+    return () => {
+      channel.unbind("generation-status", handleStatus);
+      pusherClient.unsubscribe(channelName);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pusherClient, userId]);
+
   if (!isOpen) return null;
 
   const currentModels = activeTab === "image" ? IMAGE_MODELS : VIDEO_MODELS;
@@ -1176,6 +1539,30 @@ function AiLabModal({ isOpen, onClose }) {
   // Fallback if model not found in current list
   const selectedModelData =
     currentModels.find((m) => m.id === currentModelId) || currentModels[0];
+
+  // ====== KLING (Evolink) derived render values ======
+  const isKling = activeTab === "video" && isKlingModel(selectedVideoModel);
+  const klingRoute = isKling
+    ? getKlingRoute(selectedVideoModel, {
+        hasImage: files.some((f) => f.type.startsWith("image/")),
+        hasVideo: files.some((f) => f.type.startsWith("video/")),
+        mode: klingMode,
+      })
+    : null;
+  // Audio toggle only matters on V3/O3 text- & image-to-video routes.
+  const klingAudioApplies =
+    isKling &&
+    (selectedVideoModel === "kling-v3" || selectedVideoModel === "kling-o3") &&
+    (klingRoute === "text-to-video" || klingRoute === "image-to-video");
+  // Quality options for the resolution pill (shared by Seedance + Kling).
+  const videoQualityOptions =
+    activeTab === "video"
+      ? selectedModelData?.isSeedance2
+        ? SEEDANCE_RESOLUTIONS[selectedVideoModel] || ["720p"]
+        : isKling
+          ? KLING_QUALITIES[selectedVideoModel] || ["720p", "1080p"]
+          : null
+      : null;
 
   const handleDownloadImage = async (imgUrl, index) => {
     try {
@@ -1348,7 +1735,17 @@ function AiLabModal({ isOpen, onClose }) {
         resolutions.includes("720p") ? "720p" : resolutions[0],
       );
     }
+    // Validar calidad para modelos Kling (turbo no tiene 4k) y resetear modo
+    const klingQualities = KLING_QUALITIES[modelId];
+    if (klingQualities && !klingQualities.includes(videoResolution)) {
+      setVideoResolution(
+        klingQualities.includes("720p") ? "720p" : klingQualities[0],
+      );
+    }
+    setKlingMode("auto");
     setShowResolutionMenu(false);
+    setShowVideoAspectMenu(false);
+    setShowKlingModeMenu(false);
     setShowModels(false);
   };
 
@@ -1358,6 +1755,21 @@ function AiLabModal({ isOpen, onClose }) {
   const getVideoPerSecondCost = () => {
     const model = VIDEO_MODELS.find((m) => m.id === selectedVideoModel);
     if (!model) return 0;
+    if (model.isKling) {
+      const hasVideo = files.some((f) => f.type.startsWith("video/"));
+      const hasImage = files.some((f) => f.type.startsWith("image/"));
+      const route = getKlingRoute(selectedVideoModel, {
+        hasImage,
+        hasVideo,
+        mode: klingMode,
+      });
+      return getKlingPerSecondCost(
+        selectedVideoModel,
+        videoResolution,
+        generateAudio,
+        route,
+      );
+    }
     if (model.isSeedance2) {
       const hasReferenceVideo = files.some((f) =>
         f.type.startsWith("video/"),
@@ -1401,6 +1813,21 @@ function AiLabModal({ isOpen, onClose }) {
       return;
     }
 
+    // Kling input guards (turbo has no video input; O3 video-edit needs a video)
+    if (activeTab === "video" && isKlingModel(selectedVideoModel)) {
+      const hasVideo = files.some((f) => f.type.startsWith("video/"));
+      if (selectedVideoModel === "kling-v3-turbo" && hasVideo) {
+        setError(
+          "Kling V3 Turbo only supports an image reference (no video input).",
+        );
+        return;
+      }
+      if (selectedVideoModel === "kling-o3" && klingMode === "edit" && !hasVideo) {
+        setError("Video-edit (Kling O3) requires a video reference.");
+        return;
+      }
+    }
+
     const requiredTokens = calculateTokenCost();
     // voiceTokens stores the user's available tokens
     if (voiceTokens < requiredTokens) {
@@ -1426,6 +1853,10 @@ function AiLabModal({ isOpen, onClose }) {
     setGeneratedImages([]);
     setGenerationInfo(null);
 
+    // When true, the async tracker (Pusher + polling) owns the generating
+    // state, so the finally block must NOT reset it.
+    let asyncTracking = false;
+
     try {
       // Construir el prompt final con negative prompt si existe
       let finalPrompt = prompt.trim();
@@ -1434,17 +1865,16 @@ function AiLabModal({ isOpen, onClose }) {
       }
 
       if (activeTab === "image") {
-        // --- IMAGE GENERATION ---
-        let type = 1; // 1 = Solo Texto
+        // --- IMAGE GENERATION (Seedream / Midjourney / Nano Banana / GPT) ---
+        // References are uploaded to GCS first, so Midjourney img2img always
+        // receives public URLs (never data URIs, which it would ignore).
         let referenceImage = null;
         let referenceImages = null;
 
         if (files.length === 1) {
-          type = 2; // 2 = Texto + Imagen
           setUploadingStatus("Uploading reference image...");
           referenceImage = await uploadMediaToGCS(files[0], "image");
         } else if (files.length > 1) {
-          type = 3; // 3 = Texto + Múltiples imágenes
           setUploadingStatus(`Uploading ${files.length} reference images...`);
           referenceImages = await Promise.all(
             files.map((f) => uploadMediaToGCS(f, "image")),
@@ -1453,17 +1883,42 @@ function AiLabModal({ isOpen, onClose }) {
 
         setUploadingStatus("Generating images...");
         const modelName = MODEL_MAP[selectedModel] || "Nano Banana";
+        const isMidjourney = modelName === "Midjourney";
 
         const result = await generateImagesAPI({
           model: modelName,
-          type,
           prompt: finalPrompt,
           referenceImage,
           referenceImages,
-          quantity: imageCount,
         });
 
-        const images = result.images || [];
+        // --- ASYNC BRANCH (202) ---
+        // The image isn't ready yet; the backend keeps working and delivers it
+        // via Pusher (type: "image_generation") + polling. Keep the UI in the
+        // "generating" state until completed/failed arrives.
+        if (result?.async) {
+          asyncTracking = true;
+          setUploadingStatus(
+            "Tu imagen se está generando… te avisaremos cuando esté lista.",
+          );
+          if (typeof result.remaining_tokens === "number") {
+            setVoiceTokens(result.remaining_tokens);
+          }
+          setGenerationInfo({
+            remainingTokens: result.remaining_tokens ?? "N/A",
+            message: result.message || "Generación en curso.",
+          });
+          setPrompt("");
+          setNegativePrompt("");
+          setShowNegativePrompt(false);
+          setFiles([]);
+          trackGeneration(result.generation_id);
+          return;
+        }
+
+        // --- SYNC BRANCH (200 completed) ---
+        // Midjourney returns 4 variants (all_result_urls); the rest return 1.
+        const images = extractGeneratedImages(result, isMidjourney);
         setGeneratedImages(images);
 
         // Upload generated images to backend in background
@@ -1489,6 +1944,11 @@ function AiLabModal({ isOpen, onClose }) {
           }
         }
 
+        // Keep the token pill in sync with the real balance returned by the API.
+        if (typeof result.remaining_tokens === "number") {
+          setVoiceTokens(result.remaining_tokens);
+        }
+
         setGenerationInfo({
           tokensUsed: result.tokens_used,
           remainingTokens: result.remaining_tokens,
@@ -1501,7 +1961,10 @@ function AiLabModal({ isOpen, onClose }) {
         );
         let result;
 
-        if (selectedModelData?.isSeedance2) {
+        if (selectedModelData?.isKling) {
+          // --- KLING (Evolink) FLOW (direct endpoint, server auto-routes) ---
+          result = await generateKlingVideo({ finalPrompt });
+        } else if (selectedModelData?.isSeedance2) {
           // --- SEEDANCE 2.0 FLOW (single endpoint, auto-detects mode) ---
           let mediaUrl = null;
           let referenceVideos = null;
@@ -1540,6 +2003,35 @@ function AiLabModal({ isOpen, onClose }) {
           });
         }
 
+        // --- ASYNC BRANCH (Runway 4.5 and any future async model) ---
+        // 202 → generation accepted but the video isn't ready. Track it via
+        // Pusher (primary) + polling (fallback) and keep the UI "generating".
+        if (result?.async) {
+          asyncTracking = true;
+          setUploadingStatus(
+            "Tu video se está generando… te avisaremos cuando esté listo.",
+          );
+          // The remaining balance already comes back in the 202 response.
+          if (typeof result.remaining_tokens === "number") {
+            setVoiceTokens(result.remaining_tokens);
+          }
+          setGenerationInfo({
+            remainingTokens: result.remaining_tokens ?? "N/A",
+            message: result.message || "Generación en curso.",
+          });
+          // Inputs were accepted; clear them now (the sync cleanup below is
+          // skipped because of the early return).
+          setPrompt("");
+          setNegativePrompt("");
+          setShowNegativePrompt(false);
+          setFiles([]);
+          // Start tracking. Don't flip isGenerating off here — the tracker does
+          // it once it receives completed/failed.
+          trackGeneration(result.generation_id);
+          return;
+        }
+
+        // --- SYNC BRANCH (the rest of the models) — unchanged ---
         // La respuesta del backend debe tener video_url
         const videoUrl = result.video_url;
 
@@ -1575,21 +2067,116 @@ function AiLabModal({ isOpen, onClose }) {
       setFiles([]);
     } catch (err) {
       console.error("Generation error:", err);
+
+      // A network/timeout cut (a long synchronous video request dropped by the
+      // proxy or CDN, e.g. Cloudflare 524) is NOT a generation failure: the
+      // backend keeps generating and delivers the result over the Pusher
+      // `generation-status` channel (already subscribed) + push / in-app.
+      // fetch() rejects with a TypeError on a network failure; real business
+      // errors (402/422) arrive as a normal Error thrown by generateVideoAPI.
+      const isConnectionDrop =
+        err instanceof TypeError || err.name === "AbortError";
+
+      if (isConnectionDrop && activeTab !== "voice") {
+        // A long sync request cut by the proxy/CDN (e.g. Cloudflare 524) is NOT
+        // a failure: the backend keeps generating and delivers the result over
+        // Pusher (generation-status / image_generation) + push. We have no
+        // generation_id (the response never arrived), so trackGeneration()
+        // can't poll — it just waits for the event, with a safety timeout.
+        asyncTracking = true;
+        setUploadingStatus(
+          activeTab === "image"
+            ? "Tu imagen se está generando… te avisaremos cuando esté lista."
+            : "Tu video se está generando… te avisaremos cuando esté listo.",
+        );
+        trackGeneration();
+        return; // keep isGenerating true; finalizeGeneration() turns it off
+      }
+
       // Nice error message
       let msg = err.message || "An error occurred during generation";
       if (msg.includes("Insufficient tokens")) msg = "Insufficient tokens.";
       setError(msg);
     } finally {
-      setIsGenerating(false);
-      setUploadingStatus("");
+      // For the async branch the tracker owns these; leave them as-is so the
+      // "generating" state persists until completed/failed arrives.
+      if (!asyncTracking) {
+        setIsGenerating(false);
+        setUploadingStatus("");
+      }
     }
+  };
+
+  // Kling (Evolink) video via the DIRECT endpoint (ai/generate-video).
+  // The server auto-routes by inputs; we just place the single reference in the
+  // field its router expects and pass the advanced params (quality/audio/mode).
+  const generateKlingVideo = async ({ finalPrompt }) => {
+    let uploadedUrl = null;
+    let isVideoUpload = false;
+
+    if (files.length > 0) {
+      setUploadingStatus("Uploading reference media...");
+      const file = files[0];
+      isVideoUpload = file.type.startsWith("video/");
+      uploadedUrl = await uploadMediaToGCS(
+        file,
+        isVideoUpload ? "video" : "image",
+      );
+    }
+
+    const route = getKlingRoute(selectedVideoModel, {
+      hasImage: !!uploadedUrl && !isVideoUpload,
+      hasVideo: isVideoUpload,
+      mode: klingMode,
+    });
+
+    const body = {
+      ai_model: selectedVideoModel,
+      prompt: finalPrompt,
+      aspect_ratio: videoAspect, // 16:9 default
+      video_duration: duration,
+      quality: videoResolution, // 720p | 1080p | 4k
+    };
+
+    // Map the single reference to the field the server's auto-router expects.
+    if (uploadedUrl) {
+      if (isVideoUpload) {
+        if (selectedVideoModel === "kling-v3") {
+          body.motion_video = uploadedUrl; // motion-control guide video
+        } else if (selectedVideoModel === "kling-o3") {
+          if (klingMode === "reference") body.reference_videos = [uploadedUrl];
+          else body.edit_video = uploadedUrl; // video-edit
+        }
+        // turbo has no video input — guarded in handleGenerateClick
+      } else if (selectedVideoModel === "kling-o3" && klingMode === "reference") {
+        body.reference_images = [uploadedUrl];
+      } else {
+        body.media_url = uploadedUrl; // image-to-video
+      }
+    }
+
+    // Explicit route override (kling_mode), only when not auto.
+    if (klingMode && klingMode !== "auto") {
+      body.kling_mode = klingMode;
+    }
+
+    // Native audio is a paid add-on, only on V3/O3 text- & image-to-video.
+    const audioApplies =
+      (selectedVideoModel === "kling-v3" ||
+        selectedVideoModel === "kling-o3") &&
+      (route === "text-to-video" || route === "image-to-video");
+    if (audioApplies) {
+      body.sound = generateAudio ? "on" : "off";
+    }
+
+    setUploadingStatus("Generating video...");
+    return await generateKlingVideoAPI(body);
   };
 
   // Existing (non-Seedance) video generation flow via ai/mcp-video-generation.
   const generateNonSeedanceVideo = async ({ finalPrompt, selectedModelData }) => {
     let referenceImage = null;
     let referenceVideo = null;
-    let mediaUrl = null;
     const capabilities = selectedModelData?.capabilities || [];
 
     if (files.length > 0) {
@@ -1611,17 +2198,8 @@ function AiLabModal({ isOpen, onClose }) {
 
       // Asignar al campo correcto según el modelo
       if (isVideo) {
-        // Video-to-video
-        if (selectedVideoModel === "runway-aleph") {
-          referenceVideo = uploadedUrl;
-        } else if (
-          selectedVideoModel === "kling-v3-omni-std" ||
-          selectedVideoModel === "kling-v3-omni-pro"
-        ) {
-          mediaUrl = uploadedUrl;
-        } else {
-          referenceVideo = uploadedUrl; // fallback
-        }
+        // Video-to-video (runway-aleph and any future V2V model)
+        referenceVideo = uploadedUrl;
       } else {
         // Image-to-video
         referenceImage = uploadedUrl;
@@ -1651,7 +2229,6 @@ function AiLabModal({ isOpen, onClose }) {
       prompt: finalPrompt,
       referenceImage,
       referenceVideo,
-      mediaUrl,
       aspectRatio,
       duration: effectiveDuration,
     });
@@ -2611,8 +3188,8 @@ function AiLabModal({ isOpen, onClose }) {
                 </div>
               )}
 
-              {/* Seedance Resolution Selector (pricing depends on resolution) */}
-              {activeTab === "video" && selectedModelData?.isSeedance2 && (
+              {/* Video Quality Selector (Seedance + Kling — pricing depends on it) */}
+              {activeTab === "video" && videoQualityOptions && (
                 <div className="relative">
                   <button
                     type="button"
@@ -2627,9 +3204,7 @@ function AiLabModal({ isOpen, onClose }) {
 
                   {showResolutionMenu && (
                     <div className="absolute bottom-full mb-2 left-0 w-24 bg-[#1c1c1c] border border-gray-700 rounded-xl shadow-xl max-h-[180px] overflow-y-auto custom-scrollbar py-1 z-50">
-                      {(
-                        SEEDANCE_RESOLUTIONS[selectedVideoModel] || ["720p"]
-                      ).map((opt) => (
+                      {videoQualityOptions.map((opt) => (
                         <button
                           key={opt}
                           type="button"
@@ -2651,22 +3226,99 @@ function AiLabModal({ isOpen, onClose }) {
                 </div>
               )}
 
-              {/* Seedance Audio Toggle */}
-              {activeTab === "video" && selectedModelData?.isSeedance2 && (
-                <button
-                  type="button"
-                  onClick={() => setGenerateAudio(!generateAudio)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border font-medium transition-colors ${
-                    generateAudio
-                      ? "bg-[#DC569D] border-[#DC569D] text-white"
-                      : "bg-[#2a2a2a] text-gray-300 border-gray-700/50 hover:bg-[#333]"
-                  }`}
-                  title={t("ailab.audio")}
-                >
-                  <Volume2 size={12} />
-                  {t("ailab.audio")}
-                </button>
+              {/* Kling Aspect Ratio Selector */}
+              {activeTab === "video" && isKling && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowVideoAspectMenu(!showVideoAspectMenu)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-[#2a2a2a] text-gray-300 border border-gray-700/50 cursor-pointer hover:bg-[#333] transition-colors"
+                  >
+                    <span className="text-[10px] uppercase font-bold text-gray-500">
+                      {t("ailab.aspect-label")}
+                    </span>
+                    {videoAspect}
+                  </button>
+
+                  {showVideoAspectMenu && (
+                    <div className="absolute bottom-full mb-2 left-0 w-24 bg-[#1c1c1c] border border-gray-700 rounded-xl shadow-xl py-1 z-50">
+                      {KLING_ASPECT_RATIOS.map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => {
+                            setVideoAspect(opt);
+                            setShowVideoAspectMenu(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors ${
+                            videoAspect === opt
+                              ? "text-[#DC569D] font-medium"
+                              : "text-gray-300"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
+
+              {/* Kling O3 Mode Selector (auto / reference / edit) */}
+              {activeTab === "video" && isKling && selectedVideoModel === "kling-o3" && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowKlingModeMenu(!showKlingModeMenu)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-[#2a2a2a] text-gray-300 border border-gray-700/50 cursor-pointer hover:bg-[#333] transition-colors"
+                  >
+                    <span className="text-[10px] uppercase font-bold text-gray-500">
+                      {t("ailab.mode-label")}
+                    </span>
+                    {t(`ailab.mode-${klingMode}`)}
+                  </button>
+
+                  {showKlingModeMenu && (
+                    <div className="absolute bottom-full mb-2 left-0 w-32 bg-[#1c1c1c] border border-gray-700 rounded-xl shadow-xl py-1 z-50">
+                      {["auto", "reference", "edit"].map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => {
+                            setKlingMode(opt);
+                            setShowKlingModeMenu(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors ${
+                            klingMode === opt
+                              ? "text-[#DC569D] font-medium"
+                              : "text-gray-300"
+                          }`}
+                        >
+                          {t(`ailab.mode-${opt}`)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Audio Toggle (Seedance + Kling V3/O3 standard routes) */}
+              {activeTab === "video" &&
+                (selectedModelData?.isSeedance2 || klingAudioApplies) && (
+                  <button
+                    type="button"
+                    onClick={() => setGenerateAudio(!generateAudio)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border font-medium transition-colors ${
+                      generateAudio
+                        ? "bg-[#DC569D] border-[#DC569D] text-white"
+                        : "bg-[#2a2a2a] text-gray-300 border-gray-700/50 hover:bg-[#333]"
+                    }`}
+                    title={t("ailab.audio")}
+                  >
+                    <Volume2 size={12} />
+                    {t("ailab.audio")}
+                  </button>
+                )}
 
               {/* Image count */}
               {/* Removed image count and resolution controls as requested by user */}
@@ -2709,7 +3361,7 @@ function AiLabModal({ isOpen, onClose }) {
                       ? uploadedVideoDuration || 5
                       : duration}
                     s
-                    {selectedModelData?.isSeedance2
+                    {selectedModelData?.isSeedance2 || selectedModelData?.isKling
                       ? ` · ${videoResolution}`
                       : ""}
                   </p>
