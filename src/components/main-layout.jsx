@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Outlet, useLoaderData, useLocation } from "react-router-dom";
 import MainTopMenu from "./main-top-menu";
 import MainSidebarMenu from "./main-sidebar-menu";
-import HelpButton from "./help-button";
 import ProjectAgentManager from "./project-agent-manager";
 
 function MainLayout() {
@@ -54,9 +53,6 @@ function MainLayout() {
       <main className="ml-64 pt-15 min-h-screen">
         <Outlet />
       </main>
-
-      {/* Help Button */}
-      <HelpButton />
 
       {/* Project Agent Manager */}
       <ProjectAgentManager />
