@@ -7,7 +7,6 @@ import {
 } from "react-router-dom";
 import { useEffect, useState } from "react";
 import ChatSidebar from "./components/chat-sidebar";
-import HelpButton from "../components/help-button";
 import AiLabModal from "./components/ai-lab-modal";
 import { X, Sparkles, Zap, Crown, Menu } from "lucide-react";
 
@@ -77,7 +76,6 @@ function ChatLayout() {
         />
       </div>
 
-      {!chatId && <HelpButton />}
       <AiLabModal isOpen={isAiLabOpen} onClose={() => setIsAiLabOpen(false)} />
 
       {/* Welcome Modal - shown only once for new users */}
