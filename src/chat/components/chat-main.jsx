@@ -1922,7 +1922,7 @@ function ChatMain({
       if (result.success) {
         // Payment successful - backend already processed everything
         setPaymentDetails(result.data);
-        setTokens((prev) => Number(prev) + Number(breakdown.tokens));
+        await fetchUserTokens();
         setTokenPurchaseStep("success");
       } else if (
         result.requires_action &&
@@ -1972,7 +1972,7 @@ function ChatMain({
             total_paid: confirmResult.total_paid || breakdown.total,
             tokens_added: confirmResult.tokens_added || breakdown.tokens,
           });
-          setTokens((prev) => Number(prev) + Number(breakdown.tokens));
+          await fetchUserTokens();
           setTokenPurchaseStep("success");
         } else {
           throw new Error("Payment was not completed. Please try again.");
