@@ -27,6 +27,7 @@ import {
   Check,
   Flag,
   AlertTriangle,
+  HelpCircle,
 } from "lucide-react";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router-dom";
@@ -641,6 +642,44 @@ function CryptoInput({ onPaymentProcess, isProcessing, totalAmount }) {
   );
 }
 
+// Shown while the assistant is responding. For a generation turn we know is
+// coming (the bot just quoted a cost), swap the typing dots for the
+// "Generating…" card so sync models (Veo/Sora) show a loader too — not only the
+// async ones tracked by chat_message_id. `generation` is {type, model} | null.
+function TypingIndicator({ generation }) {
+  if (generation) {
+    return (
+      <div className="flex justify-start">
+        <GenerationCard
+          mediaType={generation.type}
+          model={generation.model}
+          status="processing"
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="flex justify-start">
+      <div className="bg-[#2f2f2f] rounded-2xl px-4 py-3">
+        <div className="flex gap-1">
+          <div
+            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+            style={{ animationDelay: "0ms" }}
+          ></div>
+          <div
+            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+            style={{ animationDelay: "150ms" }}
+          ></div>
+          <div
+            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+            style={{ animationDelay: "300ms" }}
+          ></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ChatMain({
   selectedChat,
   message,
@@ -653,6 +692,7 @@ function ChatMain({
   messages = [],
   attachments = [],
   pendingGenerations = [],
+  activeGenLoader = null,
 }) {
   const navigate = useNavigate();
   const revalidator = useRevalidator();
@@ -3060,26 +3100,7 @@ function ChatMain({
                   Start the conversation
                 </p>
               )}
-              {isTyping && (
-                <div className="flex justify-start">
-                  <div className="bg-[#2f2f2f] rounded-2xl px-4 py-3">
-                    <div className="flex gap-1">
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "0ms" }}
-                      ></div>
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "150ms" }}
-                      ></div>
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "300ms" }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {isTyping && <TypingIndicator generation={activeGenLoader} />}
               <div ref={messagesEndRef} />
             </div>
           </div>
@@ -3393,26 +3414,7 @@ function ChatMain({
                       </div>
                     </div>
                   ))}
-                  {isTyping && (
-                    <div className="flex justify-start">
-                      <div className="bg-[#2f2f2f] rounded-2xl px-4 py-3">
-                        <div className="flex gap-1">
-                          <div
-                            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                            style={{ animationDelay: "0ms" }}
-                          ></div>
-                          <div
-                            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                            style={{ animationDelay: "150ms" }}
-                          ></div>
-                          <div
-                            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                            style={{ animationDelay: "300ms" }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  {isTyping && <TypingIndicator generation={activeGenLoader} />}
                   <div ref={messagesEndRef} />
                 </div>
               </div>
@@ -3690,6 +3692,17 @@ function ChatMain({
                           >
                             <Search className="h-5 w-5 text-[#DC569D]" />
                             <span>{t("chat.quick.analyze")}</span>
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              handleQuickAction(t("chat.quick.how-to-use-message"))
+                            }
+                            disabled={isSending}
+                            className="flex items-center gap-2 px-4 py-3 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-700 hover:border-[#DC569D] rounded-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <HelpCircle className="h-5 w-5 text-[#DC569D]" />
+                            <span>{t("chat.quick.how-to-use")}</span>
                           </button>
                         </>
                       )}

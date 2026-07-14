@@ -389,6 +389,9 @@ const translations = {
     "chat.quick.create": "Create",
     "chat.quick.edit": "Edit",
     "chat.quick.analyze": "Analyze",
+    "chat.quick.how-to-use": "How to use",
+    "chat.quick.how-to-use-message":
+      "How do I use Reelmotion? Give me a quick, beginner-friendly overview of the platform and what I can do here.",
     "chat.quick.back": "Back",
     "chat.quick.create-image": "Create AI Image",
     "chat.quick.create-video": "Create AI Video",
@@ -972,6 +975,9 @@ const translations = {
     "chat.quick.create": "Crear",
     "chat.quick.edit": "Editar",
     "chat.quick.analyze": "Analizar",
+    "chat.quick.how-to-use": "Cómo usar",
+    "chat.quick.how-to-use-message":
+      "¿Cómo uso Reelmotion? Dame un resumen rápido y fácil de la plataforma y de lo que puedo hacer aquí.",
     "chat.quick.back": "Volver",
     "chat.quick.create-image": "Crear Imagen con IA",
     "chat.quick.create-video": "Crear Video con IA",
