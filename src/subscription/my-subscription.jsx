@@ -136,8 +136,7 @@ export default function MySubscription() {
       setShowCancelModal(false);
 
       if (data.message === "Suscription cancelled successfully") {
-        loadSubscription();
-        if (revalidate) revalidate();
+        window.location.reload();
       } else {
         setInfoModal({
           type: "info",

@@ -20,6 +20,20 @@ function ChatView() {
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  // Hint from the last agent turn that the NEXT message kicks off a generation
+  // (the bot just quoted a cost). Lets us show the loader optimistically for
+  // sync models (Veo/Sora) that block the whole request. {type, model} | null.
+  const [nextTurnGeneration, setNextTurnGeneration] = useState(null);
+  // The loader shown during the current in-flight request (captured at send).
+  const [activeGenLoader, setActiveGenLoader] = useState(null);
+  // Delays showing the optimistic loader so a fast text answer (a question at
+  // the cost step) doesn't flash the card; real generations outlast the delay.
+  const genLoaderTimerRef = useRef(null);
+  const clearGenLoader = () => {
+    if (genLoaderTimerRef.current) clearTimeout(genLoaderTimerRef.current);
+    genLoaderTimerRef.current = null;
+    setActiveGenLoader(null);
+  };
   const abortControllerRef = useRef(null);
   // Mirror of pendingGenerations for the tracker callbacks (avoids stale reads
   // and side effects inside state updaters).
@@ -172,6 +186,16 @@ function ChatView() {
 
       setIsSending(true);
       setIsTyping(true);
+      // If the bot's last turn was a cost quote, this send may kick off a
+      // generation. Sync models (Veo/Sora) block the whole request, so show the
+      // loader optimistically — but only after a short delay, so a quick text
+      // reply (a question at the cost step) doesn't flash the card.
+      if (nextTurnGeneration) {
+        genLoaderTimerRef.current = setTimeout(
+          () => setActiveGenLoader(nextTurnGeneration),
+          1200,
+        );
+      }
 
       // Create new AbortController for this request
       if (abortControllerRef.current) {
@@ -291,7 +315,9 @@ function ChatView() {
         }
       }
 
-      // Success cleanup
+      // Success cleanup. Carry the bot's confirmation hint into the next turn.
+      setNextTurnGeneration(response?.awaiting_generation || null);
+      clearGenLoader();
       setIsSending(false);
       setIsTyping(false);
       abortControllerRef.current = null;
@@ -327,6 +353,7 @@ function ChatView() {
         setMessage(userMessage);
       }
 
+      clearGenLoader();
       setIsSending(false);
       setIsTyping(false);
       abortControllerRef.current = null;
@@ -336,6 +363,7 @@ function ChatView() {
   const handleCancel = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
+      clearGenLoader();
       setIsSending(false);
       setIsTyping(false);
     }
@@ -353,6 +381,7 @@ function ChatView() {
       messages={messages}
       attachments={attachments}
       pendingGenerations={pendingGenerations}
+      activeGenLoader={activeGenLoader}
     />
   );
 }
