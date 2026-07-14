@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLoaderData, useNavigate } from "react-router-dom";
 import ChatMain from "./components/chat-main";
 import { postMessage } from "./functions";
+import { useGenerationTracker } from "./use-generation-tracker";
 
 function ChatView() {
   const chatData = useLoaderData();
@@ -10,19 +11,81 @@ function ChatView() {
   const [selectedChat, setSelectedChat] = useState(chatData?.chat || null);
   const [messages, setMessages] = useState(chatData?.messages || []);
   const [attachments, setAttachments] = useState(chatData?.attachments || []);
+  // Async generations still in flight, keyed by generation_id. Each renders a
+  // "Generating…" card under its message until the tracker resolves it.
+  const [pendingGenerations, setPendingGenerations] = useState(
+    chatData?.pending_generations || [],
+  );
 
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const abortControllerRef = useRef(null);
+  // Mirror of pendingGenerations for the tracker callbacks (avoids stale reads
+  // and side effects inside state updaters).
+  const pendingGenerationsRef = useRef(pendingGenerations);
+  useEffect(() => {
+    pendingGenerationsRef.current = pendingGenerations;
+  }, [pendingGenerations]);
 
   useEffect(() => {
     if (chatData?.chat) {
       setSelectedChat(chatData.chat);
       setMessages(chatData.messages || []);
       setAttachments(chatData.attachments || []);
+      setPendingGenerations(chatData.pending_generations || []);
     }
   }, [chatData]);
+
+  const handleGenerationProgress = (generationId, progress) => {
+    setPendingGenerations((prev) =>
+      prev.map((g) =>
+        g.generation_id === generationId ? { ...g, progress } : g,
+      ),
+    );
+  };
+
+  const handleGenerationFinal = (generationId, status, resultUrl, error) => {
+    const entry = pendingGenerationsRef.current.find(
+      (g) => g.generation_id === generationId,
+    );
+    if (!entry) return;
+
+    if (status === "completed" && resultUrl) {
+      const newAttachment = {
+        id: "gen-" + generationId,
+        url: resultUrl,
+        file_type: entry.media_type,
+        path: "ia",
+        created_at: new Date().toISOString(),
+      };
+      setMessages((msgs) =>
+        msgs.map((m) =>
+          m.id === entry.chat_message_id
+            ? { ...m, attachments: [...(m.attachments || []), newAttachment] }
+            : m,
+        ),
+      );
+      setAttachments((atts) => [...atts, newAttachment]);
+      setPendingGenerations((prev) =>
+        prev.filter((g) => g.generation_id !== generationId),
+      );
+    } else {
+      // failed | timeout: keep the card in its terminal state.
+      setPendingGenerations((prev) =>
+        prev.map((g) =>
+          g.generation_id === generationId ? { ...g, status, error } : g,
+        ),
+      );
+    }
+  };
+
+  useGenerationTracker({
+    userId: chatData?.user_id,
+    pending: pendingGenerations,
+    onFinal: handleGenerationFinal,
+    onProgress: handleGenerationProgress,
+  });
 
   const handleSendMessage = async (
     filesData = [],
@@ -196,9 +259,10 @@ function ChatView() {
             }
           }
 
-          // Add AI response message
+          // Add AI response message. Use the DB message id when present so the
+          // "Generating…" cards (keyed by chat_message_id) attach to it.
           const aiMessage = {
-            id: Date.now() + 1,
+            id: response.message_id || Date.now() + 1,
             role: "assistant",
             content: response.message,
             actions: Array.isArray(response.actions) ? response.actions : null,
@@ -212,6 +276,17 @@ function ChatView() {
             setAttachments((prev) => [...prev, ...responseAttachments]);
           } else if (response.attachments && response.attachments.length > 0) {
             setAttachments((prev) => [...prev, ...response.attachments]);
+          }
+
+          // Register any async generations so their cards start tracking.
+          if (
+            Array.isArray(response.pending_generations) &&
+            response.pending_generations.length > 0
+          ) {
+            setPendingGenerations((prev) => [
+              ...prev,
+              ...response.pending_generations,
+            ]);
           }
         }
       }
@@ -277,6 +352,7 @@ function ChatView() {
       isTyping={isTyping}
       messages={messages}
       attachments={attachments}
+      pendingGenerations={pendingGenerations}
     />
   );
 }
