@@ -57,6 +57,7 @@ import {
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { Channel } from "pusher-js";
+import GenerationCard from "./generation-card";
 
 // Stripe initialization
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
@@ -651,6 +652,7 @@ function ChatMain({
   isCreating = false,
   messages = [],
   attachments = [],
+  pendingGenerations = [],
 }) {
   const navigate = useNavigate();
   const revalidator = useRevalidator();
@@ -3037,6 +3039,19 @@ function ChatMain({
                         <p className="whitespace-pre-wrap">{msg.content}</p>
                         {renderMessageActions(msg)}
                       </div>
+                      {pendingGenerations
+                        .filter((g) => g.chat_message_id === msg.id)
+                        .map((g) => (
+                          <GenerationCard
+                            key={g.generation_id}
+                            mediaType={g.media_type}
+                            provider={g.provider}
+                            model={g.model}
+                            status={g.status}
+                            progress={g.progress}
+                            error={g.error}
+                          />
+                        ))}
                     </div>
                   </div>
                 ))
@@ -3362,6 +3377,19 @@ function ChatMain({
                           <p className="whitespace-pre-wrap">{msg.content}</p>
                           {renderMessageActions(msg)}
                         </div>
+                        {pendingGenerations
+                          .filter((g) => g.chat_message_id === msg.id)
+                          .map((g) => (
+                            <GenerationCard
+                              key={g.generation_id}
+                              mediaType={g.media_type}
+                              provider={g.provider}
+                              model={g.model}
+                              status={g.status}
+                              progress={g.progress}
+                              error={g.error}
+                            />
+                          ))}
                       </div>
                     </div>
                   ))}

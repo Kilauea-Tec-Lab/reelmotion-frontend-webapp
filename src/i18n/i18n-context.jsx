@@ -5,12 +5,10 @@ const I18nContext = createContext();
 
 export function I18nProvider({ children }) {
   const [locale, setLocaleState] = useState(() => {
+    // English-first product: default to 'en' unless the user explicitly picked a
+    // language (persisted via the toggle). No browser-language auto-detection.
     const saved = typeof localStorage !== "undefined" && localStorage.getItem("locale");
-    if (saved === "en" || saved === "es") return saved;
-    if (typeof navigator !== "undefined" && navigator.language) {
-      return navigator.language.startsWith("es") ? "es" : "en";
-    }
-    return "en";
+    return saved === "en" || saved === "es" ? saved : "en";
   });
 
   const setLocale = (lang) => {

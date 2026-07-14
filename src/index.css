@@ -15,6 +15,33 @@
   font-family: 'Avalon', 'Cinzel', serif;
 }
 
+/* Sweep used by the in-chat "Generating…" card (generation-card.jsx) */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.6s infinite;
+}
+
+/* ChatGPT-style moving-gradient "loading" text used by the generation card */
+@keyframes text-shimmer {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg, #9ca3af 0%, #f3f4f6 50%, #9ca3af 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: text-shimmer 2.4s linear infinite;
+}
+
 /* Variables CSS para colores personalizados */
 :root {
   --color-primario-dark: #0C0C0D;
