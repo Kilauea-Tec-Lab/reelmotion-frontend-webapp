@@ -17,6 +17,7 @@ import {
   X,
   Crown,
   FlaskConical,
+  LifeBuoy,
 } from "lucide-react";
 import { Link, useParams, useNavigate, useRevalidator } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
@@ -519,6 +520,14 @@ function ChatSidebar({
               <User size={16} />
               {t("sidebar.my-profile")}
             </Link>
+            <a
+              href="mailto:support@reelmotion.ai"
+              className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-[#3a3a3a] transition-colors border-t border-gray-700"
+              onClick={() => setShowUserMenu(false)}
+            >
+              <LifeBuoy size={16} />
+              {t("sidebar.support")}
+            </a>
             <button
               onClick={() => {
                 setShowUserMenu(false);
