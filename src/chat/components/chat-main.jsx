@@ -1350,8 +1350,9 @@ function ChatMain({
 
     const hasEditor = msg.actions.includes("editor");
     const hasTokensSale = msg.actions.includes("tokens_sale");
+    const hasHowToUse = msg.actions.includes("how_to_use");
 
-    if (!hasEditor && !hasTokensSale) return null;
+    if (!hasEditor && !hasTokensSale && !hasHowToUse) return null;
 
     return (
       <div className="mt-3 flex flex-wrap gap-2">
@@ -1381,6 +1382,18 @@ function ChatMain({
               <span>{t("chat.actions.buy-tokens")}</span>
             </button>
           </>
+        )}
+        {hasHowToUse && (
+          <button
+            onClick={() =>
+              handleQuickAction(t("chat.quick.how-to-use-message"))
+            }
+            disabled={isSending}
+            className="px-3 py-1.5 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <HelpCircle size={14} />
+            <span>{t("chat.quick.how-to-use")}</span>
+          </button>
         )}
       </div>
     );
