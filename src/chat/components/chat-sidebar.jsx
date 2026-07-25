@@ -26,11 +26,7 @@ import { createPortal } from "react-dom";
 import Cookies from "js-cookie";
 import { useI18n } from "../../i18n/i18n-context";
 import { notifyAppLogout } from "../../utils/nativeBridge";
-import {
-  SUPPORT_EMAIL,
-  SUPPORT_WHATSAPP_DISPLAY,
-  SUPPORT_WHATSAPP_URL,
-} from "../../utils/support";
+import { SUPPORT_EMAIL, SUPPORT_WHATSAPP_URL } from "../../utils/support";
 
 function ChatSidebar({
   chats,
@@ -542,12 +538,7 @@ function ChatSidebar({
               onClick={() => setShowUserMenu(false)}
             >
               <MessageCircle size={16} className="text-[#25D366]" />
-              <span className="flex flex-col">
-                <span>{t("sidebar.support-whatsapp")}</span>
-                <span className="text-[11px] text-gray-400">
-                  {SUPPORT_WHATSAPP_DISPLAY}
-                </span>
-              </span>
+              {t("sidebar.support-whatsapp")}
             </a>
             <button
               onClick={() => {
