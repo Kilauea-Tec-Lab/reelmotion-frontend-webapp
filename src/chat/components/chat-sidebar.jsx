@@ -18,6 +18,7 @@ import {
   Crown,
   FlaskConical,
   LifeBuoy,
+  MessageCircle,
 } from "lucide-react";
 import { Link, useParams, useNavigate, useRevalidator } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
@@ -25,6 +26,11 @@ import { createPortal } from "react-dom";
 import Cookies from "js-cookie";
 import { useI18n } from "../../i18n/i18n-context";
 import { notifyAppLogout } from "../../utils/nativeBridge";
+import {
+  SUPPORT_EMAIL,
+  SUPPORT_WHATSAPP_DISPLAY,
+  SUPPORT_WHATSAPP_URL,
+} from "../../utils/support";
 
 function ChatSidebar({
   chats,
@@ -521,12 +527,27 @@ function ChatSidebar({
               {t("sidebar.my-profile")}
             </Link>
             <a
-              href="mailto:support@reelmotion.ai"
+              href={`mailto:${SUPPORT_EMAIL}`}
               className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-[#3a3a3a] transition-colors border-t border-gray-700"
               onClick={() => setShowUserMenu(false)}
             >
               <LifeBuoy size={16} />
               {t("sidebar.support")}
+            </a>
+            <a
+              href={SUPPORT_WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-[#3a3a3a] transition-colors border-t border-gray-700"
+              onClick={() => setShowUserMenu(false)}
+            >
+              <MessageCircle size={16} className="text-[#25D366]" />
+              <span className="flex flex-col">
+                <span>{t("sidebar.support-whatsapp")}</span>
+                <span className="text-[11px] text-gray-400">
+                  {SUPPORT_WHATSAPP_DISPLAY}
+                </span>
+              </span>
             </a>
             <button
               onClick={() => {

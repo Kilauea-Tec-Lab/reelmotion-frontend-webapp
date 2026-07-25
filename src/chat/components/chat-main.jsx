@@ -28,7 +28,9 @@ import {
   Flag,
   AlertTriangle,
   HelpCircle,
+  MessageCircle,
 } from "lucide-react";
+import { SUPPORT_WHATSAPP_URL } from "../../utils/support";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -1351,8 +1353,9 @@ function ChatMain({
     const hasEditor = msg.actions.includes("editor");
     const hasTokensSale = msg.actions.includes("tokens_sale");
     const hasHowToUse = msg.actions.includes("how_to_use");
+    const hasSupport = msg.actions.includes("support");
 
-    if (!hasEditor && !hasTokensSale && !hasHowToUse) return null;
+    if (!hasEditor && !hasTokensSale && !hasHowToUse && !hasSupport) return null;
 
     return (
       <div className="mt-3 flex flex-wrap gap-2">
@@ -1394,6 +1397,17 @@ function ChatMain({
             <HelpCircle size={14} />
             <span>{t("chat.quick.how-to-use")}</span>
           </button>
+        )}
+        {hasSupport && (
+          <a
+            href={SUPPORT_WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 bg-[#25D366] hover:bg-[#1eb857] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+          >
+            <MessageCircle size={14} />
+            <span>{t("chat.actions.whatsapp-support")}</span>
+          </a>
         )}
       </div>
     );
