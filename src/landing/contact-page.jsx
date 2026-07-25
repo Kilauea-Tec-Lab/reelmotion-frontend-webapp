@@ -6,6 +6,7 @@ import SEO from "../components/seo";
 import AnimatedSection from "./components/animated-section";
 import LandingNavbar from "./components/landing-navbar";
 import LandingFooter from "./components/landing-footer";
+import { SUPPORT_EMAIL, SUPPORT_WHATSAPP_NUMBER } from "../utils/support";
 
 const content = {
   en: {
@@ -88,8 +89,8 @@ const content = {
   },
 };
 
-const WHATSAPP_NUMBER = "15557481227";
-const EMAIL = "support@reelmotion.ai";
+const WHATSAPP_NUMBER = SUPPORT_WHATSAPP_NUMBER;
+const EMAIL = SUPPORT_EMAIL;
 
 function ContactCard({ icon: Icon, title, description, action, href, color, delay }) {
   return (
