@@ -44,7 +44,7 @@ const content = {
       },
       {
         q: "Which AI models are available?",
-        a: "We offer 20+ models including Sora 2, Veo 3.1, Kling V3, Runway 4.5, ElevenLabs, and more.",
+        a: "We offer 20+ models including Seedance 2.5, Veo 3.1, Kling V3, Runway 4.5, ElevenLabs, and more.",
       },
     ],
   },
@@ -83,7 +83,7 @@ const content = {
       },
       {
         q: "¿Qué modelos de IA están disponibles?",
-        a: "Ofrecemos más de 20 modelos incluyendo Sora 2, Veo 3.1, Kling V3, Runway 4.5, ElevenLabs y más.",
+        a: "Ofrecemos más de 20 modelos incluyendo Seedance 2.5, Veo 3.1, Kling V3, Runway 4.5, ElevenLabs y más.",
       },
     ],
   },

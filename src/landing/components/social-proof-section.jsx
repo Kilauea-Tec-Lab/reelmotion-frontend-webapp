@@ -12,12 +12,12 @@ const stats = [
 ];
 
 const aiModels = [
-  "Sora 2", "Kling V3", "Veo 3.1", "Runway Gen-4", "Luma Dream Machine",
-  "ElevenLabs TTS", "Nano Banana 2", "GPT-4o Vision",
-  "Freepik Mystic", "Kling 03", "Runway 4.5", "Luma Dream Machine",
-  "Sora 2", "Kling V3", "Veo 3.1", "Runway Gen-4", "Luma Dream Machine",
-  "ElevenLabs TTS", "Nano Banana 2", "GPT-4o Vision",
-  "Freepik Mystic", "Kling 03", "Runway 4.5", "Luma Dream Machine",
+  "Seedance 2.5", "Kling V3", "Veo 3.1", "Runway Gen 4.5", "Kling O1",
+  "ElevenLabs TTS", "Nano Banana 2", "GPT Image 2",
+  "Seedream 5.0", "Kling O3", "Runway 4.5", "Midjourney V8.1",
+  "Seedance 2.5", "Kling V3", "Veo 3.1", "Runway Gen 4.5", "Kling O1",
+  "ElevenLabs TTS", "Nano Banana 2", "GPT Image 2",
+  "Seedream 5.0", "Kling O3", "Runway 4.5", "Midjourney V8.1",
 ];
 
 const SocialProofSection = () => {
