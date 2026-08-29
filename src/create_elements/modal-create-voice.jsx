@@ -55,17 +55,19 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
 
-  // Cost per minute of voice (16 tokens per minute)
-  const VOICE_COST_PER_MINUTE = 16;
+  // ElevenLabs bills per character, so the cost is per 1000 characters (rounded
+  // up): $0.10/1000 on v3 & multilingual v2 and $0.05/1000 on flash, which with
+  // the house rule (1 token = 1¢, +5% margin) is 11 and 6 tokens per 1000 chars.
+  // Same formula as the AI Lab, which used to disagree with this modal.
+  const VOICE_TOKENS_PER_1000_CHARS = 11;
+  const VOICE_TOKENS_PER_1000_CHARS_FLASH = 6;
 
   // Audio preview states
   const [previewAudio, setPreviewAudio] = useState(null);
   const [playingVoiceId, setPlayingVoiceId] = useState(null);
 
   // ElevenLabs specific states
-  const [elevenLabsModel, setElevenLabsModel] = useState(
-    "eleven_multilingual_v2"
-  );
+  const [elevenLabsModel, setElevenLabsModel] = useState("eleven_v3");
   const [voiceSettings, setVoiceSettings] = useState({
     stability: 0.5,
     similarity_boost: 0.5,
@@ -217,14 +219,18 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
     }
   };
 
-  // Function to calculate tokens required based on estimated duration
+  // Tokens required, billed on the text length the provider actually charges
+  // for (not on estimated audio duration, which never matched the real bill).
   const calculateRequiredTokens = () => {
-    if (!estimatedTime) return VOICE_COST_PER_MINUTE;
-
-    // Apply the 2x multiplier for more realistic duration
-    const adjustedTime = estimatedTime * 2;
-    const minutes = Math.ceil(adjustedTime / 60); // Round up to next minute
-    return minutes * VOICE_COST_PER_MINUTE;
+    const charCount = textToSpeak ? textToSpeak.length : 0;
+    if (charCount <= 0) return 0;
+    const isFlash =
+      elevenLabsModel === "eleven_flash_v2_5" ||
+      elevenLabsModel === "eleven_turbo_v2_5";
+    const rate = isFlash
+      ? VOICE_TOKENS_PER_1000_CHARS_FLASH
+      : VOICE_TOKENS_PER_1000_CHARS;
+    return Math.ceil(charCount / 1000) * rate;
   };
 
   // Load voices when modal opens
@@ -500,10 +506,9 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
         throw new Error(`Error generating speech: ${speechResult.error}`);
       }
 
-      // Calculate actual tokens to reduce based on actual duration
+      // Charge exactly what was quoted — same character-based formula.
       const actualDuration = speechResult.data.duration || estimatedTime;
-      const actualMinutes = Math.ceil(actualDuration / 60);
-      const tokensToReduce = actualMinutes * VOICE_COST_PER_MINUTE;
+      const tokensToReduce = calculateRequiredTokens();
 
       // Configure generated audio and switch to player mode
       setGeneratedAudioUrl(speechResult.data.audioUrl);
@@ -694,17 +699,12 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
                       onChange={(e) => setElevenLabsModel(e.target.value)}
                       className="w-full px-3 py-2 bg-darkBox border border-gray-600 rounded text-white focus:border-[#F2D543] focus:outline-none text-sm"
                     >
+                      <option value="eleven_v3">v3 (Most Expressive)</option>
                       <option value="eleven_multilingual_v2">
                         Multilingual v2 (High Quality)
                       </option>
                       <option value="eleven_flash_v2_5">
-                        Flash v2.5 (Fast, Low Latency)
-                      </option>
-                      <option value="eleven_turbo_v2_5">
-                        Turbo v2.5 (Balanced)
-                      </option>
-                      <option value="eleven_v3_alpha">
-                        v3 Alpha (Most Expressive)
+                        Flash v2.5 (Fast, Half Price)
                       </option>
                     </select>
                   </div>
@@ -963,9 +963,16 @@ function ModalCreateVoice({ isOpen, onClose, projectId, onVoiceCreated }) {
                       </div>
                       <div className="flex items-center justify-between">
                         <span>
-                          Billing: {Math.ceil((estimatedTime * 2) / 60)} min
+                          Billing: {Math.ceil(textToSpeak.length / 1000)} × 1000
+                          chars
                         </span>
-                        <span>{VOICE_COST_PER_MINUTE} tokens/min</span>
+                        <span>
+                          {elevenLabsModel === "eleven_flash_v2_5" ||
+                          elevenLabsModel === "eleven_turbo_v2_5"
+                            ? VOICE_TOKENS_PER_1000_CHARS_FLASH
+                            : VOICE_TOKENS_PER_1000_CHARS}{" "}
+                          tokens/1000 chars
+                        </span>
                       </div>
                     </div>
                   )}
