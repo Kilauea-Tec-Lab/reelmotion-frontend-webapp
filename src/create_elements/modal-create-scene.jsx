@@ -210,9 +210,9 @@ function ModalCreateScene({
   // Costos por modelo y configuración (tokens por segundo)
   const MODEL_COSTS_PER_SECOND = {
     runway: 8, // Runway ML
-    "runway-aleph": 19, // Runway Aleph
-    "veo-3.1-generate-preview": 48, // Veo-3.1 ($0.48)
-    "veo-3.1-fast-generate-preview": 21, // Veo-3.1 Fast ($0.21)
+    "runway-aleph": 30, // Runway Aleph 2 ($0.28/s)
+    "veo-3.1-generate-preview": 42, // Veo-3.1 ($0.40/s)
+    "veo-3.1-fast-generate-preview": 11, // Veo-3.1 Fast ($0.10/s)
     lumalabs: 13, // LumaLabs
     "seedance-pro-1": 15, // Seedance Pro 1
     "sora-2-720p": 15, // Sora 2 - 720p ($0.15)
