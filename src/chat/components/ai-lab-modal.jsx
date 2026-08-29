@@ -40,9 +40,10 @@ import { getUserInfo } from "../../auth/functions";
 // the strings the backend accepts). Freepik was removed from the backend.
 const MODEL_MAP = {
   seedream: "Seedream",
+  "seedream-pro": "Seedream Pro",
   "nano-banana-pro": "Nano Banana",
   midjourney: "Midjourney",
-  "gpt-image-1.5": "GPT",
+  "gpt-image-2": "GPT",
 };
 
 function buildApiUrl(path) {
@@ -62,6 +63,7 @@ const MODEL_DURATIONS = {
   "runway-4.5": [5, 8, 10],
   "veo-3.1": [8],
   "veo-3.1-flash": [8],
+  "veo-3.1-lite": [8],
   "veo-3.1-ultra": [8],
   //"luma-labs": [5],
   //"seedance-pro": [5],
@@ -70,28 +72,31 @@ const MODEL_DURATIONS = {
   "kling-v3": [3, 5, 8, 10, 15],
   "kling-v3-turbo": [3, 5, 8, 10, 15],
   "kling-o3": [3, 5, 8, 10, 15],
-  "seedance-2.0": [4, 5, 6, 8, 10, 12, 15],
-  "seedance-2.0-fast": [4, 5, 6, 8, 10, 12, 15],
+  // O1 only generates 5s or 10s clips.
+  "kling-o1": [5, 10],
+  "seedance-2.5": [4, 5, 6, 8, 10, 12, 15, 20, 25, 30],
+  "seedance-2.0-mini": [4, 5, 6, 8, 10, 12, 15],
 };
 
-// Seedance 2.0 video resolutions (pricing depends on resolution)
+// Seedance video resolutions (pricing depends on resolution)
 const SEEDANCE_RESOLUTIONS = {
-  "seedance-2.0": ["480p", "720p", "1080p"],
-  "seedance-2.0-fast": ["480p", "720p"],
+  "seedance-2.5": ["480p", "720p", "1080p"],
+  "seedance-2.0-mini": ["480p", "720p"],
 };
 
 // ====== KLING (Evolink) ======
-// Three models replace the old kling-v1 / kling-v3-omni-* keys.
-const KLING_MODEL_IDS = ["kling-v3", "kling-v3-turbo", "kling-o3"];
+// Four models replace the old kling-v1 / kling-v3-omni-* keys.
+const KLING_MODEL_IDS = ["kling-v3", "kling-v3-turbo", "kling-o3", "kling-o1"];
 const isKlingModel = (id) => KLING_MODEL_IDS.includes(id);
 
 // Selectable qualities per model. Routes the server caps at 1080p (turbo,
-// motion-control, O3 reference/edit) are clamped server-side; for the
+// motion-control, O3 reference/edit, O1) are clamped server-side; for the
 // turbo model — which never reaches 4k — we simply hide it.
 const KLING_QUALITIES = {
   "kling-v3": ["720p", "1080p", "4k"],
   "kling-v3-turbo": ["720p", "1080p"],
   "kling-o3": ["720p", "1080p", "4k"],
+  "kling-o1": ["720p", "1080p"],
 };
 
 const KLING_ASPECT_RATIOS = ["16:9", "9:16", "1:1"];
@@ -111,6 +116,8 @@ const KLING_PRICING = {
   o3Advanced: { "720p": 13, "1080p": 17 },
   // V3 — motion-control (provisional, no audio, no 4k)
   motion: { "720p": 13, "1080p": 17 },
+  // O1 — flat rate for both image-to-video and video-edit (no audio, no 4k)
+  o1: { "720p": 12, "1080p": 12 },
 };
 
 // Mirror the backend auto-router so the client can show the right price and
@@ -119,6 +126,11 @@ const KLING_PRICING = {
 function getKlingRoute(model, { hasImage, hasVideo, mode }) {
   if (model === "kling-v3-turbo") {
     return hasImage ? "image-to-video" : "text-to-video";
+  }
+  if (model === "kling-o1") {
+    // O1 has no text-to-video route: it edits a video or animates an image.
+    if (mode === "edit" || hasVideo) return "video-edit";
+    return "image-to-video";
   }
   if (model === "kling-v3") {
     if (mode === "motion" || hasVideo) return "motion-control";
@@ -137,6 +149,9 @@ function getKlingRoute(model, { hasImage, hasVideo, mode }) {
 function getKlingPerSecondCost(model, quality, audioOn, route) {
   if (model === "kling-v3-turbo") {
     return KLING_PRICING.turbo[quality] ?? KLING_PRICING.turbo["1080p"];
+  }
+  if (model === "kling-o1") {
+    return KLING_PRICING.o1[quality] ?? KLING_PRICING.o1["720p"];
   }
   if (route === "motion-control") {
     return KLING_PRICING.motion[quality] ?? KLING_PRICING.motion["1080p"];
@@ -285,9 +300,11 @@ async function generateKlingVideoAPI(body) {
   return data; // { success, status:"completed", video_url, tokens_used, ... }
 }
 
-// Call the Seedance 2.0 video generation endpoint (single endpoint, auto-detects mode)
+// Call the Seedance video generation endpoint (single endpoint, auto-detects mode)
 // Modes: text-to-video (prompt only), image-to-video (media_url),
 // reference-to-video (reference_images/videos/audios).
+// Seedance now runs through Evolink on the same async contract as Kling, so it
+// shares generateKlingVideoAPI's 200/202 branching instead of duplicating it.
 async function generateVideoSeedance2API({
   model,
   prompt,
@@ -328,20 +345,7 @@ async function generateVideoSeedance2API({
     body.reference_audios = referenceAudios;
   }
 
-  const response = await fetch(buildApiUrl("ai/generate-video"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + Cookies.get("token"),
-    },
-    body: JSON.stringify(body),
-  });
-
-  const data = await response.json();
-  if (data.success && data.video_url) {
-    return data;
-  }
-  throw new Error(data.message || data.error || "Error generating video");
+  return generateKlingVideoAPI(body);
 }
 
 // Call the AI image generation endpoint (MCP — supports every model:
@@ -539,8 +543,20 @@ const IMAGE_MODELS = [
     badges: ["Up to 3K", "Fast"],
     isNew: true,
     type: "image",
-    cost: 4, // tokens per image
+    cost: 3, // tokens per image
     maxImages: 14, // supports multiple reference images
+  },
+  {
+    id: "seedream-pro",
+    name: "Seedream 5.0 Pro",
+    iconComponent: Logos.Seedream,
+    iconColor: "text-purple-400",
+    description: "Highest-fidelity Seedream — sharper detail and composition",
+    badges: ["Up to 3K", "Pro"],
+    isNew: true,
+    type: "image",
+    cost: 4, // tokens per image
+    maxImages: 14,
   },
   {
     id: "nano-banana-pro",
@@ -552,7 +568,7 @@ const IMAGE_MODELS = [
     badges: ["Multi-Image", "4K"],
     isNew: false,
     type: "image",
-    cost: 7, // tokens per image
+    cost: 8, // tokens per image
     maxImages: 14, // Up to 14 reference images
   },
   {
@@ -570,8 +586,8 @@ const IMAGE_MODELS = [
     maxImages: 5,
   },
   {
-    id: "gpt-image-1.5",
-    name: "GPT IMAGE 1.5",
+    id: "gpt-image-2",
+    name: "GPT IMAGE 2",
     iconComponent: Logos.OpenAI,
     iconColor: "text-green-400",
     description:
@@ -586,37 +602,50 @@ const IMAGE_MODELS = [
 
 const VIDEO_MODELS = [
   {
-    id: "seedance-2.0",
-    name: "Seedance 2.0",
+    id: "seedance-2.5",
+    name: "Seedance 2.5",
     iconComponent: Logos.Kling,
     iconColor: "text-cyan-400",
     description:
-      "High-quality generation up to 1080p. Text, image or reference driven",
-    badges: ["4-15s", "Up to 1080p"],
+      "High-quality generation up to 1080p and 30s. Text, image or reference driven",
+    badges: ["4-30s", "Up to 1080p"],
     cost: 32, // representative (720p tok/s); real cost depends on resolution
     isNew: true,
     type: "video",
     isSeedance2: true,
     capabilities: ["text-to-video", "image-to-video", "reference-to-video"],
     // tok/s per resolution
-    pricing: { "480p": 15, "720p": 32, "1080p": 72 },
-    // tok/s per resolution when a reference video is provided (-40% discount)
-    referencePricing: { "480p": 9, "720p": 20, "1080p": 43 },
+    pricing: { "480p": 15, "720p": 32, "1080p": 78 },
+    // tok/s per resolution when a reference video is provided (video-fed rate)
+    referencePricing: { "480p": 9, "720p": 19, "1080p": 48 },
   },
   {
-    id: "seedance-2.0-fast",
-    name: "Seedance 2.0 Fast",
+    id: "seedance-2.0-mini",
+    name: "Seedance 2.0 Mini",
     iconComponent: Logos.Kling,
     iconColor: "text-cyan-400",
-    description: "Fast and cost-effective generation up to 720p",
-    badges: ["4-15s", "Up to 720p", "Fast"],
-    cost: 26, // representative (720p tok/s); real cost depends on resolution
+    description: "The cheapest way to generate video — great for drafts",
+    badges: ["4-15s", "Up to 720p", "Cheapest at 480p"],
+    cost: 5, // representative (480p tok/s); real cost depends on resolution
     isNew: true,
     type: "video",
     isSeedance2: true,
     capabilities: ["text-to-video", "image-to-video", "reference-to-video"],
-    pricing: { "480p": 12, "720p": 26 },
-    referencePricing: { "480p": 7, "720p": 16 },
+    pricing: { "480p": 5, "720p": 11 },
+    referencePricing: { "480p": 4, "720p": 7 },
+  },
+  {
+    id: "kling-o1",
+    name: "Kling O1",
+    iconComponent: Logos.Kling,
+    iconColor: "text-cyan-400",
+    description:
+      "Unified engine: animate an image or edit an existing video (5 or 10s)",
+    badges: ["5 or 10s", "Edit"],
+    cost: 12,
+    isNew: true,
+    type: "video",
+    capabilities: ["image-to-video", "video-edit"],
   },
   {
     id: "veo-3.1-ultra",
@@ -625,7 +654,19 @@ const VIDEO_MODELS = [
     iconColor: "text-blue-400",
     description: "Maximum quality video generation (8s fixed)",
     badges: ["Ultra"],
-    cost: 65,
+    cost: 63,
+    isNew: true,
+    type: "video",
+    capabilities: ["text-to-video", "image-to-video"],
+  },
+  {
+    id: "veo-3.1-lite",
+    name: "Veo 3.1 Lite",
+    iconComponent: Logos.Google,
+    iconColor: "text-blue-400",
+    description: "Cheapest video with native audio (8s fixed)",
+    badges: ["Lite", "Native audio"],
+    cost: 6,
     isNew: true,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -637,19 +678,19 @@ const VIDEO_MODELS = [
     iconColor: "text-purple-400",
     description: "Advanced creative control for video generation",
     badges: ["5-10s"],
-    cost: 14,
+    cost: 13, // $0.12/s -> ceil(12 x 1.05); the server charges 13, not 14
     isNew: false,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
   },
   {
     id: "runway-aleph",
-    name: "Runway Aleph",
+    name: "Runway Aleph 2",
     iconComponent: Logos.Runway,
     iconColor: "text-purple-400",
     description: "Video-to-video style transfer and editing",
     badges: ["V2V"],
-    cost: 17,
+    cost: 30,
     isNew: true,
     type: "video",
     capabilities: ["video-to-video"],
@@ -708,7 +749,7 @@ const VIDEO_MODELS = [
     iconColor: "text-blue-400",
     description: "High-quality 8s video generation",
     badges: ["8s"],
-    cost: 44,
+    cost: 42,
     isNew: false,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -720,7 +761,7 @@ const VIDEO_MODELS = [
     iconColor: "text-blue-400",
     description: "Faster generation with good quality (8s)",
     badges: ["Fast"],
-    cost: 17,
+    cost: 11,
     isNew: false,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -911,7 +952,7 @@ const FilePreview = ({ file, onRemove }) => {
 function AiLabModal({ isOpen, onClose }) {
   const { t } = useI18n();
   const [selectedModel, setSelectedModel] = useState("nano-banana-pro");
-  const [selectedVideoModel, setSelectedVideoModel] = useState("seedance-2.0");
+  const [selectedVideoModel, setSelectedVideoModel] = useState("seedance-2.5");
   const [showModels, setShowModels] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
@@ -985,9 +1026,7 @@ function AiLabModal({ isOpen, onClose }) {
   const [isLoadingVoiceTokens, setIsLoadingVoiceTokens] = useState(false);
   const [previewAudio, setPreviewAudio] = useState(null);
   const [playingVoiceId, setPlayingVoiceId] = useState(null);
-  const [elevenLabsModel, setElevenLabsModel] = useState(
-    "eleven_multilingual_v2",
-  );
+  const [elevenLabsModel, setElevenLabsModel] = useState("eleven_v3");
   const [voiceSettings, setVoiceSettings] = useState({
     stability: 0.5,
     similarity_boost: 0.5,
@@ -1048,10 +1087,16 @@ function AiLabModal({ isOpen, onClose }) {
     }
   };
 
+  // ElevenLabs bills per character: $0.10/1000 chars on v3 & multilingual v2,
+  // $0.05/1000 on flash. With the house rule (1 token = 1¢, +5% margin) that is
+  // 11 and 6 tokens per 1000 chars, billed in whole 1000-char blocks.
   const calculateRequiredVoiceTokens = () => {
     const charCount = textToSpeak ? textToSpeak.length : 0;
-    if (charCount <= 500) return 1;
-    return 8; // 500–999 characters
+    if (charCount <= 0) return 0;
+    const isFlash =
+      elevenLabsModel === "eleven_flash_v2_5" ||
+      elevenLabsModel === "eleven_turbo_v2_5";
+    return Math.ceil(charCount / 1000) * (isFlash ? 6 : 11);
   };
 
   // Load voices and tokens when modal opens
@@ -1790,7 +1835,15 @@ function AiLabModal({ isOpen, onClose }) {
     } else if (activeTab === "video") {
       const perSecond = getVideoPerSecondCost();
       if (selectedVideoModel === "runway-aleph") {
-        return perSecond * (uploadedVideoDuration || 5);
+        // Runway bills a 56-credit minimum, which the server floors at 2s.
+        return perSecond * Math.max(2, uploadedVideoDuration || 5);
+      }
+      // Seedance fed a video bills max(input, output) seconds, so a long source
+      // trimmed to a short clip still costs the full source length. Quote that,
+      // otherwise the confirm dialog under-states what the server will charge.
+      const model = VIDEO_MODELS.find((m) => m.id === selectedVideoModel);
+      if (model?.isSeedance2 && uploadedVideoDuration > 0) {
+        return perSecond * Math.max(duration, Math.ceil(uploadedVideoDuration));
       }
       return perSecond * duration;
     } else if (activeTab === "voice") {
@@ -1824,6 +1877,13 @@ function AiLabModal({ isOpen, onClose }) {
       }
       if (selectedVideoModel === "kling-o3" && klingMode === "edit" && !hasVideo) {
         setError("Video-edit (Kling O3) requires a video reference.");
+        return;
+      }
+      // O1 has no text-to-video route: it animates an image or edits a video.
+      if (selectedVideoModel === "kling-o1" && files.length === 0) {
+        setError(
+          "Kling O1 requires an image to animate or a video to edit.",
+        );
         return;
       }
     }
@@ -1965,7 +2025,7 @@ function AiLabModal({ isOpen, onClose }) {
           // --- KLING (Evolink) FLOW (direct endpoint, server auto-routes) ---
           result = await generateKlingVideo({ finalPrompt });
         } else if (selectedModelData?.isSeedance2) {
-          // --- SEEDANCE 2.0 FLOW (single endpoint, auto-detects mode) ---
+          // --- SEEDANCE FLOW (single endpoint, auto-detects mode) ---
           let mediaUrl = null;
           let referenceVideos = null;
 
@@ -1977,7 +2037,7 @@ function AiLabModal({ isOpen, onClose }) {
               file,
               isVideo ? "video" : "image",
             );
-            // Video → reference-to-video (gets -40% discount).
+            // Video → reference-to-video (billed at the lower video-fed rate).
             // Image → image-to-video.
             if (isVideo) {
               referenceVideos = [uploadedUrl];
@@ -2469,15 +2529,12 @@ function AiLabModal({ isOpen, onClose }) {
                         onChange={(e) => setElevenLabsModel(e.target.value)}
                         className="flex-1 px-3 py-1.5 bg-[#2a2a2a] border border-gray-700/50 rounded-lg text-white focus:border-[#DC569D] focus:outline-none text-xs"
                       >
+                        <option value="eleven_v3">v3 (Expressive)</option>
                         <option value="eleven_multilingual_v2">
                           Multilingual v2 (HQ)
                         </option>
                         <option value="eleven_flash_v2_5">
-                          Flash v2.5 (Fast)
-                        </option>
-                        <option value="eleven_turbo_v2_5">Turbo v2.5</option>
-                        <option value="eleven_v3_alpha">
-                          v3 Alpha (Expressive)
+                          Flash v2.5 (Fast, half price)
                         </option>
                       </select>
                       <label className="flex items-center gap-1.5 text-[10px] text-gray-400 shrink-0 cursor-pointer">
@@ -3358,8 +3415,11 @@ function AiLabModal({ isOpen, onClose }) {
                     )}{" "}
                     ×{" "}
                     {selectedVideoModel === "runway-aleph"
-                      ? uploadedVideoDuration || 5
-                      : duration}
+                      ? Math.max(2, uploadedVideoDuration || 5)
+                      : selectedModelData?.isSeedance2 &&
+                          uploadedVideoDuration > 0
+                        ? Math.max(duration, Math.ceil(uploadedVideoDuration))
+                        : duration}
                     s
                     {selectedModelData?.isSeedance2 || selectedModelData?.isKling
                       ? ` · ${videoResolution}`

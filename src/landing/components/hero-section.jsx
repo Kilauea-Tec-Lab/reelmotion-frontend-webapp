@@ -6,9 +6,9 @@ import { motion } from "framer-motion";
 import { ChevronDown, Play, Sparkles } from "lucide-react";
 
 const models = [
-  "Sora 2", "Kling V3", "Veo 3.1", "Runway 4.5",
-  "ElevenLabs TTS", "Nano Banana 2", "GPT-4o Vision",
-  "Freepik Mystic", "Kling 03", "Runway 4.5",
+  "Seedance 2.5", "Kling V3", "Veo 3.1", "Runway 4.5",
+  "ElevenLabs TTS", "Nano Banana 2", "GPT Image 2",
+  "Seedream 5.0", "Kling O3", "Kling O1",
 ];
 
 const HeroSection = ({ onOpenAuth }) => {
@@ -73,7 +73,7 @@ const HeroSection = ({ onOpenAuth }) => {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[#DC569D]" />
             </span>
             <Sparkles size={13} className="text-[#DC569D]" />
-            <span className="text-white/90">Kling V3 · Sora 2 · Veo 3.1 — Now Live</span>
+            <span className="text-white/90">Kling V3 · Seedance 2.5 · Veo 3.1 — Now Live</span>
           </div>
         </motion.div>
 
