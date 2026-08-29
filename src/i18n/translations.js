@@ -30,10 +30,10 @@ const translations = {
       "Other AI tools expect you to already know prompt engineering. Reelmotion AI flips the script: our agent walks you through it, crafts the prompt, and generates content that looks like a pro made it.",
     "features.video.title": "AI Video Generation",
     "features.video.description":
-      "Describe your scene. Our AI agent writes the prompt and lets you choose from the best models: Sora 2, Veo 3.1, Kling V3, Runway 4.5, and more.",
+      "Describe your scene. Our AI agent writes the prompt and lets you choose from the best models: Seedance 2.5, Veo 3.1, Kling V3, Runway 4.5, and more.",
     "features.image.title": "AI Image Generation",
     "features.image.description":
-      "Type what you want your image to look like. Our AI turns it into a pixel-perfect prompt and generates 4K images with Nano Banana 2, GPT-4o Vision, or Freepik Mystic.",
+      "Type what you want your image to look like. Our AI turns it into a pixel-perfect prompt and generates 4K images with Nano Banana 2, GPT Image 2, or Seedream 5.0.",
     "features.audio.title": "AI Voice & Audio",
     "features.audio.description":
       "Write your script, pick a voice, hit generate. ElevenLabs multi-language TTS delivers broadcast-ready narration — no mic, no studio, no editing.",
@@ -44,10 +44,10 @@ const translations = {
       "Forget prompt engineering. Our AI asks the right questions, builds the perfect prompt for you, and generates results that look like they came from a professional studio.",
     "reelbot.feat.imageGen": "Image Generation",
     "reelbot.feat.imageGenDesc":
-      "Text-to-image and image-to-image with Nano Banana 2, GPT-4o, and Freepik",
+      "Text-to-image and image-to-image with Nano Banana 2, GPT Image 2, and Seedream",
     "reelbot.feat.videoGen": "Video Generation",
     "reelbot.feat.videoGenDesc":
-      "9 video models: Sora 2, Veo 3.1, Runway 4.5, Kling V3, and more",
+      "10 video models: Seedance 2.5, Veo 3.1, Runway 4.5, Kling V3, and more",
     "reelbot.feat.tts": "Text-to-Speech",
     "reelbot.feat.ttsDesc": "Multi-language voices powered by ElevenLabs",
     "reelbot.feat.vision": "Visual Analysis",
@@ -136,7 +136,7 @@ const translations = {
     "pricing.pro.name": "Pro",
     "pricing.pro.feature1": "2,500 tokens/month",
     "pricing.pro.feature2": "Video + image generation",
-    "pricing.pro.feature3": "All AI models (Sora 2, Veo 3.1, Kling V3...)",
+    "pricing.pro.feature3": "All AI models (Seedance 2.5, Veo 3.1, Kling V3...)",
     "pricing.pro.feature4": "Priority rendering",
     "pricing.pro.feature5": "Video editor",
     "pricing.pro.feature6": "Media library",
@@ -612,10 +612,10 @@ const translations = {
       "Otras herramientas de IA esperan que ya sepas ingenier\u00eda de prompts. Reelmotion cambia las reglas: nuestro agente te entrevista, crea el prompt y genera contenido que parece hecho por un profesional.",
     "features.video.title": "Generaci\u00f3n de Video con IA",
     "features.video.description":
-      "Describe tu escena en tus propias palabras. ReelBot escribe el prompt y te deja elegir entre los mejores modelos del planeta: Sora 2, Veo 3.1, Kling V3, Runway 4.5 y m\u00e1s.",
+      "Describe tu escena en tus propias palabras. ReelBot escribe el prompt y te deja elegir entre los mejores modelos del planeta: Seedance 2.5, Veo 3.1, Kling V3, Runway 4.5 y m\u00e1s.",
     "features.image.title": "Generaci\u00f3n de Im\u00e1genes con IA",
     "features.image.description":
-      "Di lo que ves en tu mente. ReelBot lo convierte en un prompt perfecto y genera im\u00e1genes 4K con Nano Banana 2, GPT-4o Vision o Freepik Mystic.",
+      "Di lo que ves en tu mente. ReelBot lo convierte en un prompt perfecto y genera im\u00e1genes 4K con Nano Banana 2, GPT Image 2 o Seedream 5.0.",
     "features.audio.title": "Voz y Audio con IA",
     "features.audio.description":
       "Pega tu guion, elige una voz, genera. ElevenLabs TTS multiling\u00fce entrega narraci\u00f3n lista para transmitir — sin micr\u00f3fono, sin estudio, sin edici\u00f3n.",
@@ -626,10 +626,10 @@ const translations = {
       "Olv\u00eddate de la ingenier\u00eda de prompts. ReelBot hace las preguntas correctas, construye el prompt perfecto por ti y genera resultados con calidad de estudio profesional.",
     "reelbot.feat.imageGen": "Generaci\u00f3n de Im\u00e1genes",
     "reelbot.feat.imageGenDesc":
-      "Texto a imagen e imagen a imagen con Nano Banana 2, GPT-4o y Freepik",
+      "Texto a imagen e imagen a imagen con Nano Banana 2, GPT Image 2 y Seedream",
     "reelbot.feat.videoGen": "Generaci\u00f3n de Video",
     "reelbot.feat.videoGenDesc":
-      "9 modelos de video: Sora 2, Veo 3.1, Runway 4.5, Kling V3 y m\u00e1s",
+      "10 modelos de video: Seedance 2.5, Veo 3.1, Runway 4.5, Kling V3 y m\u00e1s",
     "reelbot.feat.tts": "Texto a Voz",
     "reelbot.feat.ttsDesc": "Voces multiling\u00fces con ElevenLabs",
     "reelbot.feat.vision": "An\u00e1lisis Visual",
@@ -717,7 +717,7 @@ const translations = {
     "pricing.pro.name": "Pro",
     "pricing.pro.feature1": "2,500 tokens/mes",
     "pricing.pro.feature2": "Generaci\u00f3n de video + im\u00e1genes",
-    "pricing.pro.feature3": "Todos los modelos (Sora 2, Veo 3.1, Kling V3...)",
+    "pricing.pro.feature3": "Todos los modelos (Seedance 2.5, Veo 3.1, Kling V3...)",
     "pricing.pro.feature4": "Renderizado prioritario",
     "pricing.pro.feature5": "Editor de video en la nube",
     "pricing.pro.feature6": "Biblioteca de medios",
