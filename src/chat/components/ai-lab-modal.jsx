@@ -615,9 +615,9 @@ const VIDEO_MODELS = [
     isSeedance2: true,
     capabilities: ["text-to-video", "image-to-video", "reference-to-video"],
     // tok/s per resolution
-    pricing: { "480p": 15, "720p": 32, "1080p": 56 },
+    pricing: { "480p": 15, "720p": 32, "1080p": 78 },
     // tok/s per resolution when a reference video is provided (video-fed rate)
-    referencePricing: { "480p": 9, "720p": 19, "1080p": 35 },
+    referencePricing: { "480p": 9, "720p": 19, "1080p": 48 },
   },
   {
     id: "seedance-2.0-mini",
@@ -625,14 +625,14 @@ const VIDEO_MODELS = [
     iconComponent: Logos.Kling,
     iconColor: "text-cyan-400",
     description: "The cheapest way to generate video — great for drafts",
-    badges: ["4-15s", "Up to 720p", "Cheapest"],
-    cost: 2, // representative (720p tok/s); real cost depends on resolution
+    badges: ["4-15s", "Up to 720p", "Cheapest at 480p"],
+    cost: 5, // representative (480p tok/s); real cost depends on resolution
     isNew: true,
     type: "video",
     isSeedance2: true,
     capabilities: ["text-to-video", "image-to-video", "reference-to-video"],
-    pricing: { "480p": 2, "720p": 2 },
-    referencePricing: { "480p": 2, "720p": 2 },
+    pricing: { "480p": 5, "720p": 11 },
+    referencePricing: { "480p": 4, "720p": 7 },
   },
   {
     id: "kling-o1",
@@ -1837,6 +1837,13 @@ function AiLabModal({ isOpen, onClose }) {
       if (selectedVideoModel === "runway-aleph") {
         // Runway bills a 56-credit minimum, which the server floors at 2s.
         return perSecond * Math.max(2, uploadedVideoDuration || 5);
+      }
+      // Seedance fed a video bills max(input, output) seconds, so a long source
+      // trimmed to a short clip still costs the full source length. Quote that,
+      // otherwise the confirm dialog under-states what the server will charge.
+      const model = VIDEO_MODELS.find((m) => m.id === selectedVideoModel);
+      if (model?.isSeedance2 && uploadedVideoDuration > 0) {
+        return perSecond * Math.max(duration, Math.ceil(uploadedVideoDuration));
       }
       return perSecond * duration;
     } else if (activeTab === "voice") {
@@ -3408,8 +3415,11 @@ function AiLabModal({ isOpen, onClose }) {
                     )}{" "}
                     ×{" "}
                     {selectedVideoModel === "runway-aleph"
-                      ? uploadedVideoDuration || 5
-                      : duration}
+                      ? Math.max(2, uploadedVideoDuration || 5)
+                      : selectedModelData?.isSeedance2 &&
+                          uploadedVideoDuration > 0
+                        ? Math.max(duration, Math.ceil(uploadedVideoDuration))
+                        : duration}
                     s
                     {selectedModelData?.isSeedance2 || selectedModelData?.isKling
                       ? ` · ${videoResolution}`
