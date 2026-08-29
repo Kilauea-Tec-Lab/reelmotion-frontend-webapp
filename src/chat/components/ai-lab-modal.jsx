@@ -678,7 +678,7 @@ const VIDEO_MODELS = [
     iconColor: "text-purple-400",
     description: "Advanced creative control for video generation",
     badges: ["5-10s"],
-    cost: 14,
+    cost: 13, // $0.12/s -> ceil(12 x 1.05); the server charges 13, not 14
     isNew: false,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
