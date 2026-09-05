@@ -106,18 +106,18 @@ const KLING_ASPECT_RATIOS = ["16:9", "9:16", "1:1"];
 const KLING_PRICING = {
   // V3 / O3 — text-to-video & image-to-video (audio is a paid add-on)
   standard: {
-    "720p": { off: 9, on: 12 },
-    "1080p": { off: 12, on: 14 },
-    "4k": { off: 42, on: 42 },
+    "720p": { off: 10, on: 14 },
+    "1080p": { off: 14, on: 16 },
+    "4k": { off: 46, on: 46 },
   },
   // V3 Turbo — t2v / i2v (no audio, no 4k)
-  turbo: { "720p": 12, "1080p": 14 },
+  turbo: { "720p": 14, "1080p": 16 },
   // O3 — reference-to-video & video-edit (no audio, no 4k)
-  o3Advanced: { "720p": 13, "1080p": 17 },
+  o3Advanced: { "720p": 15, "1080p": 19 },
   // V3 — motion-control (provisional, no audio, no 4k)
-  motion: { "720p": 13, "1080p": 17 },
+  motion: { "720p": 15, "1080p": 19 },
   // O1 — flat rate for both image-to-video and video-edit (no audio, no 4k)
-  o1: { "720p": 12, "1080p": 12 },
+  o1: { "720p": 13, "1080p": 13 },
 };
 
 // Mirror the backend auto-router so the client can show the right price and
@@ -322,7 +322,8 @@ async function generateVideoSeedance2API({
     ai_model: model,
     prompt,
     resolution,
-    aspect_ratio: aspectRatio || "auto",
+    // Evolink rejects "auto"; its enum uses "adaptive".
+    aspect_ratio: aspectRatio || "adaptive",
     video_duration: duration,
     generate_audio: generateAudio,
   };
@@ -609,15 +610,15 @@ const VIDEO_MODELS = [
     description:
       "High-quality generation up to 1080p and 30s. Text, image or reference driven",
     badges: ["4-30s", "Up to 1080p"],
-    cost: 32, // representative (720p tok/s); real cost depends on resolution
+    cost: 35, // representative (720p tok/s); real cost depends on resolution
     isNew: true,
     type: "video",
     isSeedance2: true,
     capabilities: ["text-to-video", "image-to-video", "reference-to-video"],
     // tok/s per resolution
-    pricing: { "480p": 15, "720p": 32, "1080p": 78 },
+    pricing: { "480p": 16, "720p": 35, "1080p": 85 },
     // tok/s per resolution when a reference video is provided (video-fed rate)
-    referencePricing: { "480p": 9, "720p": 19, "1080p": 48 },
+    referencePricing: { "480p": 10, "720p": 21, "1080p": 52 },
   },
   {
     id: "seedance-2.0-mini",
@@ -626,13 +627,13 @@ const VIDEO_MODELS = [
     iconColor: "text-cyan-400",
     description: "The cheapest way to generate video — great for drafts",
     badges: ["4-15s", "Up to 720p", "Cheapest at 480p"],
-    cost: 5, // representative (480p tok/s); real cost depends on resolution
+    cost: 6, // representative (480p tok/s); real cost depends on resolution
     isNew: true,
     type: "video",
     isSeedance2: true,
     capabilities: ["text-to-video", "image-to-video", "reference-to-video"],
-    pricing: { "480p": 5, "720p": 11 },
-    referencePricing: { "480p": 4, "720p": 7 },
+    pricing: { "480p": 6, "720p": 12 },
+    referencePricing: { "480p": 4, "720p": 8 },
   },
   {
     id: "kling-o1",
@@ -642,7 +643,7 @@ const VIDEO_MODELS = [
     description:
       "Unified engine: animate an image or edit an existing video (5 or 10s)",
     badges: ["5 or 10s", "Edit"],
-    cost: 12,
+    cost: 13,
     isNew: true,
     type: "video",
     capabilities: ["image-to-video", "video-edit"],
@@ -654,7 +655,7 @@ const VIDEO_MODELS = [
     iconColor: "text-blue-400",
     description: "Maximum quality video generation (8s fixed)",
     badges: ["Ultra"],
-    cost: 63,
+    cost: 69,
     isNew: true,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -678,7 +679,7 @@ const VIDEO_MODELS = [
     iconColor: "text-purple-400",
     description: "Advanced creative control for video generation",
     badges: ["5-10s"],
-    cost: 13, // $0.12/s -> ceil(12 x 1.05); the server charges 13, not 14
+    cost: 14, // $0.12/s -> ceil(12 x 1.15)
     isNew: false,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -690,7 +691,7 @@ const VIDEO_MODELS = [
     iconColor: "text-purple-400",
     description: "Video-to-video style transfer and editing",
     badges: ["V2V"],
-    cost: 30,
+    cost: 33,
     isNew: true,
     type: "video",
     capabilities: ["video-to-video"],
@@ -704,7 +705,7 @@ const VIDEO_MODELS = [
       "Text, image & motion-control video up to 4K with optional native audio",
     badges: ["3-15s", "Up to 4K", "Audio"],
     // representative (720p no-audio tok/s); real cost depends on route/quality/audio
-    cost: 9,
+    cost: 10,
     isNew: true,
     type: "video",
     isKling: true,
@@ -717,7 +718,7 @@ const VIDEO_MODELS = [
     iconColor: "text-orange-400",
     description: "Fast text & image-to-video up to 1080p",
     badges: ["3-15s", "Up to 1080p", "Fast"],
-    cost: 12,
+    cost: 14,
     isNew: true,
     type: "video",
     isKling: true,
@@ -731,7 +732,7 @@ const VIDEO_MODELS = [
     description:
       "Text, image, reference & video-edit up to 4K with optional native audio",
     badges: ["3-15s", "Up to 4K", "Reference", "Edit"],
-    cost: 9,
+    cost: 10,
     isNew: true,
     type: "video",
     isKling: true,
@@ -749,7 +750,7 @@ const VIDEO_MODELS = [
     iconColor: "text-blue-400",
     description: "High-quality 8s video generation",
     badges: ["8s"],
-    cost: 42,
+    cost: 46,
     isNew: false,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -761,7 +762,7 @@ const VIDEO_MODELS = [
     iconColor: "text-blue-400",
     description: "Faster generation with good quality (8s)",
     badges: ["Fast"],
-    cost: 11,
+    cost: 12,
     isNew: false,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -2051,6 +2052,7 @@ function AiLabModal({ isOpen, onClose }) {
             model: selectedVideoModel,
             prompt: finalPrompt,
             resolution: videoResolution,
+            aspectRatio: videoAspect,
             duration,
             generateAudio,
             mediaUrl,

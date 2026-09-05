@@ -209,15 +209,15 @@ function ModalCreateScene({
 
   // Costos por modelo y configuración (tokens por segundo)
   const MODEL_COSTS_PER_SECOND = {
-    runway: 8, // Runway ML
-    "runway-aleph": 30, // Runway Aleph 2 ($0.28/s)
-    "veo-3.1-generate-preview": 42, // Veo-3.1 ($0.40/s)
-    "veo-3.1-fast-generate-preview": 11, // Veo-3.1 Fast ($0.10/s)
-    lumalabs: 13, // LumaLabs
-    "seedance-pro-1": 15, // Seedance Pro 1
-    "sora-2-720p": 15, // Sora 2 - 720p ($0.15)
-    "sora-2-pro-720p": 39, // Sora 2 Pro - 720p ($0.39)
-    "sora-2-pro-1080p": 59, // Sora 2 Pro - 1080p ($0.59)
+    runway: 9, // Runway ML
+    "runway-aleph": 33, // Runway Aleph 2 ($0.28/s)
+    "veo-3.1-generate-preview": 46, // Veo-3.1 ($0.40/s)
+    "veo-3.1-fast-generate-preview": 12, // Veo-3.1 Fast ($0.10/s)
+    lumalabs: 15, // LumaLabs
+    "seedance-pro-1": 17, // Seedance Pro 1
+    "sora-2-720p": 17, // Sora 2 - 720p ($0.15)
+    "sora-2-pro-720p": 43, // Sora 2 Pro - 720p ($0.39)
+    "sora-2-pro-1080p": 65, // Sora 2 Pro - 1080p ($0.59)
   };
 
   // Función para calcular el costo total basado en modelo y duración
