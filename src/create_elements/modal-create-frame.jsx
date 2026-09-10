@@ -12,6 +12,7 @@ import {
   Download,
 } from "lucide-react";
 import Cookies from "js-cookie";
+import { useI18n } from "../i18n/i18n-context";
 
 function ModalCreateFrame({
   isOpen,
@@ -22,6 +23,7 @@ function ModalCreateFrame({
   existingFrames,
   onFrameCreated,
 }) {
+  const { t } = useI18n();
   const [frameName, setFrameName] = useState("");
   const [frameDescription, setFrameDescription] = useState("");
   const [creationMode, setCreationMode] = useState(""); // "upload", "existing", "ai"
@@ -493,9 +495,7 @@ function ModalCreateFrame({
 
   const handleGenerateImage = async () => {
     if (!imagePrompt.trim() || !selectedAspectRatio) {
-      setImageGenerationError(
-        "Por favor, ingresa un prompt y selecciona el aspect ratio."
-      );
+      setImageGenerationError(t("frame.err.promptAndRatio"));
       return;
     }
 
@@ -596,9 +596,7 @@ function ModalCreateFrame({
       !customPrompt.trim() ||
       !selectedAspectRatio
     ) {
-      setExistingImageGenerationError(
-        "Por favor, completa el prompt y selecciona el aspect ratio."
-      );
+      setExistingImageGenerationError(t("frame.err.promptAndRatio"));
       return;
     }
 

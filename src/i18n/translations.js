@@ -579,6 +579,47 @@ const translations = {
     "footer.copyright": "\u00a9 2026 Reelmotion AI. All rights reserved.",
     "footer.builtWith":
       "Built with React \u00b7 Tailwind CSS \u00b7 Framer Motion \u00b7 Stripe \u00b7 ElevenLabs \u00b7 Pusher \u00b7 Solana",
+
+    // AI Lab — generation status
+    "gen.image.pending": "Your image is being generated… we'll let you know when it's ready.",
+    "gen.video.pending": "Your video is being generated… we'll let you know when it's ready.",
+    "gen.inProgress": "Generation in progress.",
+    "gen.failed": "Generation failed. Your tokens were refunded.",
+    "gen.timeout":
+      "Generation is taking longer than expected. Check your library in a few minutes.",
+
+    // Editor — alerts
+    "editor.err.noTimelineItems": "There are no timeline items to pre-render.",
+    "editor.err.screenCaptureDenied":
+      "You must allow screen capture access to pre-render.",
+    "editor.err.preRender": "Error during pre-rendering: ",
+    "editor.err.imagesOnly": "Please drop image files only.",
+    "editor.err.uploadImages": "Error uploading images. Please try again.",
+    "editor.err.audioOnly": "Please drop valid audio files.",
+    "editor.err.uploadMusic": "Error uploading music. Please try again.",
+    "editor.err.uploadSounds": "Error uploading sounds. Please try again.",
+    "editor.err.uploadVoice": "Error uploading voice. Please try again.",
+    "editor.err.deleteMusicFailed": "Could not delete the music.",
+    "editor.err.deleteMusic": "Error deleting music.",
+    "editor.err.deleteVoiceFailed": "Could not delete the voice.",
+    "editor.err.deleteVoice": "Error deleting voice.",
+    "editor.err.deleteSoundFailed": "Could not delete the sound.",
+    "editor.err.deleteSound": "Error deleting sound.",
+
+    // Editor — tooltips
+    "editor.tip.deleteMusic": "Delete music",
+    "editor.tip.deleteScene": "Delete scene",
+    "editor.tip.deleteElement": "Delete element",
+    "editor.tip.deleteVoice": "Delete voice",
+    "editor.tip.deleteSound": "Delete sound",
+    "editor.tip.changeStart": "Change start",
+    "editor.tip.changeDuration": "Change duration",
+
+    // Create frame
+    "frame.err.promptAndRatio": "Please enter a prompt and select the aspect ratio.",
+
+    // Suggestions
+    "suggestions.err.send": "Error sending the suggestion",
   },
 
   es: {
@@ -1169,6 +1210,47 @@ const translations = {
       "\u00a9 2026 Reelmotion AI. Todos los derechos reservados.",
     "footer.builtWith":
       "Hecho con React \u00b7 Tailwind CSS \u00b7 Framer Motion \u00b7 Stripe \u00b7 ElevenLabs \u00b7 Pusher \u00b7 Solana",
+
+    // AI Lab — estado de generación
+    "gen.image.pending": "Tu imagen se está generando… te avisaremos cuando esté lista.",
+    "gen.video.pending": "Tu video se está generando… te avisaremos cuando esté listo.",
+    "gen.inProgress": "Generación en curso.",
+    "gen.failed": "La generación falló. Tus tokens fueron reembolsados.",
+    "gen.timeout":
+      "La generación está tardando más de lo esperado. Revisa tu biblioteca en unos minutos.",
+
+    // Editor — alertas
+    "editor.err.noTimelineItems": "No hay elementos en el timeline para pre-renderizar.",
+    "editor.err.screenCaptureDenied":
+      "Debes permitir el acceso a la captura de pantalla para pre-renderizar.",
+    "editor.err.preRender": "Error durante el pre-renderizado: ",
+    "editor.err.imagesOnly": "Por favor, solo suelta archivos de imagen.",
+    "editor.err.uploadImages": "Error al subir las imágenes. Por favor, intenta nuevamente.",
+    "editor.err.audioOnly": "Por favor, suelta archivos de audio válidos.",
+    "editor.err.uploadMusic": "Error al subir música. Intenta nuevamente.",
+    "editor.err.uploadSounds": "Error al subir sonidos. Intenta nuevamente.",
+    "editor.err.uploadVoice": "Error al subir voz. Intenta nuevamente.",
+    "editor.err.deleteMusicFailed": "No se pudo eliminar la música.",
+    "editor.err.deleteMusic": "Error al eliminar música.",
+    "editor.err.deleteVoiceFailed": "No se pudo eliminar la voz.",
+    "editor.err.deleteVoice": "Error al eliminar voz.",
+    "editor.err.deleteSoundFailed": "No se pudo eliminar el sonido.",
+    "editor.err.deleteSound": "Error al eliminar sonido.",
+
+    // Editor — tooltips
+    "editor.tip.deleteMusic": "Eliminar música",
+    "editor.tip.deleteScene": "Eliminar escena",
+    "editor.tip.deleteElement": "Eliminar elemento",
+    "editor.tip.deleteVoice": "Eliminar voz",
+    "editor.tip.deleteSound": "Eliminar sonido",
+    "editor.tip.changeStart": "Cambiar inicio",
+    "editor.tip.changeDuration": "Cambiar duración",
+
+    // Crear frame
+    "frame.err.promptAndRatio": "Por favor, ingresa un prompt y selecciona el aspect ratio.",
+
+    // Sugerencias
+    "suggestions.err.send": "Error al enviar la sugerencia",
   },
 };
 
