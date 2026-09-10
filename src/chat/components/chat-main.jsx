@@ -31,7 +31,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { SUPPORT_WHATSAPP_URL } from "../../utils/support";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useNavigate, useRevalidator } from "react-router-dom";
 import Cookies from "js-cookie";
 import { useI18n } from "../../i18n/i18n-context";
@@ -47,20 +47,9 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import {
-  Connection,
-  PublicKey,
-  Transaction,
-  SystemProgram,
-  LAMPORTS_PER_SOL,
-} from "@solana/web3.js";
-import {
-  getAssociatedTokenAddress,
-  createTransferInstruction,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
 import { Channel } from "pusher-js";
 import GenerationCard from "./generation-card";
+import MessageBubble from "./message-bubble";
 
 // Stripe initialization
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
@@ -362,30 +351,24 @@ let paypalClientId =
     : import.meta.env.VITE_PAYPAL_CLIENT_ID;
 
 // Solana configuration
-const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
-const connection = new Connection(
-  "https://serene-dark-arrow.solana-mainnet.quiknode.pro/b08eae88206de8395ae6c496eaef50f7eee94a4f/",
-  {
-    commitment: "confirmed",
-    confirmTransactionInitialTimeout: 60000,
-  },
-);
+//
+// handleCryptoPayment todavia es un stub, asi que aqui no se arma ninguna
+// transaccion: MERCHANT_WALLET solo decide si se muestra la opcion de pagar con
+// cripto. Importar @solana/web3.js + spl-token para eso metia 268 kB en el
+// bundle del chat. Cuando se implemente el pago, importarlos dinamicamente
+// dentro del handler, no en el modulo.
+const SOLANA_ADDRESS_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
-let MERCHANT_WALLET;
-try {
-  const merchantWalletString = import.meta.env.VITE_MERCHANT_WALLET;
-  if (
-    !merchantWalletString ||
-    merchantWalletString === "YOUR_MERCHANT_WALLET_ADDRESS_HERE"
-  ) {
-    console.warn("Merchant wallet not configured properly");
-    MERCHANT_WALLET = null;
-  } else {
-    MERCHANT_WALLET = new PublicKey(merchantWalletString);
-  }
-} catch (error) {
-  console.error("Invalid merchant wallet address:", error);
-  MERCHANT_WALLET = null;
+const merchantWalletString = import.meta.env.VITE_MERCHANT_WALLET;
+const MERCHANT_WALLET =
+  merchantWalletString &&
+  merchantWalletString !== "YOUR_MERCHANT_WALLET_ADDRESS_HERE" &&
+  SOLANA_ADDRESS_RE.test(merchantWalletString)
+    ? merchantWalletString
+    : null;
+
+if (!MERCHANT_WALLET) {
+  console.warn("Merchant wallet not configured properly");
 }
 
 // Card input component with Stripe Elements
@@ -710,7 +693,6 @@ function ChatMain({
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [previewMedia, setPreviewMedia] = useState(null);
-  const [hoveredMessageId, setHoveredMessageId] = useState(null);
   const [tokens, setTokens] = useState(0);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -842,14 +824,14 @@ function ChatMain({
     }
   };
 
-  const openReportModal = (messageId = null) => {
+  const openReportModal = useCallback((messageId = null) => {
     setReportTargetMessageId(messageId);
     setReportReason("");
     setReportDetails("");
     setReportSuccess(false);
     setReportError("");
     setShowReportModal(true);
-  };
+  }, []);
 
   const closeReportModal = () => {
     if (isSubmittingReport) return;
@@ -1312,20 +1294,6 @@ function ChatMain({
     }
   }, [isSending]);
 
-  // Hacer focus en el input después de enviar mensaje
-  useEffect(() => {
-    if (!isSending && messageInputRef.current) {
-      messageInputRef.current.focus();
-    }
-  }, [isSending]);
-
-  // Hacer focus en el input después de enviar mensaje
-  useEffect(() => {
-    if (!isSending && messageInputRef.current) {
-      messageInputRef.current.focus();
-    }
-  }, [isSending]);
-
   // Auto-enviar mensaje cuando se usa un quick action
   useEffect(() => {
     if (shouldAutoSendRef.current && message && !isSending) {
@@ -1334,12 +1302,12 @@ function ChatMain({
     }
   }, [message, isSending, onSendMessage]);
 
-  const handleQuickAction = (messageText) => {
+  const handleQuickAction = useCallback((messageText) => {
     onMessageChange(messageText);
     shouldAutoSendRef.current = true;
-  };
+  }, [onMessageChange]);
 
-  const handleResendMessage = (msg) => {
+  const handleResendMessage = useCallback((msg) => {
     // Solo copiar el contenido del mensaje si es del usuario
     if (msg.role === "user") {
       onMessageChange(msg.content);
@@ -1354,9 +1322,30 @@ function ChatMain({
       }));
       setSelectedFiles(fileAttachments);
     }
-  };
+  }, [onMessageChange]);
 
-  const handleEditAttachment = (attachment) => {
+  // Abrir un adjunto en el visor. Esta busqueda estaba repetida cuatro veces
+  // dentro del JSX de los mensajes (click en img y click en video, por rama).
+  const handleOpenAttachment = useCallback(
+    (attachment) => {
+      if (galleryFilter !== "all") setGalleryFilter("all");
+
+      const allSorted = (attachments || [])
+        .filter((a) => !deletedAttachmentIds.has(a.id))
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      const index = allSorted.findIndex((a) => a.id === attachment.id);
+
+      if (index !== -1) {
+        setCurrentGalleryIndex(index);
+      } else {
+        setPreviewMedia({ url: attachment.url, type: attachment.file_type });
+      }
+    },
+    [galleryFilter, attachments, deletedAttachmentIds],
+  );
+
+  const handleEditAttachment = useCallback((attachment) => {
     const fileAttachment = {
       url: attachment.url,
       type: attachment.file_type,
@@ -1366,83 +1355,15 @@ function ChatMain({
     if (messageInputRef.current) {
       messageInputRef.current.focus();
     }
-  };
+  }, []);
 
-  // Renderiza botones de acción según msg.actions (ej. "editor", "tokens_sale")
-  const renderMessageActions = (msg) => {
-    if (msg.role !== "assistant") return null;
-    if (!Array.isArray(msg.actions) || msg.actions.length === 0) return null;
-
-    const hasEditor = msg.actions.includes("editor");
-    const hasTokensSale = msg.actions.includes("tokens_sale");
-    const hasHowToUse = msg.actions.includes("how_to_use");
-    const hasSupport = msg.actions.includes("support");
-
-    if (!hasEditor && !hasTokensSale && !hasHowToUse && !hasSupport) return null;
-
-    return (
-      <div className="mt-3 flex flex-wrap gap-2">
-        {hasEditor && (
-          <button
-            onClick={() => navigate("/editor")}
-            className="px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
-          >
-            <Pencil size={14} />
-            <span>{t("chat.actions.go-to-editor")}</span>
-          </button>
-        )}
-        {hasTokensSale && (
-          <>
-            <button
-              onClick={() => navigate("/app/pro")}
-              className="px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
-            >
-              <Sparkles size={14} />
-              <span>{t("chat.actions.subscribe")}</span>
-            </button>
-            <button
-              onClick={handleOpenTokenModal}
-              className="px-3 py-1.5 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
-            >
-              <DollarSign size={14} />
-              <span>{t("chat.actions.buy-tokens")}</span>
-            </button>
-          </>
-        )}
-        {hasHowToUse && (
-          <button
-            onClick={() =>
-              handleQuickAction(t("chat.quick.how-to-use-message"))
-            }
-            disabled={isSending}
-            className="px-3 py-1.5 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <HelpCircle size={14} />
-            <span>{t("chat.quick.how-to-use")}</span>
-          </button>
-        )}
-        {hasSupport && (
-          <a
-            href={SUPPORT_WHATSAPP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3 py-1.5 bg-[#25D366] hover:bg-[#1eb857] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
-          >
-            <MessageCircle size={14} />
-            <span>{t("chat.actions.whatsapp-support")}</span>
-          </a>
-        )}
-      </div>
-    );
-  };
-
-  const handleCopyToClipboard = async (msg) => {
+  const handleCopyToClipboard = useCallback(async (msg) => {
     try {
       await navigator.clipboard.writeText(msg.content);
     } catch (err) {
       console.error("Failed to copy text:", err);
     }
-  };
+  }, []);
 
   const handleFileSelect = (type) => {
     setShowFileMenu(false);
@@ -1584,18 +1505,18 @@ function ChatMain({
   };
 
   // Token management functions
-  const handleOpenTokenModal = () => {
+  const handleOpenTokenModal = useCallback(() => {
     setShowTokenModal(true);
     setTokenPurchaseStep("select-amount");
     setPurchaseAmount(6);
-  };
+  }, []);
 
   useEffect(() => {
     window.addEventListener("openTokenModal", handleOpenTokenModal);
     return () => {
       window.removeEventListener("openTokenModal", handleOpenTokenModal);
     };
-  }, []);
+  }, [handleOpenTokenModal]);
 
   const handleCloseTokenModal = () => {
     setShowTokenModal(false);
@@ -2964,198 +2885,20 @@ function ChatMain({
             <div className="max-w-4xl mx-auto space-y-4">
               {messages.length > 0 ? (
                 messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${
-                      msg.role === "user" ? "justify-end" : "justify-start"
-                    }`}
-                    onMouseEnter={() => setHoveredMessageId(msg.id)}
-                    onMouseLeave={() => setHoveredMessageId(null)}
-                  >
-                    <div
-                      className={`flex flex-col gap-2 max-w-[80%] relative ${
-                        msg.role === "user" ? "items-end" : "items-start"
-                      }`}
-                    >
-                      {/* Botones de acción */}
-                      {hoveredMessageId === msg.id && (
-                        <div className="absolute -top-2 -right-2 flex gap-1 z-10">
-                          <button
-                            onClick={() => handleCopyToClipboard(msg)}
-                            className="bg-gray-700 hover:bg-gray-600 rounded-full p-1.5 transition-colors"
-                            title={t("chat.copy-clipboard")}
-                          >
-                            <Copy size={14} className="text-white" />
-                          </button>
-                          <button
-                            onClick={() => handleResendMessage(msg)}
-                            className="bg-gray-700 hover:bg-gray-600 rounded-full p-1.5 transition-colors"
-                            title="Resend message"
-                          >
-                            <RotateCw size={14} className="text-white" />
-                          </button>
-                          {msg.role !== "user" && (
-                            <button
-                              onClick={() => openReportModal(msg.id)}
-                              className="bg-gray-700 hover:bg-gray-600 rounded-full p-1.5 transition-colors"
-                              title={t("chat.report-tooltip")}
-                              aria-label={t("chat.report-tooltip")}
-                            >
-                              <Flag size={14} className="text-white" />
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      {/* Attachments */}
-                      {msg.attachments && msg.attachments.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {msg.attachments.map((attachment, idx) => (
-                            <div
-                              key={idx}
-                              className="relative cursor-pointer hover:opacity-80 transition-opacity"
-                              onClick={() => {
-                                // Switch filter to all to ensure we find it
-                                if (galleryFilter !== "all")
-                                  setGalleryFilter("all");
-
-                                // Find in the FULL sorted list (simulating 'all' view)
-                                const allFiltered = (attachments || []).filter(
-                                  (a) => !deletedAttachmentIds.has(a.id),
-                                );
-                                const allSorted = allFiltered.sort(
-                                  (a, b) =>
-                                    new Date(b.created_at) -
-                                    new Date(a.created_at),
-                                );
-
-                                const index = allSorted.findIndex(
-                                  (a) => a.id === attachment.id,
-                                );
-
-                                if (index !== -1) {
-                                  setCurrentGalleryIndex(index);
-                                  // Don't open gallery grid, just the preview
-                                } else {
-                                  setPreviewMedia({
-                                    url: attachment.url,
-                                    type: attachment.file_type,
-                                  });
-                                }
-                              }}
-                            >
-                              {(attachment.file_type === "image" ||
-                                attachment.file_type === "video") && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditAttachment(attachment);
-                                  }}
-                                  className="absolute top-[-14px] right-[-14px] z-10 bg-primarioLogo hover:bg-[#ec77b5] text-white text-xs px-2 py-1 rounded-md flex items-center gap-1 backdrop-blur-sm transition-colors"
-                                >
-                                  <Pencil size={12} />
-                                  Edit
-                                </button>
-                              )}
-                              {attachment.file_type === "image" ? (
-                                <img
-                                  src={attachment.url}
-                                  alt="Attachment"
-                                  className="h-32 w-auto rounded-lg border border-gray-600 object-cover"
-                                />
-                              ) : attachment.file_type === "video" ? (
-                                <video
-                                  src={attachment.url}
-                                  className="h-32 w-auto rounded-lg border border-gray-600 object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                                  autoPlay
-                                  loop
-                                  muted
-                                  playsInline
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    // Switch filter to all to ensure we find it
-                                    if (galleryFilter !== "all")
-                                      setGalleryFilter("all");
-
-                                    // Find in the FULL sorted list (simulating 'all' view)
-                                    const allFiltered = (
-                                      attachments || []
-                                    ).filter(
-                                      (a) => !deletedAttachmentIds.has(a.id),
-                                    );
-                                    const allSorted = allFiltered.sort(
-                                      (a, b) =>
-                                        new Date(b.created_at) -
-                                        new Date(a.created_at),
-                                    );
-
-                                    const index = allSorted.findIndex(
-                                      (a) => a.id === attachment.id,
-                                    );
-
-                                    if (index !== -1) {
-                                      setCurrentGalleryIndex(index);
-                                      // Don't open gallery grid, just the preview
-                                    } else {
-                                      setPreviewMedia({
-                                        url: attachment.url,
-                                        type: attachment.file_type,
-                                      });
-                                    }
-                                  }}
-                                />
-                              ) : attachment.file_type === "audio" ? (
-                                <div
-                                  className="flex items-center justify-center bg-[#2f2f2f] rounded-lg border border-gray-600 p-2 min-w-[260px] cursor-default"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <audio
-                                    src={attachment.url}
-                                    controls
-                                    className="w-full h-10"
-                                  />
-                                </div>
-                              ) : attachment.file_type === "audio" ? (
-                                <div
-                                  className="flex items-center justify-center bg-[#2f2f2f] rounded-lg border border-gray-600 p-2 min-w-[260px] cursor-default"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <audio
-                                    src={attachment.url}
-                                    controls
-                                    className="w-full h-10"
-                                  />
-                                </div>
-                              ) : null}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <div
-                        className={`rounded-2xl px-4 py-3 ${
-                          msg.role === "user"
-                            ? "bg-[#DC569D] text-white"
-                            : "bg-[#2f2f2f] text-white"
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap">{msg.content}</p>
-                        {renderMessageActions(msg)}
-                      </div>
-                      {pendingGenerations
-                        .filter((g) => g.chat_message_id === msg.id)
-                        .map((g) => (
-                          <GenerationCard
-                            key={g.generation_id}
-                            mediaType={g.media_type}
-                            provider={g.provider}
-                            model={g.model}
-                            status={g.status}
-                            progress={g.progress}
-                            error={g.error}
-                          />
-                        ))}
-                    </div>
-                  </div>
-                ))
+  <MessageBubble
+    key={msg.id}
+    msg={msg}
+    pendingGenerations={pendingGenerations}
+    isSending={isSending}
+    onOpenAttachment={handleOpenAttachment}
+    onEditAttachment={handleEditAttachment}
+    onCopy={handleCopyToClipboard}
+    onResend={handleResendMessage}
+    onReport={openReportModal}
+    onOpenTokenModal={handleOpenTokenModal}
+    onQuickAction={handleQuickAction}
+  />
+))
               ) : (
                 <p className="text-gray-400 text-center">
                   Start the conversation
@@ -3314,155 +3057,20 @@ function ChatMain({
               <div className="flex-1 min-h-0 overflow-y-auto p-3 md:p-6">
                 <div className="max-w-4xl mx-auto space-y-4">
                   {messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${
-                        msg.role === "user" ? "justify-end" : "justify-start"
-                      }`}
-                      onMouseEnter={() => setHoveredMessageId(msg.id)}
-                      onMouseLeave={() => setHoveredMessageId(null)}
-                    >
-                      <div
-                        className={`flex flex-col gap-2 max-w-[80%] relative ${
-                          msg.role === "user" ? "items-end" : "items-start"
-                        }`}
-                      >
-                        {/* Botones de acción */}
-                        {hoveredMessageId === msg.id && (
-                          <div className="absolute -top-2 -right-2 flex gap-1 z-10">
-                            <button
-                              onClick={() => handleCopyToClipboard(msg)}
-                              className="bg-gray-700 hover:bg-gray-600 rounded-full p-1.5 transition-colors"
-                              title={t("chat.copy-clipboard")}
-                            >
-                              <Copy size={14} className="text-white" />
-                            </button>
-                            <button
-                              onClick={() => handleResendMessage(msg)}
-                              className="bg-gray-700 hover:bg-gray-600 rounded-full p-1.5 transition-colors"
-                              title="Resend message"
-                            >
-                              <RotateCw size={14} className="text-white" />
-                            </button>
-                          </div>
-                        )}
-                        {/* Attachments */}
-                        {msg.attachments && msg.attachments.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {msg.attachments.map((attachment, idx) => (
-                              <div
-                                key={idx}
-                                className="relative cursor-pointer hover:opacity-80 transition-opacity"
-                                onClick={() => {
-                                  // Switch filter to all to ensure we find it
-                                  if (galleryFilter !== "all")
-                                    setGalleryFilter("all");
-
-                                  // Find in the FULL sorted list (simulating 'all' view)
-                                  const allFiltered = (
-                                    attachments || []
-                                  ).filter(
-                                    (a) => !deletedAttachmentIds.has(a.id),
-                                  );
-                                  const allSorted = allFiltered.sort(
-                                    (a, b) =>
-                                      new Date(b.created_at) -
-                                      new Date(a.created_at),
-                                  );
-
-                                  const index = allSorted.findIndex(
-                                    (a) => a.id === attachment.id,
-                                  );
-
-                                  if (index !== -1) {
-                                    setCurrentGalleryIndex(index);
-                                    // Don't open gallery grid, just the preview
-                                  } else {
-                                    setPreviewMedia({
-                                      url: attachment.url,
-                                      type: attachment.file_type,
-                                    });
-                                  }
-                                }}
-                              >
-                                {attachment.file_type === "image" ? (
-                                  <img
-                                    src={attachment.url}
-                                    alt="Attachment"
-                                    className="h-32 w-auto rounded-lg border border-gray-600 object-cover"
-                                  />
-                                ) : attachment.file_type === "video" ? (
-                                  <video
-                                    src={attachment.url}
-                                    className="h-32 w-auto rounded-lg border border-gray-600 object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                                    autoPlay
-                                    loop
-                                    muted
-                                    playsInline
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      // Switch filter to all to ensure we find it
-                                      if (galleryFilter !== "all")
-                                        setGalleryFilter("all");
-
-                                      // Find in the FULL sorted list (simulating 'all' view)
-                                      const allFiltered = (
-                                        attachments || []
-                                      ).filter(
-                                        (a) => !deletedAttachmentIds.has(a.id),
-                                      );
-                                      const allSorted = allFiltered.sort(
-                                        (a, b) =>
-                                          new Date(b.created_at) -
-                                          new Date(a.created_at),
-                                      );
-
-                                      const index = allSorted.findIndex(
-                                        (a) => a.id === attachment.id,
-                                      );
-
-                                      if (index !== -1) {
-                                        setCurrentGalleryIndex(index);
-                                        // Don't open gallery grid, just the preview
-                                      } else {
-                                        setPreviewMedia({
-                                          url: attachment.url,
-                                          type: attachment.file_type,
-                                        });
-                                      }
-                                    }}
-                                  />
-                                ) : null}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <div
-                          className={`rounded-2xl px-4 py-3 ${
-                            msg.role === "user"
-                              ? "bg-[#DC569D] text-white"
-                              : "bg-[#2f2f2f] text-white"
-                          }`}
-                        >
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
-                          {renderMessageActions(msg)}
-                        </div>
-                        {pendingGenerations
-                          .filter((g) => g.chat_message_id === msg.id)
-                          .map((g) => (
-                            <GenerationCard
-                              key={g.generation_id}
-                              mediaType={g.media_type}
-                              provider={g.provider}
-                              model={g.model}
-                              status={g.status}
-                              progress={g.progress}
-                              error={g.error}
-                            />
-                          ))}
-                      </div>
-                    </div>
-                  ))}
+  <MessageBubble
+    key={msg.id}
+    msg={msg}
+    pendingGenerations={pendingGenerations}
+    isSending={isSending}
+    onOpenAttachment={handleOpenAttachment}
+    onEditAttachment={handleEditAttachment}
+    onCopy={handleCopyToClipboard}
+    onResend={handleResendMessage}
+    onReport={openReportModal}
+    onOpenTokenModal={handleOpenTokenModal}
+    onQuickAction={handleQuickAction}
+  />
+))}
                   {isTyping && <TypingIndicator generation={activeGenLoader} />}
                   <div ref={messagesEndRef} />
                 </div>

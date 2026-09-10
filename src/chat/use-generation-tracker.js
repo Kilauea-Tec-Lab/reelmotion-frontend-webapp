@@ -7,6 +7,26 @@ import { createPusherClient } from "@/pusher";
 // "failed" event, so a stuck card resolves either way.
 const MAX_TRACK_MS = 30 * 60 * 1000;
 
+/**
+ * Resuelve cuando la pestana vuelve a estar visible.
+ *
+ * Pusher es la via primaria y su WebSocket sigue vivo en segundo plano, asi que
+ * el polling de respaldo no aporta nada mientras nadie mira: solo gasta bateria
+ * y peticiones, multiplicado por cada generacion en curso.
+ */
+function whenVisible() {
+  if (!document.hidden) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    const onChange = () => {
+      if (document.hidden) return;
+      document.removeEventListener("visibilitychange", onChange);
+      resolve();
+    };
+    document.addEventListener("visibilitychange", onChange);
+  });
+}
+
 function buildApiUrl(path) {
   const rawBase = import.meta.env.VITE_APP_BACKEND_URL || "";
   const baseWithoutSlash = rawBase.replace(/\/+$/, "");
@@ -82,12 +102,23 @@ export function useGenerationTracker({ userId, pending, onFinal, onProgress }) {
 
   const pollGeneration = async (id) => {
     const started = Date.now();
+    // El tiempo con la pestana oculta no cuenta para el timeout: si no, volver
+    // despues de un rato marcaria como "timeout" algo que sigue generandose.
+    let hiddenMs = 0;
     let delay = 5000; // 5s, ramping to 15s
-    while (aliveRef.current && Date.now() - started < MAX_TRACK_MS) {
+    while (aliveRef.current && Date.now() - started - hiddenMs < MAX_TRACK_MS) {
       await new Promise((r) => setTimeout(r, delay));
       delay = Math.min(delay + 5000, 15000);
       if (!aliveRef.current) return;
       if (settledRef.current.has(id)) return; // Pusher resolved it first
+
+      if (document.hidden) {
+        const hiddenAt = Date.now();
+        await whenVisible();
+        hiddenMs += Date.now() - hiddenAt;
+        if (!aliveRef.current) return;
+        if (settledRef.current.has(id)) return; // Pusher lo resolvio mientras tanto
+      }
       try {
         const res = await fetch(buildApiUrl(`ai/generation-status/${id}`), {
           headers: { Authorization: "Bearer " + Cookies.get("token") },

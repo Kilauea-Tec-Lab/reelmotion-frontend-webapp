@@ -5,9 +5,12 @@ import {
   useRevalidator,
   useParams,
 } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import ChatSidebar from "./components/chat-sidebar";
-import AiLabModal from "./components/ai-lab-modal";
+
+// 3.5k lineas que antes viajaban en el bundle principal y ejecutaban todos
+// sus hooks en cada render del layout, aunque el modal estuviera cerrado.
+const AiLabModal = lazy(() => import("./components/ai-lab-modal"));
 import { X, Sparkles, Zap, Crown, Menu } from "lucide-react";
 
 function ChatLayout() {
@@ -19,6 +22,14 @@ function ChatLayout() {
   const [isAiLabOpen, setIsAiLabOpen] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // AI Lab es una accion primaria: se precarga cuando el navegador esta ocioso,
+  // asi sale del arranque critico pero abre instantaneo.
+  useEffect(() => {
+    if (typeof requestIdleCallback !== "function") return;
+    const id = requestIdleCallback(() => import("./components/ai-lab-modal"));
+    return () => cancelIdleCallback(id);
+  }, []);
 
   useEffect(() => {
     const hasSeenWelcome = localStorage.getItem("reelmotion_welcome_shown");
@@ -76,7 +87,11 @@ function ChatLayout() {
         />
       </div>
 
-      <AiLabModal isOpen={isAiLabOpen} onClose={() => setIsAiLabOpen(false)} />
+      {isAiLabOpen && (
+        <Suspense fallback={null}>
+          <AiLabModal isOpen onClose={() => setIsAiLabOpen(false)} />
+        </Suspense>
+      )}
 
       {/* Welcome Modal - shown only once for new users */}
       {showWelcomeModal && (

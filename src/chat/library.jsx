@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import { useLoaderData } from "react-router-dom";
+import { getLibrary } from "./functions";
 import { useI18n } from "../i18n/i18n-context";
 import {
   Images,
@@ -22,6 +23,7 @@ import {
 } from "lucide-react";
 import Cookies from "js-cookie";
 import ReportContentModal from "../components/report-content-modal";
+import { useIntersectionObserver } from "../hooks/useIntersectionObserver";
 
 const GalleryItem = memo(
   ({ attachment, idx, onClick, onDelete, isLoaded, onLoad }) => {
@@ -30,6 +32,18 @@ const GalleryItem = memo(
     const [hasError, setHasError] = useState(false);
     const videoRef = useRef(null);
     const timeoutRef = useRef(null);
+    const retryTimeoutRef = useRef(null);
+
+    // Solo se pide el archivo cuando la celda esta cerca del viewport. Antes se
+    // montaban decenas de <video> a la vez, todos tirando de GCS en paralelo.
+    const [containerRef, , hasBeenVisible] = useIntersectionObserver({
+      rootMargin: "300px",
+      triggerOnce: true,
+    });
+
+    // El thumbnail es una imagen chica; el original solo se abre en el preview.
+    const previewSrc = attachment.thumbnail_url || attachment.url;
+    const hasThumbnail = Boolean(attachment.thumbnail_url);
 
     const isAIGenerated =
       attachment.path?.includes("generated-images") ||
@@ -40,7 +54,7 @@ const GalleryItem = memo(
 
     const handleMediaError = () => {
       if (retryCount < 3) {
-        setTimeout(() => {
+        retryTimeoutRef.current = setTimeout(() => {
           setRetryCount((prev) => prev + 1);
           setMediaKey((prev) => prev + 1);
           setHasError(false);
@@ -50,6 +64,15 @@ const GalleryItem = memo(
         onLoad(attachment.id);
       }
     };
+
+    // Sin esto el retry hace setState sobre un componente ya desmontado
+    // (scroll rapido, cambio de filtro).
+    useEffect(
+      () => () => {
+        if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      },
+      [],
+    );
 
     const handleVideoLoad = () => {
       if (timeoutRef.current) {
@@ -65,7 +88,7 @@ const GalleryItem = memo(
 
     // Safety timeout for videos that never fire load events
     useEffect(() => {
-      if (attachment.file_type === "video" && !isLoaded) {
+      if (attachment.file_type === "video" && !hasThumbnail && hasBeenVisible && !isLoaded) {
         timeoutRef.current = setTimeout(() => {
           // Force first-frame seek even on timeout
           if (videoRef.current) {
@@ -80,17 +103,18 @@ const GalleryItem = memo(
           }
         };
       }
-    }, [attachment.file_type, attachment.id, isLoaded, mediaKey]);
+    }, [attachment.file_type, attachment.id, isLoaded, mediaKey, hasThumbnail, hasBeenVisible]);
 
     // Force reload when mediaKey changes
     useEffect(() => {
-      if (videoRef.current && attachment.file_type === "video") {
+      if (videoRef.current && attachment.file_type === "video" && !hasThumbnail) {
         videoRef.current.load();
       }
-    }, [mediaKey, attachment.file_type]);
+    }, [mediaKey, attachment.file_type, hasThumbnail]);
 
     return (
       <div
+        ref={containerRef}
         onClick={() => onClick(idx)}
         className={`relative bg-[#2f2f2f] rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#DC569D] transition-all group break-inside-avoid mb-4 ${!isLoaded && attachment.file_type !== "audio" ? "min-h-[160px]" : ""}`}
       >
@@ -140,12 +164,30 @@ const GalleryItem = memo(
 
         {/* Media Content */}
         <div>
-          {attachment.file_type === "image" ? (
+          {!hasBeenVisible && attachment.file_type !== "audio" ? (
+            // Placeholder hasta que la celda se acerca al viewport: no se pide nada
+            <div className="w-full aspect-square" />
+          ) : attachment.file_type === "image" ? (
             <img
               key={mediaKey}
-              src={attachment.url}
+              src={previewSrc}
               alt="Gallery item"
               loading="lazy"
+              decoding="async"
+              className={`w-full h-auto block transition-opacity duration-300 ${
+                isLoaded ? "opacity-100" : "opacity-0"
+              }`}
+              onLoad={() => onLoad(attachment.id)}
+              onError={handleMediaError}
+            />
+          ) : attachment.file_type === "video" && hasThumbnail ? (
+            // Con thumbnail no hace falta descargar el MP4 para pintar la celda
+            <img
+              key={mediaKey}
+              src={attachment.thumbnail_url}
+              alt="Video thumbnail"
+              loading="lazy"
+              decoding="async"
               className={`w-full h-auto block transition-opacity duration-300 ${
                 isLoaded ? "opacity-100" : "opacity-0"
               }`}
@@ -153,6 +195,7 @@ const GalleryItem = memo(
               onError={handleMediaError}
             />
           ) : attachment.file_type === "video" ? (
+            // Fallback para el historico que todavia no tiene thumbnail generado
             <video
               ref={videoRef}
               key={mediaKey}
@@ -202,6 +245,9 @@ const GalleryItem = memo(
 
 GalleryItem.displayName = "GalleryItem";
 
+/** Celdas fantasma mientras carga la primera pagina. */
+const SKELETON_COUNT = 20;
+
 function Library() {
   const { t } = useI18n();
   const libraryData = useLoaderData();
@@ -209,19 +255,16 @@ function Library() {
   const [galleryFilter, setGalleryFilter] = useState("all");
   const [currentIndex, setCurrentIndex] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [attachmentsData, setAttachmentsData] = useState(
-    libraryData?.chats || [],
-  );
+  const [items, setItems] = useState(libraryData?.items || []);
+  const [nextCursor, setNextCursor] = useState(libraryData?.next_cursor || null);
   const [videoProjects, setVideoProjects] = useState(
     libraryData?.video_projects || [],
   );
-  const [unassignedAttachments, setUnassignedAttachments] = useState(
-    libraryData?.unassigned_attachments || [],
-  );
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(40);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isReloading, setIsReloading] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const loadMoreRef = useRef(null);
   const [editingName, setEditingName] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
@@ -240,112 +283,93 @@ function Library() {
     });
   }, []);
 
-  // Memoize: flatten all attachments from all sources, filter blob URLs, and deduplicate by URL
-  const allAttachments = useMemo(() => {
-    const chatAtts = attachmentsData.flatMap((chat) =>
-      chat.attachments.map((attachment) => ({
-        ...attachment,
-        chatName: chat.name,
-        chatId: chat.id,
-        sourceType: "chat",
+  // Los proyectos de editor son pocos y llegan completos en la primera pagina
+  const projectItems = useMemo(
+    () =>
+      videoProjects.map((project) => ({
+        id: project.id,
+        file_type: "video",
+        url: project.video_url,
+        created_at: project.created_at,
+        chatName: project.name,
+        sourceType: "project",
+        id_project: project.id_project,
+        project_type: project.project_type,
       })),
-    );
+    [videoProjects],
+  );
 
-    const unassignedAtts = unassignedAttachments.map((attachment) => ({
-      ...attachment,
-      chatName: "Unassigned",
-      sourceType: "unassigned",
-    }));
+  // El servidor ya devuelve filtrado y ordenado por fecha; aqui solo se elige
+  // que coleccion mostrar. Antes se ordenaba todo el historico en cada tecla.
+  const sortedAttachments =
+    galleryFilter === "projects" ? projectItems : items;
 
-    const projectAtts = videoProjects.map((project) => ({
-      id: project.id,
-      file_type: "video",
-      url: project.video_url,
-      created_at: project.created_at,
-      chatName: project.name,
-      sourceType: "project",
-      id_project: project.id_project,
-      project_type: project.project_type,
-    }));
+  const hasMore = galleryFilter !== "projects" && Boolean(nextCursor);
 
-    const combined = [...unassignedAtts, ...chatAtts, ...projectAtts];
-
-    // Filter out blob URLs (they are ephemeral and will never load)
-    const withoutBlobs = combined.filter(
-      (att) => !att.url?.startsWith("blob:"),
-    );
-
-    // Deduplicate by URL to avoid rendering the same media multiple times
-    const seen = new Set();
-    return withoutBlobs.filter((att) => {
-      if (!att.url || seen.has(att.url)) return false;
-      seen.add(att.url);
-      return true;
-    });
-  }, [attachmentsData, unassignedAttachments, videoProjects]);
-
-  // Memoize: filter + sort
-  const sortedAttachments = useMemo(() => {
-    const filtered = allAttachments.filter((attachment) => {
-      // Filtro por tipo (AI/Uploads/All/Projects)
-      if (galleryFilter === "projects") {
-        return attachment.sourceType === "project";
-      }
-
-      if (galleryFilter === "ai") {
-        if (attachment.sourceType === "project") return false;
-        const isAI =
-          attachment.path?.includes("generated-images") ||
-          attachment.path?.includes("ia") ||
-          attachment.path?.includes("veo31-videos") ||
-          attachment.path?.includes("sora2-videos") ||
-          attachment.url?.includes("generated-images");
-        if (!isAI) return false;
-      }
-      if (galleryFilter === "uploads") {
-        if (attachment.sourceType === "project") return false;
-        if (attachment.sourceType === "unassigned") return true;
-
-        const isUpload =
-          attachment.path?.includes("user") ||
-          attachment.path?.includes("chat_attachments");
-        if (!isUpload) return false;
-      }
-
-      // Filtro por búsqueda de nombre de chat
-      if (searchTerm.trim() !== "") {
-        return attachment.chatName
-          ?.toLowerCase()
-          .includes(searchTerm.toLowerCase());
-      }
-
-      return true;
-    });
-
-    // Ordenar por fecha de creación (más nuevo primero)
-    return filtered.sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at),
-    );
-  }, [allAttachments, galleryFilter, searchTerm]);
-
-  // Attachments visibles (lazy loading)
-  const visibleAttachments = sortedAttachments.slice(0, visibleCount);
-  const hasMore = visibleCount < sortedAttachments.length;
-
-  // Reset visible count cuando cambia el filtro o búsqueda
+  // La busqueda va al servidor, asi que se espera a que el usuario deje de teclear
   useEffect(() => {
-    setVisibleCount(30);
-  }, [galleryFilter, searchTerm]);
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-  // Cargar más elementos
-  const loadMore = useCallback(() => {
-    if (isLoadingMore || !hasMore) return;
+  // Recarga la primera pagina cuando cambia el filtro o la busqueda
+  useEffect(() => {
+    if (galleryFilter === "projects") return;
+
+    const controller = new AbortController();
+    let cancelled = false;
+
+    setIsReloading(true);
+    getLibrary({
+      source: galleryFilter,
+      q: debouncedSearch,
+      signal: controller.signal,
+    })
+      .then((data) => {
+        if (cancelled) return;
+        setItems(data.items || []);
+        setNextCursor(data.next_cursor || null);
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") {
+          console.error("Error reloading library:", error);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsReloading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [galleryFilter, debouncedSearch]);
+
+  // Cargar la siguiente pagina
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !nextCursor) return;
     setIsLoadingMore(true);
-    setTimeout(() => {
-      setVisibleCount((prev) => Math.min(prev + 30, sortedAttachments.length));
+
+    try {
+      const data = await getLibrary({
+        cursor: nextCursor,
+        source: galleryFilter,
+        q: debouncedSearch,
+      });
+
+      setItems((prev) => {
+        // Una generacion puede aterrizar mientras se scrollea y aparecer en dos
+        // paginas; se deduplica por id al concatenar.
+        const seen = new Set(prev.map((item) => item.id));
+        return [...prev, ...(data.items || []).filter((item) => !seen.has(item.id))];
+      });
+      setNextCursor(data.next_cursor || null);
+    } catch (error) {
+      console.error("Error loading more library items:", error);
+    } finally {
       setIsLoadingMore(false);
-    }, 300);
-  }, [isLoadingMore, hasMore, sortedAttachments.length]);
+    }
+  }, [isLoadingMore, nextCursor, galleryFilter, debouncedSearch]);
 
   // IntersectionObserver para detectar scroll al final
   useEffect(() => {
@@ -416,19 +440,8 @@ function Library() {
           setVideoProjects((prev) =>
             prev.filter((p) => p.id !== deleteConfirm.id),
           );
-        } else if (deleteConfirm.sourceType === "unassigned") {
-          setUnassignedAttachments((prev) =>
-            prev.filter((att) => att.id !== deleteConfirm.id),
-          );
         } else {
-          setAttachmentsData((prevChats) =>
-            prevChats.map((chat) => ({
-              ...chat,
-              attachments: chat.attachments.filter(
-                (att) => att.id !== deleteConfirm.id,
-              ),
-            })),
-          );
+          setItems((prev) => prev.filter((att) => att.id !== deleteConfirm.id));
         }
         setDeleteConfirm(null);
         // Si estamos en preview y eliminamos el actual, cerrar el preview
@@ -575,26 +588,13 @@ function Library() {
         const data = await response.json();
 
         if (data.success) {
-          if (currentAttachment.sourceType === "unassigned") {
-            setUnassignedAttachments((prev) =>
-              prev.map((att) =>
-                att.id === currentAttachment.id
-                  ? { ...att, name: editingName.trim() }
-                  : att,
-              ),
-            );
-          } else {
-            setAttachmentsData((prevChats) =>
-              prevChats.map((chat) => ({
-                ...chat,
-                attachments: chat.attachments.map((att) =>
-                  att.id === currentAttachment.id
-                    ? { ...att, name: editingName.trim() }
-                    : att,
-                ),
-              })),
-            );
-          }
+          setItems((prev) =>
+            prev.map((att) =>
+              att.id === currentAttachment.id
+                ? { ...att, name: editingName.trim() }
+                : att,
+            ),
+          );
           setIsEditingName(false);
         }
       }
@@ -965,7 +965,8 @@ function Library() {
           <Images className="h-6 w-6 text-[#DC569D] flex-shrink-0" />
           <h2 className="text-lg md:text-xl font-semibold text-white">{t("library.title")}</h2>
           <span className="text-sm text-gray-400">
-            ({sortedAttachments.length} items)
+            ({sortedAttachments.length}
+            {hasMore ? "+" : ""} items)
           </span>
         </div>
       </div>
@@ -1042,7 +1043,18 @@ function Library() {
 
       {/* Gallery Grid */}
       <div className="flex-1 overflow-y-auto p-3 md:p-6">
-        {sortedAttachments.length === 0 ? (
+        {isReloading && sortedAttachments.length === 0 ? (
+          <div className="max-w-7xl mx-auto">
+            <div className="columns-2 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 md:gap-4">
+              {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-[#2f2f2f] rounded-lg break-inside-avoid mb-4 animate-pulse aspect-square"
+                />
+              ))}
+            </div>
+          </div>
+        ) : sortedAttachments.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400">
             <Images className="h-16 w-16 mb-4 opacity-50" />
             <p>{t("library.empty")}</p>
@@ -1050,7 +1062,7 @@ function Library() {
         ) : (
           <div className="max-w-7xl mx-auto">
             <div className="columns-2 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 md:gap-4">
-              {visibleAttachments.map((attachment, idx) => (
+              {sortedAttachments.map((attachment, idx) => (
                 <GalleryItem
                   key={attachment.id || idx}
                   attachment={attachment}
@@ -1079,8 +1091,7 @@ function Library() {
                     onClick={loadMore}
                     className="px-6 py-2 bg-[#2f2f2f] text-gray-300 rounded-lg hover:bg-[#3a3a3a] transition-colors"
                   >
-                    Load more ({sortedAttachments.length - visibleCount}{" "}
-                    remaining)
+                    Load more
                   </button>
                 )}
               </div>

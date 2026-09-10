@@ -1,34 +1,55 @@
 import { RouterProvider, createBrowserRouter, Navigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import Cookies from "js-cookie";
 import "./App.css";
-import Editor from "./editor/editor";
-import ResetPassword from "./auth/reset-password";
-import VerifyEmail from "./auth/verify-email";
-import Home from "./dashboard/home";
-import Profile from "./profile/profile";
-import Discover from "./discover/discover";
-import PostDetail from "./discover/post-detail";
-import MainLayout from "./components/main-layout";
 import ErrorBoundary from "./components/error-boundary";
-import { getUserInfo, userInfoLoader } from "./auth/functions";
+import { userInfoLoader } from "./auth/functions";
 import { multiloaderGet } from "./create_elements/functions";
-import MainProject from "./project/main-project";
 import { getProjects } from "./project/functions";
 import { getInfoToEdit } from "./editor/functions";
 import { getDiscoverPosts } from "./discover/functions";
-import Chat from "./chat/chat";
-import ChatView from "./chat/chat-view";
-import ChatLayout from "./chat/chat-layout";
-import Library from "./chat/library";
-import AiLab from "./chat/ai-lab";
-import ProPage from "./subscription/pro-page";
-import MySubscription from "./subscription/my-subscription";
 import { getChatInfo, getChatDetails, getLibrary } from "./chat/functions";
-import LandingPage from "./landing/landing-page";
-import TermsPage from "./legal/terms";
-import PrivacyPage from "./legal/privacy";
-import ContactPage from "./landing/contact-page";
+
+// ChatLayout es el shell de /app y se necesita para pintar el sidebar cuanto antes.
+import ChatLayout from "./chat/chat-layout";
+
+// Chat y ChatView arrastran chat-main (4.6k lineas) y Stripe. Diferidos, no los
+// descarga quien solo abre la landing, y en /app se bajan en paralelo con el loader.
+const Chat = lazy(() => import("./chat/chat"));
+const ChatView = lazy(() => import("./chat/chat-view"));
+
+// Todo lo demas entra bajo demanda. El editor solo son 8k lineas, y la landing
+// arrastra three.js: no tienen por que estar en el bundle de quien abre /app.
+const Editor = lazy(() => import("./editor/editor"));
+const ResetPassword = lazy(() => import("./auth/reset-password"));
+const VerifyEmail = lazy(() => import("./auth/verify-email"));
+const Home = lazy(() => import("./dashboard/home"));
+const Profile = lazy(() => import("./profile/profile"));
+const Discover = lazy(() => import("./discover/discover"));
+const PostDetail = lazy(() => import("./discover/post-detail"));
+const MainLayout = lazy(() => import("./components/main-layout"));
+const MainProject = lazy(() => import("./project/main-project"));
+const Library = lazy(() => import("./chat/library"));
+const AiLab = lazy(() => import("./chat/ai-lab"));
+const ProPage = lazy(() => import("./subscription/pro-page"));
+const MySubscription = lazy(() => import("./subscription/my-subscription"));
+const LandingPage = lazy(() => import("./landing/landing-page"));
+const TermsPage = lazy(() => import("./legal/terms"));
+const PrivacyPage = lazy(() => import("./legal/privacy"));
+const ContactPage = lazy(() => import("./landing/contact-page"));
+
+function RouteFallback() {
+  return (
+    <div className="flex items-center justify-center h-screen bg-primarioDark">
+      <div className="w-12 h-12 border-4 border-primarioLogo border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
+/** Envuelve una ruta diferida en su propio limite de Suspense. */
+function page(element) {
+  return <Suspense fallback={<RouteFallback />}>{element}</Suspense>;
+}
 
 // Component to handle editor redirection
 function EditorRedirect() {
@@ -73,33 +94,33 @@ const router = createBrowserRouter([
   },
   {
     path: "/reset-password/:token",
-    element: <ResetPassword />,
+    element: page(<ResetPassword />),
     errorElement: <ErrorBoundary />,
   },
   {
     path: "/verify-email",
-    element: <VerifyEmail />,
+    element: page(<VerifyEmail />),
     errorElement: <ErrorBoundary />,
   },
   {
     path: "discover/post/:id",
-    element: <PostDetail />,
+    element: page(<PostDetail />),
   },
   {
     path: "/",
-    element: <LandingPage />,
+    element: page(<LandingPage />),
   },
   {
     path: "/terms",
-    element: <TermsPage />,
+    element: page(<TermsPage />),
   },
   {
     path: "/privacy",
-    element: <PrivacyPage />,
+    element: page(<PrivacyPage />),
   },
   {
     path: "/contact",
-    element: <ContactPage />,
+    element: page(<ContactPage />),
   },
   {
     path: "/app",
@@ -109,28 +130,28 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Chat />,
+        element: page(<Chat />),
       },
       {
         path: "library",
-        element: <Library />,
-        loader: getLibrary,
+        element: page(<Library />),
+        loader: () => getLibrary(),
       },
       {
         path: "dashboard",
-        element: <AiLab />,
+        element: page(<AiLab />),
       },
       {
         path: "pro",
-        element: <ProPage />,
+        element: page(<ProPage />),
       },
       {
         path: "my-subscription",
-        element: <MySubscription />,
+        element: page(<MySubscription />),
       },
       {
         path: ":chatId",
-        element: <ChatView />,
+        element: page(<ChatView />),
         loader: async ({ params }) => {
           const { chatId } = params;
           return await getChatDetails(chatId);
@@ -138,40 +159,40 @@ const router = createBrowserRouter([
       },
       {
         path: "profile",
-        element: <Profile />,
+        element: page(<Profile />),
         loader: userInfoLoader,
       },
       {
         path: "discover",
-        element: <Discover />,
+        element: page(<Discover />),
         loader: () => getDiscoverPosts(1, 10),
       },
     ],
   },
   {
     path: "/v2",
-    element: <MainLayout />,
+    element: page(<MainLayout />),
     loader: userInfoLoader,
     errorElement: <ErrorBoundary />,
     children: [
       {
         index: true,
-        element: <Discover />,
+        element: page(<Discover />),
         loader: () => getDiscoverPosts(1, 10),
       },
       {
         path: "projects",
-        element: <Home />,
+        element: page(<Home />),
         loader: multiloaderGet,
       },
       {
         path: "profile",
-        element: <Profile />,
+        element: page(<Profile />),
         loader: userInfoLoader,
       },
       {
         path: "project/:id",
-        element: <MainProject />,
+        element: page(<MainProject />),
         loader: async ({ params }) => {
           const { id } = params;
           return await getProjects(id);
@@ -181,7 +202,7 @@ const router = createBrowserRouter([
   },
   {
     path: "editor-2",
-    element: <Editor />,
+    element: page(<Editor />),
     loader: getInfoToEdit,
   },
   {
