@@ -5,9 +5,20 @@ import "./index.css";
 import App from "./App.jsx";
 import { I18nProvider } from "./i18n/i18n-context.jsx";
 import { HelmetProvider } from "react-helmet-async";
-import LogRocket from "logrocket";
 
-LogRocket.init("wlthxj/reelmotion");
+// LogRocket graba el DOM y la red: pesa y compite con el primer render. Se carga
+// cuando el navegador esta ocioso, no en el arranque.
+function initLogRocket() {
+  import("logrocket")
+    .then(({ default: LogRocket }) => LogRocket.init("wlthxj/reelmotion"))
+    .catch(() => {});
+}
+
+if (typeof requestIdleCallback === "function") {
+  requestIdleCallback(initLogRocket, { timeout: 5000 });
+} else {
+  setTimeout(initLogRocket, 3000);
+}
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

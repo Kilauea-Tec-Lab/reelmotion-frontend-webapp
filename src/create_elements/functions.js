@@ -1,4 +1,3 @@
-import { desc } from "framer-motion/client";
 import Cookies from "js-cookie";
 import { getUserInfo } from "../auth/functions";
 

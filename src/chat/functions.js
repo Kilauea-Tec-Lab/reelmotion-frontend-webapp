@@ -79,14 +79,28 @@ export async function getChatDetails(chatId) {
   }
 }
 
-export async function getLibrary() {
+/**
+ * Una pagina de la librería de media.
+ *
+ * El endpoint pagina por cursor y filtra en servidor: antes devolvía todo el
+ * historico del usuario en una sola respuesta.
+ */
+export async function getLibrary({ cursor, source, q, signal } = {}) {
+  const params = new URLSearchParams();
+  if (cursor) params.set("cursor", cursor);
+  if (source && source !== "all") params.set("source", source);
+  if (q) params.set("q", q);
+
+  const query = params.toString();
+
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_APP_BACKEND_URL}chat/get-library`,
+      `${import.meta.env.VITE_APP_BACKEND_URL}chat/get-library${query ? `?${query}` : ""}`,
       {
         headers: {
           Authorization: "Bearer " + Cookies.get("token"),
         },
+        signal,
       },
     );
 
@@ -94,8 +108,20 @@ export async function getLibrary() {
       throw new Error("Failed to fetch library");
     }
 
-    return response.json();
+    const data = await response.json();
+
+    return {
+      ...data,
+      // La UI trabaja con chatName/sourceType; el endpoint devuelve las columnas
+      // crudas. Se normaliza aqui para que loader y scroll infinito coincidan.
+      items: (data.items || []).map((item) => ({
+        ...item,
+        chatName: item.chat_name || "Unassigned",
+        sourceType: item.chat_message_id ? "chat" : "unassigned",
+      })),
+    };
   } catch (error) {
+    if (error.name === "AbortError") throw error;
     console.error("Error fetching library:", error);
     throw error;
   }
