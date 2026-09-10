@@ -20,14 +20,29 @@ function Chat() {
   ) => {
     const MAX_RETRIES = 6;
 
-    // Normalizar filesData
+    // Normalizar filesData. Mismo tratamiento que chat-view.jsx: los adjuntos que
+    // vienen como URL (reenviados o reutilizados) tambien cuentan, antes se caian
+    // aqui y el mensaje se enviaba sin ellos (o ni se enviaba).
     let actualFiles = [];
+    let forwardedAttachments = [];
     if (
       filesData &&
       typeof filesData === "object" &&
       !Array.isArray(filesData)
     ) {
       actualFiles = filesData.files || [];
+
+      if (Array.isArray(filesData.attachments_image_url)) {
+        filesData.attachments_image_url.forEach((url) => {
+          forwardedAttachments.push({ url, file_type: "image" });
+        });
+      }
+
+      if (Array.isArray(filesData.attachment_video_url)) {
+        filesData.attachment_video_url.forEach((url) => {
+          forwardedAttachments.push({ url, file_type: "video" });
+        });
+      }
     } else if (Array.isArray(filesData)) {
       actualFiles = filesData;
     }
@@ -37,7 +52,12 @@ function Chat() {
 
     // Solo validar en el primer intento
     if (retryCount === 0) {
-      if ((!message.trim() && actualFiles.length === 0) || isSending) {
+      if (
+        (!message.trim() &&
+          actualFiles.length === 0 &&
+          forwardedAttachments.length === 0) ||
+        isSending
+      ) {
         return;
       }
 
@@ -48,11 +68,17 @@ function Chat() {
         id: Date.now(),
         role: "user",
         content:
-          userMessage || (actualFiles.length > 0 ? "[Files attached]" : ""),
-        attachments: actualFiles.map((f) => ({
-          url: f.isUrl ? f.url : f.preview,
-          file_type: f.type,
-        })),
+          userMessage ||
+          (actualFiles.length > 0 || forwardedAttachments.length > 0
+            ? "[Files attached]"
+            : ""),
+        attachments: [
+          ...actualFiles.map((f) => ({
+            url: f.isUrl ? f.url : f.preview,
+            file_type: f.type,
+          })),
+          ...forwardedAttachments,
+        ],
       };
       setPreviewMessages([tempUserMsg]);
 
