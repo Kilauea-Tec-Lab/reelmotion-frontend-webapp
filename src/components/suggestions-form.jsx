@@ -71,7 +71,7 @@ function SuggestionsForm({ onClose }) {
           onClose();
         }, 3000);
       } else {
-        throw new Error(response.error || "Error al enviar la sugerencia");
+        throw new Error(response.error || t("suggestions.err.send"));
       }
     } catch (error) {
       console.error("Error submitting suggestion:", error);

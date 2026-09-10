@@ -1,5 +1,6 @@
 import { div, span } from "framer-motion/client";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useI18n } from "../i18n/i18n-context";
 import {
   Play,
   Pause,
@@ -55,6 +56,7 @@ const MAX_HISTORY_LENGTH = 50;
 // - Resize handles appear on hover for all timeline elements
 
 function Editor() {
+  const { t } = useI18n();
   const data = useLoaderData();
   const [menuActive, setMenuActive] = useState(1);
   const [draggedItem, setDraggedItem] = useState(null);
@@ -3700,7 +3702,7 @@ function Editor() {
   // Pre-rendering function with Screen Capture API (much simpler and faster)
   const handlePreRender = async () => {
     if (arrayVideoMake.length === 0) {
-      alert("No hay elementos en el timeline para pre-renderizar");
+      alert(t("editor.err.noTimelineItems"));
       return;
     }
 
@@ -3825,11 +3827,9 @@ function Editor() {
       setIsPreRendering(false);
 
       if (error.name === "NotAllowedError") {
-        alert(
-          "Debes permitir el acceso a la captura de pantalla para pre-renderizar"
-        );
+        alert(t("editor.err.screenCaptureDenied"));
       } else {
-        alert("Error durante el pre-renderizado: " + error.message);
+        alert(t("editor.err.preRender") + error.message);
       }
     }
   };
@@ -3991,7 +3991,7 @@ function Editor() {
     const imageFiles = files.filter((file) => file.type.startsWith("image/"));
 
     if (imageFiles.length === 0) {
-      alert("Por favor, solo suelta archivos de imagen");
+      alert(t("editor.err.imagesOnly"));
       return;
     }
 
@@ -4000,7 +4000,7 @@ function Editor() {
       const newImages = await handleImageDrop(imageFiles);
       setImages((prevImages) => [...prevImages, ...newImages]);
     } catch (error) {
-      alert("Error al subir las imágenes. Por favor, intenta nuevamente.");
+      alert(t("editor.err.uploadImages"));
     } finally {
       setIsUploadingImages(false);
     }
@@ -4021,7 +4021,7 @@ function Editor() {
     const audioFiles = files.filter((file) => file.type.startsWith("audio/"));
 
     if (audioFiles.length === 0) {
-      alert("Por favor, suelta archivos de audio válidos");
+      alert(t("editor.err.audioOnly"));
       return;
     }
 
@@ -4030,7 +4030,7 @@ function Editor() {
       const newMusic = await handleAudioDrop(audioFiles, "music");
       setMusicList((prev) => [...prev, ...newMusic]);
     } catch (error) {
-      alert("Error al subir música. Intenta nuevamente.");
+      alert(t("editor.err.uploadMusic"));
     } finally {
       setIsUploadingMusic(false);
     }
@@ -4045,7 +4045,7 @@ function Editor() {
       const newMusic = await handleAudioDrop(files, "music");
       setMusicList((prev) => [...prev, ...newMusic]);
     } catch (error) {
-      alert("Error al subir música. Intenta nuevamente.");
+      alert(t("editor.err.uploadMusic"));
     } finally {
       setIsUploadingMusic(false);
       e.target.value = "";
@@ -4067,7 +4067,7 @@ function Editor() {
     const audioFiles = files.filter((file) => file.type.startsWith("audio/"));
 
     if (audioFiles.length === 0) {
-      alert("Por favor, suelta archivos de audio válidos");
+      alert(t("editor.err.audioOnly"));
       return;
     }
 
@@ -4076,7 +4076,7 @@ function Editor() {
       const newSound = await handleAudioDrop(audioFiles, "sound");
       setSoundList((prev) => [...prev, ...newSound]);
     } catch (error) {
-      alert("Error al subir sounds. Intenta nuevamente.");
+      alert(t("editor.err.uploadSounds"));
     } finally {
       setIsUploadingSound(false);
     }
@@ -4168,10 +4168,10 @@ function Editor() {
         setShowDeleteMusicModal(false);
         setMusicToDelete(null);
       } else {
-        alert(data.message || "No se pudo eliminar la música");
+        alert(data.message || t("editor.err.deleteMusicFailed"));
       }
     } catch (err) {
-      alert("Error al eliminar música");
+      alert(t("editor.err.deleteMusic"));
     } finally {
       setIsDeletingMusic(false);
     }
@@ -4199,7 +4199,7 @@ function Editor() {
     const audioFiles = files.filter((file) => file.type.startsWith("audio/"));
 
     if (audioFiles.length === 0) {
-      alert("Por favor, suelta archivos de audio válidos");
+      alert(t("editor.err.audioOnly"));
       return;
     }
 
@@ -4235,7 +4235,7 @@ function Editor() {
         }
       });
     } catch (error) {
-      alert("Error al subir voz. Intenta nuevamente.");
+      alert(t("editor.err.uploadVoice"));
     } finally {
       setIsUploadingVoice(false);
     }
@@ -4277,7 +4277,7 @@ function Editor() {
         }
       });
     } catch (error) {
-      alert("Error al subir voz. Intenta nuevamente.");
+      alert(t("editor.err.uploadVoice"));
     } finally {
       setIsUploadingVoice(false);
       e.target.value = "";
@@ -4325,10 +4325,10 @@ function Editor() {
         setShowDeleteVoiceModal(false);
         setVoiceToDelete(null);
       } else {
-        alert(data.message || "No se pudo eliminar la voz");
+        alert(data.message || t("editor.err.deleteVoiceFailed"));
       }
     } catch (err) {
-      alert("Error al eliminar voz");
+      alert(t("editor.err.deleteVoice"));
     } finally {
       setIsDeletingVoice(false);
     }
@@ -4411,10 +4411,10 @@ function Editor() {
         setShowDeleteSoundModal(false);
         setSoundToDelete(null);
       } else {
-        alert(data.message || "No se pudo eliminar el sound");
+        alert(data.message || t("editor.err.deleteSoundFailed"));
       }
     } catch (err) {
-      alert("Error al eliminar sound");
+      alert(t("editor.err.deleteSound"));
     } finally {
       setIsDeletingSound(false);
     }
@@ -4436,7 +4436,7 @@ function Editor() {
       const newImages = await handleImageDrop(files);
       setImages((prevImages) => [...prevImages, ...newImages]);
     } catch (error) {
-      alert("Error al subir las imágenes. Por favor, intenta nuevamente.");
+      alert(t("editor.err.uploadImages"));
     } finally {
       setIsUploadingImages(false);
       // Reset input
@@ -5118,7 +5118,7 @@ function Editor() {
                         <button
                           onClick={(e) => handleDeleteMusicClick(e, music)}
                           className="absolute top-2 right-2 p-1.5 bg-primarioLogo text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                          title="Eliminar música"
+                          title={t("editor.tip.deleteMusic")}
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -7570,7 +7570,7 @@ function Editor() {
                                     setHoveredElement(null);
                                   }}
                                   className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
-                                  title="Eliminar escena"
+                                  title={t("editor.tip.deleteScene")}
                                 >
                                   <Trash2 size={12} />
                                 </button>
@@ -7667,7 +7667,7 @@ function Editor() {
                               onMouseDown={(e) =>
                                 handleResizeStart(e, item, "start")
                               }
-                              title="Cambiar inicio"
+                              title={t("editor.tip.changeStart")}
                             ></div>
 
                             {/* Manija de redimensionamiento derecha */}
@@ -7676,7 +7676,7 @@ function Editor() {
                               onMouseDown={(e) =>
                                 handleResizeStart(e, item, "end")
                               }
-                              title="Cambiar duración"
+                              title={t("editor.tip.changeDuration")}
                             ></div>
 
                             {/* Opciones de hover */}
@@ -7689,7 +7689,7 @@ function Editor() {
                                     setHoveredElement(null);
                                   }}
                                   className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
-                                  title="Eliminar elemento"
+                                  title={t("editor.tip.deleteElement")}
                                 >
                                   <Trash2 size={12} />
                                 </button>
@@ -7797,7 +7797,7 @@ function Editor() {
                                   setHoveredElement(null);
                                 }}
                                 className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
-                                title="Eliminar música"
+                                title={t("editor.tip.deleteMusic")}
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -7904,7 +7904,7 @@ function Editor() {
                                   setHoveredElement(null);
                                 }}
                                 className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
-                                title="Eliminar voz"
+                                title={t("editor.tip.deleteVoice")}
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -8011,7 +8011,7 @@ function Editor() {
                                   setHoveredElement(null);
                                 }}
                                 className="bg-primarioLogo text-white p-1 rounded-md transition-all duration-200 shadow-lg"
-                                title="Eliminar sonido"
+                                title={t("editor.tip.deleteSound")}
                               >
                                 <Trash2 size={12} />
                               </button>

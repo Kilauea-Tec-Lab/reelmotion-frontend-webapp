@@ -1460,7 +1460,7 @@ function AiLabModal({ isOpen, onClose }) {
       setGeneratedImages([resultUrl]);
     } else {
       setError(
-        errorMsg || "La generación falló. Tus tokens fueron reembolsados.",
+        errorMsg || t("gen.failed"),
       );
     }
     setIsGenerating(false);
@@ -1516,7 +1516,7 @@ function AiLabModal({ isOpen, onClose }) {
     if (!trackingDoneRef.current) {
       trackingDoneRef.current = true;
       setError(
-        "La generación está tardando más de lo esperado. Revisa tu biblioteca en unos minutos.",
+        t("gen.timeout"),
       );
       setIsGenerating(false);
       setUploadingStatus("");
@@ -1960,14 +1960,14 @@ function AiLabModal({ isOpen, onClose }) {
         if (result?.async) {
           asyncTracking = true;
           setUploadingStatus(
-            "Tu imagen se está generando… te avisaremos cuando esté lista.",
+            t("gen.image.pending"),
           );
           if (typeof result.remaining_tokens === "number") {
             setVoiceTokens(result.remaining_tokens);
           }
           setGenerationInfo({
             remainingTokens: result.remaining_tokens ?? "N/A",
-            message: result.message || "Generación en curso.",
+            message: result.message || t("gen.inProgress"),
           });
           setPrompt("");
           setNegativePrompt("");
@@ -2071,7 +2071,7 @@ function AiLabModal({ isOpen, onClose }) {
         if (result?.async) {
           asyncTracking = true;
           setUploadingStatus(
-            "Tu video se está generando… te avisaremos cuando esté listo.",
+            t("gen.video.pending"),
           );
           // The remaining balance already comes back in the 202 response.
           if (typeof result.remaining_tokens === "number") {
@@ -2079,7 +2079,7 @@ function AiLabModal({ isOpen, onClose }) {
           }
           setGenerationInfo({
             remainingTokens: result.remaining_tokens ?? "N/A",
-            message: result.message || "Generación en curso.",
+            message: result.message || t("gen.inProgress"),
           });
           // Inputs were accepted; clear them now (the sync cleanup below is
           // skipped because of the early return).
@@ -2148,8 +2148,8 @@ function AiLabModal({ isOpen, onClose }) {
         asyncTracking = true;
         setUploadingStatus(
           activeTab === "image"
-            ? "Tu imagen se está generando… te avisaremos cuando esté lista."
-            : "Tu video se está generando… te avisaremos cuando esté listo.",
+            ? t("gen.image.pending")
+            : t("gen.video.pending"),
         );
         trackGeneration();
         return; // keep isGenerating true; finalizeGeneration() turns it off
