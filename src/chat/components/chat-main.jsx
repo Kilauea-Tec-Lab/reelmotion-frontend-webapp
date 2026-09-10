@@ -1210,6 +1210,29 @@ function ChatMain({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Cerrar el menu de adjuntar al hacer clic fuera o con Escape. Se usa el
+  // data-attribute en vez de un ref porque el composer esta duplicado en tres
+  // ramas y un ref compartido puede quedar en null segun cual este montada.
+  useEffect(() => {
+    if (!showFileMenu) return;
+
+    const handleClickOutsideFileMenu = (event) => {
+      if (!event.target.closest("[data-file-menu]")) {
+        setShowFileMenu(false);
+      }
+    };
+    const handleEscape = (event) => {
+      if (event.key === "Escape") setShowFileMenu(false);
+    };
+
+    document.addEventListener("mousedown", handleClickOutsideFileMenu);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutsideFileMenu);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [showFileMenu]);
+
   // Fetch user tokens
   const fetchUserTokens = async () => {
     setIsLoadingTokens(true);
@@ -1423,22 +1446,15 @@ function ChatMain({
 
   const handleFileSelect = (type) => {
     setShowFileMenu(false);
-    if (type === "image") {
-      imageInputRef.current?.click();
-    } else if (type === "video") {
-      // Check if video already exists
-      const hasVideo = selectedFiles.some((f) => f.type === "video");
-      if (hasVideo) {
-        // Optional: Alert user or just replace. Let's replace for better UX or just ignore.
-        // For now, let's allow clicking, and handle replacement in change handler
-        // or prevent if strict. User said "solo un video".
-        // Let's allow opening dialog, and if they select one, we replace the existing one?
-        // Or maybe just block.
-        // Let's block with a simple alert for now or just don't open.
-        // Actually, replacing is usually better UX.
-      }
-      videoInputRef.current?.click();
+    // Sin el `?.`: si el input no esta montado queremos verlo en consola, no un
+    // menu que se cierra y no abre nada (que es como se veia el bug).
+    // handleVideoChange ya reemplaza el video anterior si habia uno.
+    const input = type === "image" ? imageInputRef.current : videoInputRef.current;
+    if (!input) {
+      console.error(`[handleFileSelect] input de ${type} no montado`);
+      return;
     }
+    input.click();
   };
 
   const handleImageChange = (e) => {
@@ -2080,6 +2096,24 @@ function ChatMain({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {/* Inputs de archivo unicos: estaban duplicados en las tres ramas del
+          composer compartiendo el mismo ref, asi que al cambiar de rama el ref
+          apuntaba a un nodo desmontado y handleFileSelect no abria nada. */}
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleImageChange}
+        className="hidden"
+      />
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept="video/*,.mov,.mp4,.webm,.m4v"
+        onChange={handleVideoChange}
+        className="hidden"
+      />
       {isDragging && (
         <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-sm border-4 border-dashed border-[#DC569D] m-4 rounded-2xl flex flex-col items-center justify-center pointer-events-none">
           <div className="bg-[#2f2f2f] p-8 rounded-2xl flex flex-col items-center gap-4 border border-gray-700 shadow-2xl">
@@ -3165,9 +3199,10 @@ function ChatMain({
               )}
 
               <div className="flex items-center gap-3 bg-[#2f2f2f] rounded-2xl px-4 py-3 border border-gray-700 relative">
-                <div className="relative">
+                <div className="relative" data-file-menu>
                   <button
-                    onClick={() => setShowFileMenu(!showFileMenu)}
+                    type="button"
+                    onClick={() => setShowFileMenu((prev) => !prev)}
                     className="text-gray-400 hover:text-white transition-colors"
                   >
                     <Plus size={20} />
@@ -3175,6 +3210,7 @@ function ChatMain({
                   {showFileMenu && (
                     <div className="absolute bottom-full left-0 mb-2 bg-[#2f2f2f] border border-gray-700 rounded-lg shadow-lg overflow-hidden z-20 w-40">
                       <button
+                        type="button"
                         onClick={() => handleFileSelect("image")}
                         className="flex items-center gap-3 px-4 py-3 hover:bg-[#3a3a3a] transition-colors w-full text-left"
                       >
@@ -3182,6 +3218,7 @@ function ChatMain({
                         <span className="text-sm">Add images</span>
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleFileSelect("video")}
                         className="flex items-center gap-3 px-4 py-3 hover:bg-[#3a3a3a] transition-colors w-full text-left border-t border-gray-700"
                       >
@@ -3191,21 +3228,6 @@ function ChatMain({
                     </div>
                   )}
                 </div>
-                <input
-                  ref={imageInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-                <input
-                  ref={videoInputRef}
-                  type="file"
-                  accept="video/*"
-                  onChange={handleVideoChange}
-                  className="hidden"
-                />
                 <textarea
                   ref={messageInputRef}
                   placeholder={t("chat.placeholder")}
@@ -3481,9 +3503,10 @@ function ChatMain({
                   )}
 
                   <div className="flex items-center gap-3 bg-[#2f2f2f] rounded-2xl px-5 py-4 border border-gray-700 hover:border-gray-600 transition-colors relative">
-                    <div className="relative">
+                    <div className="relative" data-file-menu>
                       <button
-                        onClick={() => setShowFileMenu(!showFileMenu)}
+                        type="button"
+                    onClick={() => setShowFileMenu((prev) => !prev)}
                         className="text-gray-400 hover:text-white transition-colors"
                       >
                         <Plus size={20} />
@@ -3491,14 +3514,16 @@ function ChatMain({
                       {showFileMenu && (
                         <div className="absolute bottom-full left-0 mb-2 bg-[#2f2f2f] border border-gray-700 rounded-lg shadow-lg overflow-hidden z-20 w-40">
                           <button
-                            onClick={() => handleFileSelect("image")}
+                            type="button"
+                        onClick={() => handleFileSelect("image")}
                             className="flex items-center gap-3 px-4 py-3 hover:bg-[#3a3a3a] transition-colors w-full text-left"
                           >
                             <Image size={18} />
                             <span className="text-sm">Add images</span>
                           </button>
                           <button
-                            onClick={() => handleFileSelect("video")}
+                            type="button"
+                        onClick={() => handleFileSelect("video")}
                             className="flex items-center gap-3 px-4 py-3 hover:bg-[#3a3a3a] transition-colors w-full text-left border-t border-gray-700"
                           >
                             <Video size={18} />
@@ -3507,21 +3532,6 @@ function ChatMain({
                         </div>
                       )}
                     </div>
-                    <input
-                      ref={imageInputRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                    <input
-                      ref={videoInputRef}
-                      type="file"
-                      accept="video/*"
-                      onChange={handleVideoChange}
-                      className="hidden"
-                    />
                     <textarea
                       ref={messageInputRef}
                       placeholder={t("chat.placeholder")}
@@ -3871,9 +3881,10 @@ function ChatMain({
                     )}
 
                     <div className="flex items-center gap-3 bg-[#2f2f2f] rounded-2xl px-5 py-4 border border-gray-700 hover:border-gray-600 transition-colors relative">
-                      <div className="relative">
+                      <div className="relative" data-file-menu>
                         <button
-                          onClick={() => setShowFileMenu(!showFileMenu)}
+                          type="button"
+                    onClick={() => setShowFileMenu((prev) => !prev)}
                           className="text-gray-400 hover:text-white transition-colors"
                         >
                           <Plus size={20} />
@@ -3881,14 +3892,16 @@ function ChatMain({
                         {showFileMenu && (
                           <div className="absolute bottom-full left-0 mb-2 bg-[#2f2f2f] border border-gray-700 rounded-lg shadow-lg overflow-hidden z-20 w-40">
                             <button
-                              onClick={() => handleFileSelect("image")}
+                              type="button"
+                        onClick={() => handleFileSelect("image")}
                               className="flex items-center gap-3 px-4 py-3 hover:bg-[#3a3a3a] transition-colors w-full text-left"
                             >
                               <Image size={18} />
                               <span className="text-sm">Add images</span>
                             </button>
                             <button
-                              onClick={() => handleFileSelect("video")}
+                              type="button"
+                        onClick={() => handleFileSelect("video")}
                               className="flex items-center gap-3 px-4 py-3 hover:bg-[#3a3a3a] transition-colors w-full text-left border-t border-gray-700"
                             >
                               <Video size={18} />
@@ -3897,21 +3910,6 @@ function ChatMain({
                           </div>
                         )}
                       </div>
-                      <input
-                        ref={imageInputRef}
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={handleImageChange}
-                        className="hidden"
-                      />
-                      <input
-                        ref={videoInputRef}
-                        type="file"
-                        accept="video/*"
-                        onChange={handleVideoChange}
-                        className="hidden"
-                      />
                       <textarea
                         ref={messageInputRef}
                         placeholder={t("chat.placeholder")}
