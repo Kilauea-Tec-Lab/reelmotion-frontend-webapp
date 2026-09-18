@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useI18n } from "../../i18n/i18n-context";
-import { Crown, Zap, Star, Check, Minus } from "lucide-react";
+import { Crown, Zap, Star, Check, Minus, Building2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import AnimatedSection from "./animated-section";
 import {
   PricingTable,
@@ -14,10 +15,10 @@ import {
 import { Button } from "../../components/ui/button";
 
 const PricingSection = ({ onOpenAuth }) => {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [isYearly, setIsYearly] = useState(false);
 
-  const isEs = t("pricing.monthly") === "Mensual";
+  const isEs = locale === "es";
   const ctaLabel = isEs ? "Comenzar" : "Get Started";
 
   const COMPARISON_FEATURES = [
@@ -38,7 +39,7 @@ const PricingSection = ({ onOpenAuth }) => {
   const plans = [
     {
       name: t("pricing.free.name"),
-      badge: "Personal",
+      badge: t("pricing.badge.starter"),
       price: "$0",
       compareAt: null,
       icon: Star,
@@ -50,7 +51,7 @@ const PricingSection = ({ onOpenAuth }) => {
     },
     {
       name: t("pricing.pro.name"),
-      badge: t("pricing.popular"),
+      badge: t("pricing.badge.teams"),
       price: isYearly ? "$194.99" : "$17.99",
       compareAt: isYearly ? "$215.88" : null,
       icon: Zap,
@@ -63,7 +64,7 @@ const PricingSection = ({ onOpenAuth }) => {
     },
     {
       name: t("pricing.elite.name"),
-      badge: isEs ? "Profesional" : "Professional",
+      badge: t("pricing.badge.agency"),
       price: isYearly ? "$518.28" : "$47.99",
       compareAt: isYearly ? "$575.88" : null,
       icon: Crown,
@@ -292,6 +293,38 @@ const PricingSection = ({ onOpenAuth }) => {
               ))}
             </PricingTableBody>
           </PricingTable>
+        </div>
+      </AnimatedSection>
+
+      {/* Enterprise / custom volume */}
+      <AnimatedSection delay={0.3}>
+        <div className="max-w-5xl mx-auto px-6 mt-8">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 md:p-8 flex flex-col md:flex-row md:items-center gap-6">
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: "rgba(242,213,67,0.08)", border: "1px solid rgba(242,213,67,0.2)" }}
+            >
+              <Building2 size={22} className="text-[#F2D543]" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-white">{t("pricing.enterprise.title")}</h3>
+              <p className="text-sm text-gray-500 mt-1 leading-relaxed">{t("pricing.enterprise.subtitle")}</p>
+              <ul className="flex flex-wrap gap-x-5 gap-y-1.5 mt-3">
+                {["bullet1", "bullet2", "bullet3"].map((k) => (
+                  <li key={k} className="flex items-center gap-1.5 text-xs text-white/60">
+                    <Check size={14} className="text-[#F2D543]" />
+                    {t(`pricing.enterprise.${k}`)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <Link
+              to="/contact"
+              className="inline-flex justify-center items-center px-6 py-3 rounded-xl text-sm font-semibold border border-[#F2D543]/30 bg-[#F2D543]/5 text-[#F2D543] hover:bg-[#F2D543]/10 transition-all shrink-0"
+            >
+              {t("pricing.enterprise.cta")}
+            </Link>
+          </div>
         </div>
       </AnimatedSection>
       </div>

@@ -53,7 +53,6 @@ export default defineConfig({
             "@solana/wallet-adapter-phantom",
           ],
           "vendor-stripe": ["@stripe/react-stripe-js", "@stripe/stripe-js"],
-          "vendor-three": ["three"],
           "vendor-motion": ["framer-motion"],
         },
       },

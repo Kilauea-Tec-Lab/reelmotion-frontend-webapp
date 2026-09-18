@@ -7,19 +7,27 @@ import {
 } from "framer-motion";
 import { useI18n } from "../../i18n/i18n-context";
 import LanguageSelector from "../../i18n/language-selector";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
 const navLinks = [
   { labelKey: "nav.features", href: "#features" },
   { labelKey: "nav.ai-agent", href: "#ai-agent" },
   { labelKey: "nav.editor", href: "#editor" },
+  { labelKey: "nav.integrations", href: "#integrations" },
   { labelKey: "nav.pricing", href: "#pricing" },
+  { labelKey: "nav.developers", href: "/developers", route: true },
 ];
 
 const LandingNavbar = ({ scrollRef, onOpenAuth }) => {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const goToAnchor = (href) => {
+    const el = document.querySelector(href);
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+    else navigate("/" + href); // anchor lives on the landing (e.g. we're on /contact)
+  };
   const { scrollY } = useScroll({ container: scrollRef });
 
   const bgOpacity = useTransform(scrollY, [0, 100], [0, 0.95]);
@@ -48,21 +56,26 @@ const LandingNavbar = ({ scrollRef, onOpenAuth }) => {
             </Link>
 
             {/* Center nav links - hidden on mobile */}
-            <div className="hidden md:flex items-center gap-8">
-              {navLinks.map((link) => (
+            <div className="hidden md:flex items-center gap-6 lg:gap-8">
+              {navLinks.map((link) =>
+                link.route ? (
+                  <Link key={link.href} to={link.href} className="text-sm text-gray-300 hover:text-white transition-colors">
+                    {t(link.labelKey)}
+                  </Link>
+                ) : (
                 <a
                   key={link.href}
                   href={link.href}
                   className="text-sm text-gray-300 hover:text-white transition-colors"
                   onClick={(e) => {
                     e.preventDefault();
-                    const el = document.querySelector(link.href);
-                    if (el) el.scrollIntoView({ behavior: "smooth" });
+                    goToAnchor(link.href);
                   }}
                 >
                   {t(link.labelKey)}
                 </a>
-              ))}
+                )
+              )}
             </div>
 
             {/* Right side */}
@@ -100,7 +113,17 @@ const LandingNavbar = ({ scrollRef, onOpenAuth }) => {
           className="md:hidden overflow-hidden bg-[#0C0C0D]/95 backdrop-blur-lg border-t border-white/5"
         >
           <div className="px-4 py-4 flex flex-col gap-4">
-            {navLinks.map((link) => (
+            {navLinks.map((link) =>
+              link.route ? (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  className="text-sm text-gray-300 hover:text-white transition-colors py-2"
+                >
+                  {t(link.labelKey)}
+                </Link>
+              ) : (
               <a
                 key={link.href}
                 href={link.href}
@@ -108,13 +131,13 @@ const LandingNavbar = ({ scrollRef, onOpenAuth }) => {
                 onClick={(e) => {
                   e.preventDefault();
                   setMobileOpen(false);
-                  const el = document.querySelector(link.href);
-                  if (el) el.scrollIntoView({ behavior: "smooth" });
+                  goToAnchor(link.href);
                 }}
               >
                 {t(link.labelKey)}
               </a>
-            ))}
+              )
+            )}
             <button
               onClick={() => {
                 setMobileOpen(false);

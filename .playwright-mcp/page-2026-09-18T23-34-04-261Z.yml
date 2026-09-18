@@ -1,0 +1,117 @@
+- main [ref=e4]:
+  - generic [ref=e5]:
+    - main [ref=e6]:
+      - navigation [ref=e7]:
+        - link [ref=e8] [cursor=pointer]:
+          - /url: /
+        - generic [ref=e28]:
+          - link "Home" [ref=e29] [cursor=pointer]:
+            - /url: /?view_from=homepage_tab
+          - link "Models" [ref=e31] [cursor=pointer]:
+            - /url: /models?view_from=homepage_tab
+          - link "Blog & Publication" [ref=e33] [cursor=pointer]:
+            - /url: /research?view_from=homepage_tab
+          - link "Seed Edge" [ref=e35] [cursor=pointer]:
+            - /url: /seed-edge?view_from=homepage_tab
+          - link "Join Us" [ref=e37] [cursor=pointer]:
+            - /url: /career?view_from=homepage_tab
+        - generic [ref=e39] [cursor=pointer]:
+          - generic [ref=e40]: EN
+          - generic [ref=e41]: 中文
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - heading "Seedance 2.5" [level=1] [ref=e45]
+          - generic [ref=e46]: Seedance 2.5 is a next-generation audio-video joint generation model, built for 30-second storytelling with precise reference control and powerful editing capabilities.
+        - generic [ref=e49]:
+          - button "Get API" [ref=e50] [cursor=pointer]
+          - button "Try now" [ref=e51] [cursor=pointer]
+          - button "Compare now" [ref=e52] [cursor=pointer]
+    - generic [ref=e63]:
+      - generic [ref=e67]:
+        - generic [ref=e69]:
+          - generic [ref=e70]:
+            - heading "Longer Narratives. Better Control." [level=1] [ref=e71]
+            - generic [ref=e72]: Create videos up to 30 seconds in a single generation, with the option to extend twice for richer, more complete storytelling. Motion is smoother and more consistent, and the visuals are more realistic.
+          - generic [ref=e73]:
+            - button [disabled] [ref=e75]:
+              - img [ref=e76] [cursor=pointer]
+            - button [ref=e80] [cursor=pointer]
+        - generic [ref=e114]:
+          - generic [ref=e115]:
+            - heading "Smarter Reference and Editing Capabilites" [level=1] [ref=e116]
+            - generic [ref=e117]: Understands reference videos more precisely -- capturing the intention, framing, and cinematic language to go beyond motion transfer into creative interpretation. Editing becomes more reliable, and responds to a wider range of audio and visual editing requests.
+          - generic [ref=e118]:
+            - button [disabled] [ref=e120]:
+              - img [ref=e121] [cursor=pointer]
+            - button [ref=e125] [cursor=pointer]
+        - generic [ref=e159]:
+          - generic [ref=e160]:
+            - heading "Aiming for Professional Production" [level=1] [ref=e161]
+            - generic [ref=e162]: Provides advanced capabilities such as white-model control and green-screen editing, combined with professional camera movement and performance blocking, to better support complex video production and professional creative workflows.
+          - generic [ref=e163]:
+            - button [disabled] [ref=e165]:
+              - img [ref=e166] [cursor=pointer]
+            - button [ref=e170] [cursor=pointer]
+      - generic [ref=e209]:
+        - heading "Creativity Unleashed, Explore the Possibilities" [level=1] [ref=e210]
+        - generic [ref=e211]: Browse our curated showcase to spark your next great idea.
+      - generic [ref=e215]:
+        - generic [ref=e216]:
+          - generic [ref=e217] [cursor=pointer]
+          - generic [ref=e236]:
+            - generic [ref=e237]:
+              - generic [ref=e238]: Models
+              - generic [ref=e239]:
+                - link "Seed2.1" [ref=e241] [cursor=pointer]:
+                  - /url: /en/seed2_1
+                - link "Seedance 2.5" [ref=e243] [cursor=pointer]:
+                  - /url: /en/seedance2_5
+                - link "Seedream 5.0 Pro" [ref=e245] [cursor=pointer]:
+                  - /url: /en/seedream5_0_pro
+                - link "SeedRealtime" [ref=e247] [cursor=pointer]:
+                  - /url: /en/SeedRealtime
+                - link "Seed Audio 1.0" [ref=e249] [cursor=pointer]:
+                  - /url: /en/seedaudio1_0
+                - link "Seed GR-RL" [ref=e251] [cursor=pointer]:
+                  - /url: /en/gr_rl
+            - generic [ref=e252]:
+              - generic [ref=e253]: Teams
+              - generic [ref=e254]:
+                - link "LLM" [ref=e256] [cursor=pointer]:
+                  - /url: /en/direction/llm
+                - link "Infrastructures" [ref=e258] [cursor=pointer]:
+                  - /url: /en/direction/infrastructures
+                - link "Vision" [ref=e260] [cursor=pointer]:
+                  - /url: /en/direction/vision
+                - link "Speech" [ref=e262] [cursor=pointer]:
+                  - /url: /en/direction/speech
+                - link "Multimodal Interaction & World Model" [ref=e264] [cursor=pointer]:
+                  - /url: /en/direction/multimodal
+                - link "AI for Science" [ref=e266] [cursor=pointer]:
+                  - /url: /en/direction/ai_for_science
+                - link "Robotics" [ref=e268] [cursor=pointer]:
+                  - /url: /en/direction/robotics
+                - link "Responsible AI" [ref=e270] [cursor=pointer]:
+                  - /url: /en/direction/responsible_ai
+            - generic [ref=e271]:
+              - generic [ref=e272]: Learn More
+              - generic [ref=e273]:
+                - link "Blog" [ref=e275] [cursor=pointer]:
+                  - /url: /en/blog
+                - link "Seed Edge" [ref=e277] [cursor=pointer]:
+                  - /url: /en/seed-edge
+                - link "Seed STEM Fellows Program" [ref=e279] [cursor=pointer]:
+                  - /url: /en/seedstem
+                - link "Seed Campus Recruitment" [ref=e281] [cursor=pointer]:
+                  - /url: /en/seedearlycareer
+              - link "Transparency" [ref=e282] [cursor=pointer]:
+                - /url: /transparency
+          - generic [ref=e283]:
+            - generic [ref=e284]: Advancing the frontier of intelligence, in service of humanity
+            - generic [ref=e286]: Join ByteDance Seed
+        - generic [ref=e287]:
+          - generic [ref=e288]: Copyright © 2026 Bytedance Seed
+          - link "Disclaimer" [ref=e290] [cursor=pointer]:
+            - /url: /en/disclaimer
+          - 'link "Contact us : seed.feedback@bytedance.com" [ref=e293] [cursor=pointer]':
+            - /url: mailto:seed.feedback@bytedance.com

@@ -22,6 +22,10 @@ Allow: /
 User-agent: ChatGPT-User
 Allow: /
 
+# OpenAI — ChatGPT search index
+User-agent: OAI-SearchBot
+Allow: /
+
 # Perplexity AI
 User-agent: PerplexityBot
 Allow: /
@@ -31,6 +35,12 @@ User-agent: ClaudeBot
 Allow: /
 
 User-agent: anthropic-ai
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
 Allow: /
 
 # Apple — Siri / Spotlight

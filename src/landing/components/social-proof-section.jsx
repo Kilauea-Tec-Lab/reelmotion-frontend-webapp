@@ -2,14 +2,18 @@ import React from "react";
 import AnimatedCounter from "./animated-counter";
 import AnimatedSection from "./animated-section";
 import { useI18n } from "../../i18n/i18n-context";
-import { Zap, Users, Cpu, Globe } from "lucide-react";
+import { Zap, Cpu, Clock, Globe, Layers } from "lucide-react";
 
 const stats = [
-  { target: 50, suffix: "K+", icon: Zap, labelKey: "social-proof.videos-generated" },
-  { target: 10, suffix: "K+", icon: Users, labelKey: "social-proof.active-users" },
+  { target: 50, suffix: "K+", icon: Zap, labelKey: "social-proof.assets-generated" },
   { target: 15, suffix: "+", icon: Cpu, labelKey: "social-proof.ai-models" },
+  { valueKey: "social-proof.hours-value", icon: Clock, labelKey: "social-proof.hours-label" },
   { target: 120, suffix: "+", icon: Globe, labelKey: "social-proof.countries" },
+  { target: 10, suffix: "+", icon: Layers, labelKey: "social-proof.variations" },
 ];
+
+const VALUE_CLASS =
+  "text-4xl md:text-5xl font-bold bg-gradient-to-r from-[#DC569D] to-[#F2D543] bg-clip-text text-transparent";
 
 const aiModels = [
   "Seedance 2.5", "Kling V3", "Veo 3.1", "Runway Gen 4.5", "Kling O1",
@@ -28,11 +32,11 @@ const SocialProofSection = () => {
       {/* Stats row */}
       <div className="border-y border-white/5 py-16 md:py-20">
         <AnimatedSection className="max-w-6xl mx-auto px-6">
-          <div className="social-proof grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 text-center">
+          <div className="social-proof grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-8 md:gap-10 text-center">
             {stats.map((stat) => {
               const Icon = stat.icon;
               return (
-                <div key={stat.labelKey} className="flex flex-col items-center gap-2 group">
+                <div key={stat.labelKey} className="flex flex-col items-center gap-2 group last:col-span-2 sm:last:col-span-1">
                   <div
                     className="w-10 h-10 rounded-xl flex items-center justify-center mb-1 transition-all duration-300 group-hover:scale-110"
                     style={{
@@ -42,11 +46,11 @@ const SocialProofSection = () => {
                   >
                     <Icon size={18} className="text-[#DC569D]" />
                   </div>
-                  <AnimatedCounter
-                    target={stat.target}
-                    suffix={stat.suffix}
-                    className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-[#DC569D] to-[#F2D543] bg-clip-text text-transparent"
-                  />
+                  {stat.valueKey ? (
+                    <span className={VALUE_CLASS}>{t(stat.valueKey)}</span>
+                  ) : (
+                    <AnimatedCounter target={stat.target} suffix={stat.suffix} className={VALUE_CLASS} />
+                  )}
                   <span className="text-sm text-gray-500">{t(stat.labelKey)}</span>
                 </div>
               );

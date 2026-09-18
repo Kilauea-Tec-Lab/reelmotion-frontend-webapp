@@ -1,0 +1,46 @@
+# Reelmotion AI
+
+> AI content platform for marketing teams and agencies. Brief a campaign in plain language and get studio-quality video, images and voiceovers in minutes — 15+ AI models, a built-in cloud video editor, and a remote MCP server + REST API so Claude, ChatGPT or any AI agent can generate assets for you.
+
+Website: https://reelmotion.ai
+Company: Kilauea Tec Lab
+Languages: English, Spanish (https://reelmotion.ai/?lang=es)
+
+## Product
+
+- AI video generation: Kling V3, Kling O3, Kling O1, Seedance 2.5, Veo 3.1, Runway Gen-4.5. Generate multiple versions or formats in parallel for A/B testing (10+ variations per brief).
+- AI image generation (4K): Nano Banana 2, GPT Image 2, Seedream 5.0, Midjourney V8.1.
+- AI voiceover: ElevenLabs multi-language text-to-speech.
+- ReelBot: AI agent that turns a plain-language brief into a production-grade prompt, picks the model and shows the exact token cost before generating.
+- Cloud video editor: multi-track timeline, text & captions, image/video layers, audio tracks, stock media, cloud rendering, auto-save, no install.
+- Teams: shared project folders and a shared media library per folder; agent-ready pipeline via MCP or REST API.
+
+## Integrations (MCP)
+
+- Remote MCP server: https://backend.reelmotion.ai/mcp
+- Auth: OAuth 2.1 with PKCE (S256), dynamic client registration (RFC 7591), discovery at /.well-known/oauth-authorization-server. API keys also accepted.
+- Tools: get_me, get_billing_url, list_models, list_voices, create_image, create_video, create_audio, get_task, wait_for_task.
+- Clients: Claude.ai / Claude Desktop (Settings → Connectors → Add custom connector), Claude Code (`claude mcp add --transport http reelmotion https://backend.reelmotion.ai/mcp`), ChatGPT (Settings → Connectors → Developer mode), Cursor (.cursor/mcp.json).
+- Docs: https://reelmotion.ai/developers
+
+## API
+
+- Base URL: https://backend.reelmotion.ai/api/v1
+- Endpoints: POST /v1/images, /v1/videos, /v1/audio (async tasks, HTTP 202) · GET /v1/tasks/{id} · GET /v1/me, /v1/models, /v1/voices, /v1/billing/checkout-url
+- Auth: API key (`rm_…` bearer token, created under Profile → API & Integrations) or OAuth 2.1. Scopes: profile, billing, generate, tasks:read.
+- Limits: 60 requests/min, 5 in-flight generations. 1 token = US$0.01.
+
+## Pricing
+
+- Free: $0, 20 tokens, basic image models, limited editor and AI agent.
+- Pro: $17.99/month (or $194.99/year), 1,000 tokens, all models including video.
+- Elite: $47.99/month (or $518.28/year), 4,000 tokens, highest rendering priority, early model access, commercial license.
+- Enterprise / custom volume for agencies: https://reelmotion.ai/contact
+
+## Links
+
+- Developers (API & MCP docs): https://reelmotion.ai/developers
+- Contact / sales: https://reelmotion.ai/contact
+- Terms: https://reelmotion.ai/terms
+- Privacy: https://reelmotion.ai/privacy
+- X: https://x.com/ReelmotionAI · LinkedIn: https://www.linkedin.com/company/reelmotion-ai/
