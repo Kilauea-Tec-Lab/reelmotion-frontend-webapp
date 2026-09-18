@@ -1,17 +1,9 @@
 import { useState, useEffect } from "react";
 import { Eye, EyeOff, X } from "lucide-react";
-import { createAccount, login } from "./functions";
+import { createAccount, login, consumePostLoginRedirect } from "./functions";
 import Cookies from "js-cookie";
 import { useI18n } from "../i18n/i18n-context";
 import { Link } from "react-router-dom";
-
-// Pages that need the user back after login (e.g. the OAuth consent screen)
-// stash their URL here before opening the modal.
-export function consumePostLoginRedirect() {
-  const target = sessionStorage.getItem("post_login_redirect");
-  sessionStorage.removeItem("post_login_redirect");
-  return target && target.startsWith("/") ? target : "/app";
-}
 
 function AuthModal({ isOpen, onClose }) {
   const { t } = useI18n();

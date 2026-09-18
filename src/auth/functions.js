@@ -179,3 +179,11 @@ export async function deleteNotification(notification_id) {
     return new Response("Ups", { status: 500 });
   }
 }
+
+// Pages that need the user back after login (e.g. the OAuth consent screen)
+// stash their URL in sessionStorage before opening the auth modal.
+export function consumePostLoginRedirect() {
+  const target = sessionStorage.getItem("post_login_redirect");
+  sessionStorage.removeItem("post_login_redirect");
+  return target && target.startsWith("/") ? target : "/app";
+}
