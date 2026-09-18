@@ -37,6 +37,9 @@ const LandingPage = lazy(() => import("./landing/landing-page"));
 const TermsPage = lazy(() => import("./legal/terms"));
 const PrivacyPage = lazy(() => import("./legal/privacy"));
 const ContactPage = lazy(() => import("./landing/contact-page"));
+const DevelopersPage = lazy(() => import("./developers/developers-page"));
+const ConsentPage = lazy(() => import("./oauth/consent-page"));
+const BuyTokensPage = lazy(() => import("./billing/buy-tokens-page"));
 
 function RouteFallback() {
   return (
@@ -121,6 +124,22 @@ const router = createBrowserRouter([
   {
     path: "/contact",
     element: page(<ContactPage />),
+  },
+  {
+    path: "/developers",
+    element: page(<DevelopersPage />),
+  },
+  {
+    // OAuth consent screen (backend GET /oauth/authorize redirects here)
+    path: "/oauth/authorize",
+    element: page(<ConsentPage />),
+    errorElement: <ErrorBoundary />,
+  },
+  {
+    // Embeddable token checkout opened from GET /v1/billing/checkout-url
+    path: "/buy-tokens",
+    element: page(<BuyTokensPage />),
+    errorElement: <ErrorBoundary />,
   },
   {
     path: "/app",

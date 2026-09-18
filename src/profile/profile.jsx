@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useLoaderData } from "react-router-dom";
 import { updateUserProfile } from "./functions";
+import ApiIntegrations from "./api-integrations";
 
 function Profile() {
   const { t } = useI18n();
@@ -703,6 +704,10 @@ function Profile() {
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="mt-4 md:mt-8">
+          <ApiIntegrations />
         </div>
       </div>
     </div>

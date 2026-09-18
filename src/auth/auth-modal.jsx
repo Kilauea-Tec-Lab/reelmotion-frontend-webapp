@@ -5,6 +5,14 @@ import Cookies from "js-cookie";
 import { useI18n } from "../i18n/i18n-context";
 import { Link } from "react-router-dom";
 
+// Pages that need the user back after login (e.g. the OAuth consent screen)
+// stash their URL here before opening the modal.
+export function consumePostLoginRedirect() {
+  const target = sessionStorage.getItem("post_login_redirect");
+  sessionStorage.removeItem("post_login_redirect");
+  return target && target.startsWith("/") ? target : "/app";
+}
+
 function AuthModal({ isOpen, onClose }) {
   const { t } = useI18n();
   const [typeRecord, setTypeRecord] = useState(1);
@@ -87,7 +95,7 @@ function AuthModal({ isOpen, onClose }) {
         const loginResponse = await loginCall.json();
         const token = loginResponse.data.token;
         Cookies.set("token", token);
-        window.location.replace("/app");
+        window.location.replace(consumePostLoginRedirect());
       } else {
         const errorData = await loginCall.json();
         if (errorData.success == false) {
@@ -205,7 +213,7 @@ function AuthModal({ isOpen, onClose }) {
           status: "success",
         });
       }
-      window.location.replace("/app");
+      window.location.replace(consumePostLoginRedirect());
     } else {
       const errorData = await register.json();
       if (errorData.errors) {

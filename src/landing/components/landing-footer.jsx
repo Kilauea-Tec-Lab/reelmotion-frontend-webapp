@@ -18,6 +18,7 @@ const LandingFooter = () => {
     { label: t("footer.terms"),   href: "/terms" },
     { label: t("footer.privacy"), href: "/privacy" },
     { label: t("footer.contact"), href: "/contact" },
+    { label: isEs ? "API para desarrolladores" : "Developer API", href: "/developers" },
   ];
 
   const socials = [
