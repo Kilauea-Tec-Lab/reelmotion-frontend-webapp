@@ -6,13 +6,15 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-      buffer: "buffer",
-      process: "process/browser.js",
-      stream: "stream-browserify",
-      crypto: "crypto-browserify",
-    },
+    alias: [
+      { find: "@", replacement: path.resolve(__dirname, "./src") },
+      { find: "buffer", replacement: "buffer" },
+      // Exact match: a string alias also rewrites `process/` (readable-stream@4)
+      // into `process/browser.js/`, which breaks the Netlify build.
+      { find: /^process$/, replacement: "process/browser.js" },
+      { find: "stream", replacement: "stream-browserify" },
+      { find: "crypto", replacement: "crypto-browserify" },
+    ],
   },
   define: {
     global: "globalThis",
