@@ -16,3 +16,9 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "SAMEORIGIN"
+
+# /buy-tokens is meant to be embedded by third parties; CSP frame-ancestors overrides X-Frame-Options in every modern browser
+[[headers]]
+  for = "/buy-tokens"
+  [headers.values]
+    Content-Security-Policy = "frame-ancestors *"
