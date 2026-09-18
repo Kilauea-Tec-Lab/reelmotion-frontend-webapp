@@ -184,7 +184,7 @@ export default function BuyTokensPage() {
     setPaid(true);
     try {
       window.parent?.postMessage({ type: "reelmotion:tokens-purchased" }, "*");
-    } catch (_) {
+    } catch {
       /* not embedded */
     }
   };
