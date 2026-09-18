@@ -1,16 +1,19 @@
 import React from "react";
 import { useI18n } from "../../i18n/i18n-context";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Twitter, Instagram, Youtube, Linkedin } from "lucide-react";
 
 const LandingFooter = () => {
-  const { t } = useI18n();
-  const isEs = t("footer.terms") === "Términos de Servicio";
+  const { t, locale } = useI18n();
+  const navigate = useNavigate();
+  const isEs = locale === "es";
 
   const product = [
     { label: t("nav.features"),  href: "#features" },
     { label: t("nav.ai-agent"),  href: "#ai-agent" },
     { label: t("nav.editor"),    href: "#editor" },
+    { label: t("nav.integrations"), href: "#integrations" },
+    { label: t("nav.teams"),     href: "#teams" },
     { label: t("nav.pricing"),   href: "#pricing" },
   ];
 
@@ -18,7 +21,7 @@ const LandingFooter = () => {
     { label: t("footer.terms"),   href: "/terms" },
     { label: t("footer.privacy"), href: "/privacy" },
     { label: t("footer.contact"), href: "/contact" },
-    { label: isEs ? "API para desarrolladores" : "Developer API", href: "/developers" },
+    { label: t("nav.developers"), href: "/developers" },
   ];
 
   const socials = [
@@ -33,6 +36,7 @@ const LandingFooter = () => {
     e.preventDefault();
     const el = document.querySelector(href);
     if (el) el.scrollIntoView({ behavior: "smooth" });
+    else navigate("/" + href); // anchor lives on the landing (e.g. we're on /contact)
   };
 
   return (
@@ -93,7 +97,7 @@ const LandingFooter = () => {
           {/* Col 2 — Product */}
           <div className="flex flex-col gap-4">
             <h4 className="text-[10px] font-mono uppercase tracking-[3px] text-white/25">
-              {isEs ? "Producto" : "Product"}
+              {t("footer.product")}
             </h4>
             <ul className="flex flex-col gap-3">
               {product.map(({ label, href }) => (

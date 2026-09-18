@@ -1,10 +1,10 @@
 import { Helmet } from "react-helmet-async";
 
 const DEFAULTS = {
-  title: "Reelmotion AI — Create Professional Videos, Images & Audio with AI",
+  title: "Reelmotion AI — Campaign-Ready AI Video, Images & Voice at Scale",
   description:
-    "Generate studio-quality AI videos, images, and voiceovers without writing a single prompt. ReelBot guides you step by step. 15+ AI models including Sora 2, Veo 3.1 & Kling V3. Free to start.",
-  image: "https://reelmotion.ai/logos/logo_reelmotion_new.png",
+    "Turn a campaign brief into studio-quality video, images and voiceovers in minutes. 15+ AI models, a built-in cloud editor, and an MCP server to connect Claude, ChatGPT or any AI agent.",
+  image: "https://reelmotion.ai/logos/og-reelmotion-b2b.png",
   url: "https://reelmotion.ai/",
 };
 

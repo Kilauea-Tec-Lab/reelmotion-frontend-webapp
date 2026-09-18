@@ -7,7 +7,9 @@ export function I18nProvider({ children }) {
   const [locale, setLocaleState] = useState(() => {
     // English-first product: default to 'en' unless the user explicitly picked a
     // language (persisted via the toggle). No browser-language auto-detection.
-    const saved = typeof localStorage !== "undefined" && localStorage.getItem("locale");
+    // `?lang=es` (the hreflang URL) wins over the persisted choice.
+    const fromUrl = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("lang");
+    const saved = fromUrl || (typeof localStorage !== "undefined" && localStorage.getItem("locale"));
     return saved === "en" || saved === "es" ? saved : "en";
   });
 

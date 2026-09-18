@@ -3,12 +3,13 @@ import { Navigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import LandingNavbar from "./components/landing-navbar";
 import VideoHero from "./components/video-hero";
-import HeroSection from "./components/hero-section";
 import SocialProofSection from "./components/social-proof-section";
 import FeaturesSection from "./components/features-section";
 import ReelbotSection from "./components/reelbot-section";
 import ChatDemoSection from "./components/chat-demo-section";
 import EditorSection from "./components/editor-section";
+import IntegrationsSection from "./components/integrations-section";
+import TeamsSection from "./components/teams-section";
 import PricingSection from "./components/pricing-section";
 import LandingFooter from "./components/landing-footer";
 import AuthModal from "../auth/auth-modal";
@@ -20,7 +21,6 @@ import { useI18n } from "../i18n/i18n-context";
 function LandingPage() {
   const scrollRef = useRef(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [navVisible, setNavVisible] = useState(false);
   const { locale } = useI18n();
 
   if (Cookies.get("token")) {
@@ -35,15 +35,10 @@ function LandingPage() {
     }
   }, []);
 
-  // Show navbar only after scrolling past the video hero
+  // Arriving at /#section from another page (e.g. /contact footer links)
   useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
-    const handleScroll = () => {
-      setNavVisible(container.scrollTop > window.innerHeight * 0.7);
-    };
-    container.addEventListener("scroll", handleScroll, { passive: true });
-    return () => container.removeEventListener("scroll", handleScroll);
+    const el = window.location.hash && document.querySelector(window.location.hash);
+    if (el) el.scrollIntoView();
   }, []);
 
   return (
@@ -53,19 +48,15 @@ function LandingPage() {
       style={{ scrollBehavior: 'smooth' }}
     >
       <SEO lang={locale} />
-      <div
-        className="transition-opacity duration-500"
-        style={{ opacity: navVisible ? 1 : 0, pointerEvents: navVisible ? "auto" : "none" }}
-      >
-        <LandingNavbar scrollRef={scrollRef} onOpenAuth={() => setShowAuthModal(true)} />
-      </div>
-      <VideoHero scrollRef={scrollRef} />
-      <HeroSection onOpenAuth={() => setShowAuthModal(true)} />
+      <LandingNavbar scrollRef={scrollRef} onOpenAuth={() => setShowAuthModal(true)} />
+      <VideoHero scrollRef={scrollRef} onOpenAuth={() => setShowAuthModal(true)} />
       <SocialProofSection />
+      <IntegrationsSection />
       <FeaturesSection />
       <ReelbotSection />
       <ChatDemoSection />
       <EditorSection />
+      <TeamsSection />
       <CtaBanner onOpenAuth={() => setShowAuthModal(true)} />
       <PricingSection onOpenAuth={() => setShowAuthModal(true)} />
       <LandingFooter />
