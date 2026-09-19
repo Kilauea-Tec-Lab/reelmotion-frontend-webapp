@@ -5,17 +5,17 @@ import { motion } from "framer-motion";
 import { Play } from "lucide-react";
 
 const showcaseItems = [
-  { src: "/landing/showcase-cyberpunk.mp4", type: "video" },
-  { src: "/landing/showcase-elegant.mp4", type: "video" },
-  { src: "/landing/showcase-surfer.mp4", type: "video" },
-  { src: "/landing/showcase-eco-city.mp4", type: "video" },
-  { src: "/landing/showcase-ai-2.mp4", type: "video" },
-  { src: "/landing/showcase-ai-3.mp4", type: "video" },
-  { src: "/landing/showcase-ai-4.mp4", type: "video" },
-  { src: "/landing/showcase-ai-5.mp4", type: "video" },
-  { src: "/landing/showcase-vogue.mp4", type: "video" },
-  { src: "/landing/showcase-fashion.mp4", type: "video" },
-  { src: "/landing/showcase-girl-field.mp4", type: "video" },
+  { src: "/landing/sd-phone-ad.mp4", type: "video" },
+  { src: "/landing/sd-headphones.mp4", type: "video" },
+  { src: "/landing/sd-pilot.mp4", type: "video" },
+  { src: "/landing/sd-opera.mp4", type: "video" },
+  { src: "/landing/sd-rain-paris.mp4", type: "video" },
+  { src: "/landing/sd-barbershop.mp4", type: "video" },
+  { src: "/landing/sd-stadium.mp4", type: "video" },
+  { src: "/landing/sd-fire-ring.mp4", type: "video" },
+  { src: "/landing/sd-ramen-eat.mp4", type: "video" },
+  { src: "/landing/sd-phone-ad-2.mp4", type: "video" },
+  { src: "/landing/sd-locker-room.mp4", type: "video" },
   { src: "/landing/showcase-image-1.jpeg", type: "image" },
 ];
 

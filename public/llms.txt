@@ -32,9 +32,10 @@ Languages: English, Spanish (https://reelmotion.ai/?lang=es)
 
 ## Pricing
 
-- Free: $0, 20 tokens, basic image models, limited editor and AI agent.
-- Pro: $17.99/month (or $194.99/year), 1,000 tokens, all models including video.
-- Elite: $47.99/month (or $518.28/year), 4,000 tokens, highest rendering priority, early model access, commercial license.
+- No subscriptions: pay per use. 1 token = US$0.01 (100 tokens per US$1), top up from US$6.
+- 20 free tokens on signup, no credit card. Every generation shows its exact token cost upfront; failed generations are refunded.
+- Examples: 5s Kling V3 720p video ≈ 50 tokens (US$0.50) · Nano Banana 2 image 8 tokens (US$0.08) · 1,000-char ElevenLabs voiceover 11 tokens (US$0.11).
+- Everything included at the same price: all 15+ models, cloud editor, shared library, AI agent, REST API + MCP.
 - Enterprise / custom volume for agencies: https://reelmotion.ai/contact
 
 ## Links

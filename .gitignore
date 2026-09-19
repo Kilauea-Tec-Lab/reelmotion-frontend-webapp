@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# tooling junk
+.playwright-mcp/
+bash.exe.stackdump
+
+# tooling junk
+.playwright-mcp/
+bash.exe.stackdump
