@@ -5,7 +5,7 @@ import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { useI18n } from "../i18n/i18n-context";
 import LanguageSelector from "../i18n/language-selector";
 import AuthModal from "../auth/auth-modal";
-import { approveAuthorization, getAuthorizeInfo } from "../profile/api-functions";
+import { approveAuthorization, getAuthorizeInfo } from "../developers/api-functions";
 
 const strings = {
   en: {

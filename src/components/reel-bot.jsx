@@ -161,7 +161,7 @@ function ReelBot({ onClose }) {
       input.includes("profile") ||
       input.includes("user")
     ) {
-      return "To manage your account, go to the user menu in the top right corner. There you can edit your profile, change settings and manage your subscription.";
+      return "To manage your account, go to the user menu in the top right corner. There you can edit your profile, change settings and buy tokens.";
     }
 
     if (
@@ -171,7 +171,7 @@ function ReelBot({ onClose }) {
       input.includes("subscription") ||
       input.includes("billing")
     ) {
-      return "We offer different plans to suit your needs. Visit our pricing section or contact our sales team for more information about our premium plans.";
+      return "Reelmotion is pay-as-you-go: no subscriptions, $1 = 100 tokens and you only pay for what you generate. Buy tokens any time from the Buy tokens button in the chat.";
     }
 
     if (
@@ -179,7 +179,7 @@ function ReelBot({ onClose }) {
       input.includes("download") ||
       input.includes("save")
     ) {
-      return "To export your videos, go to your completed project and click the export button. You can choose different formats and qualities based on your subscription plan.";
+      return "To export your videos, go to your completed project and click the export button. You can choose 720p, 1080p or 4K — each export costs a small flat amount of tokens.";
     }
 
     if (

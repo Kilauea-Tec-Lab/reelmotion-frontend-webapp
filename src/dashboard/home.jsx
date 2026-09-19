@@ -6,7 +6,6 @@ import {
   X,
   Sparkles,
   Zap,
-  Crown,
 } from "lucide-react";
 import RecentProjects from "./components/recent-projects";
 import CarrouselFolders from "./components/carrousel-folders";
@@ -278,9 +277,8 @@ function Home() {
                     <span className="text-white font-medium">
                       create images
                     </span>
-                    . If you need more tokens to generate videos and access
-                    premium features, you'll need to subscribe to a plan or
-                    purchase additional tokens.
+                    . If you need more tokens to generate videos, you can
+                    purchase them any time — pay only for what you use.
                   </p>
                 </div>
               </div>
@@ -291,17 +289,7 @@ function Home() {
               <button
                 onClick={() => {
                   handleCloseWelcome();
-                  navigate("/app/pro");
-                }}
-                className="w-full bg-gradient-to-r from-[#DC569D] to-[#c9458b] text-white py-3.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-lg shadow-[#DC569D]/20 flex items-center justify-center gap-2"
-              >
-                <Crown size={18} />
-                Subscribe for More Tokens
-              </button>
-              <button
-                onClick={() => {
-                  handleCloseWelcome();
-                  navigate("/app/my-subscription");
+                  navigate("/buy-tokens");
                 }}
                 className="w-full bg-[#F2D543] text-[#161619] py-3.5 rounded-xl font-bold hover:bg-[#f2f243] transition-all flex items-center justify-center gap-2"
               >

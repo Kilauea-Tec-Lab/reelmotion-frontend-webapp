@@ -15,7 +15,7 @@ import {
   Trash2,
   Loader2,
   X,
-  Crown,
+  Code2,
   FlaskConical,
   LifeBuoy,
   MessageCircle,
@@ -33,7 +33,6 @@ function ChatSidebar({
   searchQuery,
   onSearchChange,
   user,
-  subscription,
   onOpenAiLab,
   isOpen = false,
   onClose,
@@ -353,27 +352,14 @@ function ChatSidebar({
           <span className="font-medium">Discover</span>
         </Link>
         */}
-        {subscription &&
-        subscription.suscription &&
-        subscription.suscription !== "free" ? (
-          <Link
-            to={"/app/my-subscription"}
-            onClick={onClose}
-            className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
-          >
-            <Crown size={20} className="text-[#DC569D]" />
-            <span className="font-medium">{t("sidebar.my-subscription")}</span>
-          </Link>
-        ) : (
-          <Link
-            to={"/app/pro"}
-            onClick={onClose}
-            className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
-          >
-            <Crown size={20} className="text-[#DC569D]" />
-            <span className="font-medium">{t("sidebar.pro")}</span>
-          </Link>
-        )}
+        <Link
+          to={"/app/developers"}
+          onClick={onClose}
+          className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
+        >
+          <Code2 size={20} className="text-[#DC569D]" />
+          <span className="font-medium">{t("sidebar.developers")}</span>
+        </Link>
       </div>
 
       {/* Search */}

@@ -19,7 +19,7 @@ import { searchProjects } from "../create_elements/functions";
 import PostModal from "../discover/components/post-modal";
 import { getUserNotifications, deleteNotification } from "../auth/functions";
 import { getPostById } from "../discover/functions";
-import { getBillingInfo } from "../subscription/functions";
+import { getBillingInfo } from "../billing/functions";
 import { notifyAppLogout } from "../utils/nativeBridge";
 import { createPusherClient } from "@/pusher";
 import { loadStripe } from "@stripe/stripe-js";

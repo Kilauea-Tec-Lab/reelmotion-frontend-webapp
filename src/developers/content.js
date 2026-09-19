@@ -151,7 +151,7 @@ export const content = {
     quickstart: {
       title: "Quickstart",
       steps: [
-        "Open your profile → API & Integrations and create an API key. Copy it: it is shown only once.",
+        "Open Developers in the app sidebar and create an API key. Copy it: it is shown only once.",
         `Call ${API}/me with the key to confirm it works and see your token balance.`,
         "Create a generation. Every generation returns a task immediately (HTTP 202).",
         "Poll GET /v1/tasks/{id} every few seconds until status is completed or failed. Failed tasks refund their tokens.",
@@ -162,11 +162,11 @@ export const content = {
     auth: {
       title: "Authentication",
       p1: "Every request carries a bearer token. There are two kinds:",
-      keys: "API keys (rm_…) — per user, created in the profile. Best for your own scripts, backends and automations. They never expire until revoked.",
+      keys: "API keys (rm_…) — per user, created in Developers. Best for your own scripts, backends and automations. They never expire until revoked.",
       oauth: "OAuth 2.1 access tokens — obtained when a Reelmotion user connects your platform. Best when other people use their own account through your product or an AI assistant.",
       scopes: "Scopes",
       scopeList: {
-        profile: "Read name, email, plan and token balance (GET /v1/me).",
+        profile: "Read name, email and token balance (GET /v1/me).",
         billing: "Generate purchase links (GET /v1/billing/checkout-url).",
         generate: "Create image, video and audio tasks — spends the user's tokens.",
         "tasks:read": "Read task status, results and history.",
@@ -177,14 +177,14 @@ export const content = {
     oauth: {
       title: "OAuth 2.1",
       p1: "Reelmotion is an OAuth 2.1 authorization server: authorization code flow with PKCE (S256, required), rotating refresh tokens, and dynamic client registration. Discovery documents live at the standard locations.",
-      register: "Register your app in your profile → API & Integrations → OAuth apps (gives you a client_id + client_secret), or register dynamically (RFC 7591) for public/native clients:",
+      register: "Register your app in Developers → OAuth apps (gives you a client_id + client_secret), or register dynamically (RFC 7591) for public/native clients:",
       step1: "1. Send the user to the authorization endpoint",
       step1p: "The user signs in to Reelmotion, reviews the requested scopes and is redirected back to your redirect_uri with ?code=…&state=….",
       step2: "2. Exchange the code",
       step2p: "Confidential clients authenticate with client_secret (body or HTTP Basic). Public clients send only client_id; PKCE is what protects the code.",
       step3: "3. Refresh",
       step3p: "Access tokens last 1 hour, refresh tokens 30 days. Each refresh rotates the pair; reusing an old refresh token revokes the whole family.",
-      revoke: "Users can disconnect your app any time from their profile; POST /oauth/revoke is available for your side.",
+      revoke: "Users can disconnect your app any time from Developers → Connected apps; POST /oauth/revoke is available for your side.",
       wellKnown: "Discovery",
     },
 
@@ -192,7 +192,7 @@ export const content = {
       title: "Endpoints",
       cols: ["Method", "Path", "Scope", "Description"],
       rows: [
-        ["GET", "/v1/me", "profile", "Profile, plan and token balance."],
+        ["GET", "/v1/me", "profile", "Profile and token balance."],
         ["GET", "/v1/billing/checkout-url", "billing", "Short-lived URL to buy tokens (embeddable)."],
         ["GET", "/v1/models", "—", "Model catalog with params and prices (public)."],
         ["GET", "/v1/voices", "—", "Text-to-speech voices."],
@@ -239,7 +239,7 @@ export const content = {
       url: "Server URL",
       tools: "Tools",
       toolList: [
-        ["get_me", "profile, plan and token balance"],
+        ["get_me", "profile and token balance"],
         ["get_billing_url", "link to buy tokens (share it on insufficient_tokens)"],
         ["list_models / list_voices", "catalog with prices; TTS voices"],
         ["create_image / create_video / create_audio", "start a generation, returns a task"],
@@ -265,7 +265,7 @@ export const content = {
     quickstart: {
       title: "Inicio rápido",
       steps: [
-        "Abre tu perfil → API e Integraciones y crea una API key. Cópiala: solo se muestra una vez.",
+        "Abre Developers en la barra lateral de la app y crea una API key. Cópiala: solo se muestra una vez.",
         `Llama a ${API}/me con la key para confirmar que funciona y ver tu balance de tokens.`,
         "Crea una generación. Toda generación devuelve una tarea de inmediato (HTTP 202).",
         "Consulta GET /v1/tasks/{id} cada pocos segundos hasta que status sea completed o failed. Las tareas fallidas devuelven sus tokens.",
@@ -276,11 +276,11 @@ export const content = {
     auth: {
       title: "Autenticación",
       p1: "Toda petición lleva un bearer token. Hay dos tipos:",
-      keys: "API keys (rm_…) — por usuario, se crean en el perfil. Ideales para tus scripts, backends y automatizaciones. No expiran hasta que las revocas.",
+      keys: "API keys (rm_…) — por usuario, se crean en Developers. Ideales para tus scripts, backends y automatizaciones. No expiran hasta que las revocas.",
       oauth: "Access tokens OAuth 2.1 — se obtienen cuando un usuario de Reelmotion conecta tu plataforma. Ideales cuando otras personas usan su propia cuenta a través de tu producto o de un asistente de IA.",
       scopes: "Scopes",
       scopeList: {
-        profile: "Leer nombre, correo, plan y balance de tokens (GET /v1/me).",
+        profile: "Leer nombre, correo y balance de tokens (GET /v1/me).",
         billing: "Generar links de compra (GET /v1/billing/checkout-url).",
         generate: "Crear tareas de imagen, video y audio — gasta los tokens del usuario.",
         "tasks:read": "Leer estado, resultados e historial de tareas.",
@@ -291,14 +291,14 @@ export const content = {
     oauth: {
       title: "OAuth 2.1",
       p1: "Reelmotion es un servidor de autorización OAuth 2.1: flujo authorization code con PKCE (S256, obligatorio), refresh tokens rotativos y registro dinámico de clientes. Los documentos de descubrimiento están en las rutas estándar.",
-      register: "Registra tu app en tu perfil → API e Integraciones → Apps OAuth (obtienes client_id + client_secret), o regístrala dinámicamente (RFC 7591) para clientes públicos/nativos:",
+      register: "Registra tu app en Developers → Apps OAuth (obtienes client_id + client_secret), o regístrala dinámicamente (RFC 7591) para clientes públicos/nativos:",
       step1: "1. Envía al usuario al endpoint de autorización",
       step1p: "El usuario inicia sesión en Reelmotion, revisa los scopes solicitados y vuelve a tu redirect_uri con ?code=…&state=….",
       step2: "2. Intercambia el código",
       step2p: "Los clientes confidenciales se autentican con client_secret (body o HTTP Basic). Los públicos envían solo client_id; PKCE es lo que protege el código.",
       step3: "3. Refresca",
       step3p: "Los access tokens duran 1 hora, los refresh tokens 30 días. Cada refresh rota el par; reutilizar un refresh token viejo revoca toda la familia.",
-      revoke: "Los usuarios pueden desconectar tu app en cualquier momento desde su perfil; POST /oauth/revoke está disponible de tu lado.",
+      revoke: "Los usuarios pueden desconectar tu app en cualquier momento desde Developers → Apps conectadas; POST /oauth/revoke está disponible de tu lado.",
       wellKnown: "Descubrimiento",
     },
 
@@ -306,7 +306,7 @@ export const content = {
       title: "Endpoints",
       cols: ["Método", "Ruta", "Scope", "Descripción"],
       rows: [
-        ["GET", "/v1/me", "profile", "Perfil, plan y balance de tokens."],
+        ["GET", "/v1/me", "profile", "Perfil y balance de tokens."],
         ["GET", "/v1/billing/checkout-url", "billing", "URL de corta duración para comprar tokens (embebible)."],
         ["GET", "/v1/models", "—", "Catálogo de modelos con parámetros y precios (público)."],
         ["GET", "/v1/voices", "—", "Voces para texto a voz."],
@@ -353,7 +353,7 @@ export const content = {
       url: "URL del servidor",
       tools: "Herramientas",
       toolList: [
-        ["get_me", "perfil, plan y balance de tokens"],
+        ["get_me", "perfil y balance de tokens"],
         ["get_billing_url", "link para comprar tokens (compártelo ante insufficient_tokens)"],
         ["list_models / list_voices", "catálogo con precios; voces TTS"],
         ["create_image / create_video / create_audio", "inicia una generación, devuelve una tarea"],

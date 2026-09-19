@@ -8,7 +8,6 @@ import {
   MessageCircle,
   Pencil,
   RotateCw,
-  Sparkles,
 } from "lucide-react";
 import { useI18n } from "../../i18n/i18n-context";
 import { SUPPORT_WHATSAPP_URL } from "../../utils/support";
@@ -48,22 +47,13 @@ const MessageActions = memo(function MessageActions({
         </button>
       )}
       {hasTokensSale && (
-        <>
-          <button
-            onClick={() => navigate("/app/pro")}
-            className="px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
-          >
-            <Sparkles size={14} />
-            <span>{t("chat.actions.subscribe")}</span>
-          </button>
-          <button
-            onClick={onOpenTokenModal}
-            className="px-3 py-1.5 bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-gray-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
-          >
-            <DollarSign size={14} />
-            <span>{t("chat.actions.buy-tokens")}</span>
-          </button>
-        </>
+        <button
+          onClick={onOpenTokenModal}
+          className="px-3 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+        >
+          <DollarSign size={14} />
+          <span>{t("chat.actions.buy-tokens")}</span>
+        </button>
       )}
       {hasHowToUse && (
         <button
