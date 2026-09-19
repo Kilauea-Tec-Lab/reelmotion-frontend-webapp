@@ -14,7 +14,7 @@ const CHAIN_GLYPH = {
 function Connector({ mode }) {
   const active = mode && mode !== "none";
   return (
-    <div className="flex flex-col items-center justify-center w-16 shrink-0 self-stretch">
+    <div className="flex flex-col items-center justify-center w-16 shrink-0 h-32">
       <div className={`w-full h-px ${active ? "bg-[#DC569D]/70 shadow-[0_0_8px_rgba(220,86,157,0.6)]" : "bg-gray-800"}`} />
       <Mono className={`mt-1 text-center leading-tight ${active ? "text-[#DC569D]" : ""}`}>
         <span className="block text-sm">{CHAIN_GLYPH[mode] || "·"}</span>
@@ -24,14 +24,14 @@ function Connector({ mode }) {
   );
 }
 
-export default function ShotTimeline({ shots, generatingIds, onAdd, onGenerate, onEdit, onPreview, onDelete, onMove }) {
+export default function ShotTimeline({ shots, generatingIds, onAdd, onGenerate, onContinue, onEdit, onPreview, onDelete, onMove }) {
   const { t } = useI18n();
 
   return (
     <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
-      <div className="flex items-stretch gap-0 p-4 md:p-6 min-w-max h-full">
+      <div className="flex items-start gap-0 p-4 md:p-6 min-w-max">
         {shots.map((shot, i) => (
-          <div key={shot.id} className="flex items-stretch">
+          <div key={shot.id} className="flex items-start">
             {i > 0 && <Connector mode={shot.chain_mode} />}
             <ShotCard
               shot={shot}
@@ -39,6 +39,7 @@ export default function ShotTimeline({ shots, generatingIds, onAdd, onGenerate, 
               isLast={i === shots.length - 1}
               generating={generatingIds.has(shot.id)}
               onGenerate={onGenerate}
+              onContinue={onContinue}
               onEdit={onEdit}
               onPreview={onPreview}
               onDelete={onDelete}
@@ -49,7 +50,7 @@ export default function ShotTimeline({ shots, generatingIds, onAdd, onGenerate, 
         {shots.length > 0 && <Connector mode="none" />}
         <button
           onClick={onAdd}
-          className="w-56 shrink-0 min-h-[14rem] rounded-xl border border-dashed border-gray-700 hover:border-[#DC569D]/70 hover:shadow-[0_0_24px_rgba(220,86,157,0.12)] flex flex-col items-center justify-center gap-2 text-gray-500 hover:text-white transition-all"
+          className="w-56 shrink-0 h-64 rounded-xl border border-dashed border-gray-700 hover:border-[#DC569D]/70 hover:shadow-[0_0_24px_rgba(220,86,157,0.12)] flex flex-col items-center justify-center gap-2 text-gray-500 hover:text-white transition-all"
         >
           <Plus className="h-6 w-6" />
           <span className="text-sm">{t("studio.add-shot")}</span>

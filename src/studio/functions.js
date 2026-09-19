@@ -46,6 +46,9 @@ export const generateShot = (projectId, shotId) =>
 export const getShotLastFrame = (projectId, shotId) =>
   api(`studio/projects/${projectId}/shots/${shotId}/last-frame`).then((r) => r.data.last_frame_url);
 
+// ── Tokens del usuario (mismo endpoint que el header del chat) ──────────
+export const getUserTokens = () => api("users/tokens").then((r) => Number(r.data) || 0);
+
 // ── Catálogo de modelos (público) ───────────────────────────────────────
 let modelsCache = null;
 export async function getVideoModels() {

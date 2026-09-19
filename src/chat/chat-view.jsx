@@ -9,7 +9,7 @@ import { useGenerationTracker } from "./use-generation-tracker";
  * workspace de Studio lo embebe pasándole `chatData` (y avisa con
  * `onGenerationFinal` cuando una generación termina para refrescar la timeline).
  */
-function ChatView({ chatData: chatDataProp = null, onGenerationFinal = null }) {
+function ChatView({ chatData: chatDataProp = null, onGenerationFinal = null, embedded = false }) {
   const loaderData = useLoaderData();
   const chatData = chatDataProp ?? loaderData;
   const navigate = useNavigate();
@@ -389,6 +389,7 @@ function ChatView({ chatData: chatDataProp = null, onGenerationFinal = null }) {
       attachments={attachments}
       pendingGenerations={pendingGenerations}
       activeGenLoader={activeGenLoader}
+      embedded={embedded}
     />
   );
 }

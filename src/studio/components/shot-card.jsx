@@ -1,13 +1,14 @@
-import { ArrowLeft, ArrowRight, Loader2, Pencil, Play, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Pencil, Play, RefreshCw, Sparkles, StepForward, Trash2 } from "lucide-react";
 import { useI18n } from "../../i18n/i18n-context";
 import { Mono, StatusDot } from "./ui";
 import { CARD } from "./tokens";
 
 const BUSY = ["queued", "processing"];
 
-export default function ShotCard({ shot, isFirst, isLast, onGenerate, onEdit, onPreview, onDelete, onMove, generating }) {
+export default function ShotCard({ shot, isFirst, isLast, onGenerate, onContinue, onEdit, onPreview, onDelete, onMove, generating }) {
   const { t } = useI18n();
   const busy = BUSY.includes(shot.status) || generating;
+  const done = shot.status === "completed" && !!shot.video_url;
 
   return (
     <div className={`${CARD} w-56 shrink-0 flex flex-col overflow-hidden ${shot.status === "failed" ? "border-red-900/60" : ""}`}>
@@ -51,14 +52,32 @@ export default function ShotCard({ shot, isFirst, isLast, onGenerate, onEdit, on
           <p className="text-[11px] text-red-400 line-clamp-2" title={shot.error}>{shot.error}</p>
         )}
         <div className="mt-auto flex items-center gap-1 pt-1 border-t border-gray-800">
-          <button
-            onClick={() => onGenerate(shot)}
-            disabled={busy}
-            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-[#DC569D] text-white text-xs hover:bg-[#c44a87] disabled:opacity-50 transition-colors"
-          >
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            {shot.video_url ? t("studio.regenerate") : t("studio.generate")}
-          </button>
+          {/* Toma lista: la accion principal es continuarla; regenerar pasa a icono. */}
+          {done ? (
+            <>
+              <button
+                onClick={() => onContinue(shot)}
+                disabled={busy}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-[#DC569D] text-white text-xs hover:bg-[#c44a87] disabled:opacity-50 transition-colors"
+                title={t("studio.continue-hint")}
+              >
+                <StepForward className="h-3.5 w-3.5" />
+                {t("studio.continue")}
+              </button>
+              <button onClick={() => onGenerate(shot)} disabled={busy} className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-[#2a2a2a] disabled:opacity-40" title={t("studio.regenerate")}>
+                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => onGenerate(shot)}
+              disabled={busy}
+              className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-[#DC569D] text-white text-xs hover:bg-[#c44a87] disabled:opacity-50 transition-colors"
+            >
+              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              {t("studio.generate")}
+            </button>
+          )}
           <button onClick={() => onEdit(shot)} disabled={busy} className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-[#2a2a2a] disabled:opacity-40" title={t("studio.edit")}>
             <Pencil className="h-3.5 w-3.5" />
           </button>

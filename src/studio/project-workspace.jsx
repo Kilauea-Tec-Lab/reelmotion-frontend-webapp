@@ -1,11 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLoaderData } from "react-router-dom";
-import { ArrowLeft, ChevronDown, ChevronUp, MessageSquare, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, CreditCard, DollarSign, MessageSquare, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useI18n } from "../i18n/i18n-context";
 import ChatView from "../chat/chat-view";
 import ModalPreview from "../components/modal-preview";
 import { useGenerationTracker } from "../chat/use-generation-tracker";
-import { deleteShot, generateShot, getProject, reorderShots, updateProject } from "./functions";
+import { deleteShot, generateShot, getProject, getUserTokens, reorderShots, updateProject } from "./functions";
 import AssetPanel from "./components/asset-panel";
 import ShotTimeline from "./components/shot-timeline";
 import ShotEditorModal from "./components/shot-editor-modal";
@@ -20,7 +20,8 @@ export default function ProjectWorkspace() {
   const [project, setProject] = useState(initial);
   const [chatOpen, setChatOpen] = useState(true);
   const [briefOpen, setBriefOpen] = useState(false);
-  const [editor, setEditor] = useState(null); // { shot: null | shot }
+  const [editor, setEditor] = useState(null); // { shot: shot|null, after?: shot } (after = "continuar" desde esa toma)
+  const [tokens, setTokens] = useState(null);
   const [preview, setPreview] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -29,9 +30,13 @@ export default function ProjectWorkspace() {
 
   const shots = useMemo(() => project.shots || [], [project.shots]);
 
+  const refreshTokens = useCallback(() => getUserTokens().then(setTokens).catch(() => {}), []);
+  useEffect(() => { refreshTokens(); }, [refreshTokens]);
+
   const reload = useCallback(async () => {
     setProject(await getProject(project.id));
-  }, [project.id]);
+    refreshTokens();
+  }, [project.id, refreshTokens]);
 
   const notify = (msg) => {
     setToast(msg);
@@ -86,6 +91,26 @@ export default function ProjectWorkspace() {
     setProject((p) => ({ ...p, ...updated }));
   };
 
+  // Toma de la que parte el editor: la ultima lista antes de la posicion (como hace el backend),
+  // o la inmediata anterior si ninguna esta lista (para avisar que falta generarla).
+  const prevShotFor = (shot, after) => {
+    const end = after ? shots.findIndex((s) => s.id === after.id) + 1 : shot ? shots.findIndex((s) => s.id === shot.id) : shots.length;
+    const before = shots.slice(0, end);
+    return [...before].reverse().find((s) => s.status === "completed" && s.video_url) || before.at(-1) || null;
+  };
+
+  // "Continuar" crea al final y, si la toma origen no era la ultima, la reinserta justo despues.
+  const handleSaved = async (saved) => {
+    const after = editor?.after;
+    setEditor(null);
+    if (after && shots.at(-1)?.id !== after.id && saved?.id) {
+      const ids = shots.map((s) => s.id).filter((id) => id !== saved.id);
+      ids.splice(ids.indexOf(after.id) + 1, 0, saved.id);
+      await reorderShots(project.id, ids);
+    }
+    reload();
+  };
+
   const completed = shots.filter((s) => s.status === "completed").length;
   const totalSeconds = shots.reduce((acc, s) => acc + (s.status === "completed" ? Number(s.duration || 0) : 0), 0);
 
@@ -108,6 +133,14 @@ export default function ProjectWorkspace() {
             <StatusDot status={completed === shots.length && shots.length > 0 ? "completed" : "draft"} label={`${completed}/${shots.length} ${t("studio.shots")}`} />
             <Mono>{totalSeconds}s · {project.aspect_ratio}</Mono>
           </div>
+          <div className="flex items-center gap-1.5 bg-[#2f2f2f] px-2.5 py-1 rounded-lg" title="tokens">
+            <CreditCard className="h-4 w-4 text-[#DC569D]" />
+            <span className="text-white text-sm font-medium">{tokens === null ? "…" : Math.floor(tokens).toLocaleString("en-US")}</span>
+          </div>
+          <Link to="/buy-tokens" className="px-2.5 py-1.5 bg-[#DC569D] hover:bg-[#c9458b] text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1">
+            <DollarSign className="h-3 w-3" />
+            <span className="hidden lg:inline">{t("chat.buy-tokens")}</span>
+          </Link>
           <button onClick={() => setBriefOpen((o) => !o)} className="flex items-center gap-1 text-gray-400 hover:text-white text-xs transition-colors">
             <Mono className="text-inherit">{t("studio.brief")}</Mono>
             {briefOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -135,6 +168,7 @@ export default function ProjectWorkspace() {
           generatingIds={generatingIds}
           onAdd={() => setEditor({ shot: null })}
           onGenerate={handleGenerate}
+          onContinue={(shot) => setEditor({ shot: null, after: shot })}
           onEdit={(shot) => setEditor({ shot })}
           onPreview={setPreview}
           onDelete={setToDelete}
@@ -156,7 +190,7 @@ export default function ProjectWorkspace() {
             <Mono className="ml-auto">{t("studio.chat-hint")}</Mono>
           </div>
           <div className="flex-1 flex flex-col min-h-0">
-            <ChatView chatData={chatData} onGenerationFinal={reload} />
+            <ChatView chatData={chatData} onGenerationFinal={reload} embedded />
           </div>
         </div>
       )}
@@ -165,9 +199,10 @@ export default function ProjectWorkspace() {
         <ShotEditorModal
           project={project}
           shot={editor.shot}
-          isFirst={editor.shot ? shots[0]?.id === editor.shot.id : shots.length === 0}
+          prevShot={prevShotFor(editor.shot, editor.after)}
+          seed={editor.after}
           onClose={() => setEditor(null)}
-          onSaved={() => { setEditor(null); reload(); }}
+          onSaved={handleSaved}
         />
       )}
       {preview && (
