@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Cookies from "js-cookie";
-import { BookOpen, KeyRound, Plug, ShieldCheck, Coins, Terminal, Bot } from "lucide-react";
+import { BookOpen, KeyRound, Plug, ShieldCheck, Coins, Zap } from "lucide-react";
+import { ChatGPTLogo, ClaudeLogo, CursorLogo } from "./brand-icons";
 import { useI18n } from "../i18n/i18n-context";
 import { listApiKeys, listAuthorizations, listOAuthClients } from "./api-functions";
 import { MCP, samples } from "./content";
@@ -22,9 +23,9 @@ const SNIPPETS = [
 ];
 
 const ASSISTANTS = [
-  { id: "claude", icon: Bot },
-  { id: "chatgpt", icon: Bot },
-  { id: "cursor", icon: Terminal },
+  { id: "claude", icon: ClaudeLogo },
+  { id: "chatgpt", icon: ChatGPTLogo },
+  { id: "cursor", icon: CursorLogo },
 ];
 
 async function fetchBalance() {
@@ -35,7 +36,7 @@ async function fetchBalance() {
   return Number(j.data) || 0;
 }
 
-function Tile({ label, value, icon: Icon, accent }) {
+function Tile({ label, value, icon: Icon, accent, action }) {
   return (
     <div className="relative overflow-hidden rounded-2xl border border-gray-800 bg-[#171717] p-4">
       <div className={`absolute -top-6 -right-6 w-20 h-20 rounded-full blur-2xl opacity-30 ${accent}`} />
@@ -43,7 +44,10 @@ function Tile({ label, value, icon: Icon, accent }) {
         <p className="font-mono text-[11px] uppercase tracking-wider text-gray-500">{label}</p>
         <Icon size={14} className="text-gray-500" />
       </div>
-      <p className="mt-2 text-3xl font-mono font-semibold text-white tabular-nums">{value ?? "—"}</p>
+      <div className="mt-2 flex items-end justify-between gap-3">
+        <p className="text-3xl font-mono font-semibold text-white tabular-nums">{value ?? "—"}</p>
+        {action}
+      </div>
     </div>
   );
 }
@@ -103,8 +107,8 @@ function McpCards({ t }) {
         {ASSISTANTS.map(({ id, icon: Icon }) => (
           <div key={id} className="group rounded-2xl border border-gray-800 bg-[#171717] p-4 hover:border-[#DC569D]/40 transition-colors">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#F2D543]">
-                <Icon size={16} />
+              <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white">
+                <Icon />
               </div>
               <p className="text-white text-sm font-medium">{t.mcp[id].name}</p>
             </div>
@@ -185,7 +189,20 @@ export default function DeveloperConsole() {
         <div className="grid gap-3 sm:grid-cols-3">
           <Tile label={t.tiles.keys} value={data.keys.length} icon={KeyRound} accent="bg-[#DC569D]" />
           <Tile label={t.tiles.apps} value={data.apps.length} icon={ShieldCheck} accent="bg-emerald-400" />
-          <Tile label={t.tiles.balance} value={data.balance === null ? null : data.balance.toLocaleString()} icon={Coins} accent="bg-[#F2D543]" />
+          <Tile
+            label={t.tiles.balance}
+            value={data.balance === null ? null : Math.floor(data.balance).toLocaleString("en-US")}
+            icon={Coins}
+            accent="bg-[#F2D543]"
+            action={
+              <Link
+                to="/buy-tokens"
+                className="relative inline-flex items-center gap-1.5 rounded-lg bg-[#F2D543] px-3 py-1.5 text-xs font-semibold text-black hover:bg-[#f7df6a] transition-colors whitespace-nowrap"
+              >
+                <Zap size={12} /> {t.tiles.recharge}
+              </Link>
+            }
+          />
         </div>
 
         <QuickStart t={t} freshKey={freshKey} />

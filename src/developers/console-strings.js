@@ -7,7 +7,7 @@ export const strings = {
     subtitle: "Use your Reelmotion tokens from other platforms, scripts or AI assistants (Claude, ChatGPT, Cursor).",
     docs: "Developer docs",
     online: "API · online",
-    tiles: { keys: "API keys", apps: "Connected apps", balance: "Token balance" },
+    tiles: { keys: "API keys", apps: "Connected apps", balance: "Token balance", recharge: "Recharge" },
     quick: {
       title: "Quick start",
       hint: "Create a key below and it drops straight into these snippets.",
@@ -67,7 +67,7 @@ export const strings = {
     subtitle: "Usa tus tokens de Reelmotion desde otras plataformas, scripts o asistentes de IA (Claude, ChatGPT, Cursor).",
     docs: "Documentación",
     online: "API · online",
-    tiles: { keys: "API keys", apps: "Apps conectadas", balance: "Balance de tokens" },
+    tiles: { keys: "API keys", apps: "Apps conectadas", balance: "Balance de tokens", recharge: "Recargar" },
     quick: {
       title: "Quick start",
       hint: "Crea una key abajo y aparece directo en estos snippets.",
