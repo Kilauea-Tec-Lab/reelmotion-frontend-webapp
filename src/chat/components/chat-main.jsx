@@ -36,7 +36,7 @@ import { useNavigate, useRevalidator } from "react-router-dom";
 import Cookies from "js-cookie";
 import { useI18n } from "../../i18n/i18n-context";
 import { getUserNotifications, deleteNotification } from "../../auth/functions";
-import { getBillingInfo } from "../../subscription/functions";
+import { getBillingInfo } from "../../billing/functions";
 import { createPusherClient } from "@/pusher";
 import { loadStripe } from "@stripe/stripe-js";
 import {

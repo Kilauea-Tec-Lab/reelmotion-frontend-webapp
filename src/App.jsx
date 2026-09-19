@@ -31,13 +31,12 @@ const MainLayout = lazy(() => import("./components/main-layout"));
 const MainProject = lazy(() => import("./project/main-project"));
 const Library = lazy(() => import("./chat/library"));
 const AiLab = lazy(() => import("./chat/ai-lab"));
-const ProPage = lazy(() => import("./subscription/pro-page"));
-const MySubscription = lazy(() => import("./subscription/my-subscription"));
 const LandingPage = lazy(() => import("./landing/landing-page"));
 const TermsPage = lazy(() => import("./legal/terms"));
 const PrivacyPage = lazy(() => import("./legal/privacy"));
 const ContactPage = lazy(() => import("./landing/contact-page"));
 const DevelopersPage = lazy(() => import("./developers/developers-page"));
+const DeveloperConsole = lazy(() => import("./developers/console-page"));
 const ConsentPage = lazy(() => import("./oauth/consent-page"));
 const BuyTokensPage = lazy(() => import("./billing/buy-tokens-page"));
 
@@ -161,13 +160,12 @@ const router = createBrowserRouter([
         element: page(<AiLab />),
       },
       {
-        path: "pro",
-        element: page(<ProPage />),
+        path: "developers",
+        element: page(<DeveloperConsole />),
       },
-      {
-        path: "my-subscription",
-        element: page(<MySubscription />),
-      },
+      // Subscriptions are gone: everything is pay-as-you-go now.
+      { path: "pro", element: <Navigate to="/buy-tokens" replace /> },
+      { path: "my-subscription", element: <Navigate to="/buy-tokens" replace /> },
       {
         path: ":chatId",
         element: page(<ChatView />),
