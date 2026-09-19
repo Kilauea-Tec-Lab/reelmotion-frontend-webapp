@@ -4,8 +4,14 @@ import ChatMain from "./components/chat-main";
 import { postMessage } from "./functions";
 import { useGenerationTracker } from "./use-generation-tracker";
 
-function ChatView() {
-  const chatData = useLoaderData();
+/**
+ * Chat de un `chatId`. Normalmente lee sus datos del loader de la ruta; el
+ * workspace de Studio lo embebe pasándole `chatData` (y avisa con
+ * `onGenerationFinal` cuando una generación termina para refrescar la timeline).
+ */
+function ChatView({ chatData: chatDataProp = null, onGenerationFinal = null }) {
+  const loaderData = useLoaderData();
+  const chatData = chatDataProp ?? loaderData;
   const navigate = useNavigate();
 
   const [selectedChat, setSelectedChat] = useState(chatData?.chat || null);
@@ -92,6 +98,7 @@ function ChatView() {
         ),
       );
     }
+    onGenerationFinal?.(status);
   };
 
   useGenerationTracker({
