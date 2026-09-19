@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ImagePlus, Loader2, Plus, Sparkles, Trash2, Upload, User, Image as ImageIcon } from "lucide-react";
 import { useI18n } from "../../i18n/i18n-context";
 import { createAsset, deleteAsset, uploadImage } from "../functions";
@@ -13,6 +13,8 @@ function AddAssetModal({ projectId, kind, onClose, onCreated }) {
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const preview = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -40,9 +42,17 @@ function AddAssetModal({ projectId, kind, onClose, onCreated }) {
           <Mono>{t("studio.upload")}</Mono>
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => setFile(e.target.files?.[0] || null)} />
           <button type="button" onClick={() => fileRef.current?.click()} className={`${BTN_SECONDARY} mt-1 w-full flex items-center justify-center gap-2`}>
-            <Upload className="h-4 w-4" />
-            {file ? file.name : t("studio.pick-image")}
+            <Upload className="h-4 w-4 shrink-0" />
+            <span className="truncate">{file ? file.name : t("studio.pick-image")}</span>
           </button>
+          {preview && (
+            <div className="mt-2 relative rounded-lg overflow-hidden border border-gray-800 bg-[#0C0C0D]">
+              <img src={preview} alt="" className="w-full max-h-48 object-contain" />
+              <button type="button" onClick={() => { setFile(null); fileRef.current.value = ""; }} className="absolute top-1 right-1 bg-black/70 rounded p-1 text-gray-300 hover:text-red-400">
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2"><div className="flex-1 h-px bg-gray-800" /><Mono>{t("studio.or")}</Mono><div className="flex-1 h-px bg-gray-800" /></div>
         <div>

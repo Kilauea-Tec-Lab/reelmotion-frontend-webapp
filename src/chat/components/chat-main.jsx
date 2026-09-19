@@ -678,6 +678,7 @@ function ChatMain({
   attachments = [],
   pendingGenerations = [],
   activeGenLoader = null,
+  embedded = false, // Studio: el workspace ya tiene header propio
 }) {
   const navigate = useNavigate();
   const revalidator = useRevalidator();
@@ -2750,6 +2751,7 @@ function ChatMain({
       {selectedChat ? (
         <>
           {/* Chat Header */}
+          {!embedded && (
           <div className="h-14 md:h-16 border-b border-gray-800 flex items-center justify-between px-3 md:px-6">
             <div className="flex items-center gap-1 md:gap-3 min-w-0">
               <button
@@ -2879,6 +2881,7 @@ function ChatMain({
               </div>
             </div>
           </div>
+          )}
 
           {/* Messages Area */}
           <div className="flex-1 min-h-0 overflow-y-auto p-3 md:p-6">

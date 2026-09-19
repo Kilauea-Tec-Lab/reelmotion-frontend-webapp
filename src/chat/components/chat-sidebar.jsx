@@ -7,6 +7,8 @@ import {
   LogOut,
   User,
   ChevronDown,
+  PanelLeftClose,
+  PanelLeftOpen,
   MessageCirclePlus,
   Clapperboard,
   LibraryBig,
@@ -38,6 +40,18 @@ function ChatSidebar({
   isOpen = false,
   onClose,
 }) {
+  // Colapsado solo en desktop; en móvil el sidebar ya es un overlay.
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem("sidebar-collapsed") === "1"; } catch { return false; }
+  });
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    try { localStorage.setItem("sidebar-collapsed", next ? "1" : "0"); } catch { /* sin storage */ }
+  };
+  const lbl = collapsed ? "md:hidden" : "";
+  const NAV = `w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors ${collapsed ? "md:px-0 md:justify-center" : ""}`;
+
   const { chatId } = useParams();
   const navigate = useNavigate();
   const revalidator = useRevalidator();
@@ -183,7 +197,7 @@ function ChatSidebar({
   };
 
   return (
-    <div className={`fixed md:relative inset-y-0 left-0 z-30 w-64 bg-[#171717] border-r border-gray-800 flex flex-col transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
+    <div className={`fixed md:relative inset-y-0 left-0 z-30 w-64 ${collapsed ? "md:w-16" : ""} bg-[#171717] border-r border-gray-800 flex flex-col transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
       {/* Edit Chat Modal (portaled to body to escape sidebar transform) */}
       {editChatId && createPortal(
         <div
@@ -303,79 +317,85 @@ function ChatSidebar({
         document.body
       )}
 
-      <img
-        src="/logos/logo_reelmotion.webp"
-        alt="Reelmotion AI"
-        className="w-2/4 pt-4 pl-6"
-      />
+      <div className={`flex items-center pt-4 pr-2 ${collapsed ? "md:flex-col md:gap-2 md:pl-2 md:pr-0" : "justify-between pl-6"}`}>
+        <img src="/logos/logo_reelmotion.webp" alt="Reelmotion AI" className={`w-2/4 ${lbl}`} />
+        {collapsed && <img src="/logos/icon_r.png" alt="Reelmotion AI" className="hidden md:block h-8 w-auto" />}
+        <button
+          onClick={toggleCollapsed}
+          className="hidden md:flex p-2 rounded-lg text-gray-500 hover:text-white hover:bg-[#2a2a2a] transition-colors"
+          title={collapsed ? "Expand" : "Collapse"}
+        >
+          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+        </button>
+      </div>
       {/* Header */}
-      <div className="p-4 border-b border-gray-800">
+      <div className={`p-4 border-b border-gray-800 ${collapsed ? "md:px-2" : ""}`}>
         <Link
           to={"/app"}
           onClick={onClose}
-          className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
+          title={t("sidebar.new-chat")} className={NAV}
         >
           <MessageCirclePlus size={20} />
-          <span className="font-medium">{t("sidebar.new-chat")}</span>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F2D543] text-black uppercase tracking-wide">
+          <span className={`font-medium ${lbl}`}>{t("sidebar.new-chat")}</span>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F2D543] text-black uppercase tracking-wide ${lbl}`}>
             Beta
           </span>
         </Link>
         <button
           onClick={() => { onOpenAiLab(); onClose?.(); }}
-          className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
+          title={t("sidebar.ai-lab")} className={NAV}
         >
           <FlaskConical size={20} />
-          <span className="font-medium">{t("sidebar.ai-lab")}</span>
+          <span className={`font-medium ${lbl}`}>{t("sidebar.ai-lab")}</span>
         </button>
         <Link
           to={"/app/projects"}
           onClick={onClose}
-          className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
+          title={t("sidebar.projects")} className={NAV}
         >
           <Film size={20} />
-          <span className="font-medium">{t("sidebar.projects")}</span>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F2D543] text-black uppercase tracking-wide">
+          <span className={`font-medium ${lbl}`}>{t("sidebar.projects")}</span>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F2D543] text-black uppercase tracking-wide ${lbl}`}>
             New
           </span>
         </Link>
         <Link
           to={"/editor"}
           onClick={onClose}
-          className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
+          title={t("sidebar.editor")} className={NAV}
         >
           <Clapperboard size={20} />
-          <span className="font-medium">{t("sidebar.editor")}</span>
+          <span className={`font-medium ${lbl}`}>{t("sidebar.editor")}</span>
         </Link>
         <Link
           to={"/app/library"}
           onClick={onClose}
-          className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
+          title={t("sidebar.library")} className={NAV}
         >
           <LibraryBig size={20} />
-          <span className="font-medium">{t("sidebar.library")}</span>
+          <span className={`font-medium ${lbl}`}>{t("sidebar.library")}</span>
         </Link>
         {/*
         <Link
           to={"/app/discover"}
-          className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
+          className={NAV}
         >
           <Images size={20} />
-          <span className="font-medium">Discover</span>
+          <span className={`font-medium ${lbl}`}>Discover</span>
         </Link>
         */}
         <Link
           to={"/app/developers"}
           onClick={onClose}
-          className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
+          title={t("sidebar.developers")} className={NAV}
         >
           <Code2 size={20} className="text-[#DC569D]" />
-          <span className="font-medium">{t("sidebar.developers")}</span>
+          <span className={`font-medium ${lbl}`}>{t("sidebar.developers")}</span>
         </Link>
       </div>
 
       {/* Search */}
-      <div className="p-4">
+      <div className={`p-4 ${lbl}`}>
         <div className="relative">
           <Search
             className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"
@@ -392,17 +412,17 @@ function ChatSidebar({
       </div>
 
       {/* Section Title */}
-      <div className="px-4 py-2">
+      <div className={`px-4 py-2 ${lbl}`}>
         <h3 className="text-xs text-gray-500 font-semibold uppercase flex items-center gap-2">
           {t("sidebar.your-chats")}
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F2D543] text-black uppercase tracking-wide">
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F2D543] text-black uppercase tracking-wide ${lbl}`}>
             Beta
           </span>
         </h3>
       </div>
 
       {/* Chat List */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <div className={`flex-1 overflow-y-auto custom-scrollbar ${lbl}`}>
         {filteredChats.map((chat) => (
           <div key={chat.id} className="relative group">
             <Link
@@ -464,7 +484,7 @@ function ChatSidebar({
       <div className="border-t border-gray-800 relative" ref={menuRef}>
         <button
           onClick={() => setShowUserMenu(!showUserMenu)}
-          className="w-full flex items-center gap-3 hover:bg-[#212121] p-2 transition-colors"
+          className={`w-full flex items-center gap-3 hover:bg-[#212121] p-2 transition-colors ${collapsed ? "md:justify-center" : ""}`}
         >
           {user.image ? (
             <img
@@ -477,14 +497,14 @@ function ChatSidebar({
               {getUserInitials(user.name)}
             </div>
           )}
-          <div className="flex-1 min-w-0">
+          <div className={`flex-1 min-w-0 ${lbl}`}>
             <p className="text-sm font-medium truncate">
               {user.name || "User"}
             </p>
             <p className="text-xs text-gray-500">{user.email || ""}</p>
           </div>
           <ChevronDown
-            className={`h-4 w-4 transition-transform text-gray-400 ${
+            className={`h-4 w-4 transition-transform text-gray-400 ${lbl} ${
               showUserMenu ? "rotate-180" : ""
             }`}
           />
