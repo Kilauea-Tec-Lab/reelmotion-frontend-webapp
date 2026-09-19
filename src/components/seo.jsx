@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 const DEFAULTS = {
   title: "Reelmotion AI — Campaign-Ready AI Video, Images & Voice at Scale",
   description:
-    "Turn a campaign brief into studio-quality video, images and voiceovers in minutes. 15+ AI models, a built-in cloud editor, and an MCP server to connect Claude, ChatGPT or any AI agent.",
+    "Turn a campaign brief into studio-quality video, images and voiceovers in minutes. 15+ AI models, a built-in cloud editor, and an MCP server to connect Claude, ChatGPT or any AI agent. No subscription — pay only for what you use.",
   image: "https://reelmotion.ai/logos/og-reelmotion-b2b.png",
   url: "https://reelmotion.ai/",
 };

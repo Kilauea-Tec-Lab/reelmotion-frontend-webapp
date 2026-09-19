@@ -110,8 +110,8 @@ const VideoHero = ({ scrollRef, onOpenAuth }) => {
         disablePictureInPicture
         disableRemotePlayback
       >
-        <source src="/videos/showreel-desktop.mp4" type="video/mp4" />
-        <source src="/videos/showreel-desktop.webm" type="video/webm" />
+        <source src="/videos/showreel-2026-desktop.mp4" type="video/mp4" />
+        <source src="/videos/showreel-2026-desktop.webm" type="video/webm" />
       </video>
       {/* Mobile video — MP4 first so iOS/Safari pick a supported source */}
       <video
@@ -127,8 +127,8 @@ const VideoHero = ({ scrollRef, onOpenAuth }) => {
         disablePictureInPicture
         disableRemotePlayback
       >
-        <source src="/videos/showreel-mobile.mp4" type="video/mp4" />
-        <source src="/videos/showreel-mobile.webm" type="video/webm" />
+        <source src="/videos/showreel-2026-mobile.mp4" type="video/mp4" />
+        <source src="/videos/showreel-2026-mobile.webm" type="video/webm" />
       </video>
 
       {/* Dark overlay for readability */}
@@ -210,6 +210,14 @@ const VideoHero = ({ scrollRef, onOpenAuth }) => {
             {t("hero.cta-secondary")}
           </a>
         </motion.div>
+        <motion.p
+          className="text-xs text-white/50 text-center mt-5 tracking-wide"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8, delay: 0.9 }}
+        >
+          {t("hero.note")}
+        </motion.p>
       </div>
 
       {/* Model names row */}
