@@ -4,11 +4,10 @@ import Cookies from "js-cookie";
 import "./App.css";
 import ErrorBoundary from "./components/error-boundary";
 import { userInfoLoader } from "./auth/functions";
-import { multiloaderGet } from "./create_elements/functions";
-import { getProjects } from "./project/functions";
 import { getInfoToEdit } from "./editor/functions";
 import { getDiscoverPosts } from "./discover/functions";
 import { getChatInfo, getChatDetails, getLibrary } from "./chat/functions";
+import { listProjects, projectWorkspaceLoader } from "./studio/functions";
 
 // ChatLayout es el shell de /app y se necesita para pintar el sidebar cuanto antes.
 import ChatLayout from "./chat/chat-layout";
@@ -23,14 +22,13 @@ const ChatView = lazy(() => import("./chat/chat-view"));
 const Editor = lazy(() => import("./editor/editor"));
 const ResetPassword = lazy(() => import("./auth/reset-password"));
 const VerifyEmail = lazy(() => import("./auth/verify-email"));
-const Home = lazy(() => import("./dashboard/home"));
 const Profile = lazy(() => import("./profile/profile"));
 const Discover = lazy(() => import("./discover/discover"));
 const PostDetail = lazy(() => import("./discover/post-detail"));
-const MainLayout = lazy(() => import("./components/main-layout"));
-const MainProject = lazy(() => import("./project/main-project"));
 const Library = lazy(() => import("./chat/library"));
 const AiLab = lazy(() => import("./chat/ai-lab"));
+const ProjectsList = lazy(() => import("./studio/projects-list"));
+const ProjectWorkspace = lazy(() => import("./studio/project-workspace"));
 const LandingPage = lazy(() => import("./landing/landing-page"));
 const TermsPage = lazy(() => import("./legal/terms"));
 const PrivacyPage = lazy(() => import("./legal/privacy"));
@@ -163,6 +161,16 @@ const router = createBrowserRouter([
         path: "developers",
         element: page(<DeveloperConsole />),
       },
+      {
+        path: "projects",
+        element: page(<ProjectsList />),
+        loader: () => listProjects(),
+      },
+      {
+        path: "projects/:projectId",
+        element: page(<ProjectWorkspace />),
+        loader: projectWorkspaceLoader,
+      },
       // Subscriptions are gone: everything is pay-as-you-go now.
       { path: "pro", element: <Navigate to="/buy-tokens" replace /> },
       { path: "my-subscription", element: <Navigate to="/buy-tokens" replace /> },
@@ -183,37 +191,6 @@ const router = createBrowserRouter([
         path: "discover",
         element: page(<Discover />),
         loader: () => getDiscoverPosts(1, 10),
-      },
-    ],
-  },
-  {
-    path: "/v2",
-    element: page(<MainLayout />),
-    loader: userInfoLoader,
-    errorElement: <ErrorBoundary />,
-    children: [
-      {
-        index: true,
-        element: page(<Discover />),
-        loader: () => getDiscoverPosts(1, 10),
-      },
-      {
-        path: "projects",
-        element: page(<Home />),
-        loader: multiloaderGet,
-      },
-      {
-        path: "profile",
-        element: page(<Profile />),
-        loader: userInfoLoader,
-      },
-      {
-        path: "project/:id",
-        element: page(<MainProject />),
-        loader: async ({ params }) => {
-          const { id } = params;
-          return await getProjects(id);
-        },
       },
     ],
   },

@@ -30,7 +30,7 @@ import {
 import {
   getElevenLabsVoices,
   generateElevenLabsSpeech,
-} from "../../create_elements/functions";
+} from "../functions";
 import { useI18n } from "../../i18n/i18n-context";
 import ReportContentModal from "../../components/report-content-modal";
 import { createPusherClient } from "@/pusher";

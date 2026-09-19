@@ -19,6 +19,7 @@ import {
   FlaskConical,
   LifeBuoy,
   MessageCircle,
+  Film,
 } from "lucide-react";
 import { Link, useParams, useNavigate, useRevalidator } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
@@ -327,6 +328,17 @@ function ChatSidebar({
           <FlaskConical size={20} />
           <span className="font-medium">{t("sidebar.ai-lab")}</span>
         </button>
+        <Link
+          to={"/app/projects"}
+          onClick={onClose}
+          className="w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
+        >
+          <Film size={20} />
+          <span className="font-medium">{t("sidebar.projects")}</span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F2D543] text-black uppercase tracking-wide">
+            New
+          </span>
+        </Link>
         <Link
           to={"/editor"}
           onClick={onClose}

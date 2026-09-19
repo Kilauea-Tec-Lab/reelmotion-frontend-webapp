@@ -27,7 +27,7 @@ function ChatLayout() {
     return () => cancelIdleCallback(id);
   }, []);
 
-  // ponytail: gate solo en /app (no /v2 ni /editor, ni la API directa): es friccion, no seguridad.
+  // ponytail: gate solo en /app (no /editor ni la API directa): es friccion, no seguridad.
   const needsOnboarding = chatData?.user?.onboarding_completed === false;
 
   return (
