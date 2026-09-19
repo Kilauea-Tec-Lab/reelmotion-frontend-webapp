@@ -7,8 +7,8 @@ import {
   LogOut,
   User,
   ChevronDown,
-  PanelLeftClose,
-  PanelLeftOpen,
+  ChevronLeft,
+  ChevronRight,
   MessageCirclePlus,
   Clapperboard,
   LibraryBig,
@@ -23,7 +23,7 @@ import {
   MessageCircle,
   Film,
 } from "lucide-react";
-import { Link, useParams, useNavigate, useRevalidator } from "react-router-dom";
+import { Link, useLocation, useParams, useNavigate, useRevalidator } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Cookies from "js-cookie";
@@ -50,7 +50,15 @@ function ChatSidebar({
     try { localStorage.setItem("sidebar-collapsed", next ? "1" : "0"); } catch { /* sin storage */ }
   };
   const lbl = collapsed ? "md:hidden" : "";
-  const NAV = `w-full flex items-center gap-3 px-4 py-3 font-dm-sans text-sm text-white hover:bg-[#2a2a2a] rounded-lg transition-colors ${collapsed ? "md:px-0 md:justify-center" : ""}`;
+  const { pathname } = useLocation();
+  // Item activo por prefijo de ruta; "/app" solo cuando es exactamente chat nuevo.
+  const isActive = (to) => (to === "/app" ? pathname === "/app" || pathname === "/app/" : pathname.startsWith(to));
+  const nav = (to) =>
+    `relative w-full flex items-center gap-3 px-3 py-2.5 font-dm-sans text-sm rounded-lg transition-colors ${
+      isActive(to) ? "bg-[#DC569D]/15 text-[#DC569D]" : "text-white hover:bg-[#2a2a2a]"
+    } ${collapsed ? "md:w-10 md:h-10 md:mx-auto md:px-0 md:py-0 md:justify-center" : ""}`;
+  // Punto amarillo sobre el icono cuando la etiqueta (Beta/New) esta oculta.
+  const dot = collapsed ? <span className="hidden md:block absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#F2D543]" /> : null;
 
   const { chatId } = useParams();
   const navigate = useNavigate();
@@ -317,25 +325,27 @@ function ChatSidebar({
         document.body
       )}
 
-      <div className={`flex items-center pt-4 pr-2 ${collapsed ? "md:flex-col md:gap-2 md:pl-2 md:pr-0" : "justify-between pl-6"}`}>
+      <div className={`h-14 md:h-16 flex items-center shrink-0 ${collapsed ? "md:justify-center" : "pl-6"}`}>
         <img src="/logos/logo_reelmotion.webp" alt="Reelmotion AI" className={`w-2/4 ${lbl}`} />
-        {collapsed && <img src="/logos/icon_r.png" alt="Reelmotion AI" className="hidden md:block h-8 w-auto" />}
-        <button
-          onClick={toggleCollapsed}
-          className="hidden md:flex p-2 rounded-lg text-gray-500 hover:text-white hover:bg-[#2a2a2a] transition-colors"
-          title={collapsed ? "Expand" : "Collapse"}
-        >
-          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-        </button>
+        {collapsed && <img src="/logos/icon_r.png" alt="Reelmotion AI" className="hidden md:block h-7 w-auto" />}
       </div>
+      {/* Pildora de colapso montada sobre el borde derecho (solo desktop) */}
+      <button
+        onClick={toggleCollapsed}
+        className="hidden md:flex absolute top-6 -right-3 h-6 w-6 items-center justify-center rounded-full bg-[#2f2f2f] border border-gray-700 text-gray-400 hover:text-white hover:border-[#DC569D] hover:bg-[#DC569D]/20 transition-colors z-10"
+        title={collapsed ? "Expand" : "Collapse"}
+      >
+        {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+      </button>
       {/* Header */}
-      <div className={`p-4 border-b border-gray-800 ${collapsed ? "md:px-2" : ""}`}>
+      <div className={`p-3 space-y-0.5 border-b border-gray-800 ${collapsed ? "md:px-0 md:py-3 md:space-y-1.5" : ""}`}>
         <Link
           to={"/app"}
           onClick={onClose}
-          title={t("sidebar.new-chat")} className={NAV}
+          title={t("sidebar.new-chat")} className={nav("/app")}
         >
           <MessageCirclePlus size={20} />
+          {dot}
           <span className={`font-medium ${lbl}`}>{t("sidebar.new-chat")}</span>
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F2D543] text-black uppercase tracking-wide ${lbl}`}>
             Beta
@@ -343,7 +353,7 @@ function ChatSidebar({
         </Link>
         <button
           onClick={() => { onOpenAiLab(); onClose?.(); }}
-          title={t("sidebar.ai-lab")} className={NAV}
+          title={t("sidebar.ai-lab")} className={nav("/app/dashboard")}
         >
           <FlaskConical size={20} />
           <span className={`font-medium ${lbl}`}>{t("sidebar.ai-lab")}</span>
@@ -351,9 +361,10 @@ function ChatSidebar({
         <Link
           to={"/app/projects"}
           onClick={onClose}
-          title={t("sidebar.projects")} className={NAV}
+          title={t("sidebar.projects")} className={nav("/app/projects")}
         >
           <Film size={20} />
+          {dot}
           <span className={`font-medium ${lbl}`}>{t("sidebar.projects")}</span>
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F2D543] text-black uppercase tracking-wide ${lbl}`}>
             New
@@ -362,7 +373,7 @@ function ChatSidebar({
         <Link
           to={"/editor"}
           onClick={onClose}
-          title={t("sidebar.editor")} className={NAV}
+          title={t("sidebar.editor")} className={nav("/editor")}
         >
           <Clapperboard size={20} />
           <span className={`font-medium ${lbl}`}>{t("sidebar.editor")}</span>
@@ -370,7 +381,7 @@ function ChatSidebar({
         <Link
           to={"/app/library"}
           onClick={onClose}
-          title={t("sidebar.library")} className={NAV}
+          title={t("sidebar.library")} className={nav("/app/library")}
         >
           <LibraryBig size={20} />
           <span className={`font-medium ${lbl}`}>{t("sidebar.library")}</span>
@@ -378,7 +389,7 @@ function ChatSidebar({
         {/*
         <Link
           to={"/app/discover"}
-          className={NAV}
+          className={nav("/app/discover")}
         >
           <Images size={20} />
           <span className={`font-medium ${lbl}`}>Discover</span>
@@ -387,12 +398,25 @@ function ChatSidebar({
         <Link
           to={"/app/developers"}
           onClick={onClose}
-          title={t("sidebar.developers")} className={NAV}
+          title={t("sidebar.developers")} className={nav("/app/developers")}
         >
           <Code2 size={20} className="text-[#DC569D]" />
           <span className={`font-medium ${lbl}`}>{t("sidebar.developers")}</span>
         </Link>
       </div>
+
+      {/* Colapsado: los chats viven en el panel expandido; este icono lo abre. */}
+      {collapsed && (
+        <div className="hidden md:flex flex-col items-center py-3 border-b border-gray-800">
+          <button
+            onClick={toggleCollapsed}
+            title={t("sidebar.your-chats")}
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-[#2a2a2a] transition-colors"
+          >
+            <MessageSquare size={20} />
+          </button>
+        </div>
+      )}
 
       {/* Search */}
       <div className={`p-4 ${lbl}`}>
@@ -484,7 +508,7 @@ function ChatSidebar({
       <div className="border-t border-gray-800 relative" ref={menuRef}>
         <button
           onClick={() => setShowUserMenu(!showUserMenu)}
-          className={`w-full flex items-center gap-3 hover:bg-[#212121] p-2 transition-colors ${collapsed ? "md:justify-center" : ""}`}
+          className={`w-full flex items-center gap-3 hover:bg-[#212121] p-2 transition-colors ${collapsed ? "md:justify-center md:py-3" : ""}`}
         >
           {user.image ? (
             <img
@@ -512,7 +536,7 @@ function ChatSidebar({
 
         {/* Dropdown Menu */}
         {showUserMenu && (
-          <div className="absolute bottom-full left-4 right-4 mb-2 bg-[#2f2f2f] rounded-lg shadow-xl border border-gray-700 overflow-hidden">
+          <div className={`absolute bottom-full left-4 right-4 mb-2 bg-[#2f2f2f] rounded-lg shadow-xl border border-gray-700 overflow-hidden ${collapsed ? "md:bottom-2 md:left-full md:right-auto md:ml-2 md:w-64" : ""}`}>
             <div className="flex items-center justify-between px-4 py-2.5">
               <span className="text-xs text-gray-500">{locale === "es" ? "Idioma" : "Language"}</span>
               <div className="flex items-center bg-[#212121] rounded-full p-0.5 gap-0.5">
