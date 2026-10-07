@@ -1,26 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLoaderData } from "react-router-dom";
-import { ArrowLeft, ChevronDown, ChevronUp, CreditCard, DollarSign, MessageSquare, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, CreditCard, DollarSign, MessageSquare, PanelRightClose, PanelRightOpen, Users } from "lucide-react";
 import { useI18n } from "../i18n/i18n-context";
 import ChatView from "../chat/chat-view";
 import ModalPreview from "../components/modal-preview";
 import { useGenerationTracker } from "../chat/use-generation-tracker";
-import { deleteShot, generateShot, getProject, getUserTokens, reorderShots, updateProject } from "./functions";
+import { deleteShot, generateShot, getProject, getUserTokens, importShot, reorderShots, updateProject } from "./functions";
 import AssetPanel from "./components/asset-panel";
 import ShotTimeline from "./components/shot-timeline";
 import ShotEditorModal from "./components/shot-editor-modal";
 import { ConfirmDelete, Mono, StatusDot } from "./components/ui";
-import { INPUT } from "./components/tokens";
-
-const BUSY = ["queued", "processing", "generating"];
+import { BUSY, INPUT } from "./components/tokens";
 
 export default function ProjectWorkspace() {
   const { t } = useI18n();
   const { project: initial, chatData } = useLoaderData();
   const [project, setProject] = useState(initial);
-  const [chatOpen, setChatOpen] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
   const [briefOpen, setBriefOpen] = useState(false);
-  const [editor, setEditor] = useState(null); // { shot: shot|null, after?: shot } (after = "continuar" desde esa toma)
+  const [editor, setEditor] = useState(null); // { shot, after?, initial? } (after = "continuar" desde esa toma)
+  const [assetsOpen, setAssetsOpen] = useState(false); // drawer de assets en pantallas < lg
   const [tokens, setTokens] = useState(null);
   const [preview, setPreview] = useState(null);
   const [toDelete, setToDelete] = useState(null);
@@ -65,14 +64,23 @@ export default function ProjectWorkspace() {
     }
   };
 
+  const [moving, setMoving] = useState(false);
   const handleMove = async (shot, dir) => {
+    if (moving) return;
     const ids = shots.map((s) => s.id);
     const i = ids.indexOf(shot.id);
     const j = i + dir;
     if (j < 0 || j >= ids.length) return;
     [ids[i], ids[j]] = [ids[j], ids[i]];
-    const reordered = await reorderShots(project.id, ids);
-    setProject((p) => ({ ...p, shots: reordered }));
+    setMoving(true);
+    try {
+      const reordered = await reorderShots(project.id, ids);
+      setProject((p) => ({ ...p, shots: reordered }));
+    } catch (err) {
+      notify(err.message);
+    } finally {
+      setMoving(false);
+    }
   };
 
   const confirmDelete = async () => {
@@ -81,16 +89,30 @@ export default function ProjectWorkspace() {
       await deleteShot(project.id, toDelete.id);
       setToDelete(null);
       await reload();
+    } catch (err) {
+      notify(err.message);
     } finally {
       setDeleting(false);
     }
   };
 
   const saveMeta = async (patch) => {
-    const updated = await updateProject(project.id, patch);
-    setProject((p) => ({ ...p, ...updated }));
+    try {
+      const updated = await updateProject(project.id, patch);
+      setProject((p) => ({ ...p, ...updated }));
+    } catch (err) {
+      notify(err.message);
+    }
   };
 
+  const handleImportVideo = async (asset) => {
+    await importShot(project.id, asset.id);
+    await reload();
+  };
+  const openEditVideo = (src) => {
+    setAssetsOpen(false);
+    setEditor({ shot: null, initial: { kind: "edit", source: { url: src.video_url, duration: src.duration } } });
+  };
   // Toma de la que parte el editor: la ultima lista antes de la posicion (como hace el backend),
   // o la inmediata anterior si ninguna esta lista (para avisar que falta generarla).
   const prevShotFor = (shot, after) => {
@@ -106,7 +128,7 @@ export default function ProjectWorkspace() {
     if (after && shots.at(-1)?.id !== after.id && saved?.id) {
       const ids = shots.map((s) => s.id).filter((id) => id !== saved.id);
       ids.splice(ids.indexOf(after.id) + 1, 0, saved.id);
-      await reorderShots(project.id, ids);
+      await reorderShots(project.id, ids).catch((err) => notify(err.message));
     }
     reload();
   };
@@ -116,7 +138,13 @@ export default function ProjectWorkspace() {
 
   return (
     <div className="flex-1 flex min-h-0 overflow-hidden bg-primarioDark">
-      <div className="hidden lg:flex"><AssetPanel project={project} onChange={reload} /></div>
+      <div className="hidden lg:flex"><AssetPanel project={project} onChange={reload} onImportVideo={handleImportVideo} onEditVideo={openEditVideo} /></div>
+      {assetsOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 flex">
+          <AssetPanel project={project} onChange={reload} onImportVideo={handleImportVideo} onEditVideo={openEditVideo} onClose={() => setAssetsOpen(false)} />
+          <div className="flex-1 bg-black/60" onClick={() => setAssetsOpen(false)} />
+        </div>
+      )}
 
       <div className="relative flex-1 flex flex-col min-w-0 min-h-0">
         {/* Header */}
@@ -124,6 +152,9 @@ export default function ProjectWorkspace() {
           <Link to="/app/projects" className="text-gray-500 hover:text-white transition-colors" title={t("studio.title")}>
             <ArrowLeft className="h-5 w-5" />
           </Link>
+          <button onClick={() => setAssetsOpen(true)} className="lg:hidden text-gray-400 hover:text-white" title={t("studio.characters")}>
+            <Users className="h-5 w-5" />
+          </button>
           <input
             defaultValue={project.name}
             onBlur={(e) => e.target.value.trim() && e.target.value !== project.name && saveMeta({ name: e.target.value.trim() })}
@@ -144,9 +175,6 @@ export default function ProjectWorkspace() {
           <button onClick={() => setBriefOpen((o) => !o)} className="flex items-center gap-1 text-gray-400 hover:text-white text-xs transition-colors">
             <Mono className="text-inherit">{t("studio.brief")}</Mono>
             {briefOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
-          <button onClick={() => setChatOpen((o) => !o)} className="text-gray-400 hover:text-white transition-colors" title={t("studio.chat")}>
-            {chatOpen ? <PanelRightClose className="h-5 w-5" /> : <PanelRightOpen className="h-5 w-5" />}
           </button>
         </div>
 
@@ -169,6 +197,8 @@ export default function ProjectWorkspace() {
           onAdd={() => setEditor({ shot: null })}
           onGenerate={handleGenerate}
           onContinue={(shot) => setEditor({ shot: null, after: shot })}
+          onExtend={(shot) => setEditor({ shot: null, after: shot, initial: { chain_mode: "extend", model: "seedance-2.5" } })}
+          onEditVideo={openEditVideo}
           onEdit={(shot) => setEditor({ shot })}
           onPreview={setPreview}
           onDelete={setToDelete}
@@ -182,12 +212,27 @@ export default function ProjectWorkspace() {
         )}
       </div>
 
-      {chatOpen && chatData && (
-        <div className="hidden md:flex w-[420px] shrink-0 border-l border-gray-800 flex-col min-h-0">
+      {chatData && !chatOpen && (
+        <button
+          onClick={() => setChatOpen(true)}
+          title={t("studio.chat")}
+          className="hidden md:flex w-12 shrink-0 border-l border-gray-800 flex-col items-center gap-3 pt-3 text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+        >
+          <PanelRightOpen className="h-5 w-5" />
+          <MessageSquare className="h-4 w-4 text-[#DC569D]" />
+        </button>
+      )}
+
+      {/* ponytail: oculto con CSS en vez de desmontar, para no perder el estado del chat */}
+      {chatData && (
+        <div className={`${chatOpen ? "hidden md:flex" : "hidden"} w-[420px] shrink-0 border-l border-gray-800 flex-col min-h-0`}>
           <div className="h-12 border-b border-gray-800 flex items-center gap-2 px-4 shrink-0">
             <MessageSquare className="h-4 w-4 text-[#DC569D]" />
             <Mono className="text-gray-300">{t("studio.chat")}</Mono>
-            <Mono className="ml-auto">{t("studio.chat-hint")}</Mono>
+            <Mono className="ml-auto truncate">{t("studio.chat-hint")}</Mono>
+            <button onClick={() => setChatOpen(false)} className="text-gray-400 hover:text-white transition-colors shrink-0" title={t("studio.chat")}>
+              <PanelRightClose className="h-5 w-5" />
+            </button>
           </div>
           <div className="flex-1 flex flex-col min-h-0">
             <ChatView chatData={chatData} onGenerationFinal={reload} embedded />
@@ -201,8 +246,10 @@ export default function ProjectWorkspace() {
           shot={editor.shot}
           prevShot={prevShotFor(editor.shot, editor.after)}
           seed={editor.after}
+          initial={editor.initial}
           onClose={() => setEditor(null)}
           onSaved={handleSaved}
+          onAssetsChanged={reload}
         />
       )}
       {preview && (

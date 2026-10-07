@@ -20,12 +20,12 @@ export function StatusDot({ status, label }) {
   );
 }
 
-/** Modal base: overlay + card. Se portalea al body como los modales del sidebar. */
-export function Modal({ onClose, children, wide = false }) {
+/** Modal base: overlay + card. Se portalea al body. `dismissable=false`: el overlay no cierra (formularios largos). */
+export function Modal({ onClose, children, wide = false, dismissable = true }) {
   return createPortal(
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
-      onClick={onClose}
+      onClick={dismissable ? onClose : undefined}
     >
       <div
         className={`bg-[#1a1a1a] rounded-xl border border-gray-800 p-6 w-full ${wide ? "max-w-2xl" : "max-w-md"} max-h-[90vh] overflow-y-auto`}
