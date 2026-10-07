@@ -9,6 +9,8 @@ export const STATUS_DOT = {
   failed: "bg-red-500",
 };
 
+export const BUSY = ["queued", "processing", "generating"];
+
 export const CARD =
   "bg-[#171717] border border-gray-800 rounded-xl transition-all hover:border-[#DC569D]/60 hover:shadow-[0_0_0_1px_rgba(220,86,157,0.25),0_0_24px_rgba(220,86,157,0.12)]";
 

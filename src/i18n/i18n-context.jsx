@@ -19,14 +19,10 @@ export function I18nProvider({ children }) {
   };
 
   const t = useCallback(
-    (key) => {
-      if (translations[locale] && translations[locale][key] !== undefined) {
-        return translations[locale][key];
-      }
-      if (translations.en && translations.en[key] !== undefined) {
-        return translations.en[key];
-      }
-      return key;
+    (key, vars) => {
+      const text = translations[locale]?.[key] ?? translations.en?.[key] ?? key;
+      // "{max}" -> vars.max
+      return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (vars[k] ?? m)) : text;
     },
     [locale]
   );

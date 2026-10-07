@@ -8,7 +8,7 @@ const CHAIN_GLYPH = {
   none: "·",
   last_frame: "→",
   extend: "⟶",
-  keyframes: "⇉",
+  keyframes: "→",
 };
 
 function Connector({ mode }) {
@@ -18,13 +18,13 @@ function Connector({ mode }) {
       <div className={`w-full h-px ${active ? "bg-[#DC569D]/70 shadow-[0_0_8px_rgba(220,86,157,0.6)]" : "bg-gray-800"}`} />
       <Mono className={`mt-1 text-center leading-tight ${active ? "text-[#DC569D]" : ""}`}>
         <span className="block text-sm">{CHAIN_GLYPH[mode] || "·"}</span>
-        {active ? mode.replace("_", " ") : ""}
+        {active ? (mode === "keyframes" ? "last frame" : mode.replace("_", " ")) : ""}
       </Mono>
     </div>
   );
 }
 
-export default function ShotTimeline({ shots, generatingIds, onAdd, onGenerate, onContinue, onEdit, onPreview, onDelete, onMove }) {
+export default function ShotTimeline({ shots, generatingIds, onAdd, onGenerate, onContinue, onExtend, onEditVideo, onEdit, onPreview, onDelete, onMove }) {
   const { t } = useI18n();
 
   return (
@@ -40,6 +40,8 @@ export default function ShotTimeline({ shots, generatingIds, onAdd, onGenerate, 
               generating={generatingIds.has(shot.id)}
               onGenerate={onGenerate}
               onContinue={onContinue}
+              onExtend={onExtend}
+              onEditVideo={onEditVideo}
               onEdit={onEdit}
               onPreview={onPreview}
               onDelete={onDelete}
