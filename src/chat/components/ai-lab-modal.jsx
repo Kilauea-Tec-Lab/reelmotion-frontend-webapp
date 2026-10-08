@@ -41,6 +41,7 @@ import { getUserInfo } from "../../auth/functions";
 const MODEL_MAP = {
   seedream: "Seedream",
   "seedream-pro": "Seedream Pro",
+  "seedream-flash": "Seedream Flash",
   "nano-banana-pro": "Nano Banana",
   midjourney: "Midjourney",
   "gpt-image-2": "GPT",
@@ -72,8 +73,6 @@ const MODEL_DURATIONS = {
   "kling-v3": [3, 5, 8, 10, 15],
   "kling-v3-turbo": [3, 5, 8, 10, 15],
   "kling-o3": [3, 5, 8, 10, 15],
-  // O1 only generates 5s or 10s clips.
-  "kling-o1": [5, 10],
   "seedance-2.5": [4, 5, 6, 8, 10, 12, 15, 20, 25, 30],
   "seedance-2.0-mini": [4, 5, 6, 8, 10, 12, 15],
 };
@@ -86,7 +85,7 @@ const SEEDANCE_RESOLUTIONS = {
 
 // ====== KLING (Evolink) ======
 // Four models replace the old kling-v1 / kling-v3-omni-* keys.
-const KLING_MODEL_IDS = ["kling-v3", "kling-v3-turbo", "kling-o3", "kling-o1"];
+const KLING_MODEL_IDS = ["kling-v3", "kling-v3-turbo", "kling-o3"];
 const isKlingModel = (id) => KLING_MODEL_IDS.includes(id);
 
 // Selectable qualities per model. Routes the server caps at 1080p (turbo,
@@ -96,7 +95,6 @@ const KLING_QUALITIES = {
   "kling-v3": ["720p", "1080p", "4k"],
   "kling-v3-turbo": ["720p", "1080p"],
   "kling-o3": ["720p", "1080p", "4k"],
-  "kling-o1": ["720p", "1080p"],
 };
 
 const KLING_ASPECT_RATIOS = ["16:9", "9:16", "1:1"];
@@ -116,8 +114,6 @@ const KLING_PRICING = {
   o3Advanced: { "720p": 15, "1080p": 19 },
   // V3 — motion-control (provisional, no audio, no 4k)
   motion: { "720p": 15, "1080p": 19 },
-  // O1 — flat rate for both image-to-video and video-edit (no audio, no 4k)
-  o1: { "720p": 13, "1080p": 13 },
 };
 
 // Mirror the backend auto-router so the client can show the right price and
@@ -126,11 +122,6 @@ const KLING_PRICING = {
 function getKlingRoute(model, { hasImage, hasVideo, mode }) {
   if (model === "kling-v3-turbo") {
     return hasImage ? "image-to-video" : "text-to-video";
-  }
-  if (model === "kling-o1") {
-    // O1 has no text-to-video route: it edits a video or animates an image.
-    if (mode === "edit" || hasVideo) return "video-edit";
-    return "image-to-video";
   }
   if (model === "kling-v3") {
     if (mode === "motion" || hasVideo) return "motion-control";
@@ -149,9 +140,6 @@ function getKlingRoute(model, { hasImage, hasVideo, mode }) {
 function getKlingPerSecondCost(model, quality, audioOn, route) {
   if (model === "kling-v3-turbo") {
     return KLING_PRICING.turbo[quality] ?? KLING_PRICING.turbo["1080p"];
-  }
-  if (model === "kling-o1") {
-    return KLING_PRICING.o1[quality] ?? KLING_PRICING.o1["720p"];
   }
   if (route === "motion-control") {
     return KLING_PRICING.motion[quality] ?? KLING_PRICING.motion["1080p"];
@@ -222,6 +210,7 @@ async function generateVideoAPI({
   mediaUrl,
   aspectRatio,
   duration,
+  generateAudio,
 }) {
   const body = {
     ai_model: model,
@@ -229,6 +218,8 @@ async function generateVideoAPI({
     aspect_ratio: null,
     video_duration: duration,
   };
+  // Veo: audio off runs on Vertex without audio at roughly half the price.
+  if (generateAudio === false) body.generate_audio = false;
 
   // Agregar campos opcionales según el tipo de generación
   if (referenceImage) {
@@ -544,7 +535,7 @@ const IMAGE_MODELS = [
     badges: ["Up to 3K", "Fast"],
     isNew: true,
     type: "image",
-    cost: 3, // tokens per image
+    cost: 4, // tokens per image
     maxImages: 14, // supports multiple reference images
   },
   {
@@ -553,15 +544,27 @@ const IMAGE_MODELS = [
     iconComponent: Logos.Seedream,
     iconColor: "text-purple-400",
     description: "Highest-fidelity Seedream — sharper detail and composition",
-    badges: ["Up to 3K", "Pro"],
+    badges: ["Pro"],
     isNew: true,
     type: "image",
-    cost: 4, // tokens per image
-    maxImages: 14,
+    cost: 6, // tokens per image (+1 per extra reference image)
+    maxImages: 10,
+  },
+  {
+    id: "seedream-flash",
+    name: "Seedream 5.0 Flash",
+    iconComponent: Logos.Seedream,
+    iconColor: "text-purple-400",
+    description: "Cheapest image model — fast drafts and iterations",
+    badges: ["Cheapest", "Fast"],
+    isNew: true,
+    type: "image",
+    cost: 3, // tokens per image
+    maxImages: 10,
   },
   {
     id: "nano-banana-pro",
-    name: "Nano Banana 2",
+    name: "Nano Banana 2.1",
     // Use Google logo for Nano Banana Pro as requested
     iconComponent: Logos.Google,
     iconColor: "text-blue-400",
@@ -569,7 +572,7 @@ const IMAGE_MODELS = [
     badges: ["Multi-Image", "4K"],
     isNew: false,
     type: "image",
-    cost: 8, // tokens per image
+    cost: 5, // tokens per image
     maxImages: 14, // Up to 14 reference images
   },
   {
@@ -582,7 +585,7 @@ const IMAGE_MODELS = [
     badges: ["4 Variations", "Artistic"],
     isNew: true,
     type: "image",
-    cost: 9, // tokens per request (1 main image + 3 variants)
+    cost: 10, // tokens per request (1 main image + 3 variants)
     // img2img references must be public URLs (uploads handle this) — not data URIs
     maxImages: 5,
   },
@@ -596,7 +599,7 @@ const IMAGE_MODELS = [
     badges: ["Advanced", "NLP"],
     isNew: true,
     type: "image",
-    cost: 6, // tokens per image
+    cost: 7, // tokens per image
     maxImages: 5, // Up to 5 reference images
   },
 ];
@@ -610,15 +613,15 @@ const VIDEO_MODELS = [
     description:
       "High-quality generation up to 1080p and 30s. Text, image or reference driven",
     badges: ["4-30s", "Up to 1080p"],
-    cost: 35, // representative (720p tok/s); real cost depends on resolution
+    cost: 27, // representative (720p tok/s); real cost depends on resolution
     isNew: true,
     type: "video",
     isSeedance2: true,
     capabilities: ["text-to-video", "image-to-video", "reference-to-video"],
     // tok/s per resolution
-    pricing: { "480p": 16, "720p": 35, "1080p": 85 },
+    pricing: { "480p": 12, "720p": 27, "1080p": 66 },
     // tok/s per resolution when a reference video is provided (video-fed rate)
-    referencePricing: { "480p": 10, "720p": 21, "1080p": 52 },
+    referencePricing: { "480p": 8, "720p": 16, "1080p": 40 },
   },
   {
     id: "seedance-2.0-mini",
@@ -627,26 +630,13 @@ const VIDEO_MODELS = [
     iconColor: "text-cyan-400",
     description: "The cheapest way to generate video — great for drafts",
     badges: ["4-15s", "Up to 720p", "Cheapest at 480p"],
-    cost: 6, // representative (480p tok/s); real cost depends on resolution
+    cost: 4, // representative (480p tok/s); real cost depends on resolution
     isNew: true,
     type: "video",
     isSeedance2: true,
     capabilities: ["text-to-video", "image-to-video", "reference-to-video"],
-    pricing: { "480p": 6, "720p": 12 },
-    referencePricing: { "480p": 4, "720p": 8 },
-  },
-  {
-    id: "kling-o1",
-    name: "Kling O1",
-    iconComponent: Logos.Kling,
-    iconColor: "text-cyan-400",
-    description:
-      "Unified engine: animate an image or edit an existing video (5 or 10s)",
-    badges: ["5 or 10s", "Edit"],
-    cost: 13,
-    isNew: true,
-    type: "video",
-    capabilities: ["image-to-video", "video-edit"],
+    pricing: { "480p": 4, "720p": 9 },
+    referencePricing: { "480p": 3, "720p": 6 },
   },
   {
     id: "veo-3.1-ultra",
@@ -656,6 +646,7 @@ const VIDEO_MODELS = [
     description: "Maximum quality video generation (8s fixed)",
     badges: ["Ultra"],
     cost: 69,
+    silentCost: 46, // tok/s with audio off (Vertex, video only)
     isNew: true,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -665,9 +656,10 @@ const VIDEO_MODELS = [
     name: "Veo 3.1 Lite",
     iconComponent: Logos.Google,
     iconColor: "text-blue-400",
-    description: "Cheapest video with native audio (8s fixed)",
+    description: "Cheapest Veo — native audio optional (8s fixed)",
     badges: ["Lite", "Native audio"],
     cost: 6,
+    silentCost: 4, // tok/s with audio off (Vertex, video only)
     isNew: true,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -751,6 +743,7 @@ const VIDEO_MODELS = [
     description: "High-quality 8s video generation",
     badges: ["8s"],
     cost: 46,
+    silentCost: 23, // tok/s with audio off (Vertex, video only)
     isNew: false,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -763,6 +756,7 @@ const VIDEO_MODELS = [
     description: "Faster generation with good quality (8s)",
     badges: ["Fast"],
     cost: 12,
+    silentCost: 10, // tok/s with audio off (Vertex, video only)
     isNew: false,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
@@ -1826,6 +1820,7 @@ function AiLabModal({ isOpen, onClose }) {
           : model.pricing;
       return table?.[videoResolution] ?? model.cost ?? 0;
     }
+    if (model.silentCost && !generateAudio) return model.silentCost;
     return model.cost || 0;
   };
 
@@ -1839,12 +1834,12 @@ function AiLabModal({ isOpen, onClose }) {
         // Runway bills a 56-credit minimum, which the server floors at 2s.
         return perSecond * Math.max(2, uploadedVideoDuration || 5);
       }
-      // Seedance fed a video bills max(input, output) seconds, so a long source
-      // trimmed to a short clip still costs the full source length. Quote that,
-      // otherwise the confirm dialog under-states what the server will charge.
+      // Seedance fed a video bills input + output seconds (BytePlus), so a 60s
+      // source turned into a 4s clip costs 64s. Quote that, otherwise the confirm
+      // dialog under-states what the server will charge.
       const model = VIDEO_MODELS.find((m) => m.id === selectedVideoModel);
       if (model?.isSeedance2 && uploadedVideoDuration > 0) {
-        return perSecond * Math.max(duration, Math.ceil(uploadedVideoDuration));
+        return perSecond * (duration + Math.ceil(uploadedVideoDuration));
       }
       return perSecond * duration;
     } else if (activeTab === "voice") {
@@ -1878,13 +1873,6 @@ function AiLabModal({ isOpen, onClose }) {
       }
       if (selectedVideoModel === "kling-o3" && klingMode === "edit" && !hasVideo) {
         setError("Video-edit (Kling O3) requires a video reference.");
-        return;
-      }
-      // O1 has no text-to-video route: it animates an image or edits a video.
-      if (selectedVideoModel === "kling-o1" && files.length === 0) {
-        setError(
-          "Kling O1 requires an image to animate or a video to edit.",
-        );
         return;
       }
     }
@@ -2293,6 +2281,7 @@ function AiLabModal({ isOpen, onClose }) {
       referenceVideo,
       aspectRatio,
       duration: effectiveDuration,
+      generateAudio: selectedModelData?.silentCost ? generateAudio : undefined,
     });
   };
 
@@ -3361,9 +3350,11 @@ function AiLabModal({ isOpen, onClose }) {
                 </div>
               )}
 
-              {/* Audio Toggle (Seedance + Kling V3/O3 standard routes) */}
+              {/* Audio Toggle (Seedance, Kling V3/O3 standard routes, Veo) */}
               {activeTab === "video" &&
-                (selectedModelData?.isSeedance2 || klingAudioApplies) && (
+                (selectedModelData?.isSeedance2 ||
+                  klingAudioApplies ||
+                  selectedModelData?.silentCost) && (
                   <button
                     type="button"
                     onClick={() => setGenerateAudio(!generateAudio)}

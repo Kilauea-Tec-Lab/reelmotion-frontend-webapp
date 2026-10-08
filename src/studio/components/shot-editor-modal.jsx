@@ -147,7 +147,8 @@ export default function ShotEditorModal({ project, shot, prevShot, seed, initial
   }, []);
 
   const models = caps?.video || [];
-  const editModels = models.filter((m) => m.edit);
+  // Kling Motion primero: es el unico que cambia a la persona al 100% (cara, ropa y accesorios de la hoja).
+  const editModels = models.filter((m) => m.edit).sort((a, b) => Number(!!b.motion_edit) - Number(!!a.motion_edit));
   const cap = models.find((m) => m.id === form.model);
   const fitsAspect = (m) => !project.aspect_ratio || m.aspect_ratios.includes(project.aspect_ratio);
   const isFirst = !prevShot;
@@ -159,13 +160,13 @@ export default function ShotEditorModal({ project, shot, prevShot, seed, initial
   // Edición: si el clip es más largo de lo que acepta el modelo elegido, cambia a uno que sí.
   useEffect(() => {
     if (kind !== "edit" || !editModels.length) return;
-    const ok = (m) => !(form.source_duration > m.edit_max_seconds + 0.5);
+    const ok = (m) => !(form.source_duration > m.edit_max_seconds + 0.5) && !(m.motion_edit && form.edit_mode !== "motion_transfer");
     if (!editModels.some((m) => m.id === form.model && ok(m))) {
       const next = editModels.find(ok);
       if (next) set("model", next.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, form.source_duration, editModels.length]);
+  }, [kind, form.source_duration, form.edit_mode, editModels.length]);
 
   const changeModel = (id) => {
     setCapHint(null);
@@ -257,7 +258,7 @@ export default function ShotEditorModal({ project, shot, prevShot, seed, initial
       ? {
         kind: "edit", prompt: promptText.trim(), model: form.model, edit_mode: form.edit_mode,
         source_video_url: form.source_video_url, source_duration: form.source_duration,
-        asset_ids: form.asset_ids, options: { resolution: form.options.resolution },
+        asset_ids: form.asset_ids, options: { resolution: form.options.resolution, clean_audio: form.options.clean_audio !== false, character_swap: !!form.options.character_swap && !!cap?.refs_without_frame && form.edit_mode === "motion_transfer" },
       }
       : {
         kind: "generate", prompt: form.prompt.trim(), model: form.model, duration: Number(form.duration), chain_mode: chain,
@@ -366,12 +367,12 @@ export default function ShotEditorModal({ project, shot, prevShot, seed, initial
           </>
         )}
 
-        {cap && (cap.resolutions.length > 0 || (kind === "generate" && cap.audio)) && (
+        {cap && (cap.resolutions.length > 0 || kind === "edit" || (kind === "generate" && cap.audio)) && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {cap.resolutions.length > 0 && (
               <div>
                 <Mono>{t("studio.resolution")}</Mono>
-                <Segmented options={cap.resolutions} value={form.options.resolution} onChange={(r) => setOpt("resolution", r)} />
+                <Segmented options={kind === "edit" && cap.motion_edit ? cap.resolutions.filter((r) => r !== "4k") : cap.resolutions} value={form.options.resolution} onChange={(r) => setOpt("resolution", r)} />
               </div>
             )}
             {kind === "generate" && cap.audio && (
@@ -380,6 +381,15 @@ export default function ShotEditorModal({ project, shot, prevShot, seed, initial
                 <button type="button" onClick={() => setOpt("generate_audio", !form.options.generate_audio)} className={`mt-1 flex items-center gap-2 px-2.5 py-1.5 rounded-md font-mono text-xs transition-colors ${form.options.generate_audio ? "bg-[#DC569D] text-white" : "bg-[#2f2f2f] text-gray-400 hover:bg-[#3a3a3a] hover:text-white"}`}>
                   <Volume2 className="h-3.5 w-3.5" />
                   {form.options.generate_audio ? "ON" : "OFF"}
+                </button>
+              </div>
+            )}
+            {kind === "edit" && (
+              <div>
+                <Mono>{t("studio.clean-audio")}</Mono>
+                <button type="button" onClick={() => setOpt("clean_audio", form.options.clean_audio === false)} className={`mt-1 flex items-center gap-2 px-2.5 py-1.5 rounded-md font-mono text-xs transition-colors ${form.options.clean_audio !== false ? "bg-[#DC569D] text-white" : "bg-[#2f2f2f] text-gray-400 hover:bg-[#3a3a3a] hover:text-white"}`}>
+                  <Volume2 className="h-3.5 w-3.5" />
+                  {t(form.options.clean_audio !== false ? "studio.clean-audio-on" : "studio.clean-audio-off")}
                 </button>
               </div>
             )}

@@ -39,7 +39,7 @@ const translations = {
       "Describe the spot, ad, or social clip you need. Our AI agent writes the prompt and lets you pick from the best models — Seedance 2.5, Veo 3.1, Kling V3, Runway 4.5, and more. Generate multiple versions or formats in parallel, ready for testing across channels.",
     "features.image.title": "On-brand visuals for every channel",
     "features.image.description":
-      "Type what the creative needs to look like. Our AI turns it into a precise prompt and generates 4K images with Nano Banana 2, GPT Image 2, or Seedream 5.0.",
+      "Type what the creative needs to look like. Our AI turns it into a precise prompt and generates 4K images with Nano Banana 2.1, GPT Image 2, or Seedream 5.0.",
     "features.audio.title": "Broadcast-ready voiceover, no studio booking",
     "features.audio.description":
       "Write your script, pick a voice, hit generate. ElevenLabs multi-language TTS delivers agency-quality narration for every market you sell into.",
@@ -50,7 +50,7 @@ const translations = {
       "No prompt engineering, no creative brief back-and-forth. Our AI asks the right questions, builds the perfect prompt, and generates results ready to run — so your team can move from concept to campaign the same day.",
     "reelbot.feat.imageGen": "Image Generation",
     "reelbot.feat.imageGenDesc":
-      "Text-to-image and image-to-image with Nano Banana 2, GPT Image 2, and Seedream",
+      "Text-to-image and image-to-image with Nano Banana 2.1, GPT Image 2, and Seedream",
     "reelbot.feat.videoGen": "Video Generation",
     "reelbot.feat.videoGenDesc":
       "10 video models: Seedance 2.5, Veo 3.1, Runway 4.5, Kling V3, and more",
@@ -137,7 +137,7 @@ const translations = {
     "pricing.includes.agent": "AI Agent (ReelBot)",
     "pricing.includes.api": "REST API & MCP server",
     "pricing.example.video": "5s video · Kling V3 720p",
-    "pricing.example.image": "1 image · Nano Banana 2",
+    "pricing.example.image": "1 image · Nano Banana 2.1",
     "pricing.example.voice": "1,000-char voiceover · ElevenLabs",
     "pricing.example.note":
       "Real prices from the app. Failed generations are refunded automatically.",
@@ -279,6 +279,9 @@ const translations = {
     "studio.refs-unsupported": "This model ignores reference images. Switch to:",
     "studio.resolution": "Resolution",
     "studio.audio": "Generate audio",
+    "studio.clean-audio": "Original audio",
+    "studio.clean-audio-on": "Voice only (noise removed)",
+    "studio.clean-audio-off": "As is",
     "studio.cap-refs": "refs",
     "studio.cap-extend": "extend",
     "studio.cap-keyframes": "keyframes",
@@ -359,6 +362,11 @@ const translations = {
     "studio.cap-refs-hint": "Characters / references — click to jump to them",
     "studio.aspect-unsupported": "no {aspect}",
     "studio.edit-too-long": "This model edits clips up to {max}s.",
+    "studio.edit-motion-model": "Kling Motion · 100% character",
+    "studio.edit-motion-hint": "Swaps the person for your character 100%: face, outfit and accessories come only from the character. First it places the character in the video's first frame, then it copies every movement of the original. Pick the character below.",
+    "studio.edit-motion-only-transfer": "Kling Motion only works in Transfer motion. Use Seedance 2.5 for Restyle or Object swap.",
+    "studio.edit-seedance-character": "Seedance · 100% character",
+    "studio.edit-seedance-character-hint": "Same as Kling Motion (character placed in the first frame) but animated with Seedance 2.5 using the video as a motion reference. Looser timing and lip sync than Kling. Pick the character below.",
     "studio.edit-object_swap-placeholder": "e.g. The red car → the vintage motorbike from the reference.",
     "studio.edit-object_swap-hint": "Replaces a single element and leaves the rest of the shot untouched. Name it and add its reference.",
     "studio.edit-object_swap": "Swap object",
@@ -863,7 +871,7 @@ const translations = {
       "Describe el spot, anuncio o clip social que necesitas. Nuestro agente escribe el prompt y te deja elegir entre los mejores modelos — Seedance 2.5, Veo 3.1, Kling V3, Runway 4.5 y más. Genera varias versiones o formatos en paralelo, listos para probar en cada canal.",
     "features.image.title": "Visuales on-brand para cada canal",
     "features.image.description":
-      "Escribe cómo debe verse el creativo. Nuestra IA lo convierte en un prompt preciso y genera imágenes 4K con Nano Banana 2, GPT Image 2 o Seedream 5.0.",
+      "Escribe cómo debe verse el creativo. Nuestra IA lo convierte en un prompt preciso y genera imágenes 4K con Nano Banana 2.1, GPT Image 2 o Seedream 5.0.",
     "features.audio.title": "Voz en off lista para emitir, sin reservar estudio",
     "features.audio.description":
       "Escribe el guion, elige una voz, genera. El TTS multilenguaje de ElevenLabs entrega narración con calidad de agencia para cada mercado al que vendes.",
@@ -874,7 +882,7 @@ const translations = {
       "Sin prompt engineering, sin idas y vueltas del brief. Nuestra IA hace las preguntas correctas, construye el prompt perfecto y genera resultados listos para publicar — para que tu equipo pase de concepto a campaña el mismo día.",
     "reelbot.feat.imageGen": "Generaci\u00f3n de Im\u00e1genes",
     "reelbot.feat.imageGenDesc":
-      "Texto a imagen e imagen a imagen con Nano Banana 2, GPT Image 2 y Seedream",
+      "Texto a imagen e imagen a imagen con Nano Banana 2.1, GPT Image 2 y Seedream",
     "reelbot.feat.videoGen": "Generaci\u00f3n de Video",
     "reelbot.feat.videoGenDesc":
       "10 modelos de video: Seedance 2.5, Veo 3.1, Runway 4.5, Kling V3 y m\u00e1s",
@@ -960,7 +968,7 @@ const translations = {
     "pricing.includes.agent": "AI Agent (ReelBot)",
     "pricing.includes.api": "API REST y servidor MCP",
     "pricing.example.video": "Video de 5s · Kling V3 720p",
-    "pricing.example.image": "1 imagen · Nano Banana 2",
+    "pricing.example.image": "1 imagen · Nano Banana 2.1",
     "pricing.example.voice": "Voz en off de 1,000 caracteres · ElevenLabs",
     "pricing.example.note":
       "Precios reales de la app. Las generaciones fallidas se reembolsan automáticamente.",
@@ -1109,6 +1117,9 @@ const translations = {
     "studio.refs-unsupported": "Este modelo ignora las imágenes de referencia. Cambia a:",
     "studio.resolution": "Resolución",
     "studio.audio": "Generar audio",
+    "studio.clean-audio": "Audio original",
+    "studio.clean-audio-on": "Solo voz (sin ruido)",
+    "studio.clean-audio-off": "Tal cual",
     "studio.cap-refs": "refs",
     "studio.cap-extend": "extend",
     "studio.cap-keyframes": "keyframes",
@@ -1189,6 +1200,11 @@ const translations = {
     "studio.cap-refs-hint": "Personajes / referencias — clic para ir a ellos",
     "studio.aspect-unsupported": "sin {aspect}",
     "studio.edit-too-long": "Este modelo edita clips de hasta {max}s.",
+    "studio.edit-motion-model": "Kling Motion · personaje 100%",
+    "studio.edit-motion-hint": "Cambia a la persona por tu personaje al 100%: cara, ropa y accesorios salen solo del personaje. Primero coloca al personaje en el primer frame del video y luego copia cada movimiento del original. Elige el personaje abajo.",
+    "studio.edit-motion-only-transfer": "Kling Motion solo funciona en Transferir movimiento. Usa Seedance 2.5 para Restyle o Cambiar objeto.",
+    "studio.edit-seedance-character": "Seedance · personaje 100%",
+    "studio.edit-seedance-character-hint": "Igual que Kling Motion (pone al personaje en el primer frame) pero lo anima Seedance 2.5 usando el video como referencia de movimiento. Tiempos y labios menos exactos que Kling. Elige el personaje abajo.",
     "studio.edit-object_swap-placeholder": "ej. El coche rojo → la moto vintage de la referencia.",
     "studio.edit-object_swap-hint": "Reemplaza un solo elemento y deja el resto de la toma igual. Nómbralo y agrega su referencia.",
     "studio.edit-object_swap": "Cambiar objeto",

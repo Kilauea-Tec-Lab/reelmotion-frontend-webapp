@@ -85,15 +85,26 @@ export default function EditVideoFields({ project, shotId, form, set, editModels
       <div>
         <Mono>{t("studio.model")}</Mono>
         <div className="mt-1 flex flex-wrap gap-1.5">
-          {editModels.map((m) => {
+          {editModels.flatMap((m) => {
             const tooLong = form.source_duration > m.edit_max_seconds + 0.5;
-            return (
-              <Choice key={m.id} active={form.model === m.id} disabled={tooLong} onClick={() => set("model", m.id)} title={tooLong ? t("studio.edit-too-long", { max: m.edit_max_seconds }) : undefined}>
-                <span className="inline-flex items-center gap-1.5"><Film className="h-3 w-3" />{m.label}{tooLong ? ` · ≤${m.edit_max_seconds}s` : ""}</span>
+            const wrongMode = m.motion_edit && form.edit_mode !== "motion_transfer";
+            const title = tooLong ? t("studio.edit-too-long", { max: m.edit_max_seconds }) : wrongMode ? t("studio.edit-motion-only-transfer") : undefined;
+            // Seedance 2.5 sale dos veces: edicion normal y "personaje" (frame compuesto + reference-to-video).
+            const variants = m.motion_edit ? [[false, t("studio.edit-motion-model")]] : m.refs_without_frame ? [[false, m.label], [true, t("studio.edit-seedance-character")]] : [[false, m.label]];
+            return variants.map(([swap, label]) => (
+              <Choice key={`${m.id}-${swap}`} active={form.model === m.id && !!form.options.character_swap === swap} disabled={tooLong || wrongMode || (swap && form.edit_mode !== "motion_transfer")}
+                onClick={() => { set("model", m.id); set("options", { ...form.options, character_swap: swap }); }} title={title}>
+                <span className="inline-flex items-center gap-1.5"><Film className="h-3 w-3" />{label}{tooLong ? ` · ≤${m.edit_max_seconds}s` : ""}</span>
               </Choice>
-            );
+            ));
           })}
         </div>
+        {editModels.find((m) => m.id === form.model)?.motion_edit && (
+          <p className="mt-1 text-[11px] text-gray-500">{t("studio.edit-motion-hint")}</p>
+        )}
+        {form.options.character_swap && editModels.find((m) => m.id === form.model)?.refs_without_frame && (
+          <p className="mt-1 text-[11px] text-gray-500">{t("studio.edit-seedance-character-hint")}</p>
+        )}
       </div>
     </>
   );

@@ -16,11 +16,11 @@ const VALUE_CLASS =
   "text-4xl md:text-5xl font-bold bg-gradient-to-r from-[#DC569D] to-[#F2D543] bg-clip-text text-transparent";
 
 const aiModels = [
-  "Seedance 2.5", "Kling V3", "Veo 3.1", "Runway Gen 4.5", "Kling O1",
-  "ElevenLabs TTS", "Nano Banana 2", "GPT Image 2",
+  "Seedance 2.5", "Kling V3", "Veo 3.1", "Runway Gen 4.5", "Seedream 5.0 Flash",
+  "ElevenLabs TTS", "Nano Banana 2.1", "GPT Image 2",
   "Seedream 5.0", "Kling O3", "Runway 4.5", "Midjourney V8.1",
-  "Seedance 2.5", "Kling V3", "Veo 3.1", "Runway Gen 4.5", "Kling O1",
-  "ElevenLabs TTS", "Nano Banana 2", "GPT Image 2",
+  "Seedance 2.5", "Kling V3", "Veo 3.1", "Runway Gen 4.5", "Seedream 5.0 Flash",
+  "ElevenLabs TTS", "Nano Banana 2.1", "GPT Image 2",
   "Seedream 5.0", "Kling O3", "Runway 4.5", "Midjourney V8.1",
 ];
 
