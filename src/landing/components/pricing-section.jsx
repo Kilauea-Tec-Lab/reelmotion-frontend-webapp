@@ -4,10 +4,10 @@ import { Check, Building2, Coins, Clapperboard, Image as ImageIcon, Mic } from "
 import { Link } from "react-router-dom";
 import AnimatedSection from "./animated-section";
 
-// ponytail: sample costs mirror ai-lab-modal (Kling V3 720p 10 tok/s, Nano Banana 2 8 tok, ElevenLabs 11 tok/1k chars)
+// ponytail: sample costs mirror ai-lab-modal (Kling V3 720p 10 tok/s, Nano Banana 2.1 5 tok, ElevenLabs 11 tok/1k chars)
 const EXAMPLES = [
   { icon: Clapperboard, key: "video", tokens: 50, usd: "$0.50" },
-  { icon: ImageIcon, key: "image", tokens: 8, usd: "$0.08" },
+  { icon: ImageIcon, key: "image", tokens: 5, usd: "$0.05" },
   { icon: Mic, key: "voice", tokens: 11, usd: "$0.11" },
 ];
 

@@ -6,8 +6,8 @@ import { LiquidButton } from "../../components/ui/liquid-glass-button";
 
 const MODELS = [
   "Seedance 2.5", "Kling V3", "Veo 3.1", "Runway 4.5",
-  "ElevenLabs TTS", "Nano Banana 2", "GPT Image 2",
-  "Seedream 5.0", "Kling O3", "Kling O1",
+  "ElevenLabs TTS", "Nano Banana 2.1", "GPT Image 2",
+  "Seedream 5.0", "Kling O3",
 ];
 
 const VideoHero = ({ scrollRef, onOpenAuth }) => {

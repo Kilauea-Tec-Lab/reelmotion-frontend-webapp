@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Clapperboard, Film, ImagePlus, Loader2, Plus, RefreshCw, Sparkles, Trash2, Upload, User, Image as ImageIcon, X } from "lucide-react";
 import { useI18n } from "../../i18n/i18n-context";
 import { addVideoAsset, createAsset, deleteAsset, getCapabilities, MAX_VIDEO_SECONDS, regenerateAsset, uploadImage } from "../functions";
+import ModalPreview from "../../components/modal-preview";
 import { ConfirmDelete, Modal, Mono, StatusDot } from "./ui";
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT } from "./tokens";
 
@@ -139,15 +140,16 @@ function AddAssetModal({ projectId, kind, onClose, onCreated }) {
   );
 }
 
-function AssetTile({ a, onDelete, onRegenerate, actions }) {
+function AssetTile({ a, onDelete, onRegenerate, onPreview, actions }) {
   const { t } = useI18n();
   const canRegen = a.prompt && a.kind !== "video" && a.status !== "generating";
   return (
     <div className="group relative aspect-square rounded-lg overflow-hidden bg-[#0C0C0D] border border-gray-800 hover:border-[#DC569D]/60 transition-colors">
       {a.kind === "video" ? (
-        <video src={a.video_url} preload="metadata" muted className="w-full h-full object-cover" />
+        <button type="button" onClick={() => onPreview(a)} className="w-full h-full"><video src={a.video_url} preload="metadata" muted className="w-full h-full object-cover" /></button>
       ) : a.image_url ? (
-        <img src={a.image_url} alt={a.name} className="w-full h-full object-cover" />
+        // Hoja de 3 vistas (frente | espalda | cara): la miniatura muestra el panel de la cara.
+        <button type="button" onClick={() => onPreview(a)} className="w-full h-full"><img src={a.image_url} alt={a.name} className={`w-full h-full object-cover ${a.sheet ? "object-right" : ""}`} /></button>
       ) : (
         <div className="w-full h-full flex items-center justify-center">
           {a.status === "generating" ? <Loader2 className="h-4 w-4 text-[#F2D543] animate-spin" /> : <span className="text-red-400 text-[10px]">✕</span>}
@@ -210,6 +212,7 @@ export default function AssetPanel({ project, onChange, onImportVideo, onEditVid
   const [deleting, setDeleting] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [error, setError] = useState(null);
+  const [preview, setPreview] = useState(null);
   const assets = project.assets || [];
   const ofKind = (...kinds) => assets.filter((a) => kinds.includes(a.kind));
 
@@ -238,7 +241,7 @@ export default function AssetPanel({ project, onChange, onImportVideo, onEditVid
     });
   };
 
-  const tile = (a, actions) => <AssetTile key={a.id} a={a} onDelete={setToDelete} onRegenerate={regenerate} actions={actions} />;
+  const tile = (a, actions) => <AssetTile key={a.id} a={a} onDelete={setToDelete} onRegenerate={regenerate} onPreview={setPreview} actions={actions} />;
   const videoTile = (a) => tile(a, (
     <>
       <button onClick={() => guard(() => onImportVideo(a))} className="bg-black/70 rounded p-1 text-gray-300 hover:text-white" title={t("studio.add-to-timeline")}><Clapperboard className="h-3 w-3" /></button>
@@ -270,6 +273,9 @@ export default function AssetPanel({ project, onChange, onImportVideo, onEditVid
       )}
       {toDelete && (
         <ConfirmDelete title={t("studio.delete-asset-title")} body={t("studio.delete-asset-confirm", { name: toDelete.name })} busy={deleting} onCancel={() => setToDelete(null)} onConfirm={confirmDelete} />
+      )}
+      {preview && (
+        <ModalPreview isOpen type={preview.kind === "video" ? "video" : "image"} data={{ image_url: preview.image_url, video_url: preview.video_url, name: preview.name }} onClose={() => setPreview(null)} />
       )}
     </aside>
   );

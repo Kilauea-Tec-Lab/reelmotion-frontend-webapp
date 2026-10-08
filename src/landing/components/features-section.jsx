@@ -20,7 +20,7 @@ const features = [
     titleKey: "features.image.title",
     descKey: "features.image.description",
     video: "/landing/sd-ramen.mp4",
-    models: ["Nano Banana 2", "GPT Image 2", "Seedream 5.0"],
+    models: ["Nano Banana 2.1", "GPT Image 2", "Seedream 5.0"],
     accent: "#A78BFA",
     label: "IMAGE GEN",
   },
