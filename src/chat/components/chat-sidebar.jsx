@@ -22,6 +22,7 @@ import {
   LifeBuoy,
   MessageCircle,
   Film,
+  Users,
 } from "lucide-react";
 import { Link, useLocation, useParams, useNavigate, useRevalidator } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
@@ -30,6 +31,7 @@ import Cookies from "js-cookie";
 import { useI18n } from "../../i18n/i18n-context";
 import { notifyAppLogout } from "../../utils/nativeBridge";
 import { SUPPORT_EMAIL, SUPPORT_WHATSAPP_URL } from "../../utils/support";
+import { isAdmin } from "../../admin/functions";
 
 function ChatSidebar({
   chats,
@@ -403,6 +405,16 @@ function ChatSidebar({
           <Code2 size={20} className="text-[#DC569D]" />
           <span className={`font-medium ${lbl}`}>{t("sidebar.developers")}</span>
         </Link>
+        {isAdmin(user) && (
+          <Link
+            to={"/app/users"}
+            onClick={onClose}
+            title={t("sidebar.users")} className={nav("/app/users")}
+          >
+            <Users size={20} />
+            <span className={`font-medium ${lbl}`}>{t("sidebar.users")}</span>
+          </Link>
+        )}
       </div>
 
       {/* Colapsado: los chats viven en el panel expandido; este icono lo abre. */}
