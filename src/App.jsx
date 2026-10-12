@@ -8,6 +8,7 @@ import { getInfoToEdit } from "./editor/functions";
 import { getDiscoverPosts } from "./discover/functions";
 import { getChatInfo, getChatDetails, getLibrary } from "./chat/functions";
 import { listProjects, projectWorkspaceLoader } from "./studio/functions";
+import { usersLoader, userDetailLoader } from "./admin/functions";
 
 // ChatLayout es el shell de /app y se necesita para pintar el sidebar cuanto antes.
 import ChatLayout from "./chat/chat-layout";
@@ -37,6 +38,8 @@ const DevelopersPage = lazy(() => import("./developers/developers-page"));
 const DeveloperConsole = lazy(() => import("./developers/console-page"));
 const ConsentPage = lazy(() => import("./oauth/consent-page"));
 const BuyTokensPage = lazy(() => import("./billing/buy-tokens-page"));
+const UsersAdmin = lazy(() => import("./admin/users-admin"));
+const UserDetail = lazy(() => import("./admin/user-detail"));
 
 function RouteFallback() {
   return (
@@ -171,6 +174,9 @@ const router = createBrowserRouter([
         element: page(<ProjectWorkspace />),
         loader: projectWorkspaceLoader,
       },
+      // Admin (solo ADMIN_EMAIL); el backend devuelve 403 y el loader redirige a /app.
+      { path: "users", element: page(<UsersAdmin />), loader: usersLoader },
+      { path: "users/:userId", element: page(<UserDetail />), loader: userDetailLoader },
       // Subscriptions are gone: everything is pay-as-you-go now.
       { path: "pro", element: <Navigate to="/buy-tokens" replace /> },
       { path: "my-subscription", element: <Navigate to="/buy-tokens" replace /> },
