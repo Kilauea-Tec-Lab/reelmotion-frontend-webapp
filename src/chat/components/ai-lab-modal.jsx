@@ -105,7 +105,7 @@ const KLING_PRICING = {
   // V3 / O3 — text-to-video & image-to-video (audio is a paid add-on)
   standard: {
     "720p": { off: 10, on: 14 },
-    "1080p": { off: 14, on: 16 },
+    "1080p": { off: 14, on: 22 },
     "4k": { off: 46, on: 46 },
   },
   // V3 Turbo — t2v / i2v (no audio, no 4k)
@@ -535,7 +535,7 @@ const IMAGE_MODELS = [
     badges: ["Up to 3K", "Fast"],
     isNew: true,
     type: "image",
-    cost: 4, // tokens per image
+    cost: 5, // tokens per image
     maxImages: 14, // supports multiple reference images
   },
   {
@@ -658,7 +658,7 @@ const VIDEO_MODELS = [
     iconColor: "text-blue-400",
     description: "Cheapest Veo — native audio optional (8s fixed)",
     badges: ["Lite", "Native audio"],
-    cost: 6,
+    cost: 11,
     silentCost: 4, // tok/s with audio off (Vertex, video only)
     isNew: true,
     type: "video",
@@ -755,7 +755,7 @@ const VIDEO_MODELS = [
     iconColor: "text-blue-400",
     description: "Faster generation with good quality (8s)",
     badges: ["Fast"],
-    cost: 12,
+    cost: 17,
     silentCost: 10, // tok/s with audio off (Vertex, video only)
     isNew: false,
     type: "video",
