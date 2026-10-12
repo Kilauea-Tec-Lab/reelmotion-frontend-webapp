@@ -659,7 +659,7 @@ const VIDEO_MODELS = [
     description: "Cheapest Veo — native audio optional (8s fixed)",
     badges: ["Lite", "Native audio"],
     cost: 11,
-    silentCost: 4, // tok/s with audio off (Vertex, video only)
+    silentCost: 5, // tok/s with audio off (Vertex, video only)
     isNew: true,
     type: "video",
     capabilities: ["text-to-video", "image-to-video"],
