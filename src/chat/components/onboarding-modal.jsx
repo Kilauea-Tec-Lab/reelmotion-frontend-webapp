@@ -8,25 +8,35 @@ import { COUNTRIES } from "../../lib/countries";
 // Cuestionario B2B bloqueante: sin X, sin skip, sin cerrar al click fuera.
 // Las opciones deben coincidir con las reglas `in:` de OnboardingController.
 const STEPS = [
-  { fields: ["company", "website", "country"] },
+  { fields: ["company", "website", "country", "phone"] },
   {
-    fields: ["role", "team_size"],
+    fields: ["role", "decision_role"],
     options: {
       role: ["marketing", "agency", "founder", "creator", "production", "other"],
-      team_size: ["1", "2-10", "11-50", "51-200", "200+"],
+      decision_role: ["decision_maker", "recommender", "evaluator", "exploring"],
     },
   },
   {
-    fields: ["use_case", "monthly_volume"],
+    fields: ["company_size", "team_size", "industry"],
+    options: {
+      company_size: ["1-10", "11-50", "51-200", "201-1000", "1000+"],
+      team_size: ["1", "2-10", "11-50", "51-200", "200+"],
+      industry: ["ecommerce", "agency", "saas", "retail", "real_estate", "education", "health", "media", "other"],
+    },
+  },
+  {
+    fields: ["use_case", "monthly_volume", "current_solution"],
     options: {
       use_case: ["ads", "social", "product", "agency_clients", "personal"],
       monthly_volume: ["<5", "5-20", "20-100", "100+"],
+      current_solution: ["in_house", "agency", "freelancers", "other_ai", "none"],
     },
   },
   {
-    fields: ["budget", "source"],
+    fields: ["budget", "timeline", "source"],
     options: {
       budget: ["0", "<100", "100-500", "500-2k", "2k+"],
+      timeline: ["this_week", "this_month", "1-3_months", "exploring"],
       source: ["google", "social", "referral", "product_hunt", "other"],
     },
   },
@@ -34,6 +44,9 @@ const STEPS = [
 
 const INPUT_CLASS =
   "w-full bg-black/40 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#DC569D] transition-colors";
+
+// Igual que la regla `regex` de OnboardingController.
+const PHONE_RE = /^\+?[0-9\s\-().]{7,20}$/;
 
 function withScheme(url) {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
@@ -86,6 +99,10 @@ function OnboardingModal({ onCompleted }) {
       setError(t("onboarding.err.url"));
       return;
     }
+    if (isFirstStep && !PHONE_RE.test(form.phone.trim())) {
+      setError(t("onboarding.err.phone"));
+      return;
+    }
     setStep((s) => s + 1);
   };
 
@@ -106,6 +123,8 @@ function OnboardingModal({ onCompleted }) {
 
       const granted = json.data?.tokens_granted ?? 0;
       if (window.gtag) window.gtag("event", "onboarding_completed", { tokens_granted: granted });
+      // Pendiente de aprobación: el layout muestra la pantalla "en revisión".
+      if (json.data?.approval_status === "pending") return onCompleted();
       setResult({ tokens_granted: granted });
     } catch (err) {
       setError(err.message || t("onboarding.err.generic"));
@@ -182,6 +201,17 @@ function OnboardingModal({ onCompleted }) {
                         </option>
                       ))}
                     </select>
+                  </Field>
+                  <Field label={t("onboarding.phone")}>
+                    <input
+                      type="tel"
+                      autoComplete="tel"
+                      className={INPUT_CLASS}
+                      placeholder={t("onboarding.phone.ph")}
+                      value={form.phone || ""}
+                      onChange={(e) => setField("phone", e.target.value)}
+                      maxLength={20}
+                    />
                   </Field>
                 </>
               ) : (

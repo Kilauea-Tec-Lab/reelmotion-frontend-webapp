@@ -413,6 +413,14 @@ function ChatSidebar({
           >
             <Users size={20} />
             <span className={`font-medium ${lbl}`}>{t("sidebar.users")}</span>
+            {user.pending_approvals > 0 && (
+              <span
+                title={t("admin.users.pending-approval")}
+                className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-[#DC569D] text-white text-xs font-bold flex items-center justify-center"
+              >
+                {user.pending_approvals}
+              </span>
+            )}
           </Link>
         )}
       </div>

@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { Link, useLoaderData, useNavigate } from "react-router-dom";
-import { ArrowLeft, ExternalLink, Trash2 } from "lucide-react";
+import { Link, useLoaderData, useNavigate, useRevalidator } from "react-router-dom";
+import { ArrowLeft, ExternalLink, Trash2, UserX } from "lucide-react";
 import { useI18n } from "../i18n/i18n-context";
 import { COUNTRIES } from "../lib/countries";
-import { Avatar, DeleteUserModal } from "./users-admin";
+import { ApproveButton, Avatar, DeleteUserModal } from "./users-admin";
 import { fmtDate, fmtNum } from "./functions";
 
-const ONBOARDING_FIELDS = ["company", "website", "country", "role", "team_size", "use_case", "monthly_volume", "budget", "source"];
-const FREE_TEXT = ["company", "website", "country"];
+const ONBOARDING_FIELDS = [
+  "company", "website", "country", "phone", "role", "decision_role", "company_size", "team_size", "industry",
+  "use_case", "monthly_volume", "current_solution", "budget", "timeline", "source",
+];
+const FREE_TEXT = ["company", "website", "country", "phone"];
 
 function Card({ title, children, className = "" }) {
   return (
@@ -117,6 +120,16 @@ function OnboardingAnswers({ user, answers }) {
         <dt className="text-gray-500 text-xs">{t("admin.users.completed-at")}</dt>
         <dd className="text-white mt-0.5">{fmtDate(user.onboarding_completed_at)}</dd>
       </div>
+      <div>
+        <dt className="text-gray-500 text-xs">{t("admin.users.approval")}</dt>
+        <dd className={`mt-0.5 ${user.approval_status === "pending" ? "text-[#F2D543]" : "text-white"}`}>
+          {user.approval_status === "pending"
+            ? t("admin.users.pending-approval")
+            : user.approved_at
+              ? `${t("admin.users.approved")} · ${fmtDate(user.approved_at)}`
+              : "—"}
+        </dd>
+      </div>
     </dl>
   );
 }
@@ -145,7 +158,8 @@ export default function UserDetail() {
   const { user, onboarding, analytics: a } = useLoaderData();
   const { t } = useI18n();
   const navigate = useNavigate();
-  const [confirming, setConfirming] = useState(false);
+  const revalidator = useRevalidator();
+  const [confirming, setConfirming] = useState(null); // "delete" | "reject"
   const fullName = [user.name, user.last_name].filter(Boolean).join(" ") || user.username;
 
   return (
@@ -166,9 +180,21 @@ export default function UserDetail() {
               </p>
             </div>
           </div>
-          <button onClick={() => setConfirming(true)} className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#DC569D]/15 text-[#DC569D] hover:bg-[#DC569D]/25">
-            <Trash2 size={16} /> {t("sidebar.delete")}
-          </button>
+          <div className="self-start sm:self-auto flex flex-wrap gap-2">
+            {user.approval_status === "pending" && (
+              <>
+                <ApproveButton user={user} onDone={revalidator.revalidate} className="px-4 py-2 rounded-lg bg-green-500/15">
+                  {t("admin.users.approve")}
+                </ApproveButton>
+                <button onClick={() => setConfirming("reject")} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#DC569D]/15 text-[#DC569D] hover:bg-[#DC569D]/25">
+                  <UserX size={16} /> {t("admin.users.reject")}
+                </button>
+              </>
+            )}
+            <button onClick={() => setConfirming("delete")} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#DC569D]/15 text-[#DC569D] hover:bg-[#DC569D]/25">
+              <Trash2 size={16} /> {t("sidebar.delete")}
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -223,7 +249,7 @@ export default function UserDetail() {
       </div>
 
       {confirming && (
-        <DeleteUserModal user={user} onClose={() => setConfirming(false)} onDeleted={() => navigate("/app/users", { replace: true })} />
+        <DeleteUserModal user={user} mode={confirming} onClose={() => setConfirming(null)} onDeleted={() => navigate("/app/users", { replace: true })} />
       )}
     </div>
   );
