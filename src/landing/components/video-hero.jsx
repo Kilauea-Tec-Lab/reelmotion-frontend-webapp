@@ -160,7 +160,7 @@ const VideoHero = ({ scrollRef, onOpenAuth }) => {
         </motion.div>
 
         <motion.h1
-          className="text-center font-extrabold tracking-tighter text-[clamp(1.9rem,5vw,4.2rem)] leading-[1.06] drop-shadow-lg"
+          className="text-center font-extrabold tracking-tighter text-[clamp(1.9rem,5vw,4.2rem)] leading-[1.06] pb-[0.15em] drop-shadow-lg"
           style={{
             background: "linear-gradient(135deg, #ffffff 0%, #ffffff 40%, #DC569D 70%, #F2D543 100%)",
             WebkitBackgroundClip: "text",
