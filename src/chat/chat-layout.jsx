@@ -6,6 +6,7 @@ import {
 import { useEffect, useState, lazy, Suspense } from "react";
 import ChatSidebar from "./components/chat-sidebar";
 import OnboardingModal from "./components/onboarding-modal";
+import PendingApprovalScreen from "./components/pending-approval-screen";
 
 // 3.5k lineas que antes viajaban en el bundle principal y ejecutaban todos
 // sus hooks en cada render del layout, aunque el modal estuviera cerrado.
@@ -29,6 +30,14 @@ function ChatLayout() {
 
   // ponytail: gate solo en /app (no /editor ni la API directa): es friccion, no seguridad.
   const needsOnboarding = chatData?.user?.onboarding_completed === false;
+
+  if (!needsOnboarding && chatData?.user?.approval_status === "pending") {
+    return (
+      <div className="flex h-screen">
+        <PendingApprovalScreen />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-primarioDark text-white overflow-hidden">

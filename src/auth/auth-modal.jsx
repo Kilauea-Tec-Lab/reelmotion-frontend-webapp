@@ -402,6 +402,7 @@ function AuthModal({ isOpen, onClose }) {
                     onChange={(e) => setCreateEmail(e.target.value)}
                     placeholder={t("auth.register.email-placeholder")}
                   />
+                  <p className="text-gray-500 text-xs mt-1">{t("auth.register.work-email-hint")}</p>
                 </div>
 
                 <div className="relative">

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLoaderData, useNavigation, useRevalidator, useSearchParams } from "react-router-dom";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Eye, Loader2, Search, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronLeft, ChevronRight, Eye, Loader2, Search, Trash2, UserX } from "lucide-react";
 import { useI18n } from "../i18n/i18n-context";
-import { deleteUser, fmtDate, fmtNum } from "./functions";
+import { approveUser, deleteUser, fmtDate, fmtNum, rejectUser } from "./functions";
 
 export function Avatar({ user, size = "h-8 w-8" }) {
   return user.image ? (
@@ -15,8 +15,44 @@ export function Avatar({ user, size = "h-8 w-8" }) {
   );
 }
 
-/** Confirmación de borrado; mismo patrón que el modal de borrar chat del sidebar. */
-export function DeleteUserModal({ user, onClose, onDeleted }) {
+/** Aprobar un lead pendiente (le llegan el welcome y los tokens). Sin confirmación: no es destructivo. */
+export function ApproveButton({ user, onDone, className = "", children }) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const approve = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await approveUser(user.id);
+      onDone();
+    } catch (e) {
+      setError(e?.message || t("admin.users.approve-error"));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button
+      onClick={approve}
+      disabled={busy}
+      title={error || t("admin.users.approve")}
+      className={`inline-flex items-center gap-2 hover:bg-green-500/10 disabled:opacity-50 ${error ? "text-red-400" : "text-green-400"} ${className}`}
+    >
+      {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+      {children}
+    </button>
+  );
+}
+
+const MODAL_MODES = {
+  delete: { action: deleteUser, Icon: Trash2, title: "admin.users.delete-title", confirm: "admin.users.delete-confirm", cta: "sidebar.delete", busy: "sidebar.deleting" },
+  reject: { action: rejectUser, Icon: UserX, title: "admin.users.reject-title", confirm: "admin.users.reject-confirm", cta: "admin.users.reject", busy: "sidebar.deleting" },
+};
+
+/** Confirmación de borrado/rechazo; mismo patrón que el modal de borrar chat del sidebar. */
+export function DeleteUserModal({ user, onClose, onDeleted, mode = "delete" }) {
+  const m = MODAL_MODES[mode];
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -25,7 +61,7 @@ export function DeleteUserModal({ user, onClose, onDeleted }) {
     setBusy(true);
     setError("");
     try {
-      await deleteUser(user.id);
+      await m.action(user.id);
       onDeleted();
     } catch (e) {
       setError(e?.message || t("admin.users.delete-error"));
@@ -38,11 +74,11 @@ export function DeleteUserModal({ user, onClose, onDeleted }) {
       <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 mb-4">
           <div className="bg-[#DC569D]/20 rounded-full p-3">
-            <Trash2 className="h-6 w-6 text-[#DC569D]" />
+            <m.Icon className="h-6 w-6 text-[#DC569D]" />
           </div>
-          <h3 className="text-xl font-semibold text-white">{t("admin.users.delete-title")}</h3>
+          <h3 className="text-xl font-semibold text-white">{t(m.title)}</h3>
         </div>
-        <p className="text-gray-400 mb-2">{t("admin.users.delete-confirm")}</p>
+        <p className="text-gray-400 mb-2">{t(m.confirm)}</p>
         <p className="text-white font-mono text-sm mb-6 break-all">{user.email}</p>
         {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
         <div className="flex gap-3 justify-end">
@@ -50,8 +86,8 @@ export function DeleteUserModal({ user, onClose, onDeleted }) {
             {t("sidebar.cancel")}
           </button>
           <button onClick={confirm} disabled={busy} className="px-4 py-2 bg-[#DC569D] text-white rounded-lg hover:bg-[#c44a87] transition-colors disabled:opacity-50 flex items-center gap-2">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            {busy ? t("sidebar.deleting") : t("sidebar.delete")}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <m.Icon className="h-4 w-4" />}
+            {busy ? t(m.busy) : t(m.cta)}
           </button>
         </div>
       </div>
@@ -69,7 +105,7 @@ export default function UsersAdmin() {
   const navigation = useNavigation();
   const revalidator = useRevalidator();
   const [q, setQ] = useState(params.get("q") || "");
-  const [toDelete, setToDelete] = useState(null);
+  const [toDelete, setToDelete] = useState(null); // { user, mode }
 
   // Cambia params conservando los demás; cualquier filtro nuevo vuelve a la página 1.
   const update = (patch) =>
@@ -106,7 +142,14 @@ export default function UsersAdmin() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold">{t("admin.users.title")}</h1>
-            <p className="text-gray-400 text-sm mt-1">{t("admin.users.total", { total: fmtNum(meta.total) })}</p>
+            <p className="text-gray-400 text-sm mt-1">
+              {t("admin.users.total", { total: fmtNum(meta.total) })}
+              {meta.pending_count > 0 && (
+                <button onClick={() => update({ onboarding: "pending_approval" })} className="ml-3 text-[#F2D543] hover:underline">
+                  {t("admin.users.pending-count", { count: meta.pending_count })}
+                </button>
+              )}
+            </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <label className="relative">
@@ -127,6 +170,7 @@ export default function UsersAdmin() {
               <option value="">{t("admin.users.filter.all")}</option>
               <option value="completed">{t("admin.users.filter.completed")}</option>
               <option value="pending">{t("admin.users.filter.pending")}</option>
+              <option value="pending_approval">{t("admin.users.pending-approval")}</option>
             </select>
           </div>
         </div>
@@ -161,16 +205,30 @@ export default function UsersAdmin() {
                   <td className="px-3 py-2 text-gray-300">{fmtNum(u.generations_count)}</td>
                   <td className="px-3 py-2 text-gray-300">{u.lead_score ?? "—"}</td>
                   <td className="px-3 py-2">
-                    <span className={`px-2 py-0.5 rounded-full text-xs whitespace-nowrap ${u.onboarding_completed ? "bg-green-500/15 text-green-400" : "bg-white/5 text-gray-400"}`}>
-                      {u.onboarding_completed ? t("admin.users.filter.completed") : t("admin.users.filter.pending")}
-                    </span>
+                    {u.approval_status === "pending" ? (
+                      <span className="px-2 py-0.5 rounded-full text-xs whitespace-nowrap bg-[#F2D543]/15 text-[#F2D543]">
+                        {t("admin.users.pending-approval")}
+                      </span>
+                    ) : (
+                      <span className={`px-2 py-0.5 rounded-full text-xs whitespace-nowrap ${u.onboarding_completed ? "bg-green-500/15 text-green-400" : "bg-white/5 text-gray-400"}`}>
+                        {u.onboarding_completed ? t("admin.users.filter.completed") : t("admin.users.filter.pending")}
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-1">
+                      {u.approval_status === "pending" && (
+                        <>
+                          <ApproveButton user={u} onDone={revalidator.revalidate} className="p-2 rounded-lg" />
+                          <button onClick={() => setToDelete({ user: u, mode: "reject" })} title={t("admin.users.reject")} className="p-2 rounded-lg text-gray-400 hover:text-[#DC569D] hover:bg-white/5">
+                            <UserX size={16} />
+                          </button>
+                        </>
+                      )}
                       <Link to={`/app/users/${u.id}`} title={t("admin.users.view")} className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5">
                         <Eye size={16} />
                       </Link>
-                      <button onClick={() => setToDelete(u)} title={t("sidebar.delete")} className="p-2 rounded-lg text-gray-400 hover:text-[#DC569D] hover:bg-white/5">
+                      <button onClick={() => setToDelete({ user: u, mode: "delete" })} title={t("sidebar.delete")} className="p-2 rounded-lg text-gray-400 hover:text-[#DC569D] hover:bg-white/5">
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -199,7 +257,8 @@ export default function UsersAdmin() {
 
       {toDelete && (
         <DeleteUserModal
-          user={toDelete}
+          user={toDelete.user}
+          mode={toDelete.mode}
           onClose={() => setToDelete(null)}
           onDeleted={() => {
             setToDelete(null);
