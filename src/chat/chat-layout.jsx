@@ -5,7 +5,6 @@ import {
 } from "react-router-dom";
 import { useEffect, useState, lazy, Suspense } from "react";
 import ChatSidebar from "./components/chat-sidebar";
-import OnboardingModal from "./components/onboarding-modal";
 import PendingApprovalScreen from "./components/pending-approval-screen";
 
 // 3.5k lineas que antes viajaban en el bundle principal y ejecutaban todos
@@ -28,10 +27,9 @@ function ChatLayout() {
     return () => cancelIdleCallback(id);
   }, []);
 
-  // ponytail: gate solo en /app (no /editor ni la API directa): es friccion, no seguridad.
-  const needsOnboarding = chatData?.user?.onboarding_completed === false;
-
-  if (!needsOnboarding && chatData?.user?.approval_status === "pending") {
+  // ponytail: red de seguridad para sesiones viejas; el login ya no da token a cuentas sin aprobar
+  // y el backend bloquea escrituras (Authenticate). Solo en /app, no /editor.
+  if (chatData?.user?.approval_status === "pending") {
     return (
       <div className="flex h-screen">
         <PendingApprovalScreen />
@@ -85,10 +83,6 @@ function ChatLayout() {
         <Suspense fallback={null}>
           <AiLabModal isOpen onClose={() => setIsAiLabOpen(false)} />
         </Suspense>
-      )}
-
-      {needsOnboarding && (
-        <OnboardingModal onCompleted={revalidator.revalidate} />
       )}
     </div>
   );

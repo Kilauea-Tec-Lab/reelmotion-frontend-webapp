@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, X } from "lucide-react";
+import { Eye, EyeOff, X, Clock } from "lucide-react";
 import { createAccount, login, consumePostLoginRedirect } from "./functions";
 import Cookies from "js-cookie";
 import { useI18n } from "../i18n/i18n-context";
 import { Link } from "react-router-dom";
+import ApplicationSteps, { StepProgress, withScheme } from "./application-steps";
 
-function AuthModal({ isOpen, onClose }) {
+function AuthModal({ isOpen, onClose, initialTab }) {
   const { t } = useI18n();
   const [typeRecord, setTypeRecord] = useState(1);
 
@@ -52,8 +53,18 @@ function AuthModal({ isOpen, onClose }) {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
 
+  // Aplicación B2B: paso de cuenta -> preguntas -> "en revisión" (sin acceso hasta aprobar)
+  const [showQuestions, setShowQuestions] = useState(false);
+  const [answers, setAnswers] = useState({});
+  const [applyError, setApplyError] = useState("");
+  const [reviewNotice, setReviewNotice] = useState(null); // "applied" | "pending"
+
   // Referral code states
   const [referralCode, setReferralCode] = useState("");
+
+  useEffect(() => {
+    if (isOpen && initialTab) setTypeRecord(initialTab);
+  }, [isOpen, initialTab]);
 
   // Check for referral code in URL
   useEffect(() => {
@@ -90,7 +101,9 @@ function AuthModal({ isOpen, onClose }) {
         window.location.replace(consumePostLoginRedirect());
       } else {
         const errorData = await loginCall.json();
-        if (errorData.success == false) {
+        if (errorData.code === "pending_approval") {
+          setReviewNotice("pending");
+        } else if (errorData.success == false) {
           setLoginEmailError(t("auth.signin.invalid-credentials"));
         }
       }
@@ -153,13 +166,19 @@ function AuthModal({ isOpen, onClose }) {
     setResetSuccess(false);
   };
 
-  async function handleRegister() {
+  function handleAccountNext() {
     setUsernameError(false);
     setCreateEmailError(false);
     setCreatePasswordError(false);
     setCreatePasswordConfirmError(false);
     setCreateNameError(false);
     setAcceptTermsError(false);
+
+    if (!username.trim() || !createName.trim()) {
+      if (!username.trim()) setUsernameError(t("auth.register.field-required"));
+      if (!createName.trim()) setCreateNameError(t("auth.register.field-required"));
+      return;
+    }
 
     if (!acceptTerms) {
       setAcceptTermsError(t("auth.register.accept-terms-error"));
@@ -184,6 +203,11 @@ function AuthModal({ isOpen, onClose }) {
       return;
     }
 
+    setShowQuestions(true);
+  }
+
+  async function submitApplication() {
+    setApplyError("");
     setIsRegistering(true);
 
     const register = await createAccount({
@@ -193,21 +217,25 @@ function AuthModal({ isOpen, onClose }) {
       password: createPassword,
       passwordConfirm: createPasswordConfirm,
       referral_code: referralCode || null,
-    });
+      answers: { ...answers, website: withScheme(answers.website.trim()) },
+    }).catch(() => null);
 
-    if (register.ok) {
-      const loginResponse = await register.json();
-      const token = loginResponse.data.token;
-      Cookies.set("token", token);
+    if (!register) {
+      setApplyError(t("onboarding.err.generic"));
+    } else if (register.ok) {
       if (window.ttq) {
         window.ttq.track("CompleteRegistration", {
           content_name: "signup",
           status: "success",
         });
       }
-      window.location.replace(consumePostLoginRedirect());
+      setReviewNotice("applied");
     } else {
-      const errorData = await register.json();
+      const errorData = await register.json().catch(() => ({}));
+      const errors = errorData.errors || {};
+      const accountErrors = ["username", "name", "email", "password"].some((k) => errors[k]);
+      if (accountErrors) setShowQuestions(false);
+      else setApplyError(Object.values(errors)[0]?.[0] || errorData.message || t("onboarding.err.generic"));
       if (errorData.errors) {
         if (errorData.errors.username)
           setUsernameError(errorData.errors.username[0]);
@@ -223,20 +251,44 @@ function AuthModal({ isOpen, onClose }) {
     setIsRegistering(false);
   }
 
+  const close = () => {
+    setReviewNotice(null);
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
     <>
       {/* Auth Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-        <div className="bg-[#161619] border border-gray-700 rounded-3xl w-full max-w-md p-8 relative shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <div className={`bg-[#161619] border border-gray-700 rounded-3xl w-full ${typeRecord === 2 && !reviewNotice ? "max-w-lg" : "max-w-md"} p-8 relative shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar`}>
           <button
-            onClick={onClose}
+            onClick={close}
             className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors"
           >
             <X size={24} />
           </button>
 
+          {reviewNotice ? (
+            <div className="text-center py-6">
+              <div className="w-14 h-14 bg-gradient-to-br from-[#DC569D] to-[#F2D543] rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Clock size={28} className="text-white" />
+              </div>
+              <h3 className="text-white text-2xl font-semibold">
+                {t(reviewNotice === "applied" ? "auth.applied.title" : "approval.pending.title")}
+              </h3>
+              <p className="text-gray-400 text-sm mt-3 mb-8">{t("approval.pending.body")}</p>
+              <button
+                type="button"
+                onClick={close}
+                className="w-full bg-[#DC569D] text-white py-3.5 rounded-xl font-bold hover:bg-[#c9458b] transition-all"
+              >
+                {t("auth.applied.close")}
+              </button>
+            </div>
+          ) : (
+          <>
           {/* Tabs */}
           <div className="flex p-1 bg-black/40 rounded-xl mb-8 mt-4">
             <button
@@ -343,7 +395,7 @@ function AuthModal({ isOpen, onClose }) {
             </div>
           ) : (
             <div className="space-y-5">
-              <div className="text-center mb-2">
+              <div className="mb-2">
                 <h3 className="text-white text-2xl font-semibold">
                   {t("auth.register.title")}
                 </h3>
@@ -352,6 +404,18 @@ function AuthModal({ isOpen, onClose }) {
                 </p>
               </div>
 
+              {showQuestions ? (
+                <ApplicationSteps
+                  answers={answers}
+                  setAnswers={setAnswers}
+                  onBack={() => setShowQuestions(false)}
+                  onSubmit={submitApplication}
+                  isSubmitting={isRegistering}
+                  error={applyError}
+                />
+              ) : (
+              <>
+              <StepProgress current={1} t={t} />
               <div className="space-y-4">
                 <div>
                   {usernameError && (
@@ -500,21 +564,21 @@ function AuthModal({ isOpen, onClose }) {
 
               <button
                 type="button"
-                onClick={() => handleRegister()}
-                disabled={!acceptTerms || isRegistering}
+                onClick={handleAccountNext}
+                disabled={!acceptTerms}
                 className={`w-full py-3.5 rounded-xl font-bold transition-all flex justify-center items-center ${
                   acceptTerms
                     ? "bg-[#DC569D] text-white hover:bg-[#c9458b] shadow-lg shadow-[#DC569D]/10"
                     : "bg-gray-800 text-gray-500 cursor-not-allowed"
                 }`}
               >
-                {isRegistering ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  t("auth.register.button")
-                )}
+                {t("onboarding.next")}
               </button>
+              </>
+              )}
             </div>
+          )}
+          </>
           )}
         </div>
       </div>

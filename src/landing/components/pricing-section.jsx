@@ -1,7 +1,6 @@
 import React from "react";
 import { useI18n } from "../../i18n/i18n-context";
 import { Check, Building2, Coins, Clapperboard, Image as ImageIcon, Mic } from "lucide-react";
-import { Link } from "react-router-dom";
 import AnimatedSection from "./animated-section";
 
 // ponytail: sample costs mirror ai-lab-modal (Kling V3 720p 10 tok/s, Nano Banana 2.1 5 tok, ElevenLabs 11 tok/1k chars)
@@ -91,7 +90,7 @@ const PricingSection = ({ onOpenAuth }) => {
                 <p className="text-sm text-white/40 mt-2">{t("pricing.payg.rate")}</p>
                 <p className="text-sm text-white/40">{t("pricing.payg.min")}</p>
                 <button
-                  onClick={onOpenAuth}
+                  onClick={() => onOpenAuth()}
                   className="w-full mt-6 py-3 rounded-xl text-sm font-semibold bg-[#DC569D] hover:bg-[#c44a87] text-white transition-all"
                 >
                   {t("pricing.payg.cta")}
@@ -157,12 +156,13 @@ const PricingSection = ({ onOpenAuth }) => {
                   ))}
                 </ul>
               </div>
-              <Link
-                to="/contact"
+              <button
+                type="button"
+                onClick={() => onOpenAuth?.(2)}
                 className="inline-flex justify-center items-center px-6 py-3 rounded-xl text-sm font-semibold border border-[#F2D543]/30 bg-[#F2D543]/5 text-[#F2D543] hover:bg-[#F2D543]/10 transition-all shrink-0"
               >
                 {t("pricing.enterprise.cta")}
-              </Link>
+              </button>
             </div>
           </div>
         </AnimatedSection>
