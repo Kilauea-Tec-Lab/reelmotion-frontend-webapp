@@ -25,6 +25,7 @@ export async function createAccount(data) {
     email: data.email,
     password: data.password,
     referral_code: data.referral_code || "", // Add default if not provided
+    ...data.answers, // preguntas de calificación B2B (OnboardingController::RULES)
   };
 
   const response = await fetch(

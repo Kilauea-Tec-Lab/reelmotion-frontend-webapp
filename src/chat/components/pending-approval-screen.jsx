@@ -4,7 +4,7 @@ import { Clock } from "lucide-react";
 import { useI18n } from "../../i18n/i18n-context";
 import { notifyAppLogout } from "../../utils/nativeBridge";
 
-// Lead B2B con score bajo: espera a que un admin lo apruebe (el backend bloquea las escrituras).
+// Cuenta sin aprobar: espera a que un admin la apruebe (el backend bloquea las escrituras).
 function PendingApprovalScreen() {
   const { t } = useI18n();
   const navigate = useNavigate();

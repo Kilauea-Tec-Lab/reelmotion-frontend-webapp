@@ -20,7 +20,8 @@ import { useI18n } from "../i18n/i18n-context";
 
 function LandingPage() {
   const scrollRef = useRef(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authTab, setAuthTab] = useState(null); // null = cerrado, 1 = sign in, 2 = aplicar
+  const openAuth = (tab = 1) => setAuthTab(tab);
   const { locale } = useI18n();
 
   if (Cookies.get("token")) {
@@ -31,7 +32,7 @@ function LandingPage() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("code")) {
-      setShowAuthModal(true);
+      setAuthTab(2);
     }
   }, []);
 
@@ -48,8 +49,8 @@ function LandingPage() {
       style={{ scrollBehavior: 'smooth' }}
     >
       <SEO lang={locale} />
-      <LandingNavbar scrollRef={scrollRef} onOpenAuth={() => setShowAuthModal(true)} />
-      <VideoHero scrollRef={scrollRef} onOpenAuth={() => setShowAuthModal(true)} />
+      <LandingNavbar scrollRef={scrollRef} onOpenAuth={openAuth} />
+      <VideoHero scrollRef={scrollRef} onOpenAuth={openAuth} />
       <SocialProofSection />
       <IntegrationsSection />
       <FeaturesSection />
@@ -57,15 +58,16 @@ function LandingPage() {
       <ChatDemoSection />
       <EditorSection />
       <TeamsSection />
-      <CtaBanner onOpenAuth={() => setShowAuthModal(true)} />
-      <PricingSection onOpenAuth={() => setShowAuthModal(true)} />
+      <CtaBanner onOpenAuth={openAuth} />
+      <PricingSection onOpenAuth={openAuth} />
       <LandingFooter />
 
       <DownloadAppButton />
 
       <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
+        isOpen={authTab !== null}
+        initialTab={authTab}
+        onClose={() => setAuthTab(null)}
       />
     </div>
   );

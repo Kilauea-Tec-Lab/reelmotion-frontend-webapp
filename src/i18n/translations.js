@@ -2,23 +2,23 @@ const translations = {
   en: {
     // Navbar
     "nav.features": "Features",
-    "nav.ai-agent": "AI Agent",
-    "nav.editor": "Editor",
+    "nav.ai-agent": "AI Creative Assistant",
+    "nav.editor": "Video Editor",
     "nav.pricing": "Pricing",
     "nav.integrations": "Integrations",
     "nav.developers": "Developers",
     "nav.teams": "Teams",
-    "nav.get-started": "Get Started",
+    "nav.get-started": "Start Creating",
     "nav.go-to-dashboard": "Go to Dashboard",
 
     // Hero
-    "hero.badge": "Kling V3 · Seedance 2.5 · Veo 3.1 — Now Live",
-    "hero.title": "Launch Your Next Ad Campaign — Before Lunch.",
+    "hero.badge": "Access Leading AI Models in One Creative Workflow",
+    "hero.title": "Create More Campaign Content. In Less Time. For Less.",
     "hero.subtitle":
-      "Brief it like you would a creative team. Reelmotion AI writes the prompt, picks the model and produces studio-quality video, images and voice for your campaigns in minutes — one variation or fifty. Pay only for what you generate. No subscription, ever.",
-    "hero.cta-primary": "Start Your Campaign",
-    "hero.cta-secondary": "See It in Action",
-    "hero.note": "No subscriptions · No seats · Pay per use — 20 free tokens to start",
+      "Turn a single campaign brief into professional videos, images and voiceovers. Reelmotion AI helps marketing agencies and in-house teams create more campaign content, produce creative variations and keep projects moving — without the usual production overhead.",
+    "hero.cta-primary": "Start Creating",
+    "hero.cta-secondary": "See How It Works",
+    "hero.note": "No subscriptions. No per-seat fees. Pay only for what you generate. Start with 20 free tokens.",
     "hero.go-to-dashboard": "Go to Dashboard",
 
     // Social Proof
@@ -31,103 +31,103 @@ const translations = {
 
     // Features
     "features.title":
-      "Your Whole Team Can Ship Video — No Creative Bottleneck",
+      "Everything Your Team Needs to Create Campaign Content",
     "features.subtitle":
-      "Most AI video tools assume you have a prompt engineer on staff. Reelmotion AI doesn't. Our agent turns any team member's brief into a production-grade prompt and delivers assets that look agency-made — so campaigns don't stall waiting on a specialist, and don't stall at volume either. Need one hero video or twenty ad variations, the process is exactly as fast.",
-    "features.video.title": "Turn a campaign brief into a full set of video assets",
+      "Turn campaign briefs into videos, images and voiceovers with less manual work. Give your team a faster way to develop creative concepts, produce variations and keep up with ongoing campaign demands.",
+    "features.video.title": "Create Campaign Videos",
     "features.video.description":
-      "Describe the spot, ad, or social clip you need. Our AI agent writes the prompt and lets you pick from the best models — Seedance 2.5, Veo 3.1, Kling V3, Runway 4.5, and more. Generate multiple versions or formats in parallel, ready for testing across channels.",
-    "features.image.title": "On-brand visuals for every channel",
+      "Produce video content for ads, social media and other marketing campaigns.",
+    "features.image.title": "Create Marketing Visuals",
     "features.image.description":
-      "Type what the creative needs to look like. Our AI turns it into a precise prompt and generates 4K images with Nano Banana 2.1, GPT Image 2, or Seedream 5.0.",
-    "features.audio.title": "Broadcast-ready voiceover, no studio booking",
+      "Generate images and visual concepts for products, promotions and campaigns.",
+    "features.audio.title": "Add Voiceovers",
     "features.audio.description":
-      "Write your script, pick a voice, hit generate. ElevenLabs multi-language TTS delivers agency-quality narration for every market you sell into.",
+      "Create voice content to support your videos and marketing assets.",
 
     // ReelBot
-    "reelbot.title": "Your On-Demand Creative Team",
+    "reelbot.title": "From Campaign Brief to Creative — Without the Prompt Engineering",
     "reelbot.subtitle":
-      "No prompt engineering, no creative brief back-and-forth. Our AI asks the right questions, builds the perfect prompt, and generates results ready to run — so your team can move from concept to campaign the same day.",
-    "reelbot.feat.imageGen": "Image Generation",
+      "Simply describe what you want to create. ReelBot helps refine your brief, prepares the generation prompt and guides you through creating campaign assets — without requiring you to become an AI prompting expert.",
+    "reelbot.feat.imageGen": "Generate Campaign Images",
     "reelbot.feat.imageGenDesc":
       "Text-to-image and image-to-image with Nano Banana 2.1, GPT Image 2, and Seedream",
-    "reelbot.feat.videoGen": "Video Generation",
+    "reelbot.feat.videoGen": "Choose from Multiple Video Models",
     "reelbot.feat.videoGenDesc":
       "10 video models: Seedance 2.5, Veo 3.1, Runway 4.5, Kling V3, and more",
-    "reelbot.feat.tts": "Text-to-Speech",
+    "reelbot.feat.tts": "Create Voiceovers",
     "reelbot.feat.ttsDesc": "Multi-language voices powered by ElevenLabs",
-    "reelbot.feat.vision": "Visual Analysis",
+    "reelbot.feat.vision": "Analyse Visual Content",
     "reelbot.feat.visionDesc":
       "Drop an image or video and our AI understands it instantly — no manual descriptions needed",
-    "reelbot.feat.prompts": "Guided Prompt Builder",
+    "reelbot.feat.prompts": "Get Help Refining Your Brief",
     "reelbot.feat.promptsDesc":
       "Our AI asks one question at a time to build the exact prompt that nails the result you want — zero guesswork",
-    "reelbot.step1.title": "Brief your campaign idea in your own words",
+    "reelbot.step1.title": "Describe Your Campaign",
     "reelbot.step1.desc":
       "No prompt knowledge needed. Just tell our AI what you're imagining.",
-    "reelbot.step2.title": "ReelBot crafts your prompt",
+    "reelbot.step2.title": "Refine Your Brief",
     "reelbot.step2.desc":
       "The agent asks smart follow-up questions, then writes a production-grade prompt for you.",
-    "reelbot.step3.title": "Pick your model & settings",
+    "reelbot.step3.title": "Choose Your Output",
     "reelbot.step3.desc":
       "Choose your AI model, resolution, aspect ratio, and duration — all in one place.",
-    "reelbot.step4.title": "See the cost before you commit budget",
+    "reelbot.step4.title": "Review the Cost",
     "reelbot.step4.desc":
       "Full transparency — exact token cost shown upfront, no surprises.",
-    "reelbot.step5.title": "Generate & deliver",
+    "reelbot.step5.title": "Generate and Refine",
     "reelbot.step5.desc":
       "Your content is ready in seconds — download it or send it straight to the editor for final polish.",
 
     // Chat Demo
-    "demo.title": "No Learning Curve. Just Results.",
+    "demo.title": "See How Easy Campaign Content Can Be to Create",
     "demo.subtitle":
-      "We guide you through the entire process to ensure you get the result that you need, regardless of your experience.",
+      "From your initial brief to generated creative, see how Reelmotion AI helps simplify the content production process.",
     "demo.caption":
-      "From rough idea to polished content — watch our AI agent do the work",
+      "See the Workflow in Action",
     "demo.showcaseTitle": "Create with Reelmotion AI",
     "demo.showcaseAlt": "AI-generated content",
 
     // Editor
     "editor.title":
-      "From First Draft to Client-Ready — All In One Tab.",
+      "Generate It. Edit It. Get It Ready for Your Campaign.",
     "editor.subtitle":
-      "A full professional-grade video editor built into the same platform where you generate content. No exporting to a separate tool, no app-switching between your team and freelancers.",
-    "editor.feat.timeline": "Multi-track Timeline",
+      "Generate and refine your content in one workspace. Edit videos, add captions and audio, work with stock media and manage your projects — all in your browser, without installing desktop software.",
+    "editor.feat.timeline": "Flexible Video Editing",
     "editor.feat.timelineDesc":
       "Drag, drop, and zoom frame-by-frame — full precision editing at your fingertips",
-    "editor.feat.captions": "Text & Captions",
+    "editor.feat.captions": "Captions and Text Overlays",
     "editor.feat.captionsDesc":
       "Animated text overlays, subtitles, and 9+ overlay styles ready to use",
-    "editor.feat.overlays": "Image & Video Layers",
+    "editor.feat.overlays": "Layered Editing",
     "editor.feat.overlaysDesc":
       "Stack clips, images, shapes, stickers, and captions on separate tracks",
-    "editor.feat.audio": "Audio Tracks",
+    "editor.feat.audio": "Audio and Voiceovers",
     "editor.feat.audioDesc":
       "Layer music, voiceovers, and sound effects with independent volume control",
     "editor.feat.stock": "Unlimited Stock Media",
     "editor.feat.stockDesc":
       "Millions of royalty-free images and videos via Pexels — built right in",
-    "editor.feat.cloud": "Video Rendering",
+    "editor.feat.cloud": "Render in the Cloud",
     "editor.feat.cloudDesc":
       "Export in high quality, rendered in the cloud — your laptop does zero heavy lifting",
-    "editor.feat.autosave": "Auto-save & Projects",
+    "editor.feat.autosave": "Keep Your Projects Organised",
     "editor.feat.autosaveDesc":
       "Every change saved automatically. Pick up any project exactly where you left off.",
-    "editor.feat.browser": "Zero Install",
+    "editor.feat.browser": "Work Directly in Your Browser",
     "editor.feat.browserDesc":
       "Works on any device, any browser — open a tab and start editing",
 
     // Pricing
-    "pricing.title": "No Subscriptions. Pay Only for What You Use.",
+    "pricing.title": "Produce More Creative Without Another Monthly Subscription",
     "pricing.subtitle":
-      "No monthly plans, no seats, no commitments. Buy tokens when you need them and spend them on any model — you see the exact cost of every generation before you hit generate.",
+      "Pay for the content you generate, without a recurring subscription or per-seat fees. Start small, control your generation costs and scale your usage as your campaign needs grow.",
     "pricing.payg.name": "Pay as you go",
     "pricing.payg.badge": "No subscription",
-    "pricing.payg.rate": "1 token = US$0.01 · same price for every team size",
-    "pricing.payg.min": "Top up from $6 · no minimum monthly spend",
+    "pricing.payg.rate": "Simple, usage-based pricing — $1 buys 100 tokens",
+    "pricing.payg.min": "Start with a small top-up and add tokens when you need them. No minimum monthly spend.",
     "pricing.payg.cta": "Start free",
     "pricing.payg.free": "20 free tokens on signup · no credit card",
-    "pricing.payg.included": "Everything included",
+    "pricing.payg.included": "Everything You Need in One Creative Workflow",
     "pricing.includes.video": "Video generation",
     "pricing.includes.image": "Image generation",
     "pricing.includes.voice": "Voiceover & TTS",
@@ -136,37 +136,38 @@ const translations = {
     "pricing.includes.library": "Shared media library",
     "pricing.includes.agent": "AI Agent (ReelBot)",
     "pricing.includes.api": "REST API & MCP server",
-    "pricing.example.video": "5s video · Kling V3 720p",
-    "pricing.example.image": "1 image · Nano Banana 2.1",
-    "pricing.example.voice": "1,000-char voiceover · ElevenLabs",
+    "pricing.example.video": "Example: 5-second video · Kling V3 720p",
+    "pricing.example.image": "Example: image · Nano Banana 2.1",
+    "pricing.example.voice": "Example: 1,000-character voiceover · ElevenLabs",
     "pricing.example.note":
-      "Real prices from the app. Failed generations are refunded automatically.",
-    "pricing.enterprise.title": "Running campaigns at scale?",
+      "Know your generation cost before you create. Failed generations are refunded automatically.",
+    "pricing.enterprise.title": "Producing Creative for Multiple Clients or Campaigns?",
     "pricing.enterprise.subtitle":
-      "Custom token volume and integration support for agencies and brands producing hundreds of assets a month.",
-    "pricing.enterprise.bullet1": "Custom token volume",
-    "pricing.enterprise.bullet2": "API & MCP integration support",
-    "pricing.enterprise.bullet3": "Direct line to the team",
-    "pricing.enterprise.cta": "Talk to sales",
+      "Whether you're an agency managing multiple clients or an in-house team producing creative at scale, we can discuss a setup that fits your workflow and content volume.",
+    "pricing.enterprise.bullet1": "Discuss Volume Pricing",
+    "pricing.enterprise.bullet2": "Explore Workflow Integrations",
+    "pricing.enterprise.bullet3": "Get Direct Support",
+    "pricing.enterprise.cta": "Discuss Agency & Team Access",
 
     // CTA Banner
-    "cta.title": "Your next campaign is one brief away.",
+    "cta.title": "Create More. Keep Campaigns Moving.",
     "cta.subtitle":
-      "Join marketing teams and agencies shipping high volumes of video — fast, without the production overhead, and without a subscription.",
-    "cta.button": "Start Your Campaign",
-    "cta.note": "No credit card. No subscription. 20 free tokens — then pay only for what you use.",
+      "Reelmotion AI helps marketing agencies and in-house teams produce campaign videos, images and voiceovers with less manual work, flexible costs and a more streamlined creative workflow.",
+    "cta.button": "Start Creating",
+    "cta.agency": "Apply for Agency & Team Access",
+    "cta.note": "Start with 20 free tokens. No subscription required.",
 
     // Integrations
     "integrations.badge": "✦ Integrations",
-    "integrations.title": "Connect Reelmotion to Claude, ChatGPT, or Your Own AI Agent",
+    "integrations.title": "Connect Reelmotion to the Tools Your Team Already Uses",
     "integrations.subtitle":
-      "Reelmotion ships a remote MCP server and a REST API. Connect it once with OAuth and let your agent brief, generate, and deliver campaign assets — no SDK, no glue code.",
+      "Connect Reelmotion with compatible AI assistants and your own applications to streamline campaign asset creation and integrate content generation into your existing workflows.",
     "integrations.logos-caption": "Works with",
     "integrations.any-agent": "Any MCP client",
-    "integrations.step1.title": "Connect in one click",
+    "integrations.step1.title": "Connect with Ease",
     "integrations.step1.desc":
       "Add Reelmotion as a connector in Claude, ChatGPT, Claude Code or Cursor. OAuth 2.1 with PKCE handles auth — or use an API key.",
-    "integrations.step2.title": "Brief from your agent",
+    "integrations.step2.title": "Generate Campaign Variations for Different Formats",
     "integrations.step2.desc":
       "Ask for \"20 vertical cuts for TikTok\" — your agent calls create_video, create_image and create_audio with the right model and settings.",
     "integrations.step3.title": "Assets land in your library",
@@ -177,22 +178,22 @@ const translations = {
 
     // Teams
     "teams.badge": "✦ Built for teams",
-    "teams.title": "One Workspace for Your Whole Campaign",
+    "teams.title": "Keep Every Campaign Organised in One Workspace",
     "teams.subtitle":
-      "Keep every asset in one place and let teammates and agents pull from the same library.",
-    "teams.folders.title": "Shared project folders",
+      "Keep campaign projects and media together in one workspace. Give your team a more organised way to manage creative assets and build a repeatable content production workflow.",
+    "teams.folders.title": "Organise Campaign Projects",
     "teams.folders.desc":
       "Share a folder with teammates so everyone works from the same campaign assets — no re-sending files.",
-    "teams.library.title": "Shared media library",
+    "teams.library.title": "Keep Your Creative Assets Together",
     "teams.library.desc":
       "Every image, video and voiceover generated in a shared folder is available to everyone in it, in the library and the editor.",
-    "teams.pipeline.title": "Agent-ready pipeline",
+    "teams.pipeline.title": "Connect Your Existing Workflows",
     "teams.pipeline.desc":
       "Plug Reelmotion into your own agents and workflows via MCP or the REST API and generate campaign assets at scale.",
 
     // Auth Modal
     "auth.tab.signin": "Sign In",
-    "auth.tab.register": "Register",
+    "auth.tab.register": "Apply for access",
     "auth.signin.title": "Welcome Back",
     "auth.signin.subtitle": "Enter your credentials to access your account",
     "auth.signin.email-placeholder": "Email or username",
@@ -202,8 +203,11 @@ const translations = {
     "auth.signin.email-required": "Email is required",
     "auth.signin.password-required": "Password is required",
     "auth.signin.invalid-credentials": "The email or username is incorrect",
-    "auth.register.title": "Create Account",
-    "auth.register.subtitle": "Join the new era of content creation",
+    "auth.register.title": "Apply for Reelmotion Agency Access",
+    "auth.register.subtitle": "Tell us how your team produces creative so we can determine whether Reelmotion is a good fit.",
+    "auth.register.field-required": "This field is required",
+    "auth.applied.title": "Application received",
+    "auth.applied.close": "Got it",
     "auth.register.username-placeholder": "Username",
     "auth.register.name-placeholder": "Full Name",
     "auth.register.email-placeholder": "Work email",
@@ -218,7 +222,7 @@ const translations = {
     "auth.register.email-invalid": "Please enter a valid email address",
     "auth.register.password-empty": "Password fields cannot be empty",
     "auth.register.password-mismatch": "Passwords do not match",
-    "auth.register.button": "Create Account",
+    "auth.register.button": "Submit Application",
     "auth.reset.title": "Reset Password",
     "auth.reset.subtitle":
       "Enter your email address and we'll send you instructions to reset your password.",
@@ -822,14 +826,10 @@ const translations = {
     "suggestions.err.send": "Error sending the suggestion",
 
     // Onboarding
-    "onboarding.title": "Tell us about your business",
-    "onboarding.subtitle": "Reelmotion is built for teams and brands. This helps us set up your account.",
     "onboarding.step": "Step",
     "onboarding.of": "of",
     "onboarding.back": "Back",
     "onboarding.next": "Next",
-    "onboarding.submit": "Finish",
-    "onboarding.submitting": "Saving...",
     "onboarding.err.generic": "We couldn't save your answers. Please try again.",
     "onboarding.err.url": "Enter a valid URL (e.g. https://yourcompany.com)",
     "onboarding.company": "Company or brand name",
@@ -909,38 +909,33 @@ const translations = {
     "onboarding.timeline.this_month": "This month",
     "onboarding.timeline.1-3_months": "In 1-3 months",
     "onboarding.timeline.exploring": "Just exploring",
-    "approval.pending.title": "Your account is under review",
-    "approval.pending.body": "Thanks for telling us about your company. Our team is reviewing your request and we'll email you as soon as your account is approved.",
+    "approval.pending.title": "Your application is under review",
+    "approval.pending.body": "Thanks for applying. Our team will review your request and approve your access. We'll email you as soon as your account is ready.",
+    "onboarding.needs": "What would you like to improve in your current workflow? (optional)",
+    "onboarding.needs.ph": "Tell us about your production needs...",
     "approval.pending.logout": "Log out",
-    "onboarding.done.granted.title": "You're all set!",
-    "onboarding.done.granted.body": "We've credited 20 welcome tokens so you can start creating.",
-    "onboarding.done.granted.cta": "Start creating",
-    "onboarding.done.title": "Your account is ready",
-    "onboarding.done.body": "Generating images and videos requires tokens. Buy a pack and start today.",
-    "onboarding.done.buy": "Buy tokens",
-    "onboarding.done.explore": "Explore the app",
   },
 
   es: {
     // Navbar
     "nav.features": "Funciones",
-    "nav.ai-agent": "Agente IA",
-    "nav.editor": "Editor",
+    "nav.ai-agent": "Asistente creativo IA",
+    "nav.editor": "Editor de video",
     "nav.pricing": "Precios",
     "nav.integrations": "Integraciones",
     "nav.developers": "Developers",
     "nav.teams": "Equipos",
-    "nav.get-started": "Comenzar",
+    "nav.get-started": "Empieza a crear",
     "nav.go-to-dashboard": "Ir al Panel",
 
     // Hero
-    "hero.badge": "Kling V3 · Seedance 2.5 · Veo 3.1 — Ya disponibles",
-    "hero.title": "Lanza tu próxima campaña de anuncios — antes de la comida.",
+    "hero.badge": "Accede a los principales modelos de IA en un solo flujo creativo",
+    "hero.title": "Crea más contenido para tus campañas. En menos tiempo. Por menos.",
     "hero.subtitle":
-      "Da el brief como a un equipo creativo. Reelmotion AI escribe el prompt, elige el modelo y produce video, imágenes y voz con calidad de estudio para tus campañas en minutos — una variación o cincuenta. Paga solo lo que generas. Sin suscripción, nunca.",
-    "hero.cta-primary": "Empieza tu campaña",
-    "hero.cta-secondary": "Míralo en acción",
-    "hero.note": "Sin suscripciones · Sin asientos · Pago por consumo — 20 tokens gratis para empezar",
+      "Convierte un solo brief de campaña en videos, imágenes y locuciones profesionales. Reelmotion AI ayuda a agencias de marketing y equipos in-house a crear más contenido, producir variaciones creativas y mantener los proyectos en marcha — sin los costos habituales de producción.",
+    "hero.cta-primary": "Empieza a crear",
+    "hero.cta-secondary": "Mira cómo funciona",
+    "hero.note": "Sin suscripciones. Sin cobro por usuario. Paga solo por lo que generas. Empieza con 20 tokens gratis.",
     "hero.go-to-dashboard": "Ir al Panel",
 
     // Social Proof
@@ -953,102 +948,102 @@ const translations = {
 
     // Features
     "features.title":
-      "Todo tu equipo puede publicar video — sin cuello de botella creativo",
+      "Todo lo que tu equipo necesita para crear contenido de campaña",
     "features.subtitle":
-      "La mayoría de las herramientas de video con IA asumen que tienes un prompt engineer en el equipo. Reelmotion AI no. Nuestro agente convierte el brief de cualquier miembro del equipo en un prompt de nivel producción y entrega assets que parecen hechos por agencia — para que las campañas no se atoren esperando a un especialista, ni se atoren por volumen. Un video hero o veinte variaciones de anuncio: el proceso es igual de rápido.",
-    "features.video.title": "Convierte un brief en un set completo de videos",
+      "Convierte briefs de campaña en videos, imágenes y locuciones con menos trabajo manual. Dale a tu equipo una forma más rápida de desarrollar conceptos creativos, producir variaciones y seguir el ritmo de tus campañas.",
+    "features.video.title": "Crea videos para campañas",
     "features.video.description":
-      "Describe el spot, anuncio o clip social que necesitas. Nuestro agente escribe el prompt y te deja elegir entre los mejores modelos — Seedance 2.5, Veo 3.1, Kling V3, Runway 4.5 y más. Genera varias versiones o formatos en paralelo, listos para probar en cada canal.",
-    "features.image.title": "Visuales on-brand para cada canal",
+      "Produce video para anuncios, redes sociales y otras campañas de marketing.",
+    "features.image.title": "Crea visuales de marketing",
     "features.image.description":
-      "Escribe cómo debe verse el creativo. Nuestra IA lo convierte en un prompt preciso y genera imágenes 4K con Nano Banana 2.1, GPT Image 2 o Seedream 5.0.",
-    "features.audio.title": "Voz en off lista para emitir, sin reservar estudio",
+      "Genera imágenes y conceptos visuales para productos, promociones y campañas.",
+    "features.audio.title": "Agrega locuciones",
     "features.audio.description":
-      "Escribe el guion, elige una voz, genera. El TTS multilenguaje de ElevenLabs entrega narración con calidad de agencia para cada mercado al que vendes.",
+      "Crea voz para acompañar tus videos y piezas de marketing.",
 
     // ReelBot
-    "reelbot.title": "Tu equipo creativo bajo demanda",
+    "reelbot.title": "Del brief de campaña a la creatividad — sin ingeniería de prompts",
     "reelbot.subtitle":
-      "Sin prompt engineering, sin idas y vueltas del brief. Nuestra IA hace las preguntas correctas, construye el prompt perfecto y genera resultados listos para publicar — para que tu equipo pase de concepto a campaña el mismo día.",
-    "reelbot.feat.imageGen": "Generaci\u00f3n de Im\u00e1genes",
+      "Solo describe lo que quieres crear. ReelBot te ayuda a afinar tu brief, prepara el prompt de generación y te guía en la creación de piezas para tu campaña — sin que tengas que volverte experto en prompts de IA.",
+    "reelbot.feat.imageGen": "Genera imágenes para campañas",
     "reelbot.feat.imageGenDesc":
       "Texto a imagen e imagen a imagen con Nano Banana 2.1, GPT Image 2 y Seedream",
-    "reelbot.feat.videoGen": "Generaci\u00f3n de Video",
+    "reelbot.feat.videoGen": "Elige entre varios modelos de video",
     "reelbot.feat.videoGenDesc":
       "10 modelos de video: Seedance 2.5, Veo 3.1, Runway 4.5, Kling V3 y m\u00e1s",
-    "reelbot.feat.tts": "Texto a Voz",
+    "reelbot.feat.tts": "Crea locuciones",
     "reelbot.feat.ttsDesc": "Voces multiling\u00fces con ElevenLabs",
-    "reelbot.feat.vision": "An\u00e1lisis Visual",
+    "reelbot.feat.vision": "Analiza contenido visual",
     "reelbot.feat.visionDesc":
       "Sube una imagen o video y ReelBot lo entiende al instante — sin descripciones manuales",
-    "reelbot.feat.prompts": "Constructor de Prompts Guiado",
+    "reelbot.feat.prompts": "Ayuda para afinar tu brief",
     "reelbot.feat.promptsDesc":
       "ReelBot pregunta paso a paso para construir el prompt exacto que clava el resultado que quieres — cero adivinanzas",
-    "reelbot.step1.title": "Da el brief de tu campaña con tus palabras",
+    "reelbot.step1.title": "Describe tu campaña",
     "reelbot.step1.desc":
       "Sin conocimientos de prompts. Solo dile a ReelBot lo que est\u00e1s imaginando.",
-    "reelbot.step2.title": "ReelBot crea tu prompt",
+    "reelbot.step2.title": "Afina tu brief",
     "reelbot.step2.desc":
       "El agente hace preguntas inteligentes de seguimiento y escribe un prompt de nivel profesional por ti.",
-    "reelbot.step3.title": "Elige modelo y ajustes",
+    "reelbot.step3.title": "Elige tu formato",
     "reelbot.step3.desc":
       "Selecciona modelo de IA, resoluci\u00f3n, relaci\u00f3n de aspecto y duraci\u00f3n — todo en un solo lugar.",
-    "reelbot.step4.title": "Ve el costo antes de comprometer presupuesto",
+    "reelbot.step4.title": "Revisa el costo",
     "reelbot.step4.desc":
       "Transparencia total — el costo exacto en tokens antes de generar, sin sorpresas.",
-    "reelbot.step5.title": "Genera y entrega",
+    "reelbot.step5.title": "Genera y ajusta",
     "reelbot.step5.desc":
       "Tu contenido está listo en segundos — descárgalo o mándalo directo al editor para el acabado final.",
 
     // Chat Demo
-    "demo.title": "Sin prompts. Sin curva de aprendizaje. Solo resultados.",
+    "demo.title": "Mira lo fácil que puede ser crear contenido para campañas",
     "demo.subtitle":
-      "Habla con ReelBot como hablar\u00edas con un colega — \u00e9l se encarga de la ingenier\u00eda de prompts para que obtengas contenido profesional desde el primer intento.",
+      "Desde tu brief inicial hasta la pieza generada, mira cómo Reelmotion AI simplifica la producción de contenido.",
     "demo.caption":
-      "De idea en bruto a contenido pulido — mira a ReelBot trabajar",
+      "Mira el flujo en acción",
     "demo.showcaseTitle": "Creado con Reelmotion AI",
     "demo.showcaseAlt": "Contenido generado con IA",
 
     // Editor
-    "editor.title": "Del primer borrador a listo para el cliente — todo en una pestaña.",
+    "editor.title": "Genéralo. Edítalo. Déjalo listo para tu campaña.",
     "editor.subtitle":
-      "Un editor de video profesional integrado en la misma plataforma donde generas el contenido. Sin exportar a otra herramienta, sin cambiar de app entre tu equipo y freelancers.",
-    "editor.feat.timeline": "Timeline Multipista",
+      "Genera y ajusta tu contenido en un solo espacio de trabajo. Edita videos, agrega subtítulos y audio, usa material de stock y gestiona tus proyectos — todo en el navegador, sin instalar software.",
+    "editor.feat.timeline": "Edición de video flexible",
     "editor.feat.timelineDesc":
       "Arrastra, suelta y haz zoom frame a frame — edici\u00f3n de precisi\u00f3n al alcance de tu mano",
-    "editor.feat.captions": "Texto y Subt\u00edtulos",
+    "editor.feat.captions": "Subtítulos y textos",
     "editor.feat.captionsDesc":
       "Textos animados, subt\u00edtulos y m\u00e1s de 9 estilos de overlay listos para usar",
-    "editor.feat.overlays": "Capas de Imagen y Video",
+    "editor.feat.overlays": "Edición por capas",
     "editor.feat.overlaysDesc":
       "Apila clips, im\u00e1genes, formas, stickers y subt\u00edtulos en pistas separadas",
-    "editor.feat.audio": "Pistas de Audio",
+    "editor.feat.audio": "Audio y locuciones",
     "editor.feat.audioDesc":
       "Agrega m\u00fasica, locuciones y efectos de sonido con control de volumen independiente",
     "editor.feat.stock": "Stock Ilimitado",
     "editor.feat.stockDesc":
       "Millones de im\u00e1genes y videos libres de derechos v\u00eda Pexels — integrado directamente",
-    "editor.feat.cloud": "Renderizado en la Nube",
+    "editor.feat.cloud": "Renderizado en la nube",
     "editor.feat.cloudDesc":
       "Exporta en alta calidad en la nube — tu computadora no hace nada pesado",
-    "editor.feat.autosave": "Autoguardado y Proyectos",
+    "editor.feat.autosave": "Proyectos organizados",
     "editor.feat.autosaveDesc":
       "Cada cambio se guarda autom\u00e1ticamente. Retoma cualquier proyecto justo donde lo dejaste.",
-    "editor.feat.browser": "Sin Instalaci\u00f3n",
+    "editor.feat.browser": "Trabaja desde el navegador",
     "editor.feat.browserDesc":
       "Funciona en cualquier dispositivo y navegador — abre una pesta\u00f1a y empieza a editar",
 
     // Pricing
-    "pricing.title": "Sin suscripciones. Paga solo lo que usas.",
+    "pricing.title": "Produce más creatividad sin otra suscripción mensual",
     "pricing.subtitle":
-      "Sin planes mensuales, sin asientos, sin ataduras. Compra tokens cuando los necesites y úsalos en cualquier modelo — ves el costo exacto de cada generación antes de generar.",
+      "Paga por el contenido que generas, sin suscripción recurrente ni cobro por usuario. Empieza en pequeño, controla tus costos de generación y escala tu uso a medida que crecen tus campañas.",
     "pricing.payg.name": "Pago por consumo",
     "pricing.payg.badge": "Sin suscripción",
-    "pricing.payg.rate": "1 token = US$0.01 · mismo precio para cualquier tamaño de equipo",
-    "pricing.payg.min": "Recarga desde $6 · sin gasto mínimo mensual",
+    "pricing.payg.rate": "Precio simple por uso — $1 compra 100 tokens",
+    "pricing.payg.min": "Empieza con una recarga pequeña y agrega tokens cuando los necesites. Sin gasto mínimo mensual.",
     "pricing.payg.cta": "Empieza gratis",
     "pricing.payg.free": "20 tokens gratis al registrarte · sin tarjeta",
-    "pricing.payg.included": "Todo incluido",
+    "pricing.payg.included": "Todo lo que necesitas en un solo flujo creativo",
     "pricing.includes.video": "Generación de video",
     "pricing.includes.image": "Generación de imágenes",
     "pricing.includes.voice": "Voz en off y TTS",
@@ -1057,37 +1052,38 @@ const translations = {
     "pricing.includes.library": "Librería de medios compartida",
     "pricing.includes.agent": "AI Agent (ReelBot)",
     "pricing.includes.api": "API REST y servidor MCP",
-    "pricing.example.video": "Video de 5s · Kling V3 720p",
-    "pricing.example.image": "1 imagen · Nano Banana 2.1",
-    "pricing.example.voice": "Voz en off de 1,000 caracteres · ElevenLabs",
+    "pricing.example.video": "Ejemplo: video de 5 s · Kling V3 720p",
+    "pricing.example.image": "Ejemplo: imagen · Nano Banana 2.1",
+    "pricing.example.voice": "Ejemplo: locución de 1,000 caracteres · ElevenLabs",
     "pricing.example.note":
-      "Precios reales de la app. Las generaciones fallidas se reembolsan automáticamente.",
-    "pricing.enterprise.title": "¿Campañas a gran escala?",
+      "Conoce el costo de cada generación antes de crear. Las generaciones fallidas se reembolsan automáticamente.",
+    "pricing.enterprise.title": "¿Produces creatividad para varios clientes o campañas?",
     "pricing.enterprise.subtitle":
-      "Volumen de tokens a medida y soporte de integración para agencias y marcas que producen cientos de assets al mes.",
-    "pricing.enterprise.bullet1": "Volumen de tokens a medida",
-    "pricing.enterprise.bullet2": "Soporte de integración API y MCP",
-    "pricing.enterprise.bullet3": "Línea directa con el equipo",
-    "pricing.enterprise.cta": "Hablar con ventas",
+      "Ya seas una agencia que gestiona varios clientes o un equipo in-house que produce a escala, podemos acordar una configuración que se ajuste a tu flujo de trabajo y volumen de contenido.",
+    "pricing.enterprise.bullet1": "Precios por volumen",
+    "pricing.enterprise.bullet2": "Integraciones con tu flujo de trabajo",
+    "pricing.enterprise.bullet3": "Soporte directo",
+    "pricing.enterprise.cta": "Acceso para agencias y equipos",
 
     // CTA Banner
-    "cta.title": "Tu próxima campaña está a un brief de distancia.",
+    "cta.title": "Crea más. Mantén tus campañas en marcha.",
     "cta.subtitle":
-      "Únete a equipos de marketing y agencias que publican video en volumen — rápido, sin el costo de producción y sin suscripción.",
-    "cta.button": "Empieza tu campaña",
-    "cta.note": "Sin tarjeta. Sin suscripción. 20 tokens gratis — después pagas solo lo que usas.",
+      "Reelmotion AI ayuda a agencias de marketing y equipos in-house a producir videos, imágenes y locuciones para campañas con menos trabajo manual, costos flexibles y un flujo creativo más ágil.",
+    "cta.button": "Empieza a crear",
+    "cta.agency": "Solicita acceso para agencias y equipos",
+    "cta.note": "Empieza con 20 tokens gratis. Sin suscripción.",
 
     // Integrations
     "integrations.badge": "✦ Integraciones",
-    "integrations.title": "Conecta Reelmotion a Claude, ChatGPT o tu propio agente de IA",
+    "integrations.title": "Conecta Reelmotion con las herramientas que tu equipo ya usa",
     "integrations.subtitle":
-      "Reelmotion incluye un servidor MCP remoto y una API REST. Conéctalo una vez con OAuth y deja que tu agente dé el brief, genere y entregue los assets de campaña — sin SDK, sin código pegamento.",
+      "Conecta Reelmotion con asistentes de IA compatibles y con tus propias aplicaciones para agilizar la creación de piezas e integrar la generación de contenido en tus flujos de trabajo actuales.",
     "integrations.logos-caption": "Funciona con",
     "integrations.any-agent": "Cualquier cliente MCP",
-    "integrations.step1.title": "Conéctalo en un clic",
+    "integrations.step1.title": "Conexión sencilla",
     "integrations.step1.desc":
       "Agrega Reelmotion como conector en Claude, ChatGPT, Claude Code o Cursor. OAuth 2.1 con PKCE se encarga del acceso — o usa una API key.",
-    "integrations.step2.title": "Da el brief desde tu agente",
+    "integrations.step2.title": "Genera variaciones de campaña para distintos formatos",
     "integrations.step2.desc":
       "Pide \"20 cortes verticales para TikTok\" — tu agente llama a create_video, create_image y create_audio con el modelo y ajustes correctos.",
     "integrations.step3.title": "Los assets llegan a tu librería",
@@ -1098,22 +1094,22 @@ const translations = {
 
     // Teams
     "teams.badge": "✦ Hecho para equipos",
-    "teams.title": "Un solo espacio para toda tu campaña",
+    "teams.title": "Cada campaña organizada en un solo espacio de trabajo",
     "teams.subtitle":
-      "Mantén cada asset en un solo lugar y deja que tu equipo y tus agentes trabajen desde la misma librería.",
-    "teams.folders.title": "Carpetas de proyecto compartidas",
+      "Mantén proyectos y medios de campaña juntos en un solo lugar. Dale a tu equipo una forma más ordenada de gestionar sus piezas creativas y construir un flujo de producción repetible.",
+    "teams.folders.title": "Organiza tus proyectos de campaña",
     "teams.folders.desc":
       "Comparte una carpeta con tu equipo para que todos trabajen desde los mismos assets de campaña — sin reenviar archivos.",
-    "teams.library.title": "Librería de medios compartida",
+    "teams.library.title": "Todas tus piezas creativas juntas",
     "teams.library.desc":
       "Cada imagen, video y voz generada en una carpeta compartida queda disponible para todos sus miembros, en la librería y en el editor.",
-    "teams.pipeline.title": "Pipeline listo para agentes",
+    "teams.pipeline.title": "Conecta tus flujos de trabajo actuales",
     "teams.pipeline.desc":
       "Conecta Reelmotion a tus propios agentes y flujos vía MCP o la API REST y genera assets de campaña a escala.",
 
     // Auth Modal
     "auth.tab.signin": "Iniciar Sesi\u00f3n",
-    "auth.tab.register": "Registrarse",
+    "auth.tab.register": "Solicitar acceso",
     "auth.signin.title": "Bienvenido de vuelta",
     "auth.signin.subtitle": "Ingresa tus credenciales para acceder a tu cuenta",
     "auth.signin.email-placeholder": "Email o nombre de usuario",
@@ -1124,9 +1120,11 @@ const translations = {
     "auth.signin.password-required": "La contrase\u00f1a es obligatoria",
     "auth.signin.invalid-credentials":
       "El email o nombre de usuario es incorrecto",
-    "auth.register.title": "Crear Cuenta",
-    "auth.register.subtitle":
-      "\u00danete a la nueva era de la creaci\u00f3n de contenido",
+    "auth.register.title": "Solicita acceso a Reelmotion para agencias",
+    "auth.register.subtitle": "Cuéntanos cómo produce creatividad tu equipo para saber si Reelmotion es una buena opción.",
+    "auth.register.field-required": "Este campo es obligatorio",
+    "auth.applied.title": "Solicitud recibida",
+    "auth.applied.close": "Entendido",
     "auth.register.username-placeholder": "Nombre de usuario",
     "auth.register.name-placeholder": "Nombre completo",
     "auth.register.email-placeholder": "Correo de trabajo",
@@ -1143,7 +1141,7 @@ const translations = {
     "auth.register.password-empty":
       "Los campos de contrase\u00f1a no pueden estar vac\u00edos",
     "auth.register.password-mismatch": "Las contrase\u00f1as no coinciden",
-    "auth.register.button": "Crear Cuenta",
+    "auth.register.button": "Enviar solicitud",
     "auth.reset.title": "Restablecer Contrase\u00f1a",
     "auth.reset.subtitle":
       "Ingresa tu correo electr\u00f3nico y te enviaremos instrucciones para restablecer tu contrase\u00f1a.",
@@ -1751,14 +1749,10 @@ const translations = {
     "suggestions.err.send": "Error al enviar la sugerencia",
 
     // Onboarding
-    "onboarding.title": "Cuéntanos sobre tu negocio",
-    "onboarding.subtitle": "Reelmotion está hecho para equipos y marcas. Esto nos ayuda a configurar tu cuenta.",
     "onboarding.step": "Paso",
     "onboarding.of": "de",
     "onboarding.back": "Atrás",
     "onboarding.next": "Siguiente",
-    "onboarding.submit": "Finalizar",
-    "onboarding.submitting": "Guardando...",
     "onboarding.err.generic": "No pudimos guardar tus respuestas. Intenta de nuevo.",
     "onboarding.err.url": "Ingresa una URL válida (ej. https://tuempresa.com)",
     "onboarding.company": "Nombre de tu empresa o marca",
@@ -1838,16 +1832,11 @@ const translations = {
     "onboarding.timeline.this_month": "Este mes",
     "onboarding.timeline.1-3_months": "En 1-3 meses",
     "onboarding.timeline.exploring": "Solo explorando",
-    "approval.pending.title": "Tu cuenta está en revisión",
-    "approval.pending.body": "Gracias por contarnos sobre tu empresa. Nuestro equipo está revisando tu solicitud y te escribiremos en cuanto tu cuenta esté aprobada.",
+    "approval.pending.title": "Tu solicitud está en revisión",
+    "approval.pending.body": "Gracias por aplicar. Nuestro equipo revisará tu solicitud y aprobará tu acceso. Te escribiremos en cuanto tu cuenta esté lista.",
+    "onboarding.needs": "¿Qué te gustaría mejorar de tu flujo de trabajo actual? (opcional)",
+    "onboarding.needs.ph": "Cuéntanos tus necesidades de producción...",
     "approval.pending.logout": "Cerrar sesión",
-    "onboarding.done.granted.title": "¡Todo listo!",
-    "onboarding.done.granted.body": "Te acreditamos 20 tokens de bienvenida para que empieces a crear.",
-    "onboarding.done.granted.cta": "Empezar a crear",
-    "onboarding.done.title": "Tu cuenta está lista",
-    "onboarding.done.body": "Para generar imágenes y videos necesitas tokens. Compra un paquete y empieza hoy.",
-    "onboarding.done.buy": "Comprar tokens",
-    "onboarding.done.explore": "Explorar la app",
   },
 };
 
