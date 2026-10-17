@@ -13,7 +13,8 @@ async function api(path, { method = "GET" } = {}) {
     headers: { Authorization: "Bearer " + Cookies.get("token"), Accept: "application/json" },
   });
   const json = await res.json().catch(() => ({}));
-  if (res.status === 403) throw redirect("/app");
+  // Solo los loaders (GET) redirigen; en acciones el 403 debe llegar como error visible.
+  if (res.status === 403 && method === "GET") throw redirect("/app");
   if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
   return json;
 }

@@ -57,7 +57,7 @@ const IntegrationsSection = () => {
               </span>
             </div>
             <h2
-              className="text-4xl md:text-5xl font-bold"
+              className="text-4xl md:text-5xl font-bold pb-[0.15em]"
               style={{
                 background: "linear-gradient(135deg, #ffffff 0%, #ffffff 50%, rgba(255,255,255,0.6) 100%)",
                 WebkitBackgroundClip: "text",
