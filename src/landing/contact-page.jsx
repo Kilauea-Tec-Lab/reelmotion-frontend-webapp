@@ -228,7 +228,7 @@ export default function ContactPage() {
           </div>
 
           <h1
-            className="text-4xl md:text-5xl font-bold tracking-tight mb-5"
+            className="text-4xl md:text-5xl font-bold tracking-tight mb-5 pb-[0.15em]"
             style={{
               background:
                 "linear-gradient(135deg, #ffffff 0%, #ffffff 50%, #DC569D 100%)",

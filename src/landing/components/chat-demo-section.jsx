@@ -96,7 +96,7 @@ const ChatDemoSection = () => {
           </div>
 
           <h2
-            className="text-3xl md:text-4xl font-bold"
+            className="text-3xl md:text-4xl font-bold pb-[0.15em]"
             style={{
               background: "linear-gradient(135deg, #ffffff 0%, #ffffff 55%, rgba(255,255,255,0.55) 100%)",
               WebkitBackgroundClip: "text",
@@ -185,7 +185,7 @@ const ChatDemoSection = () => {
               </span>
             </div>
             <h3
-              className="text-2xl md:text-3xl font-bold"
+              className="text-2xl md:text-3xl font-bold pb-[0.15em]"
               style={{
                 background: "linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.6) 100%)",
                 WebkitBackgroundClip: "text",

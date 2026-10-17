@@ -51,7 +51,7 @@ const CtaBanner = ({ onOpenAuth }) => {
 
           {/* Headline */}
           <h2
-            className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6"
+            className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 pb-[0.15em]"
             style={{
               background: "linear-gradient(135deg, #ffffff 0%, #ffffff 40%, #DC569D 75%, #F2D543 100%)",
               WebkitBackgroundClip: "text",

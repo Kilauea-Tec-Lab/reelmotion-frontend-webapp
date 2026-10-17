@@ -94,7 +94,7 @@ const VideoHero = ({ scrollRef, onOpenAuth }) => {
     <motion.section
       ref={sectionRef}
       style={{ opacity }}
-      className="relative h-dvh w-full flex items-center justify-center overflow-hidden flex-shrink-0"
+      className="relative min-h-dvh w-full flex items-center justify-center overflow-hidden flex-shrink-0"
     >
       {/* Desktop video — MP4 first so iOS/Safari pick a supported source */}
       <video
@@ -135,7 +135,7 @@ const VideoHero = ({ scrollRef, onOpenAuth }) => {
       <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/60 via-black/45 to-black/75" />
 
       {/* Copy over the showreel */}
-      <div className="relative z-10 flex flex-col items-center justify-center px-4 text-center max-w-4xl mx-auto pt-16 pb-28">
+      <div className="relative z-10 flex flex-col items-center justify-center px-4 text-center max-w-4xl mx-auto pt-24 pb-36">
         <motion.div
           className="mb-6 flex items-center gap-2"
           initial={{ opacity: 0, y: -10 }}

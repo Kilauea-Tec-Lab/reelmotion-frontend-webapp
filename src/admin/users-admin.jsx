@@ -41,6 +41,7 @@ export function ApproveButton({ user, onDone, className = "", children }) {
     >
       {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
       {children}
+      {error && <span className="text-xs">{error}</span>}
     </button>
   );
 }
