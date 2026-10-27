@@ -212,115 +212,59 @@ export async function postMessage(
   }
 }
 
-// ── ElevenLabs (movido de create_elements/functions.js al borrar el legacy /v2) ──
-const ELEVENLABS_API_KEY = import.meta.env.VITE_ELEVENLAB_KEY;
-const ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1";
+// ── ElevenLabs: proxied by the backend so the API key never ships to the browser ──
+const elevenLabsFetch = (path, options = {}) =>
+  fetch(`${import.meta.env.VITE_APP_BACKEND_URL}ai/elevenlabs/${path}`, {
+    ...options,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + Cookies.get("token"),
+    },
+  });
 
 // Obtener voces disponibles de ElevenLabs
 export async function getElevenLabsVoices() {
   try {
-    console.log("Fetching voices from ElevenLabs API...");
-
-    const response = await fetch(`${ELEVENLABS_BASE_URL}/voices`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        "xi-api-key": ELEVENLABS_API_KEY,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `ElevenLabs API error: ${response.status} ${response.statusText}`
-      );
-    }
-
+    const response = await elevenLabsFetch("voices");
     const data = await response.json();
-    console.log("ElevenLabs voices response:", data);
-
-    // ElevenLabs devuelve las voces en un array de voices
-    const voicesArray = data.voices || [];
-
-    // Log the first voice to understand the structure
-    if (voicesArray.length > 0) {
-      console.log("First voice structure:", voicesArray[0]);
-      console.log("Voice fields:", Object.keys(voicesArray[0]));
-    }
-
-    console.log("Fetched voices:", voicesArray);
-    return { success: true, voices: voicesArray };
+    if (!response.ok || !data.success) throw new Error(`Voices error: ${response.status}`);
+    return { success: true, voices: data.voices || [] };
   } catch (error) {
     console.error("Error fetching ElevenLabs voices:", error);
     return { success: false, error: error.message, voices: [] };
   }
 }
 
-// Generar speech con ElevenLabs
+// Generar speech: el backend cobra los tokens y guarda el mp3 en GCS
 export async function generateElevenLabsSpeech(speechData) {
   try {
-    console.log("Generating speech with ElevenLabs API...");
-    console.log("Speech data received:", speechData);
-
-    if (!speechData.voiceId) {
-      throw new Error("voiceId is required but not provided");
+    const response = await elevenLabsFetch("tts", {
+      method: "POST",
+      body: JSON.stringify({
+        text: speechData.text,
+        voice_id: speechData.voiceId,
+        model_id: speechData.model_id || "eleven_multilingual_v2",
+        stability: speechData.stability ?? 0.5,
+        similarity_boost: speechData.similarity_boost ?? 0.5,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || data.message || `TTS error: ${response.status}`);
     }
 
-    if (!speechData.text) {
-      throw new Error("text is required but not provided");
-    }
-
-    const requestBody = {
-      text: speechData.text,
-      model_id: speechData.model_id || "eleven_multilingual_v2", // Default to multilingual v2
-      voice_settings: {
-        stability: speechData.stability || 0.5,
-        similarity_boost: speechData.similarity_boost || 0.5,
-        style: speechData.style || 0.0,
-        use_speaker_boost: speechData.use_speaker_boost || true,
-      },
-    };
-
-    console.log("Request body for ElevenLabs TTS:", requestBody);
-
-    const response = await fetch(
-      `${ELEVENLABS_BASE_URL}/text-to-speech/${speechData.voiceId}`,
-      {
-        method: "POST",
-        headers: {
-          Accept: "audio/mpeg",
-          "Content-Type": "application/json",
-          "xi-api-key": ELEVENLABS_API_KEY,
-        },
-        body: JSON.stringify(requestBody),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `ElevenLabs API error: ${response.status} ${response.statusText} - ${errorText}`
-      );
-    }
-
-    // Get audio blob from response
-    const audioBlob = await response.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
-
-    // Calculate estimated duration (rough estimate based on text length)
     const words = speechData.text.trim().split(/\s+/).length;
-    const estimatedDuration = (words / 150) * 60; // 150 words per minute
-
     return {
       success: true,
       data: {
-        audioUrl: audioUrl,
-        audioBlob: audioBlob,
+        audioUrl: data.url,
         format: "mp3",
-        duration: estimatedDuration,
+        duration: (words / 150) * 60, // rough estimate, 150 wpm
         textUsed: speechData.text,
         voiceId: speechData.voiceId,
-        model_id: requestBody.model_id,
-        voice_settings: requestBody.voice_settings,
+        model_id: speechData.model_id,
+        tokensDeducted: data.tokens_deducted,
       },
     };
   } catch (error) {

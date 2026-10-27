@@ -1057,41 +1057,16 @@ function AiLabModal({ isOpen, onClose }) {
     }
   };
 
-  const reduceVoiceTokens = async (tokensToReduce) => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_APP_BACKEND_URL}tokens/reduce-tokens`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + Cookies.get("token"),
-          },
-          body: JSON.stringify({ tokens: tokensToReduce }),
-        },
-      );
-      const data = await response.json();
-      if (response.ok) {
-        console.log(`Successfully reduced ${tokensToReduce} tokens`);
-        fetchVoiceTokens();
-      } else {
-        console.error("Error reducing tokens:", data.message);
-      }
-    } catch (error) {
-      console.error("Error reducing tokens:", error);
-    }
-  };
-
   // ElevenLabs bills per character: $0.10/1000 chars on v3 & multilingual v2,
   // $0.05/1000 on flash. With the house rule (1 token = 1¢, +5% margin) that is
-  // 11 and 6 tokens per 1000 chars, billed in whole 1000-char blocks.
+  // 12 and 6 tokens per 1000 chars (backend price), in whole 1000-char blocks.
   const calculateRequiredVoiceTokens = () => {
     const charCount = textToSpeak ? textToSpeak.length : 0;
     if (charCount <= 0) return 0;
     const isFlash =
       elevenLabsModel === "eleven_flash_v2_5" ||
       elevenLabsModel === "eleven_turbo_v2_5";
-    return Math.ceil(charCount / 1000) * (isFlash ? 6 : 11);
+    return Math.ceil(charCount / 1000) * (isFlash ? 6 : 12); // must match MCPController::speechTokenCost
   };
 
   // Load voices and tokens when modal opens
@@ -1278,38 +1253,22 @@ function AiLabModal({ isOpen, onClose }) {
       if (!speechResult.success)
         throw new Error(`Error generating speech: ${speechResult.error}`);
       const actualDuration = speechResult.data.duration || estimatedTime;
-      const tokensToReduce = calculateRequiredVoiceTokens();
       setGeneratedAudioUrl(speechResult.data.audioUrl);
       setVoiceDuration(actualDuration);
       setGeneratedVoiceData({
         audioUrl: speechResult.data.audioUrl,
-        audioBlob: speechResult.data.audioBlob,
         playableAudioUrl: speechResult.data.audioUrl,
         duration: actualDuration,
         format: speechResult.data.format || "mp3",
         textUsed: textToSpeak,
         voiceUsed: selectedVoice,
         model_id: speechResult.data.model_id,
-        voice_settings: speechResult.data.voice_settings,
+        voice_settings: voiceSettings,
       });
       setShowVoiceCreator(false);
-
-      // Auto-upload to ai/upload-attachments with type audio
-      try {
-        const audioFile = new File(
-          [speechResult.data.audioBlob],
-          `voice-${Date.now()}.${speechResult.data.format || "mp3"}`,
-          { type: speechResult.data.audioBlob.type || "audio/mpeg" },
-        );
-        const uploadedUrl = await uploadMediaToGCS(audioFile, "audio");
-        console.log("Voice auto-uploaded:", uploadedUrl);
-        setUploadedVoiceUrl(uploadedUrl);
-      } catch (uploadErr) {
-        console.warn("Auto-upload failed:", uploadErr);
-      }
-
-      // Reduce tokens after successful generation
-      await reduceVoiceTokens(tokensToReduce);
+      // The backend already stored it in GCS and charged the tokens.
+      setUploadedVoiceUrl(speechResult.data.audioUrl);
+      fetchVoiceTokens();
     } catch (error) {
       console.error("Error generating voice:", error);
       setError(`Error generating voice: ${error.message}`);
