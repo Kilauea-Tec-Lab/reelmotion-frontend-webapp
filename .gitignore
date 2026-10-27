@@ -30,3 +30,8 @@ bash.exe.stackdump
 # tooling junk
 .playwright-mcp/
 bash.exe.stackdump
+
+# env files hold secrets — never commit them (see .env.example)
+.env
+.env.*
+!.env.example
