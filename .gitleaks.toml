@@ -1,0 +1,7 @@
+[extend]
+useDefault = true
+
+# Placeholder keys in the public API docs.
+[[allowlists]]
+regexTarget = "line"
+regexes = ['''rm_YOUR_API_KEY''']
