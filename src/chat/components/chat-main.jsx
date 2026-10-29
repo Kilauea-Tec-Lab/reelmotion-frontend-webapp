@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import { SUPPORT_WHATSAPP_URL } from "../../utils/support";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
-import { useNavigate, useRevalidator } from "react-router-dom";
+import { useNavigate, useRevalidator, useSearchParams } from "react-router-dom";
 import Cookies from "js-cookie";
 import { useI18n } from "../../i18n/i18n-context";
 import { getUserNotifications, deleteNotification } from "../../auth/functions";
@@ -1518,6 +1518,16 @@ function ChatMain({
       window.removeEventListener("openTokenModal", handleOpenTokenModal);
     };
   }, [handleOpenTokenModal]);
+
+  // /app?buyTokens=1 opens the purchase modal (the editor's "Recargar tokens" links here).
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("buyTokens") !== "1") return;
+    handleOpenTokenModal();
+    const next = new URLSearchParams(searchParams);
+    next.delete("buyTokens");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, handleOpenTokenModal]);
 
   const handleCloseTokenModal = () => {
     setShowTokenModal(false);
