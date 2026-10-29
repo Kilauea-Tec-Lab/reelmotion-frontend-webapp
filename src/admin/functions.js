@@ -3,9 +3,8 @@ import { redirect } from "react-router-dom";
 
 const BASE = import.meta.env.VITE_APP_BACKEND_URL; // termina en /api/
 
-// ponytail: solo oculta el menú; el backend (middleware `admin`) es quien bloquea de verdad.
-export const ADMIN_EMAIL = "jgm9292@gmail.com";
-export const isAdmin = (user) => user?.email?.toLowerCase() === ADMIN_EMAIL;
+// ponytail: solo oculta el menú; el backend (middleware `admin`, ADMIN_EMAILS) es quien bloquea de verdad.
+export const isAdmin = (user) => !!user?.is_admin;
 
 async function api(path, { method = "GET" } = {}) {
   const res = await fetch(BASE + path, {

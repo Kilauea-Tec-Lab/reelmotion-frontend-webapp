@@ -174,7 +174,7 @@ const router = createBrowserRouter([
         element: page(<ProjectWorkspace />),
         loader: projectWorkspaceLoader,
       },
-      // Admin (solo ADMIN_EMAIL); el backend devuelve 403 y el loader redirige a /app.
+      // Admin (solo ADMIN_EMAILS del backend); el backend devuelve 403 y el loader redirige a /app.
       { path: "users", element: page(<UsersAdmin />), loader: usersLoader },
       { path: "users/:userId", element: page(<UserDetail />), loader: userDetailLoader },
       // Subscriptions are gone: everything is pay-as-you-go now.
