@@ -652,19 +652,6 @@ const VIDEO_MODELS = [
     capabilities: ["text-to-video", "image-to-video"],
   },
   {
-    id: "veo-3.1-lite",
-    name: "Veo 3.1 Lite",
-    iconComponent: Logos.Google,
-    iconColor: "text-blue-400",
-    description: "Cheapest Veo — native audio optional (8s fixed)",
-    badges: ["Lite", "Native audio"],
-    cost: 11,
-    silentCost: 5, // tok/s with audio off (Vertex, video only)
-    isNew: true,
-    type: "video",
-    capabilities: ["text-to-video", "image-to-video"],
-  },
-  {
     id: "runway-4.5",
     name: "Runway Gen 4.5",
     iconComponent: Logos.Runway,
