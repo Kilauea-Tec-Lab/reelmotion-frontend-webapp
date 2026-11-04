@@ -212,6 +212,15 @@ export default function UserDetail() {
           <DailyChart daily={a.daily} />
         </Card>
 
+        <div className="grid md:grid-cols-2 gap-4">
+          <Card title={t("admin.users.spend-by-type")}>
+            <Breakdown rows={a.generations.tokens_by_type.map((r) => ({ ...r, label: t(`admin.users.spend.${r.label}`) }))} />
+          </Card>
+          <Card title={t("admin.users.spend-by-source")}>
+            <Breakdown rows={a.generations.tokens_by_source.map((r) => ({ ...r, label: t(`admin.users.source.${r.label}`) }))} />
+          </Card>
+        </div>
+
         <div className="grid md:grid-cols-3 gap-4">
           <Card title={t("admin.users.by-type")}><Breakdown rows={a.generations.by_media_type} /></Card>
           <Card title={t("admin.users.by-status")}><Breakdown rows={a.generations.by_status} /></Card>
