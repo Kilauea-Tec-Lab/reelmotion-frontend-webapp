@@ -6,10 +6,15 @@ const BASE = import.meta.env.VITE_APP_BACKEND_URL; // termina en /api/
 // ponytail: solo oculta el menú; el backend (middleware `admin`, ADMIN_EMAILS) es quien bloquea de verdad.
 export const isAdmin = (user) => !!user?.is_admin;
 
-async function api(path, { method = "GET" } = {}) {
+async function api(path, { method = "GET", body } = {}) {
   const res = await fetch(BASE + path, {
     method,
-    headers: { Authorization: "Bearer " + Cookies.get("token"), Accept: "application/json" },
+    headers: {
+      Authorization: "Bearer " + Cookies.get("token"),
+      Accept: "application/json",
+      ...(body && { "Content-Type": "application/json" }),
+    },
+    ...(body && { body: JSON.stringify(body) }),
   });
   const json = await res.json().catch(() => ({}));
   // Solo los loaders (GET) redirigen; en acciones el 403 debe llegar como error visible.
@@ -25,6 +30,9 @@ export const deleteUser = (id) => api(`admin/users/${id}`, { method: "DELETE" })
 export const approveUser = (id) => api(`admin/users/${id}/approve`, { method: "POST" });
 // Rechazar = borrar la cuenta y bloquear el email para futuros registros.
 export const rejectUser = (id) => api(`admin/users/${id}/reject`, { method: "POST" });
+// Devuelve tokens de un cobro; el backend guarda el motivo y quién lo hizo.
+export const refundGeneration = (userId, generationId, reason) =>
+  api(`admin/users/${userId}/generations/${generationId}/refund`, { method: "POST", body: { reason } });
 
 export const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : "—");
 export const fmtNum = (n) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });

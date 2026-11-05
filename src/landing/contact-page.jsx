@@ -40,7 +40,7 @@ const content = {
       },
       {
         q: "Can I get a refund?",
-        a: "All purchases are final per our Terms of Service. Contact us if you experience a technical issue.",
+        a: "Token purchases are final per our Terms of Service. When a generation or an export fails for a technical reason, its tokens are returned automatically. AI agent replies too, up to a daily limit; beyond it, we review them. If something went wrong and you didn't get your tokens back, contact us. Refunds are in tokens.",
       },
       {
         q: "Which AI models are available?",
@@ -79,7 +79,7 @@ const content = {
       },
       {
         q: "¿Puedo obtener un reembolso?",
-        a: "Todas las compras son finales según nuestros Términos de Servicio. Contáctanos si experimentas un problema técnico.",
+        a: "Las compras de tokens son finales según nuestros Términos de Servicio. Cuando una generación o una exportación falla por un problema técnico, sus tokens se devuelven automáticamente. Las respuestas del agente de IA también, hasta un límite diario; por encima de él, las revisamos. Si algo salió mal y no recibiste tus tokens, contáctanos. Los reembolsos son en tokens.",
       },
       {
         q: "¿Qué modelos de IA están disponibles?",

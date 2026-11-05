@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Link, useLoaderData, useNavigate, useRevalidator } from "react-router-dom";
-import { ArrowLeft, ExternalLink, Trash2, UserX } from "lucide-react";
+import { ArrowLeft, ExternalLink, Trash2, Undo2, UserX } from "lucide-react";
 import { useI18n } from "../i18n/i18n-context";
 import { COUNTRIES } from "../lib/countries";
 import { ApproveButton, Avatar, DeleteUserModal } from "./users-admin";
-import { fmtDate, fmtNum } from "./functions";
+import { fmtDate, fmtNum, refundGeneration } from "./functions";
 
 const ONBOARDING_FIELDS = [
   "company", "website", "country", "phone", "role", "decision_role", "company_size", "team_size", "industry",
@@ -154,6 +154,36 @@ function MiniTable({ cols, rows, empty }) {
   );
 }
 
+function RefundButton({ userId, generation, onDone }) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState(false);
+  const refund = async () => {
+    // ponytail: prompt del navegador; un modal si esto se vuelve de uso diario.
+    const reason = window.prompt(t("admin.users.refund-reason", { tokens: fmtNum(generation.tokens_charged) }))?.trim();
+    if (!reason) return;
+    setBusy(true);
+    try {
+      await refundGeneration(userId, generation.id, reason);
+      onDone();
+    } catch (error) {
+      window.alert(`${t("admin.users.refund-error")}: ${error.message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button
+      onClick={refund}
+      disabled={busy}
+      title={t("admin.users.refund")}
+      aria-label={t("admin.users.refund")}
+      className="text-[#F2D543] hover:text-white disabled:opacity-40"
+    >
+      <Undo2 size={14} />
+    </button>
+  );
+}
+
 export default function UserDetail() {
   const { user, onboarding, analytics: a } = useLoaderData();
   const { t } = useI18n();
@@ -233,7 +263,7 @@ export default function UserDetail() {
 
         <Card title={t("admin.users.recent-generations")}>
           <MiniTable
-            cols={[t("admin.users.date"), t("admin.users.type"), t("admin.users.model"), t("admin.users.status"), "Tokens", ""]}
+            cols={[t("admin.users.date"), t("admin.users.type"), t("admin.users.model"), t("admin.users.status"), "Tokens", "", ""]}
             empty={t("admin.users.none")}
             rows={a.recent_generations.map((g) => [
               fmtDate(g.created_at),
@@ -243,6 +273,9 @@ export default function UserDetail() {
               g.refunded ? <s className="text-gray-500">{fmtNum(g.tokens_charged)}</s> : fmtNum(g.tokens_charged),
               g.result_url ? (
                 <a href={g.result_url} target="_blank" rel="noopener noreferrer" className="text-[#DC569D]"><ExternalLink size={14} /></a>
+              ) : null,
+              !g.refunded && g.tokens_charged > 0 ? (
+                <RefundButton userId={user.id} generation={g} onDone={revalidator.revalidate} />
               ) : null,
             ])}
           />
