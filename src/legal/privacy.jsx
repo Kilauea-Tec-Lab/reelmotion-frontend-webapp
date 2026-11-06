@@ -24,7 +24,7 @@ const content = {
     badge: "Legal",
     title: "Privacy Policy",
     effective: "Effective: 12/08/2025",
-    updated: "Last Updated: 12/08/2025",
+    updated: "Last Updated: November 6, 2026",
     intro1: (
       <>
         <strong className="text-white">Reel Me In Media Limited</strong>{" "}
@@ -127,6 +127,8 @@ const content = {
       "Comply with legal obligations.",
       "Resolve disputes and enforce agreements.",
     ],
+    s6agent:
+      "Conversations with the video editor's AI agent (your messages, its replies, the tools it used and the names of attached files, but not the files themselves) are kept for 90 days and may be read by our team to improve the product. They are then deleted automatically.",
     s6note:
       "You may request deletion of your account and data at any time (see Section 8).",
     s7: "Security Measures",
@@ -175,7 +177,7 @@ const content = {
     badge: "Legal",
     title: "Política de Privacidad",
     effective: "Vigencia: 12/08/2025",
-    updated: "Última actualización: 12/08/2025",
+    updated: "Última actualización: 6 de noviembre de 2026",
     intro1: (
       <>
         <strong className="text-white">Reel Me In Media Limited</strong> respeta
@@ -282,6 +284,8 @@ const content = {
       "Cumplir con obligaciones legales.",
       "Resolver disputas y hacer cumplir acuerdos.",
     ],
+    s6agent:
+      "Las conversaciones con el agente de IA del editor de video (sus mensajes, las respuestas, las herramientas usadas y los nombres de los archivos adjuntos, pero no los archivos) se conservan 90 días y nuestro equipo puede leerlas para mejorar el producto. Después se eliminan automáticamente.",
     s6note:
       "Puede solicitar la eliminación de su cuenta y datos en cualquier momento (ver Sección 8).",
     s7: "Medidas de Seguridad",
@@ -457,6 +461,7 @@ export default function PrivacyPage() {
               <li key={i}>{item}</li>
             ))}
           </ul>
+          <p>{t.s6agent}</p>
           <p>{t.s6note}</p>
         </Section>
 

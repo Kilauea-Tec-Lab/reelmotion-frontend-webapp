@@ -145,6 +145,7 @@ export default function UsersAdmin() {
             <h1 className="text-2xl md:text-3xl font-semibold">{t("admin.users.title")}</h1>
             <p className="text-gray-400 text-sm mt-1">
               {t("admin.users.total", { total: fmtNum(meta.total) })}
+              <Link to="/app/agent-turns" className="ml-3 text-[#DC569D] hover:underline">{t("admin.turns.title")}</Link>
               {meta.pending_count > 0 && (
                 <button onClick={() => update({ onboarding: "pending_approval" })} className="ml-3 text-[#F2D543] hover:underline">
                   {t("admin.users.pending-count", { count: meta.pending_count })}

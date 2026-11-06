@@ -26,6 +26,7 @@ async function api(path, { method = "GET", body } = {}) {
 // La query string de la URL (q, page, sort, dir, onboarding) se pasa tal cual al backend.
 export const usersLoader = ({ request }) => api(`admin/users${new URL(request.url).search}`);
 export const userDetailLoader = ({ params }) => api(`admin/users/${params.userId}`).then((r) => r.data);
+export const agentTurnsLoader = ({ request }) => api(`admin/agent-turns${new URL(request.url).search}`);
 export const deleteUser = (id) => api(`admin/users/${id}`, { method: "DELETE" });
 export const approveUser = (id) => api(`admin/users/${id}/approve`, { method: "POST" });
 // Rechazar = borrar la cuenta y bloquear el email para futuros registros.
