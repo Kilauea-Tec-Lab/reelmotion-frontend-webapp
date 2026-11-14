@@ -1945,7 +1945,8 @@ function AiLabModal({ isOpen, onClose }) {
         }
 
         setGenerationInfo({
-          tokensUsed: result.tokens_used,
+          tokensUsed:
+            result.tokens_used ?? result.tokens_charged ?? result.estimated_tokens,
           remainingTokens: result.remaining_tokens,
           message: result.message,
         });
@@ -2762,13 +2763,16 @@ function AiLabModal({ isOpen, onClose }) {
               {/* Token info bar */}
               {generationInfo && (
                 <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4 text-xs flex-wrap">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#DC569D]/10 border border-[#DC569D]/30 text-[#DC569D]">
-                    <Coins size={12} />
-                    {t("ailab.tokens-used").replace(
-                      "{n}",
-                      generationInfo.tokensUsed,
+                  {generationInfo.tokensUsed != null &&
+                    generationInfo.tokensUsed !== "N/A" && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#DC569D]/10 border border-[#DC569D]/30 text-[#DC569D]">
+                        <Coins size={12} />
+                        {t("ailab.tokens-used").replace(
+                          "{n}",
+                          generationInfo.tokensUsed,
+                        )}
+                      </span>
                     )}
-                  </span>
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-800 border border-gray-700 text-gray-300">
                     <Coins size={12} />
                     {t("ailab.tokens-remaining").replace(
