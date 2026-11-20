@@ -23,6 +23,7 @@ import {
   MessageCircle,
   Film,
   Users,
+  Briefcase,
 } from "lucide-react";
 import { Link, useLocation, useParams, useNavigate, useRevalidator } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
@@ -387,6 +388,14 @@ function ChatSidebar({
         >
           <LibraryBig size={20} />
           <span className={`font-medium ${lbl}`}>{t("sidebar.library")}</span>
+        </Link>
+        <Link
+          to={"/app/brands"}
+          onClick={onClose}
+          title={t("sidebar.brands")} className={nav("/app/brands")}
+        >
+          <Briefcase size={20} />
+          <span className={`font-medium ${lbl}`}>{t("sidebar.brands")}</span>
         </Link>
         {/*
         <Link

@@ -8,6 +8,7 @@ import { getInfoToEdit } from "./editor/functions";
 import { getDiscoverPosts } from "./discover/functions";
 import { getChatInfo, getChatDetails, getLibrary } from "./chat/functions";
 import { listProjects, projectWorkspaceLoader } from "./studio/functions";
+import { listBrands } from "./brands/functions";
 import { usersLoader, userDetailLoader, agentTurnsLoader } from "./admin/functions";
 
 // ChatLayout es el shell de /app y se necesita para pintar el sidebar cuanto antes.
@@ -28,6 +29,7 @@ const Discover = lazy(() => import("./discover/discover"));
 const PostDetail = lazy(() => import("./discover/post-detail"));
 const Library = lazy(() => import("./chat/library"));
 const AiLab = lazy(() => import("./chat/ai-lab"));
+const Brands = lazy(() => import("./brands/brands-page"));
 const ProjectsList = lazy(() => import("./studio/projects-list"));
 const ProjectWorkspace = lazy(() => import("./studio/project-workspace"));
 const LandingPage = lazy(() => import("./landing/landing-page"));
@@ -164,6 +166,11 @@ const router = createBrowserRouter([
       {
         path: "developers",
         element: page(<DeveloperConsole />),
+      },
+      {
+        path: "brands",
+        element: page(<Brands />),
+        loader: () => listBrands(),
       },
       {
         path: "projects",

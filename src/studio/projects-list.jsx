@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLoaderData, useNavigate } from "react-router-dom";
 import { Film, Plus, Search, Trash2, Loader2 } from "lucide-react";
 import { useI18n } from "../i18n/i18n-context";
+import BrandSelect from "../brands/brand-select";
 import { createProject, deleteProject, listProjects } from "./functions";
 import { ConfirmDelete, Modal, Mono, StatusDot } from "./components/ui";
 import { BTN_PRIMARY, BTN_SECONDARY, CARD, INPUT } from "./components/tokens";
@@ -79,6 +80,10 @@ function CreateProjectModal({ onClose, onCreated }) {
         <div>
           <Mono>{t("studio.style")}</Mono>
           <textarea rows={2} value={form.style} onChange={set("style")} placeholder={t("studio.style-hint")} className={`${INPUT} mt-1 resize-none`} />
+        </div>
+        <div>
+          <Mono>{t("brands.picker.label")}</Mono>
+          <BrandSelect value={form.brand_id} onChange={(brand_id) => setForm((f) => ({ ...f, brand_id }))} />
         </div>
         <div>
           <Mono>{t("studio.aspect")}</Mono>

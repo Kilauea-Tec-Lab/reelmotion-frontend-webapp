@@ -6,6 +6,7 @@ import ChatView from "../chat/chat-view";
 import ModalPreview from "../components/modal-preview";
 import { useGenerationTracker } from "../chat/use-generation-tracker";
 import { deleteShot, generateShot, getProject, getUserTokens, importShot, reorderShots, updateProject } from "./functions";
+import BrandSelect from "../brands/brand-select";
 import AssetPanel from "./components/asset-panel";
 import ShotTimeline from "./components/shot-timeline";
 import ShotEditorModal from "./components/shot-editor-modal";
@@ -187,6 +188,10 @@ export default function ProjectWorkspace() {
             <div>
               <Mono>{t("studio.style")}</Mono>
               <textarea rows={3} defaultValue={project.style || ""} placeholder={t("studio.style-hint")} onBlur={(e) => e.target.value !== (project.style || "") && saveMeta({ style: e.target.value })} className={`${INPUT} mt-1 resize-none`} />
+            </div>
+            <div>
+              <Mono>{t("brands.picker.label")}</Mono>
+              <BrandSelect value={project.brand_id} onChange={(brand_id) => saveMeta({ brand_id })} />
             </div>
           </div>
         )}

@@ -1,5 +1,6 @@
 import Cookies from "js-cookie";
 import { notifyAppLogout } from "../utils/nativeBridge";
+import { getBrandChoice } from "../brands/selection";
 
 export async function getChatInfo() {
   const token = Cookies.get("token");
@@ -146,6 +147,12 @@ export async function postMessage(
 
     if (chatId) {
       formData.append("chat_id", chatId);
+    }
+
+    // Marca del selector (null = "sin marca" se manda vacío; undefined = no tocar).
+    const brandChoice = getBrandChoice();
+    if (brandChoice !== undefined) {
+      formData.append("brand_id", brandChoice ?? "");
     }
 
     // Si filesData es un objeto con files y URLs

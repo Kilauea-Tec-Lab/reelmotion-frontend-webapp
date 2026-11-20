@@ -3,7 +3,7 @@ import { getChatDetails } from "../chat/functions";
 
 const BASE = import.meta.env.VITE_APP_BACKEND_URL; // termina en /api/
 
-async function api(path, { method = "GET", body, form } = {}) {
+export async function api(path, { method = "GET", body, form } = {}) {
   const headers = { Authorization: "Bearer " + Cookies.get("token") };
   if (body) headers["Content-Type"] = "application/json";
   const res = await fetch(BASE + path, {

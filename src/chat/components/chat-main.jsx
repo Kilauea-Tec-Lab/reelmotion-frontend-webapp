@@ -35,6 +35,7 @@ import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useNavigate, useRevalidator, useSearchParams } from "react-router-dom";
 import Cookies from "js-cookie";
 import { useI18n } from "../../i18n/i18n-context";
+import BrandPicker from "../../brands/brand-picker";
 import { getUserNotifications, deleteNotification } from "../../auth/functions";
 import { getBillingInfo } from "../../billing/functions";
 import { createPusherClient } from "@/pusher";
@@ -2984,6 +2985,7 @@ function ChatMain({
                     </div>
                   )}
                 </div>
+                {!embedded && <BrandPicker chat={selectedChat} />}
                 <textarea
                   ref={messageInputRef}
                   placeholder={t("chat.placeholder")}
@@ -3153,6 +3155,7 @@ function ChatMain({
                         </div>
                       )}
                     </div>
+                    {!embedded && <BrandPicker chat={selectedChat} />}
                     <textarea
                       ref={messageInputRef}
                       placeholder={t("chat.placeholder")}
@@ -3531,6 +3534,7 @@ function ChatMain({
                           </div>
                         )}
                       </div>
+                      {!embedded && <BrandPicker chat={selectedChat} />}
                       <textarea
                         ref={messageInputRef}
                         placeholder={t("chat.placeholder")}
